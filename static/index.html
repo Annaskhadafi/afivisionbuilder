@@ -78,10 +78,10 @@
       </div>
 
       <div class="side-section library">
-        <div class="section-label">NODE LIBRARY</div>
+        <div class="section-label"><span>NODE LIBRARY</span><small id="nodeCount" class="library-count">0 nodes</small></div>
         <label class="search">
           <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input id="nodeSearch" placeholder="Search 37 vision nodes…" aria-label="Search node library">
+          <input id="nodeSearch" placeholder="Search vision nodes…" aria-label="Search node library">
         </label>
         <div id="library" class="library-list"></div>
       </div>
@@ -99,7 +99,7 @@
       <div class="canvas-toolbar">
         <div>
           <strong>Workflow canvas</strong>
-          <span id="canvasHint">Select a node to inspect · drag to arrange · click port to connect</span>
+          <span id="canvasHint">Drag empty space to pan · Space + drag · drag a node to move</span>
         </div>
         <div class="canvas-tools">
           <button class="icon-button" id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">

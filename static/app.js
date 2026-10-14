@@ -104,6 +104,7 @@
     panX: 0,
     panY: 0,
     isPanning: false,
+    spacePan: false,
     panStart: { x: 0, y: 0 },
     catalog: {},
     projects: [],
@@ -322,7 +323,7 @@
     },
     customModelPath: {
       text: 'Path atau nama file model custom (YOLO .pt, ONNX, TFLite).',
-      guide: 'Dapat memilih model yang sudah ada di folder data/models atau klik Upload untuk model terlatih Anda sendiri.'
+      guide: 'Klik Upload di samping kolom Model Path, atau Upload Model di toolbar atas. Model akan disimpan di data/models dan diterapkan ke node yang sedang dipilih.'
     },
     modelPath: {
       text: 'File bobot model AI yang akan dimuat ke memori.',
@@ -876,9 +877,12 @@
     if (!root) return;
     root.replaceChildren();
 
-    const items = Object.entries(state.catalog).filter(([type, bp]) =>
+    const catalogItems = Object.entries(state.catalog);
+    const items = catalogItems.filter(([type, bp]) =>
       `${type} ${bp.title} ${bp.subtitle}`.toLowerCase().includes(q)
     );
+    const count = $('#nodeCount');
+    if (count) count.textContent = q ? `${items.length}/${catalogItems.length} nodes` : `${catalogItems.length} nodes`;
 
     const groups = {};
     items.forEach(([type, bp]) => {
@@ -1356,7 +1360,7 @@
     const fromNode = nodeFor(id);
     state.connecting = {
       from: id,
-      mouseX: (fromNode?.x || 0) + 240,
+      mouseX: (fromNode?.x || 0) + 214,
       mouseY: (fromNode?.y || 0) + 42
     };
     $('#canvasHint').innerHTML = `⚡ <b>Sedang menarik garis dari "${fromNode?.title || id}":</b> Klik kartu node tujuan untuk menghubungkan cabang (atau tekan Esc untuk batal)`;
@@ -1780,6 +1784,7 @@
     const body = $('#inspectorBody');
     if (!body) return;
     body.replaceChildren();
+    if (n?.type !== 'draw_text') _drawTextEditNodeId = null;
 
     if (!n) {
       $('#inspectorTitle').textContent = 'Nothing selected';
@@ -1790,6 +1795,7 @@
         <p>Select a node on the canvas to edit its configuration.</p>
       `;
       body.append(empty);
+      syncDrawTextPreviewEditor();
       return;
     }
 
@@ -1910,6 +1916,37 @@
     }
 
     body.append(section);
+
+    if (n.type === 'draw_text') {
+      const editHelp = document.createElement('p');
+      editHelp.className = 'field-help';
+      editHelp.textContent = 'Contoh variabel: {detection.count}, {detection.class}, {detection.confidence}, {track.id}. Untuk dua teks bersyarat, gunakan kondisi yang sama pada dua node If / Else (contoh Jumlah Objek > 1), lalu atur Pass When menjadi true pada cabang IF dan false pada cabang ELSE.';
+      body.append(editHelp);
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'button secondary draw-text-edit-btn';
+      editBtn.textContent = _drawTextEditNodeId === n.id ? 'Selesai Atur di Preview' : 'Atur Posisi & Ukuran di Preview';
+      editBtn.onclick = () => {
+        if (_drawTextEditNodeId === n.id) {
+          _drawTextEditNodeId = null;
+        } else if (!$('#previewImage')?.naturalWidth) {
+          toast('Jalankan workflow sampai preview menampilkan frame terlebih dahulu.', true);
+          return;
+        } else {
+          _drawTextEditNodeId = n.id;
+          toast('Geser teks untuk mengatur posisi; tarik titik di sudut untuk mengubah ukuran.');
+        }
+        renderInspector();
+      };
+      body.append(editBtn);
+    }
+
+    if (n.type === 'if_else') {
+      const branchHelp = document.createElement('p');
+      branchHelp.className = 'field-help';
+      branchHelp.textContent = 'Untuk pasangan IF / ELSE yang menuju Draw Text berbeda, samakan Metrik, Operator, dan Nilainya pada kedua node. Bedakan hanya Pass When: true untuk IF, false untuk ELSE. Contoh: Jumlah Objek > 1.';
+      body.append(branchHelp);
+    }
 
     if (n.type === 'frame_sampler') {
       const statsCard = document.createElement('div');
@@ -2239,6 +2276,7 @@
     delBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Delete This Node';
     delBtn.onclick = deleteSelectedNode;
     body.append(delBtn);
+    syncDrawTextPreviewEditor();
   }
 
   // Determine conditional visibility for clean forms
@@ -2444,6 +2482,8 @@
     count: { min: 0, max: 10000, step: 1 }
   };
 
+  let _drawTextEditNodeId = null;
+
   function createSmartConfigField(node, key, value) {
     const wrap = document.createElement('div');
     wrap.className = 'field';
@@ -2558,6 +2598,23 @@
       label.append(tooltipIcon);
     }
     wrap.append(label);
+
+    if (node.type === 'draw_text' && key === 'textTemplate') {
+      const input = document.createElement('textarea');
+      input.value = value ?? '';
+      input.rows = 3;
+      input.placeholder = 'Contoh: Jumlah orang: {detection.count}';
+      input.oninput = () => {
+        node.config[key] = input.value;
+        markDirty();
+      };
+      wrap.append(input);
+      const hint = document.createElement('small');
+      hint.className = 'field-help';
+      hint.textContent = 'Variabel tersedia: {detection.count}, {detection.class}, {detection.confidence}, {track.id}, {image.width}, {image.height}.';
+      wrap.append(hint);
+      return wrap;
+    }
 
     if (key === 'targetFps') {
       const input = document.createElement('input');
@@ -3048,6 +3105,13 @@
       row.append(input, modelBtn);
       wrap.append(row);
 
+      if (['detector', 'segmenter'].includes(node.type) && ['customModelPath', 'modelPath', 'rfdetrCheckpoint', 'rfdetrOnnxModel', 'rfdetrTensorRTEngine', 'samCheckpoint'].includes(key)) {
+        const uploadHelp = document.createElement('small');
+        uploadHelp.className = 'model-upload-help';
+        uploadHelp.textContent = 'Unggah model custom lewat tombol Upload di samping kolom ini atau Upload Model di toolbar atas. File masuk ke data/models dan diterapkan ke node ini. Untuk segmentasi, gunakan bobot model segmentasi yang sesuai dengan engine (.pt atau .onnx).';
+        wrap.append(uploadHelp);
+      }
+
       if (state.models.length > 0) {
         const picker = document.createElement('select');
         picker.style.marginTop = '4px';
@@ -3363,6 +3427,7 @@
       drawBtn.onclick = () => startRoiDrawing(node);
       wrap.append(drawBtn);
     }
+    return wrap;
   }
 
   function appendHelp(wrap, key) {
@@ -4594,10 +4659,10 @@
     "concept": "Node untuk menggambar teks statis atau teks dinamis dari variabel pipeline (seperti nama kelas, skor akurasi, waktu, dan hitungan counter) langsung ke frame gambar.",
     "diagram": "[ Tracking / Logic ] ──▶ [ Draw Text ] ──▶ [ Live Preview ]",
     "steps": [
-      "Tulis format teks pada kolom textTemplate (misal: 'Produk: {detection.class} | Nilai: {detection.confidence}').",
-      "Tentukan koordinat letak teks X dan Y dalam piksel.",
-      "Atur ukuran font (fontScale), ketebalan garis (thickness), dan warna teks.",
-      "Aktifkan Background jika ingin teks memiliki kotak latar belakang gelap agar mudah dibaca di atas gambar terang."
+      "Tulis isi teks pada Template Teks. Variabel yang bisa dipakai antara lain {detection.count}, {detection.class}, {detection.confidence}, dan {track.id}.",
+      "Klik Atur Posisi & Ukuran di Preview, lalu geser teks untuk memindahkan dan tarik titik sudut untuk mengubah ukurannya.",
+      "Untuk pasangan IF / ELSE, samakan Metrik, Operator, dan Nilai pada kedua node; bedakan Pass When (true dan false), lalu hubungkan ke Draw Text berbeda.",
+      "Untuk beberapa batas jumlah objek, sambungkan If / Else berikutnya dari cabang ELSE dan atur teks pada tiap cabang."
     ],
     "params": [
       {
@@ -4631,7 +4696,7 @@
         "desc": "Menambahkan kotak latar belakang di belakang teks agar terbaca jelas."
       }
     ],
-    "tips": "Anda bisa menggunakan variabel counter seperti '{line_counter.in}' atau '{object_counter.count}' langsung pada teks."
+    "tips": "Gunakan {detection.count} untuk jumlah objek pada frame. Kondisi If / Else memilih Draw Text yang dijalankan, dan tiap cabang dapat memiliki isi teks sendiri."
   },
   "draw_boxes": {
     "concept": "Node penggambaran kotak pembatas (bounding box) deteksi dan label variabel pada frame gambar dengan kustomisasi warna dan gaya garis.",
@@ -5543,6 +5608,86 @@
   let _previewLoopTimer = null;
   let _currentActiveTarget = '';
 
+  function syncDrawTextPreviewEditor() {
+    const container = $('#previewContainer');
+    const img = $('#previewImage');
+    let editor = $('#drawTextPreviewEditor');
+    const node = nodeFor(_drawTextEditNodeId);
+    if (!container || !img || !node || node.type !== 'draw_text' || !img.naturalWidth || img.hidden) {
+      editor?.remove();
+      return;
+    }
+    if (!editor) {
+      editor = document.createElement('div');
+      editor.id = 'drawTextPreviewEditor';
+      editor.className = 'draw-text-preview-editor';
+      container.append(editor);
+    }
+    const frame = container.getBoundingClientRect();
+    const image = img.getBoundingClientRect();
+    const fit = Math.min(image.width / img.naturalWidth, image.height / img.naturalHeight);
+    const width = img.naturalWidth * fit;
+    const height = img.naturalHeight * fit;
+    const left = image.left - frame.left + (image.width - width) / 2;
+    const top = image.top - frame.top + (image.height - height) / 2;
+    const scale = Math.max(0.2, Number(node.config.fontScale) || 1);
+    const fontSize = Math.max(8, 20 * scale * fit);
+    editor.style.left = `${left}px`;
+    editor.style.top = `${top}px`;
+    editor.style.width = `${width}px`;
+    editor.style.height = `${height}px`;
+    editor.replaceChildren();
+
+    const label = document.createElement('div');
+    label.className = 'draw-text-preview-label';
+    label.textContent = String(node.config.textTemplate || 'Text');
+    label.style.left = `${Math.max(0, Number(node.config.x) || 0) * fit}px`;
+    label.style.top = `${Math.max(0, Number(node.config.y) || 0) * fit - fontSize}px`;
+    label.style.fontSize = `${fontSize}px`;
+    label.style.color = node.config.color || '#ffffff';
+    label.style.background = node.config.background === false ? 'transparent' : (node.config.backgroundColor || '#111827');
+    label.style.cursor = 'move';
+    label.title = 'Geser untuk mengatur posisi';
+
+    const resize = document.createElement('span');
+    resize.className = 'draw-text-preview-resize';
+    resize.title = 'Tarik untuk mengatur ukuran';
+    label.append(resize);
+    editor.append(label);
+
+    const startDrag = (event, resizing) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const baseX = Number(node.config.x) || 0;
+      const baseY = Number(node.config.y) || 0;
+      const baseScale = Number(node.config.fontScale) || 1;
+      const onMove = (moveEvent) => {
+        if (resizing) {
+          node.config.fontScale = Math.min(4, Math.max(0.2, baseScale + (moveEvent.clientY - startY) / Math.max(1, 20 * fit)));
+        } else {
+          node.config.x = Math.round(Math.max(0, Math.min(img.naturalWidth, baseX + (moveEvent.clientX - startX) / fit)));
+          node.config.y = Math.round(Math.max(1, Math.min(img.naturalHeight, baseY + (moveEvent.clientY - startY) / fit)));
+        }
+        markDirty();
+        syncDrawTextPreviewEditor();
+      };
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        renderInspector();
+        liveUpdateWorkflow();
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp, { once: true });
+    };
+    label.onpointerdown = (event) => {
+      if (event.target !== resize) startDrag(event, false);
+    };
+    resize.onpointerdown = (event) => startDrag(event, true);
+  }
+
   function scheduleNextPreview(targetId) {
     if (_previewLoopTimer) clearTimeout(_previewLoopTimer);
     _previewLoopTimer = setTimeout(() => {
@@ -5583,6 +5728,7 @@
       img.src = preloader.src;
       img.hidden = false;
       if (emptyEl) emptyEl.hidden = true;
+      syncDrawTextPreviewEditor();
 
       if (modalImg && $('#previewModal')?.open) {
         modalImg.src = preloader.src;
@@ -6079,51 +6225,85 @@
     const canvas = $('#canvas');
     if (!canvas) return;
 
+    const canvasPoint = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left - canvas.clientLeft + canvas.scrollLeft) / state.zoom - state.panX,
+        y: (e.clientY - rect.top - canvas.clientTop + canvas.scrollTop) / state.zoom - state.panY,
+      };
+    };
+
+    const startPan = (e) => {
+      state.isPanning = true;
+      state.panStart = { x: e.clientX, y: e.clientY, panX: state.panX, panY: state.panY };
+      canvas.classList.add('is-panning');
+      canvas.setPointerCapture(e.pointerId);
+    };
+
+    // Space+drag and middle-button drag work anywhere, including over nodes.
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.button !== 1 && !(e.button === 0 && state.spacePan)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      startPan(e);
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code !== 'Space' || e.repeat || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName)) return;
+      if (!canvas.matches(':hover') && document.activeElement !== canvas) return;
+      e.preventDefault();
+      state.spacePan = true;
+      canvas.classList.add('is-pan-ready');
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.code !== 'Space') return;
+      state.spacePan = false;
+      canvas.classList.remove('is-pan-ready');
+    });
+    window.addEventListener('blur', () => {
+      state.spacePan = false;
+      state.isPanning = false;
+      canvas.classList.remove('is-pan-ready', 'is-panning');
+    });
+
     canvas.onpointerdown = (e) => {
-      // If user clicks on canvas background while connecting, cancel connecting
-      if (state.connecting && (e.target.id === 'canvas' || e.target.id === 'edges' || e.target.tagName === 'svg')) {
+      // The nodes layer covers the canvas, so detect empty space by excluding interactive items.
+      const onEmptyCanvas = !e.target.closest('.node-card, .port, .edge-hit-area, button, input, select, textarea');
+      if (!onEmptyCanvas) return;
+      if (state.connecting) {
         state.connecting = null;
         $('#canvasHint').textContent = 'Penyambungan garis dibatalkan';
         renderCanvas();
         return;
       }
-      if (e.target.id === 'canvas' || e.target.id === 'edges' || e.target.tagName === 'svg') {
-        state.selectedEdge = null;
-        state.isPanning = true;
-        state.panStart = { x: e.clientX - state.panX, y: e.clientY - state.panY };
-        canvas.setPointerCapture(e.pointerId);
-      }
+      state.selectedEdge = null;
+      startPan(e);
     };
 
     canvas.onpointermove = (e) => {
       if (state.connecting) {
-        const rect = canvas.getBoundingClientRect();
-        const cx = e.clientX - rect.left;
-        const cy = e.clientY - rect.top;
-        state.connecting.mouseX = (cx / state.zoom) - state.panX;
-        state.connecting.mouseY = (cy / state.zoom) - state.panY;
+        const point = canvasPoint(e);
+        state.connecting.mouseX = point.x;
+        state.connecting.mouseY = point.y;
         drawEdges();
       }
       if (!state.isPanning) return;
-      state.panX = e.clientX - state.panStart.x;
-      state.panY = e.clientY - state.panStart.y;
+      state.panX = state.panStart.panX + (e.clientX - state.panStart.x) / state.zoom;
+      state.panY = state.panStart.panY + (e.clientY - state.panStart.y) / state.zoom;
       renderCanvas();
     };
 
     canvas.onpointerup = () => {
       state.isPanning = false;
+      canvas.classList.remove('is-panning');
     };
 
     // Also track pointermove globally when connecting wire is active
     document.addEventListener('pointermove', (e) => {
       if (state.connecting) {
-        const canvas = $('#canvas');
-        if (!canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const cx = e.clientX - rect.left;
-        const cy = e.clientY - rect.top;
-        state.connecting.mouseX = (cx / state.zoom) - state.panX;
-        state.connecting.mouseY = (cy / state.zoom) - state.panY;
+        const point = canvasPoint(e);
+        state.connecting.mouseX = point.x;
+        state.connecting.mouseY = point.y;
         drawEdges();
       }
     });

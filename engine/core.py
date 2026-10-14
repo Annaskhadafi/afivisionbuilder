@@ -2907,6 +2907,7 @@ class WorkflowRunner:
                 processed_queue.close()
 
             def detection_stage() -> None:
+                processing_runtime: dict = {"__python_scripts": self._python_context}
                 workflow = base_workflow
                 inference_nodes = engine.active_inference_nodes(base_workflow)
                 frame_inference_plan = _frame_inference_plan(base_workflow, engine.active_frame_inference_nodes(base_workflow))
@@ -3479,6 +3480,7 @@ class WorkflowRunner:
                             preview_id,
                             preview_detections,
                             preview_processing_runtime,
+                            script_frames=packet.script_frames,
                         )
                         incident_detections.extend(preview_detections)
                         # Database frame metadata still describes this preview's
@@ -3931,6 +3933,7 @@ class WorkflowRunner:
                 if thread.is_alive():
                     thread.join(timeout=2)
             _close_detector_processes(detector_processes)
+            self._close_python_scripts(self._python_context)
             for preview_id, video_output in video_outputs.items():
                 video_output.release()
                 if video_output.opened and video_output.path is not None:
@@ -4738,6 +4741,7 @@ class WorkflowRunner:
             self._emit_log(f"ERROR: {error}")
         finally:
             _close_detector_processes(detector_processes)
+            self._close_python_scripts(self._python_context)
             for preview_id, video_output in video_outputs.items():
                 video_output.release()
                 if video_output.opened and video_output.path is not None:

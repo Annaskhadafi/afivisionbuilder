@@ -2911,6 +2911,12 @@ def active_logic_nodes_for_target(workflow: dict, target_id: str) -> list[dict]:
     return [lookup[node_id] for node_id in ordered_ids]
 
 
+def _object_detection_count(detections: list[dict]) -> int:
+    real_objects = [item for item in detections if item.get("kind") not in ("line_crossing", "count_event", "loitering_alert")]
+    boxed = [item for item in real_objects if _detection_box_xywh(item) is not None]
+    return len(_overlay_objects(boxed)) + len(real_objects) - len(boxed)
+
+
 def _logic_signal(node: dict, detections: list[dict], runtime: dict, now: float) -> bool:
     """Evaluate one Logic node against its current detection signal."""
     config = node.get("config", {})
@@ -2927,8 +2933,7 @@ def _logic_signal(node: dict, detections: list[dict], runtime: dict, now: float)
         actual = 0.0
 
         if metric in ("object_count", "count"):
-            real_objects = [d for d in detections if d.get("kind") not in ("line_crossing", "count_event", "loitering_alert")]
-            actual = len(real_objects)
+            actual = _object_detection_count(detections)
         elif metric in ("max_confidence", "confidence"):
             actual = maximum
         elif metric == "anomaly_score":
@@ -2992,7 +2997,7 @@ def _logic_signal(node: dict, detections: list[dict], runtime: dict, now: float)
         state["pass_when"] = pass_when
         state["last_eval_time"] = now
     elif node_type == "object_count_condition":
-        signal = _compare_logic_value(count, config.get("operator", "gte"), float(config.get("count", 1)))
+        signal = _compare_logic_value(_object_detection_count(detections), config.get("operator", "gte"), float(config.get("count", 1)))
     elif node_type == "class_detected_condition":
         wanted = {item.strip().casefold() for item in str(config.get("classes", "")).replace("\n", ",").split(",") if item.strip()}
         detected = {str(item.get("class", "")).casefold() for item in detections}
@@ -3029,6 +3034,7 @@ def _logic_signal(node: dict, detections: list[dict], runtime: dict, now: float)
             signal = False
         else:
             state["triggered"] = True
+    state["last_signal"] = signal
     return signal
 
 
@@ -5430,7 +5436,7 @@ def drawing_template_values(frame, detections: list[dict], current: dict | None 
         item for item in detections
         if item.get("kind") in ("classification", "object_classification")
     ]
-    boxes = [item for item in detections if _detection_box_xywh(item) is not None]
+    boxes = _overlay_objects(detections)
     best_classification = max(
         classifications, key=lambda item: float(item.get("score", 0.0) or 0.0),
         default=None,
@@ -5745,13 +5751,14 @@ def _apply_overlay_node(output, node: dict, detections: list[dict]) -> None:
                 output[:] = np.where(mask_3ch > 0.05, blended, output)
 
 
-def apply_drawing_nodes(frame, workflow: dict, target_id: str, detections: list[dict], *, copy_frame: bool = True):
+def apply_drawing_nodes(frame, workflow: dict, target_id: str, detections: list[dict], runtime: dict | None = None, *, copy_frame: bool = True):
     """Apply OpenCV-style drawing nodes connected before the target."""
     import cv2
 
     nodes = active_drawing_nodes_for_target(workflow, target_id)
     if not nodes:
         return frame
+    runtime = runtime if runtime is not None else {}
     output = frame.copy() if copy_frame else frame
     for node in nodes:
         config = node.get("config", {})
@@ -5764,6 +5771,15 @@ def apply_drawing_nodes(frame, workflow: dict, target_id: str, detections: list[
                 node_id,
             )
         ]
+        gates = active_logic_nodes_for_target(workflow, node_id)
+        if gates:
+            node_detections = apply_logic_nodes(workflow, node_id, node_detections, runtime)
+        if any(
+            gate.get("type") != "roi_filter"
+            and not runtime.get(str(gate.get("id") or gate.get("type") or "logic"), {}).get("last_signal", False)
+            for gate in gates
+        ):
+            continue
         if node.get("type") == "overlay_annotate":
             _apply_overlay_node(output, node, node_detections)
         elif node.get("type") == "draw_text":
@@ -6440,7 +6456,7 @@ class WorkflowRunner:
                             ),
                         )
                     display_frame = apply_drawing_nodes(
-                        display_frame, workflow, "preview", drawing_detections,
+                        display_frame, workflow, "preview", drawing_detections, logic_runtime,
                     )
                     if video_output is not None:
                         video_output.write(display_frame)

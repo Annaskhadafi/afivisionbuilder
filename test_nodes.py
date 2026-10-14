@@ -212,6 +212,32 @@ def test_if_else_branching():
     # ELSE branch should fail
     assert nodes._logic_signal(else_node, dets_2, runtime, now=1.1) is False
 
+    # A detector result and its downstream classification on the same box are one object.
+    same_object = [
+        {"kind": "detection", "class": "person", "score": 0.9, "bbox": [2, 2, 5, 5]},
+        {"kind": "classification", "class": "person", "score": 0.95, "bbox": [2, 2, 5, 5]},
+    ]
+    assert nodes._logic_signal(if_node, same_object, runtime, now=1.2) is False
+    assert nodes.format_drawing_template("{detection.count}", np.zeros((10, 10, 3), np.uint8), same_object) == "1"
+
+    frame = np.zeros((64, 96, 3), np.uint8)
+    gate_if = {"id": "gate_if", "type": "if_else", "enabled": True, "config": {"metric": "object_count", "operator": "gte", "value": 2, "passWhen": "true"}}
+    gate_else = {"id": "gate_else", "type": "if_else", "enabled": True, "config": {"metric": "object_count", "operator": "gte", "value": 2, "passWhen": "false"}}
+    text_if = {"id": "text_if", "type": "draw_text", "enabled": True, "config": {"textTemplate": "TWO OR MORE", "x": 4, "y": 24, "backgroundColor": "#ff0000"}}
+    text_else = {"id": "text_else", "type": "draw_text", "enabled": True, "config": {"textTemplate": "LESS THAN TWO", "x": 4, "y": 24, "backgroundColor": "#0000ff"}}
+    branches = {
+        "nodes": [{"id": "input", "type": "input", "enabled": True}, {"id": "detector", "type": "detector", "enabled": True}, gate_if, gate_else, text_if, text_else, {"id": "preview", "type": "preview", "enabled": True}],
+        "edges": [["input", "detector"], ["detector", "gate_if"], ["detector", "gate_else"], ["gate_if", "text_if"], ["gate_else", "text_else"], ["text_if", "preview"], ["text_else", "preview"]],
+    }
+    two_objects = [
+        {"kind": "detection", "class": "person", "score": 0.9, "bbox": [5, 5, 10, 10]},
+        {"kind": "detection", "class": "person", "score": 0.8, "bbox": [30, 5, 10, 10]},
+    ]
+    actual = nodes.apply_drawing_nodes(frame, branches, "preview", two_objects, {})
+    if_branch = {"nodes": [*branches["nodes"][:3], text_if, branches["nodes"][-1]], "edges": [["input", "detector"], ["detector", "gate_if"], ["gate_if", "text_if"], ["text_if", "preview"]]}
+    expected = nodes.apply_drawing_nodes(frame, if_branch, "preview", two_objects, {})
+    assert np.array_equal(actual, expected), "Only the passing IF branch should draw text"
+
     # Test line_counter_in metric with event_runtime
     runtime["_event_runtime"] = {"line1": {"total_in": 5, "total_out": 2}}
     line_metric_node = {"id": "gate_line", "type": "if_else", "config": {"metric": "line_counter_in", "operator": "gte", "value": 5, "passWhen": "true"}}

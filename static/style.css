@@ -765,6 +765,11 @@
   display: none !important;
 }
 
+.draw-text-edit-btn { width: 100%; margin: 0 0 12px; }
+.draw-text-preview-editor { position: absolute; z-index: 3; pointer-events: none; }
+.draw-text-preview-label { position: absolute; max-width: 95%; padding: 2px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: Arial, sans-serif; font-weight: 600; line-height: 1.2; user-select: none; pointer-events: auto; touch-action: none; box-shadow: 0 0 0 1px #38bdf8; }
+.draw-text-preview-resize { position: absolute; right: -6px; bottom: -6px; width: 12px; height: 12px; border: 2px solid #fff; border-radius: 50%; background: #0ea5e9; cursor: nwse-resize; touch-action: none; }
+
 #previewEmpty {
   display: flex;
   flex-direction: column;
@@ -1261,3 +1266,5 @@
 
 
 
+.library-count{color:#708281;font-size:10px;font-weight:600;letter-spacing:0;white-space:nowrap}.canvas{cursor:grab}.canvas.is-pan-ready{cursor:grab}.canvas.is-panning{cursor:grabbing}.canvas.is-panning .node-card{pointer-events:none}
+.model-upload-help{display:block;margin-top:7px;color:#647b74;font-size:10px;line-height:1.5;background:#f5f8f2;border-left:3px solid #9acb53;border-radius:4px;padding:7px 9px}

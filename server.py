@@ -405,7 +405,7 @@ async def upload_model(request: Request, file: UploadFile = File(...)) -> dict:
 
 
 def _templates() -> list[dict]:
-    return [
+    templates = [
         {
             "id": "preprocessing",
             "name": "Image Preprocessing",
@@ -506,6 +506,89 @@ def _templates() -> list[dict]:
             },
         },
     ]
+
+    # Each smoke-test workflow uses the bundled YOLOv8n checkpoint. Secondary
+    # specialized models are included only where a node requires that format.
+    yolo_detector = {
+        "engine": "ultralytics_yolo",
+        "modelPath": "yolov8n.pt",
+        "customModelPath": "yolov8n.pt",
+        "threshold": 0.25,
+        "device": "auto",
+    }
+    yolo_tests = [
+        ("01-detection", "Deteksi & Overlay", "YOLOv8: bounding box, label, dan preview.", ["overlay_annotate"]),
+        ("02-filter-count", "Filter Kelas & Hitung", "YOLOv8: filter person, occupancy counter, teks hitungan.", ["filter", "object_counter", "draw_text"]),
+        ("03-tracking-line", "Tracking & Garis IN/OUT", "YOLOv8: tracker, snapshot per track, line counter.", ["tracker", "track_snapshot", "line_counter"]),
+        ("04-dwell-privacy", "Durasi & Privasi", "YOLOv8: dwell time, blur privasi, gambar kotak.", ["tracker", "dwell_time", "blur_anonymizer", "draw_boxes"]),
+        ("05-segmentation", "Segmentasi YOLOv8", "YOLOv8n-seg: segmentasi objek dan overlay.", ["segmenter", "overlay_annotate"]),
+        ("06-crop-classify", "Crop & Klasifikasi", "YOLOv8: crop deteksi lalu klasifikasi YOLOv8n-cls dan simpan ke database.", ["detection_crop", "classifier", "database_output"]),
+        ("07-if-else", "Cabang If / Else & Alert", "YOLOv8: dua jalur komplementer berdasarkan jumlah objek.", ["if_else", "alert"]),
+        ("08-roi", "Zona ROI", "YOLOv8: filter deteksi berdasarkan area ROI.", ["roi_filter", "draw_boxes"]),
+        ("09-conditions", "Kondisi Kelas & Logika", "YOLOv8: class condition, compare, object count, confidence, AND/OR.", ["class_detected_condition", "object_count_condition", "compare_value", "confidence_threshold", "and_or_logic"]),
+        ("10-transform", "Transformasi Frame", "YOLOv8 dengan pengujian resize, crop, dan rotasi frame.", ["resize", "crop", "rotate_flip"]),
+        ("11-enhance", "Warna & Peningkatan Gambar", "YOLOv8 dengan pengujian konversi warna, brightness/contrast, blur/sharpen.", ["color_convert", "brightness_contrast", "blur_sharpen"]),
+        ("12-calibration", "Koreksi Perspektif & Lensa", "YOLOv8 dengan pengujian koreksi perspektif dan undistort.", ["perspective", "undistort"]),
+        ("13-motion", "Motion + YOLOv8", "Background subtraction dan deteksi YOLOv8.", ["background_subtract"]),
+        ("14-sampling-slicer", "Sampling & Small Object Slicer", "Batasi FPS lalu deteksi objek kecil dengan slicer YOLOv8.", ["frame_sampler", "slicer"]),
+        ("15-barcode", "QR / Barcode", "Baca barcode atau QR, lalu preview dan catat alert.", ["barcode_reader", "alert"]),
+        ("16-event-controls", "Timer & Kontrol Event", "Uji confidence threshold, timer, debounce, rate limiter, trigger once.", ["confidence_threshold", "timer_delay", "debounce", "rate_limiter", "trigger_once", "alert"]),
+        ("17-python-script", "Custom Python Script", "YOLOv8 dengan script default pass-through dan Draw Text.", ["python_script", "draw_text"]),
+        ("18-output", "Penyimpanan & Webhook", "YOLOv8: simpan gambar, hasil ke SQLite, dan HTTP webhook.", ["image_output", "database_output", "webhook_output"]),
+        ("19-ip-camera", "IP Camera + YOLOv8", "Streaming CCTV lalu deteksi; isi alamat dan kredensial kamera Anda.", ["ip_camera"]),
+        ("20-inspection", "Inspeksi Visual + YOLOv8", "Uji node anomali bersama YOLOv8; Visual Inspection memerlukan model EfficientAD.", ["efficientad", "draw_boxes"]),
+    ]
+    for index, (template_id, name, description, steps) in enumerate(yolo_tests):
+        source = "ip_camera" if "ip_camera" in steps else "input"
+        nodes = [store.make_node(source, id=source, x=60, y=180)]
+        inference = yolo_detector.copy()
+        if "segmenter" in steps:
+            segmenter = inference | {"customModelPath": "yolov8n-seg.pt", "modelPath": "yolov8n-seg.pt"}
+            nodes.append(store.make_node("segmenter", id="segmenter", x=300, y=180, config=segmenter))
+            chain = [source, "segmenter"]
+        else:
+            nodes.append(store.make_node("detector", id="detector", x=300, y=180, config=inference))
+            chain = [source, "detector"]
+        if template_id == "07-if-else":
+            yes = store.make_node("if_else", id="if_two_or_more", x=560, y=80, config={"metric": "object_count", "operator": "gte", "value": 2, "passWhen": "true"})
+            no = store.make_node("if_else", id="else_under_two", x=560, y=280, config={"metric": "object_count", "operator": "gte", "value": 2, "passWhen": "false"})
+            yes_text = store.make_node("draw_text", id="text_two_or_more", x=820, y=80, config={"textTemplate": "Objek >= 2: {detection.count}"})
+            no_text = store.make_node("draw_text", id="text_under_two", x=820, y=280, config={"textTemplate": "Objek < 2: {detection.count}"})
+            nodes.extend([yes, no, yes_text, no_text, store.make_node("preview", id="preview", x=1080, y=180)])
+            templates.append({
+                "id": f"yolov8-test-{template_id}",
+                "name": f"YOLOv8 Test {index + 1:02d} — {name}",
+                "description": description,
+                "workflow": {
+                    "nodes": nodes,
+                    "edges": [[source, "detector"], ["detector", yes["id"]], ["detector", no["id"]], [yes["id"], yes_text["id"]], [no["id"], no_text["id"]], [yes_text["id"], "preview"], [no_text["id"], "preview"]],
+                },
+            })
+            continue
+        for step_index, node_type in enumerate(steps):
+            if node_type in ("segmenter", "detector"):
+                continue
+            config = {}
+            if node_type == "classifier":
+                config = {"engine": "ultralytics_yolo", "modelPath": "yolov8n-cls.pt", "customModelPath": "yolov8n-cls.pt", "device": "auto"}
+            elif node_type == "if_else":
+                config = {"metric": "object_count", "operator": "gte", "value": 1, "passWhen": "true"}
+            elif node_type == "efficientad":
+                config = {"efficientadModel": "", "useModelThreshold": False}
+            node_id = f"{node_type}-{step_index + 1}"
+            x = 300 + (len(chain) - 1) * 230
+            nodes.append(store.make_node(node_type, id=node_id, x=x, y=180, config=config))
+            chain.append(node_id)
+        preview_id = "preview"
+        nodes.append(store.make_node("preview", id=preview_id, x=300 + len(chain) * 230, y=180))
+        chain.append(preview_id)
+        templates.append({
+            "id": f"yolov8-test-{template_id}",
+            "name": f"YOLOv8 Test {index + 1:02d} — {name}",
+            "description": description,
+            "workflow": {"nodes": nodes, "edges": [[a, b] for a, b in zip(chain, chain[1:])]},
+        })
+    return templates
 
 
 @app.get("/api/templates")
