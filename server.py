@@ -63,8 +63,9 @@ _MODEL_ENGINES = (
     {"id": "sam3", "label": "SAM 3", "nodeTypes": ["segmenter"], "configKey": "samCheckpoint", "extensions": [".pt", ".pth", ".ckpt"], "requirement": "SAM 3 runtime and a checkpoint, or the managed/default checkpoint."},
     {"id": "convnext", "label": "ConvNeXt", "nodeTypes": ["classifier"], "configKey": "convnextCheckpoint", "extensions": [".pt", ".pth", ".ckpt"], "requirement": "PyTorch; blank checkpoint uses the selected pretrained model."},
     {"id": "efficientad", "label": "EfficientAD", "nodeTypes": ["efficientad"], "configKey": "efficientadModel", "extensions": [".pt"], "requirement": "PyTorch and a trained EfficientAD deployment export."},
-    {"id": "ultralytics_yolo", "label": "Ultralytics YOLO (best.pt)", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "rfdetrCheckpoint", "extensions": [".pt", ".pth"], "requirement": "Ultralytics YOLOv8/v9/v10/v11/v5 PyTorch checkpoint."},
-    {"id": "onnx_custom", "label": "Custom ONNX Runtime", "nodeTypes": ["detector", "classifier"], "configKey": "rfdetrOnnxModel", "extensions": [".onnx"], "requirement": "ONNX Runtime model file."},
+    {"id": "ultralytics_yolo", "label": "Ultralytics YOLO (best.pt)", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "modelPath", "extensions": [".pt", ".pth"], "requirement": "Ultralytics YOLO PyTorch checkpoint."},
+    {"id": "onnx_custom", "label": "Custom ONNX Runtime", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "modelPath", "extensions": [".onnx"], "requirement": "ONNX Runtime model file; segmentation requires a YOLO export."},
+    {"id": "custom_auto", "label": "Custom model (auto)", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "modelPath", "extensions": [".pt", ".pth", ".onnx", ".tflite", ".keras", ".h5"], "requirement": "Runtime for the selected model format."},
     {"id": "tflite", "label": "TensorFlow Lite", "nodeTypes": ["detector", "classifier"], "configKey": "rfdetrCheckpoint", "extensions": [".tflite"], "requirement": "TensorFlow Lite model file."},
     {"id": "tensorflow_keras", "label": "TensorFlow / Keras", "nodeTypes": ["classifier", "detector"], "configKey": "rfdetrCheckpoint", "extensions": [".keras", ".h5"], "requirement": "TensorFlow/Keras model file."},
 )
@@ -287,19 +288,30 @@ def inspect_model(path: str) -> dict:
         import custom_model_runtime
     except ImportError:
         from engine import custom_model_runtime
-    target = Path(path).resolve()
+    target = custom_model_runtime.resolve_model_file(path.strip().strip('"'))
     if not target.is_file():
-        alt = (_models / path).resolve()
-        if alt.is_file():
-            target = alt
-        else:
-            raise HTTPException(404, f"Model file not found: {path}")
+        raise HTTPException(404, f"Model file not found: {path}")
     engine = custom_model_runtime.detect_model_engine(str(target))
-    classes = custom_model_runtime.extract_model_labels(str(target))
+    task = None
+    if target.suffix.lower() in (".pt", ".pth", ".onnx"):
+        try:
+            handle = custom_model_runtime.CustomModelRunner.get_or_load(
+                {"engine": engine, "modelPath": str(target)}, device="cpu",
+            )
+            classes = handle.classes
+            task = getattr(handle.raw_model, "task", None)
+            if engine == "onnx_custom":
+                task = handle.raw_model.get_modelmeta().custom_metadata_map.get("task")
+        except Exception as exc:
+            raise HTTPException(400, f"Cannot load model '{target.name}': {exc}") from exc
+    else:
+        classes = custom_model_runtime.extract_model_labels(str(target))
     return {
         "path": str(target),
         "name": target.name,
         "engine": engine,
+        "format": target.suffix.lower().lstrip("."),
+        "task": task,
         "classes": classes,
         "classesCount": len(classes),
         "sizeBytes": target.stat().st_size
@@ -464,6 +476,7 @@ def templates() -> dict:
 
 
 def _preflight_models(workflow: dict) -> None:
+    from custom_model_runtime import custom_model_path, resolve_model_file
     allowed = {engine["id"]: engine for engine in _MODEL_ENGINES}
     for node in workflow["nodes"]:
         if node.get("type") not in core.engine.INFERENCE_NODE_IDS or not node.get("enabled", True):
@@ -488,7 +501,8 @@ def _preflight_models(workflow: dict) -> None:
                     value = -1
                 if not math.isfinite(value) or value < minimum or (value != int(value) and key != "maxDetectionFps"):
                     raise HTTPException(400, f"node '{node['id']}' {key} must be at least {minimum}")
-        raw = str(config.get(spec["configKey"]) or config.get("modelPath") or config.get("customModelPath") or "").strip().strip('"')
+        is_custom = engine_id in ("ultralytics_yolo", "onnx_custom", "custom_auto", "tflite", "tensorflow_keras")
+        raw = custom_model_path(config) if is_custom else str(config.get(spec["configKey"]) or config.get("modelPath") or config.get("customModelPath") or "").strip().strip('"')
         if not raw and engine_id in ("rfdetr", "convnext"):
             continue
         if not raw and engine_id == "sam3":
@@ -498,7 +512,7 @@ def _preflight_models(workflow: dict) -> None:
             raw = "yolov8n.pt"
         if not raw:
             raise HTTPException(400, f"node '{node['id']}' requires a model file in 'customModelPath' for engine '{engine_id}'")
-        path = Path(raw).expanduser()
+        path = resolve_model_file(raw) if is_custom else Path(raw).expanduser()
         if not path.is_absolute():
             if (_models / raw).is_file():
                 path = (_models / raw).resolve()
@@ -514,8 +528,6 @@ def _preflight_models(workflow: dict) -> None:
         if suffix not in spec["extensions"]:
             raise HTTPException(400, f"node '{node['id']}' {spec['configKey']} must use {', '.join(spec['extensions'])}")
         if not path.is_file():
-            if engine_id == "ultralytics_yolo" and (raw.endswith(".pt") or raw.startswith("yolo") or raw.startswith("rtdetr")):
-                continue
             raise HTTPException(400, f"node '{node['id']}' model file was not found: {path}")
 
 

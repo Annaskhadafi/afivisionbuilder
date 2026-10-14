@@ -1781,6 +1781,7 @@
       if (!n.config) n.config = {};
       const eng = n.config.engine || (n.type === 'classifier' ? 'convnext' : 'rfdetr');
       if (['ultralytics_yolo', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(eng)) {
+        if (n.config.modelPath === undefined) n.config.modelPath = n.config.customModelPath || (eng === 'onnx_custom' ? n.config.rfdetrOnnxModel : n.config.rfdetrCheckpoint) || n.config.convnextCheckpoint || '';
         if (n.config.customModelPath === undefined) n.config.customModelPath = '';
         if (n.config.customClasses === undefined) n.config.customClasses = '';
       }
@@ -2186,7 +2187,7 @@
         return !['rfdetrModel', 'rfdetrCheckpoint', 'rfdetrHalfPrecision', 'rfdetrOnnxModel', 'rfdetrOnnxClasses', 'rfdetrTensorRTEngine', 'rfdetrTensorRTClasses', 'rfdetrTensorRTCudaGraph', 'rfdetrTensorRTProcess', 'customModelPath', 'modelPath', 'customClasses', 'samCheckpoint', 'concepts'].includes(key);
       }
       if (['ultralytics_yolo', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(eng)) {
-        return !['rfdetrModel', 'rfdetrCheckpoint', 'rfdetrHalfPrecision', 'rfdetrOnnxModel', 'rfdetrOnnxClasses', 'rfdetrTensorRTEngine', 'rfdetrTensorRTClasses', 'rfdetrTensorRTCudaGraph', 'rfdetrTensorRTProcess', 'convnextModel', 'convnextCheckpoint', 'convnextClasses', 'convnextImageSize', 'convnextHalfPrecision', 'samCheckpoint', 'concepts', 'customModelPath', 'customClasses'].includes(key);
+        return !['rfdetrModel', 'rfdetrCheckpoint', 'rfdetrHalfPrecision', 'rfdetrOnnxModel', 'rfdetrOnnxClasses', 'rfdetrTensorRTEngine', 'rfdetrTensorRTClasses', 'rfdetrTensorRTCudaGraph', 'rfdetrTensorRTProcess', 'convnextModel', 'convnextCheckpoint', 'convnextClasses', 'convnextImageSize', 'convnextHalfPrecision', 'samCheckpoint', 'concepts', 'customModelPath'].includes(key);
       }
     }
 
@@ -2241,33 +2242,21 @@
   }
 
   async function inspectAndApplyModel(node, modelPath) {
-    if (!node || !modelPath) return;
+    if (!node || !modelPath || !['detector', 'segmenter', 'classifier'].includes(node.type)) return;
     try {
       const data = await api(`/api/models/inspect?path=${encodeURIComponent(modelPath)}`);
       if (data && data.engine) {
         node.config.engine = data.engine;
         node.config.customModelPath = data.path;
         node.config.modelPath = data.path;
-        if (node.type === 'classifier') {
-          node.config.convnextCheckpoint = data.path;
-        } else if (node.type === 'detector' || node.type === 'segmenter') {
-          if (data.engine === 'onnx_custom' || data.format === 'onnx') {
-            node.config.rfdetrOnnxModel = data.path;
-          } else {
-            node.config.rfdetrCheckpoint = data.path;
-          }
-        }
-        if (data.classes && data.classes.length > 0) {
-          const joined = data.classes.join(', ');
-          node.config.classes = joined;
-          node.config.customClasses = joined;
-        }
+        node.config.customClasses = (data.classes || []).join(', ');
+        node.config.classes = '';
         markDirty();
         renderInspector();
-        toast(`Configured ${data.name}: ${data.engine} (${data.classesCount || data.classes.length} classes)`);
+        toast(`Configured ${data.name}: ${data.engine} (${data.classesCount || 0} classes)${data.classesCount ? '' : '. Label tidak tersimpan di model; isi Custom Classes.'}`);
       }
     } catch (err) {
-      console.warn('Inspect model failed:', err);
+      toast('Model tidak dapat dimuat: ' + err.message, true);
     }
   }
 
@@ -5611,8 +5600,10 @@
       await refreshModels();
       if (state.selected) {
         const n = nodeFor(state.selected);
-        if (n) {
+        if (n && ['detector', 'segmenter', 'classifier'].includes(n.type)) {
           await inspectAndApplyModel(n, data.path);
+        } else {
+          toast(`Model ${file.name} uploaded. Pilih node AI untuk menggunakannya.`);
         }
       } else {
         toast(`Model ${file.name} uploaded successfully!`);
@@ -5957,7 +5948,11 @@
     $('#fileInput')?.addEventListener('change', e => e.target.files[0] && uploadMedia(e.target.files[0]));
 
     $('#uploadModelBtn')?.addEventListener('click', () => $('#modelInput').click());
-    $('#modelInput')?.addEventListener('change', e => e.target.files[0] && uploadModelFile(e.target.files[0]));
+    $('#modelInput')?.addEventListener('change', e => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (file) uploadModelFile(file);
+    });
 
     $('#templatesBtn')?.addEventListener('click', () => {
       const modal = $('#templatesModal');
