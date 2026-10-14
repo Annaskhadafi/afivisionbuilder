@@ -1,0 +1,30 @@
+# Python Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# Root duplicate weights (weights are placed in data/models/)
+/*.pt
+
+# Runtime outputs & uploads
+data/outputs/*
+!data/outputs/.gitkeep
+data/uploads/*
+!data/uploads/.gitkeep
+
+# Logs & temp files
+*.log
+*.tmp
+.cache/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+desktop.ini

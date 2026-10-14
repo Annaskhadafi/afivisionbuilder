@@ -1,0 +1,13 @@
+{
+  "app_name": "VisoNode",
+  "git_commit": "96398276c8f025fc0d7327fc3d581bcf73c6eb37",
+  "git_commit_count": 127,
+  "git_commit_short": "9639827",
+  "organization_name": "VisoLabel",
+  "pep440_version": "1.0.3b127",
+  "release_number": 127,
+  "release_stage": "beta",
+  "release_version": "1.0.3",
+  "version": "1.0.3-beta.127",
+  "windows_file_version": "1.0.3.127"
+}

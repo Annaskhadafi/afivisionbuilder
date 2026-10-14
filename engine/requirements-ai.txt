@@ -1,0 +1,3 @@
+# Compatibility entry point for manual installs. The automatic AI runtime
+# installer downloads these exact versions directly from package indexes.
+-r requirements-ai.lock.txt

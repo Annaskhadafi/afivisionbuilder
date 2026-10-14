@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Afi Vision Builder - Computer Vision Studio</title>
+  <link rel="icon" href="/static/logo.png">
+  <link rel="stylesheet" href="/static/style.css?v=2.7">
+  <script defer src="/static/app.js?v=2.7"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" title="Afi Vision Builder">
+        <svg class="icon-svg icon-md" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+      </span>
+      <div>
+        <strong>Afi Vision <em>Builder</em></strong>
+        <small>COMPUTER VISION WORKFLOWS</small>
+      </div>
+    </div>
+    <div class="project-title">
+      <span id="projectName">Loading project</span>
+      <button class="rename-button" id="renameProject" title="Rename project" aria-label="Rename project">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+      </button>
+      <span id="dirty" class="dirty" hidden>Unsaved</span>
+    </div>
+    <div class="top-actions">
+      <button class="button ghost" id="uploadBtn" title="Upload image or video">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Upload Media</span>
+      </button>
+      <button class="button ghost" id="uploadModelBtn" title="Upload AI model (.pt, .onnx, etc.)">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+        <span>Upload Model</span>
+      </button>
+      <button class="button ghost" id="templatesBtn" title="Choose from workflow templates">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/></svg>
+        <span>Templates</span>
+      </button>
+      <button class="button ghost" id="importBtn" title="Import workflow JSON">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Import</span>
+      </button>
+      <button class="button ghost" id="exportBtn" title="Export workflow JSON">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Export</span>
+      </button>
+      <button class="button primary" id="saveBtn" title="Save changes to project">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
+        <span>Save</span>
+      </button>
+      <button class="button run" id="runBtn" title="Run workflow pipeline">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+        <span>Run</span>
+      </button>
+      <button class="button stop" id="stopBtn" title="Stop running workflow">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>
+        <span>Stop</span>
+      </button>
+    </div>
+    <input id="fileInput" type="file" hidden>
+    <input id="modelInput" type="file" accept=".pt,.pth,.ckpt,.onnx,.engine,.plan" hidden>
+    <input id="importInput" type="file" accept="application/json" hidden>
+  </header>
+
+  <main class="app-shell">
+    <aside class="sidebar panel">
+      <div class="side-section">
+        <div class="section-label">
+          <span>PROJECTS</span>
+          <button class="icon-button" id="newProject" title="New project" aria-label="New project">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+        <div id="projects" class="project-list"></div>
+      </div>
+
+      <div class="side-section library">
+        <div class="section-label">NODE LIBRARY</div>
+        <label class="search">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="nodeSearch" placeholder="Search 37 vision nodes…" aria-label="Search node library">
+        </label>
+        <div id="library" class="library-list"></div>
+      </div>
+
+      <div class="runtime-card">
+        <span class="pulse"></span>
+        <div>
+          <strong>Python runtime</strong>
+          <small id="runtimeText">Connecting…</small>
+        </div>
+      </div>
+    </aside>
+
+    <section class="workspace">
+      <div class="canvas-toolbar">
+        <div>
+          <strong>Workflow canvas</strong>
+          <span id="canvasHint">Select a node to inspect · drag to arrange · click port to connect</span>
+        </div>
+        <div class="canvas-tools">
+          <button class="icon-button" id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </button>
+          <output id="zoomLevel">100%</output>
+          <button class="icon-button" id="zoomInBtn" title="Zoom in" aria-label="Zoom in">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </button>
+          <button class="icon-button" id="zoomResetBtn" title="Reset zoom (100%)" aria-label="Reset zoom">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          </button>
+          <button class="icon-button" id="fitBtn" title="Fit workflow" aria-label="Fit workflow">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
+          </button>
+          <button class="icon-button danger-icon" id="deleteBtn" title="Delete selected node" aria-label="Delete selected node">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          </button>
+          <div class="canvas-tool-divider"></div>
+          <label class="toggle-switch-compact" title="Mode Auto-Connect: Otomatis menghubungkan node saat ditambah/dihapus">
+            <input type="checkbox" id="autoConnectToggle" checked>
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Auto-Connect</span>
+          </label>
+          <button class="button run auto-assemble-btn" id="autoAssembleBtn" title="⚡ Rangkai Alur Otomatis (Smart Pipeline Auto-Arrange)" aria-label="Rangkai Alur Otomatis">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span>Rangkai Otomatis</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="canvas" class="canvas" tabindex="0" aria-label="Workflow canvas">
+        <svg id="edges" aria-hidden="true"></svg>
+        <div id="edgeContextMenu" class="edge-context-menu" hidden></div>
+        <div id="nodes"></div>
+        <div id="emptyCanvas" class="empty-state" hidden>
+          <svg class="icon-svg icon-lg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/></svg>
+          <strong>Start a workflow</strong>
+          <small>Add a node from the library or load a preset template to begin.</small>
+        </div>
+      </div>
+
+      <div class="bottom-grid">
+        <section class="preview panel">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">LIVE PREVIEW</span>
+              <strong id="previewTitle">Waiting for a run</strong>
+            </div>
+            <div class="metrics-bar" id="metricsBar">
+              <span class="metric-tag" id="statFps" title="Framerate">0.0 FPS</span>
+              <span class="metric-tag" id="statLatency" title="Pipeline Latency">0 ms</span>
+              <span class="metric-tag" id="statCount" title="Detected Objects">0 objs</span>
+              <span class="metric-tag" id="statDevice" title="Inference Device">CPU</span>
+            </div>
+            <div class="preview-tools">
+              <select id="previewSelect" aria-label="Preview output">
+                <option value="">Auto preview</option>
+              </select>
+              <button class="icon-button icon-btn-sm" id="snapshotBtn" title="Save snapshot image" aria-label="Save snapshot">
+                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+              </button>
+              <button class="icon-button icon-btn-sm" id="fullscreenBtn" title="Expand preview" aria-label="Expand preview">
+                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+              </button>
+              <span class="status-pill" id="runState">Idle</span>
+            </div>
+          </div>
+          <div class="preview-frame" id="previewContainer">
+            <img id="previewImage" alt="Live workflow preview" hidden>
+            <div id="previewEmpty">
+              <svg class="icon-svg icon-lg" viewBox="0 0 24 24"><rect width="18" height="14" x="3" y="5" rx="2"/><polygon points="10 9 15 12 10 15 10 9"/></svg>
+              <p>Run the workflow to see frames here.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="logs panel">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">RUN LOG</span>
+              <strong>Runtime events</strong>
+            </div>
+            <div class="log-actions">
+              <input type="text" id="logSearchInput" placeholder="Search logs…" class="log-search-input" aria-label="Search logs">
+              <button class="text-button" id="filterLogsBtn" title="Filter: All / Events / Errors">All</button>
+              <button class="text-button" id="copyLogsBtn" title="Copy all logs to clipboard">Copy</button>
+              <button class="text-button" id="clearLogs" title="Clear console output">Clear</button>
+            </div>
+          </div>
+          <div id="logList" class="log-list">
+            <div class="log-empty">No runtime events yet.</div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <aside class="inspector panel">
+      <div class="inspector-heading">
+        <div>
+          <span class="eyebrow">INSPECTOR</span>
+          <h2 id="inspectorTitle">Nothing selected</h2>
+        </div>
+        <button class="icon-button" id="closeInspector" title="Clear selection">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="inspectorBody" class="inspector-body">
+        <div class="inspector-empty">
+          <svg class="icon-svg icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+          <p>Select a node on the canvas to edit its configuration.</p>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Templates Modal -->
+  <dialog id="templatesModal" class="modal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">PRESET WORKFLOWS</span>
+          <h2>Load Workflow Template</h2>
+        </div>
+        <button class="icon-button" id="closeTemplatesModal">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="templatesList" class="templates-grid"></div>
+    </div>
+  </dialog>
+
+  <!-- Fullscreen Preview Modal -->
+  <dialog id="previewModal" class="modal modal-preview">
+    <div class="modal-box modal-box-large">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">EXPANDED VIEW</span>
+          <h2 id="modalPreviewTitle">Live Preview</h2>
+        </div>
+        <button class="icon-button" id="closePreviewModal">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="expanded-preview-wrap">
+        <img id="modalPreviewImage" alt="Expanded preview">
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

@@ -1,0 +1,996 @@
+from __future__ import annotations
+
+INPUT_NODE_ID = "input"
+LEGACY_CAMERA_NODE_ID = "camera"
+
+EFFICIENTAD_DEFAULTS = {
+    "engine": "efficientad", "efficientadModel": "", "threshold": 0.0,
+    "useModelThreshold": True, "anomalyThreshold": 0.1,
+    "showHeatmap": True, "heatmapOpacity": 0.35,
+    "device": "auto", "batchSize": 1,
+    "detectEveryNFrames": 1, "maxDetectionFps": 0,
+}
+
+
+def normalize_efficientad_config(config: dict) -> dict:
+    for key, value in EFFICIENTAD_DEFAULTS.items():
+        config.setdefault(key, value)
+    config["engine"] = "efficientad"
+    return config
+
+
+IMAGE_PROCESSING_NODE_TYPES = (
+    "resize",
+    "crop",
+    "rotate_flip",
+    "color_convert",
+    "brightness_contrast",
+    "blur_sharpen",
+    "perspective",
+    "undistort",
+    "background_subtract",
+)
+DRAWING_NODE_TYPES = ("overlay_annotate",)
+LEGACY_DRAWING_NODE_TYPES = ("draw_text", "draw_boxes")
+ALL_DRAWING_NODE_TYPES = DRAWING_NODE_TYPES + LEGACY_DRAWING_NODE_TYPES
+
+OVERLAY_LAYER_DEFAULTS = {
+    "bounding_boxes": {
+        "type": "bounding_boxes",
+        "enabled": True,
+        "color": "#2563eb",
+        "thickness": 2,
+        "fillOpacity": 0.0,
+        "classes": "",
+    },
+    "labels": {
+        "type": "labels",
+        "enabled": True,
+        "color": "#22c55e",
+        "template": "{detection.class}",
+        "fontScale": 0.55,
+        "position": "top",
+        "classes": "",
+    },
+    "confidence": {
+        "type": "confidence",
+        "enabled": True,
+        "color": "#7c3aed",
+        "template": "{detection.confidence}",
+        "fontScale": 0.55,
+        "position": "below_label",
+        "classes": "",
+    },
+    "result_icons": {
+        "type": "result_icons",
+        "enabled": False,
+        "passClasses": "ok, pass, good",
+        "passText": "OK",
+        "failText": "X",
+        "passColor": "#22c55e",
+        "failColor": "#ef4444",
+        "size": 0.65,
+        "position": "top_right",
+        "classes": "",
+    },
+    "custom_text": {
+        "type": "custom_text",
+        "enabled": False,
+        "template": "{classification.class}  {classification.confidence}",
+        "x": 24,
+        "y": 48,
+        "fontScale": 1.0,
+        "thickness": 2,
+        "color": "#ffffff",
+        "background": True,
+        "backgroundColor": "#111827",
+        "position": "bottom_right",
+        "classes": "",
+    },
+    "heatmap": {
+        "type": "heatmap",
+        "enabled": False,
+        "opacity": 0.40,
+        "decay": 0.98,
+        "colormap": "jet",
+    },
+    "vector_arrow": {
+        "type": "vector_arrow",
+        "enabled": False,
+        "color": "#38bdf8",
+        "thickness": 2,
+        "scale": 1.5,
+    },
+}
+
+OVERLAY_LAYER_OPTIONS = (
+    ("bounding_boxes", "Bounding box"),
+    ("labels", "Label"),
+    ("confidence", "Confidence"),
+    ("result_icons", "Status badge"),
+    ("heatmap", "Traffic Heatmap"),
+    ("vector_arrow", "Direction Arrow Vector"),
+    ("custom_text", "Custom text"),
+)
+
+
+def make_overlay_layer(layer_type: str, index: int = 0) -> dict:
+    """Create one independent overlay instruction with a stable ID."""
+    defaults = OVERLAY_LAYER_DEFAULTS.get(layer_type, OVERLAY_LAYER_DEFAULTS["custom_text"])
+    return {**defaults, "id": f"{layer_type}-{index + 1}"}
+
+
+def default_overlay_layers() -> list[dict]:
+    """Return the empty layer stack used by a new Overlay / Annotate node."""
+    return []
+
+
+def normalize_overlay_config(config: dict) -> dict:
+    """Normalize the ordered, extensible overlay layer collection in place."""
+    layers = config.get("layers")
+    if not isinstance(layers, list):
+        layers = default_overlay_layers()
+    normalized = []
+    used_ids: set[str] = set()
+    for index, layer in enumerate(layers):
+        if not isinstance(layer, dict):
+            continue
+        layer_type = str(layer.get("type") or "custom_text")
+        if layer_type not in OVERLAY_LAYER_DEFAULTS:
+            continue
+        item = {**OVERLAY_LAYER_DEFAULTS[layer_type], **layer}
+        item_id = str(item.get("id") or f"{layer_type}-{index + 1}")
+        if item_id in used_ids:
+            item_id = f"{layer_type}-{index + 1}"
+        item["id"] = item_id
+        used_ids.add(item_id)
+        normalized.append(item)
+    config["layers"] = normalized
+    return config
+DRAWING_VARIABLES_BY_NODE_TYPE = {
+    "efficientad": (
+        ("{anomaly.result}", "Inspection result (OK / NG)"),
+        ("{anomaly.score}", "Anomaly score"),
+        ("{anomaly.threshold}", "Anomaly decision threshold"),
+    ),
+    "input": (
+        ("{image.width}", "Image width"),
+        ("{image.height}", "Image height"),
+    ),
+    "detector": (
+        ("{detection.count}", "Detection count"),
+        ("{detection.class}", "Best detection class"),
+        ("{detection.confidence}", "Best detection confidence"),
+        ("{detection.x}", "Detection left position"),
+        ("{detection.y}", "Detection top position"),
+        ("{detection.width}", "Detection width"),
+        ("{detection.height}", "Detection height"),
+    ),
+    "segmenter": (
+        ("{detection.count}", "Segmentation count"),
+        ("{detection.class}", "Best segmentation class"),
+        ("{detection.confidence}", "Best segmentation confidence"),
+    ),
+    "classifier": (
+        ("{classification.class}", "Classification class"),
+        ("{classification.confidence}", "Classification confidence"),
+    ),
+    "tracker": (
+        ("{track.id}", "Track ID"),
+    ),
+    "object_counter": (
+        ("{count.total}", "Total object count"),
+    ),
+}
+
+
+def upstream_node_ids(workflow: dict, target_id: str) -> set[str]:
+    """Return enabled ancestors of a node, excluding the target itself."""
+    nodes = {
+        str(node.get("id") or ""): node
+        for node in workflow.get("nodes", [])
+        if node.get("enabled", True)
+    }
+    incoming: dict[str, list[str]] = {}
+    for edge in workflow.get("edges", []):
+        if len(edge) >= 2 and str(edge[0]) in nodes and str(edge[1]) in nodes:
+            incoming.setdefault(str(edge[1]), []).append(str(edge[0]))
+    found: set[str] = set()
+    pending = list(incoming.get(str(target_id), []))
+    while pending:
+        node_id = pending.pop()
+        if node_id in found:
+            continue
+        found.add(node_id)
+        pending.extend(incoming.get(node_id, []))
+    return found
+
+
+def available_drawing_variables(workflow: dict, target_id: str) -> list[tuple[str, str]]:
+    """Describe template variables produced by connected upstream nodes."""
+    ancestors = upstream_node_ids(workflow, target_id)
+    available: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for node in workflow.get("nodes", []):
+        if str(node.get("id") or "") not in ancestors:
+            continue
+        for token, description in DRAWING_VARIABLES_BY_NODE_TYPE.get(node.get("type"), ()):
+            if token not in seen:
+                seen.add(token)
+                available.append((token, description))
+    return available
+
+
+def _configured_output_labels(value) -> list[str]:
+    """Normalize the class-name formats accepted by the inference settings."""
+    if isinstance(value, dict):
+        def sort_key(item):
+            try:
+                return 0, int(item[0])
+            except (TypeError, ValueError):
+                return 1, str(item[0])
+
+        raw = [label for _key, label in sorted(value.items(), key=sort_key)]
+    elif isinstance(value, (list, tuple)):
+        raw = value
+    else:
+        raw = str(value or "").replace(",", "\n").splitlines()
+    return [str(label).strip() for label in raw if label is not None and str(label).strip()]
+
+
+def available_output_labels(workflow: dict, target_id: str) -> list[tuple[str, str]]:
+    """Return known class/result labels from enabled upstream nodes.
+
+    Some model formats carry their labels only at runtime, so this deliberately
+    lists only values that the workflow can know without loading a model.
+    """
+    ancestors = upstream_node_ids(workflow, target_id)
+    available: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for node in workflow.get("nodes", []):
+        if str(node.get("id") or "") not in ancestors:
+            continue
+        node_type = str(node.get("type") or "")
+        config = node.get("config", {})
+        labels: list[str] = []
+        if node_type == "efficientad":
+            labels = ["OK", "NG"]
+        elif node_type == "classifier":
+            labels = _configured_output_labels(config.get("classes", config.get("customClasses", config.get("convnextClasses", ""))))
+        elif node_type in ("detector", "segmenter"):
+            engine = str(config.get("engine") or "")
+            if engine == "sam3":
+                labels = _configured_output_labels(config.get("concepts", "person"))
+            elif engine == "rfdetr_onnx":
+                labels = _configured_output_labels(config.get("rfdetrOnnxClasses", ""))
+            elif engine == "rfdetr_tensorrt":
+                labels = _configured_output_labels(config.get("rfdetrTensorRTClasses", ""))
+            elif engine in ("ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+                labels = _configured_output_labels(config.get("classes", config.get("customClasses", "")))
+        elif node_type == "filter":
+            labels = _configured_output_labels(config.get("classes", ""))
+
+        source = str(node.get("title") or node_type.replace("_", " ").title())
+        for label in labels:
+            key = label.casefold()
+            if key not in seen:
+                seen.add(key)
+                available.append((label, source))
+    return available
+LOGIC_NODE_TYPES = (
+    "if_else",
+    "compare_value",
+    "roi_filter",
+    "object_count_condition",
+    "class_detected_condition",
+    "confidence_threshold",
+    "timer_delay",
+    "debounce",
+    "rate_limiter",
+    "and_or_logic",
+    "trigger_once",
+)
+OBJECT_EVENT_NODE_TYPES = (
+    "track_snapshot",
+    "object_counter",
+)
+OUTPUT_NODE_TYPES = (
+    "preview",
+    "alert",
+    "image_output",
+    "database_output",
+)
+RFDETR_DETECTION_MODEL_OPTIONS = [
+    ("rfdetr-nano", "RF-DETR nano"),
+    ("rfdetr-small", "RF-DETR small"),
+    ("rfdetr-medium", "RF-DETR medium"),
+    ("rfdetr-large", "RF-DETR large"),
+]
+RFDETR_SEGMENTATION_MODEL_OPTIONS = [
+    ("rfdetr-seg-nano", "RF-DETR-Seg nano"),
+    ("rfdetr-seg-small", "RF-DETR-Seg small"),
+    ("rfdetr-seg-medium", "RF-DETR-Seg medium"),
+    ("rfdetr-seg-large", "RF-DETR-Seg large"),
+]
+CONVNEXT_MODEL_OPTIONS = [
+    ("convnext_tiny.fb_in22k_ft_in1k", "ConvNeXt Tiny"),
+    ("convnext_small.fb_in22k_ft_in1k", "ConvNeXt Small"),
+    ("convnext_base.fb_in22k_ft_in1k", "ConvNeXt Base"),
+    ("convnext_large.fb_in22k_ft_in1k", "ConvNeXt Large"),
+]
+TRACKING_ALGORITHMS = ("bytetrack", "botsort", "ocsort")
+TRACKING_ALGORITHM_OPTIONS = [
+    ("bytetrack", "ByteTrack"),
+    ("botsort", "BoT-SORT"),
+    ("ocsort", "OC-SORT"),
+]
+BOT_SORT_CMC_OPTIONS = [
+    ("sparseOptFlow", "Sparse optical flow"),
+    ("orb", "ORB features"),
+    ("sift", "SIFT features"),
+    ("ecc", "ECC alignment"),
+]
+TRACKER_CONFIG_VERSION = 2
+OBSOLETE_TRACKER_CONFIG_KEYS = (
+    "proximityThreshold",
+    "appearanceThreshold",
+    "withReid",
+    "reidModel",
+    "reidModelPath",
+    "reidDevice",
+    "reidHalfPrecision",
+    "reidBatchSize",
+    "reidAppearanceThreshold",
+    "botSortMatchThreshold",
+    "botSortSecondMatchThreshold",
+    "botSortUnconfirmedThreshold",
+    "botSortFuseScore",
+    "ocSortUseByte",
+    "ocSortLowThreshold",
+)
+TRACKER_CONFIG_DEFAULTS = {
+    "trackerConfigVersion": TRACKER_CONFIG_VERSION,
+    "algorithm": "bytetrack",
+    # Roboflow ByteTrack and BoT-SORT confidence/lifecycle settings.
+    "trackHighThreshold": 0.6,
+    "trackLowThreshold": 0.1,
+    "newTrackThreshold": 0.7,
+    "matchThreshold": 0.1,
+    "trackBuffer": 30,
+    "minimumConsecutiveFrames": 2,
+    "trackerFrameRate": 30,
+    # Roboflow BoT-SORT association and camera-motion settings.
+    "botSortFirstIouThreshold": 0.2,
+    "botSortSecondIouThreshold": 0.5,
+    "botSortUnconfirmedIouThreshold": 0.3,
+    "botSortGmc": True,
+    "botSortCmcMethod": "sparseOptFlow",
+    "botSortCmcDownscale": 2,
+    # Roboflow OC-SORT settings.
+    "ocSortDetectionThreshold": 0.6,
+    "ocSortIouThreshold": 0.3,
+    "ocSortMaxAge": 30,
+    "ocSortMinHits": 3,
+    "ocSortDeltaT": 3,
+    "ocSortInertia": 0.2,
+    # Settings shared by every tracker.
+    "batchSize": 1,
+    "classAgnostic": False,
+    "showLostTracks": False,
+}
+
+
+def migrate_tracker_config(config: dict) -> None:
+    """Migrate saved tracker settings to Roboflow's parameter semantics."""
+    try:
+        version = int(config.get("trackerConfigVersion", 0))
+    except (TypeError, ValueError):
+        version = 0
+    if version < TRACKER_CONFIG_VERSION:
+        legacy_default_updates = {
+            "trackHighThreshold": (0.5, 0.6),
+            "newTrackThreshold": (0.6, 0.7),
+            "matchThreshold": (0.45, 0.1),
+            "ocSortDetectionThreshold": (0.5, 0.6),
+        }
+        for key, (legacy_default, roboflow_default) in legacy_default_updates.items():
+            if config.get(key) == legacy_default:
+                config[key] = roboflow_default
+    for key in OBSOLETE_TRACKER_CONFIG_KEYS:
+        config.pop(key, None)
+    config["trackerConfigVersion"] = TRACKER_CONFIG_VERSION
+SAM3_IMAGE_SIZE = 1008
+SAM3_DEFAULT_THRESHOLD = 0.1
+RFDETR_NATIVE_IMAGE_SIZE = 0
+
+NODE_BLUEPRINTS = {
+    "input": {
+        "title": "Input",
+        "subtitle": "Sumber kamera USB/webcam, Daheng, gambar, atau file video",
+        "x": 40,
+        "y": 60,
+        "config": {
+            "sourceType": "camera",
+            "source": 0,
+            "width": 0,
+            "height": 0,
+            "dahengOpenMode": "index",
+            "dahengIdentifier": "1",
+            "dahengTimeoutMs": 1000,
+            "dahengFrameRate": 0,
+            "dahengExposureUs": 0,
+            "dahengGain": 0,
+            "filePath": "",
+            "loop": True,
+            "frameQueueSize": 8,
+            "torchCpuThreads": 0,
+            "asyncPreview": False,
+            "dropFrames": True,
+        },
+    },
+    "ip_camera": {
+        "title": "IP Camera / CCTV",
+        "subtitle": "Streaming RTSP atau HTTP CCTV dengan rekoneksi otomatis",
+        "x": 40,
+        "y": 180,
+        "config": {
+            "streamUrl": "rtsp://192.168.1.100:554/stream1",
+            "username": "",
+            "password": "",
+            "transport": "tcp",
+            "autoReconnect": True,
+            "reconnectDelaySeconds": 2.0,
+            "detectFreeze": True,
+            "freezeThresholdSeconds": 3.0,
+            "detectTamper": True,
+            "tamperDarkThreshold": 6.0,
+            "tamperBrightThreshold": 248.0,
+            "frameQueueSize": 4,
+            "dropFrames": True,
+            "asyncPreview": True,
+        },
+    },
+    "detector": {
+        "title": "Object Detection",
+        "subtitle": "Deteksi objek dengan model RF-DETR PyTorch, TensorRT, atau YOLO",
+        "x": 330,
+        "y": 60,
+        "config": {
+            "engine": "rfdetr",
+            "threshold": 0.55,
+            "rfdetrModel": "rfdetr-nano",
+            "rfdetrCheckpoint": "",
+            "rfdetrImageSize": RFDETR_NATIVE_IMAGE_SIZE,
+            "rfdetrHalfPrecision": True,
+            "rfdetrTensorRTEngine": "",
+            "rfdetrTensorRTClasses": "",
+            "rfdetrTensorRTCudaGraph": False,
+            "rfdetrTensorRTProcess": False,
+            "rfdetrOnnxModel": "",
+            "rfdetrOnnxClasses": "",
+            "detectEveryNFrames": 1,
+            "maxDetectionFps": 0,
+            "batchSize": 1,
+            "iouThreshold": 0.45,
+            "device": "auto",
+            "customModelPath": "",
+            "customClasses": "",
+            "perClassThresholds": "",
+            "classRemap": "",
+        },
+    },
+    "slicer": {
+        "title": "Small Object Slicer",
+        "subtitle": "Inferensi berpetak (SAHI) untuk objek kecil pada resolusi tinggi",
+        "x": 330,
+        "y": 145,
+        "config": {
+            "sliceWidth": 640,
+            "sliceHeight": 640,
+            "overlapRatio": 0.2,
+            "iouThreshold": 0.45,
+        },
+    },
+    "segmenter": {
+        "title": "Object Segmentation",
+        "subtitle": "Segmentasi dan masking piksel objek YOLOv8, RF-DETR, atau SAM 3",
+        "x": 620,
+        "y": 60,
+        "config": {
+            "engine": "ultralytics_yolo",
+            "threshold": 0.45,
+            "customModelPath": "data/models/yolov8n-seg.pt",
+            "customClasses": "",
+            "rfdetrModel": "rfdetr-seg-nano",
+            "rfdetrCheckpoint": "",
+            "rfdetrImageSize": RFDETR_NATIVE_IMAGE_SIZE,
+            "rfdetrHalfPrecision": True,
+            "rfdetrTensorRTEngine": "",
+            "rfdetrTensorRTClasses": "",
+            "rfdetrTensorRTCudaGraph": False,
+            "rfdetrTensorRTProcess": False,
+            "rfdetrOnnxModel": "",
+            "rfdetrOnnxClasses": "",
+            "detectEveryNFrames": 1,
+            "maxDetectionFps": 0,
+            "batchSize": 1,
+            "samCheckpoint": "",
+            "concepts": "person",
+            "device": "auto",
+            "imgsz": SAM3_IMAGE_SIZE,
+            "perClassThresholds": "",
+            "classRemap": "",
+        },
+    },
+    "efficientad": {
+        "title": "Visual Inspection",
+        "subtitle": "Deteksi anomali cacat visual tanpa sampel cacat dengan EfficientAD",
+        "x": 620, "y": 145,
+        "config": dict(EFFICIENTAD_DEFAULTS),
+    },
+    "classifier": {
+        "title": "Image Classification",
+        "subtitle": "Klasifikasi kategori gambar dengan model ConvNeXt atau kustom",
+        "x": 620,
+        "y": 145,
+        "config": {
+            "engine": "convnext",
+            "threshold": 0.0,
+            "convnextModel": "convnext_tiny.fb_in22k_ft_in1k",
+            "convnextCheckpoint": "",
+            "convnextClasses": "",
+            "convnextImageSize": 224,
+            "convnextHalfPrecision": True,
+            "topK": 1,
+            "detectEveryNFrames": 1,
+            "maxDetectionFps": 0,
+            "batchSize": 1,
+            "iouThreshold": 0.45,
+            "device": "auto",
+            "customModelPath": "",
+            "customClasses": "",
+        },
+    },
+    "detection_crop": {
+        "title": "Detection Crop",
+        "subtitle": "Potong setiap objek hasil deteksi untuk klasifikasi atau inspeksi",
+        "x": 620,
+        "y": 230,
+        "config": {
+            "classes": "",
+            "contextPaddingPercent": 0.15,
+            "paddingPercent": 0.0,
+            "square": False,
+            "padColor": "#000000",
+            "minCropWidth": 32,
+            "minCropHeight": 32,
+            "minSize": 1,
+            "maxCrops": 32,
+        },
+    },
+    "barcode_reader": {
+        "title": "Barcode & QR Reader",
+        "subtitle": "Pemindai kode QR & barcode bawaan OpenCV",
+        "x": 620,
+        "y": 315,
+        "config": {
+            "cropFromDetections": False,
+            "classes": "qrcode, barcode, label",
+            "showOverlay": True,
+            "cooldownSeconds": 2.0,
+        },
+    },
+    "tracker": {
+        "title": "Object Tracking",
+        "subtitle": "Pelacakan identitas ID objek dengan ByteTrack, BoT-SORT, atau OC-SORT",
+        "x": 620,
+        "y": 230,
+        "config": dict(TRACKER_CONFIG_DEFAULTS),
+    },
+    "track_snapshot": {
+        "title": "Once Per Track",
+        "subtitle": "Kirim satu event inspeksi terbaik untuk setiap objek terlacak",
+        "x": 910,
+        "y": 230,
+        "config": {
+            "trackIds": "",
+            "classes": "",
+            "minimumConfidence": 0.0,
+            "minimumTrackAgeFrames": 1,
+            "captureMode": "best_frame",
+            "retentionSeconds": 3600,
+        },
+    },
+    "object_counter": {
+        "title": "Object Counter",
+        "subtitle": "Hitung okupansi langsung atau total akumulasi objek terlacak",
+        "x": 910,
+        "y": 315,
+        "config": {
+            "classes": "",
+            "mode": "occupancy",
+            "countOncePerTrack": True,
+            "direction": "both",
+            "retentionSeconds": 3600,
+            "maxCapacity": 0,
+            "alertOnCapacityExceeded": True,
+        },
+    },
+    "line_counter": {
+        "title": "Line Counter",
+        "subtitle": "Hitung objek melintasi garis (IN / OUT, Multi-Line)",
+        "x": 910,
+        "y": 360,
+        "config": {
+            "lines": [
+                {
+                    "id": "line_1",
+                    "name": "Line 1",
+                    "startPoint": "",
+                    "endPoint": "",
+                    "invertDirection": False,
+                    "countMode": "both",
+                    "lineColor": "#22c55e",
+                    "inLabel": "IN",
+                    "outLabel": "OUT",
+                }
+            ],
+            "startPoint": "",
+            "endPoint": "",
+            "triggerAnchor": "center",
+            "classes": "",
+            "showOverlay": True,
+            "lineColor": "#22c55e",
+            "lineWidth": 2,
+            "inLabel": "IN",
+            "outLabel": "OUT",
+            "invertDirection": False,
+            "countMode": "both",
+        },
+    },
+    "dwell_time": {
+        "title": "Dwell Time / Loitering",
+        "subtitle": "Ukur durasi waktu objek berada di dalam zona tertentu",
+        "x": 910,
+        "y": 425,
+        "config": {
+            "points": "0.2,0.2; 0.8,0.2; 0.8,0.8; 0.2,0.8",
+            "thresholdSeconds": 5.0,
+            "classes": "",
+            "showOverlay": True,
+            "showTimer": True,
+            "zoneColor": "#f59e0b",
+            "alertOnExceed": True,
+        },
+    },
+    "filter": {
+        "title": "Detection & Geometry Filter",
+        "subtitle": "Filter berdasarkan nama kelas, ukuran luas, rasio, dan margin batas",
+        "x": 330,
+        "y": 230,
+        "config": {
+            "classes": "person, car, dog, cat, bottle",
+            "minCount": 1,
+            "minArea": 0,
+            "maxArea": 0,
+            "minAspectRatio": 0.0,
+            "maxAspectRatio": 0.0,
+            "excludeBorderMargin": 0,
+        },
+    },
+    "preview": {
+        "title": "Live Preview",
+        "subtitle": "Jendela tampilan streaming video hasil pemrosesan",
+        "x": 40,
+        "y": 400,
+        "config": {
+            "showBoxes": True,
+            "showLabels": True,
+            "showMasks": True,
+            "showTrackIds": True,
+            "showTrails": True,
+            "showCounts": True,
+            "maskOpacity": 0.35,
+            "cropGridMaxItems": 16,
+            "cropGridColumns": 0,
+            "cropGridGap": 8,
+            "holdLastEvent": True,
+            "maxPreviewFps": 0,
+            "saveVideo": False,
+            "outputPath": "",
+            "outputFps": 0,
+        },
+    },
+    "alert": {
+        "title": "Alert Output",
+        "subtitle": "Catat riwayat log event dan rekam klip video alarm",
+        "x": 330,
+        "y": 400,
+        "config": {
+            "cooldownSeconds": 5,
+            "message": "Detected target object",
+            "recordClip": True,
+            "clipDurationSeconds": 5,
+        },
+    },
+    "image_output": {
+        "title": "Save Images",
+        "subtitle": "Simpan gambar inspeksi dengan rotasi pembersihan otomatis (FIFO)",
+        "x": 620,
+        "y": 485,
+        "config": {
+            "outputDirectory": "",
+            "format": "jpg",
+            "jpegQuality": 95,
+            "filenameTemplate": "{timestamp}_{track_id}_{class}",
+            "captureMode": "crop_only",
+            "maxFilesRetention": 1000,
+            "burnWatermark": True,
+        },
+    },
+    "draw_text": {
+        "title": "Draw Text",
+        "subtitle": "Gambarkan teks & variabel ke dalam frame gambar",
+        "x": 330,
+        "y": 570,
+        "config": {
+            "textTemplate": "{classification.class}  {classification.confidence}",
+            "x": 24,
+            "y": 48,
+            "fontScale": 1.0,
+            "thickness": 2,
+            "color": "#ffffff",
+            "background": True,
+            "backgroundColor": "#111827",
+        },
+    },
+    "draw_boxes": {
+        "title": "Draw Boxes",
+        "subtitle": "Gambarkan kotak deteksi dan label variabel ke dalam frame",
+        "x": 620,
+        "y": 570,
+        "config": {
+            "labelTemplate": "{detection.class}  {detection.confidence}",
+            "color": "#22c55e",
+            "thickness": 2,
+            "showLabel": True,
+            "fillOpacity": 0.0,
+        },
+    },
+    # Legacy drawing blueprints remain loadable so existing projects keep
+    # working. Only Overlay / Annotate is exposed in the node library.
+    "overlay_annotate": {
+        "title": "Overlay / Annotate",
+        "subtitle": "Gambarkan seluruh anotasi (kotak, label, ikon, heatmap) di satu tempat",
+        "x": 620,
+        "y": 570,
+        "config": {"layers": default_overlay_layers()},
+    },
+    "database_output": {
+        "title": "Database Output",
+        "subtitle": "Simpan hasil deteksi dan log event ke database lokal SQLite",
+        "x": 620,
+        "y": 400,
+        "config": {
+            "databasePath": "",
+            "saveDetections": True,
+            "eventObjectsOnly": True,
+            "saveFrames": False,
+            "saveEvents": True,
+            "saveDebug": False,
+            "sampleEvery": 1,
+            "batchSize": 128,
+            "flushIntervalMs": 500,
+            "maxQueue": 10000,
+            "retentionDays": 14,
+            "aggregateHourly": True,
+        },
+    },
+    "webhook_output": {
+        "title": "Webhook / HTTP Outbound",
+        "subtitle": "Kirim data event ke REST API endpoint eksternal",
+        "x": 620,
+        "y": 485,
+        "config": {
+            "url": "http://127.0.0.1:8000/webhook",
+            "method": "POST",
+            "cooldownSeconds": 2.0,
+            "sendImage": True,
+            "imageQuality": 80,
+            "customHeaders": "Content-Type: application/json",
+            "payloadTemplate": "",
+            "retryCount": 2,
+            "timeoutSeconds": 5.0,
+        },
+    },
+    "resize": {
+        "title": "Resize",
+        "subtitle": "Ubah ukuran resolusi frame ke dimensi tetap",
+        "x": 330,
+        "y": 570,
+        "config": {"width": 1280, "height": 720, "interpolation": "linear"},
+    },
+    "crop": {
+        "title": "Crop / Region of Interest",
+        "subtitle": "Pangkas dan pertahankan area persegi panjang tertentu",
+        "x": 620,
+        "y": 570,
+        "config": {"x": 0, "y": 0, "width": 640, "height": 480},
+    },
+    "rotate_flip": {
+        "title": "Rotate / Flip",
+        "subtitle": "Atur orientasi sudut putaran dan pembalikan frame gambar",
+        "x": 910,
+        "y": 570,
+        "config": {"rotation": "0", "flip": "none"},
+    },
+    "color_convert": {
+        "title": "Color Conversion",
+        "subtitle": "Konversi ruang warna gambar (Grayscale, HSV, dll)",
+        "x": 330,
+        "y": 700,
+        "config": {"mode": "gray"},
+    },
+    "brightness_contrast": {
+        "title": "Brightness / Contrast",
+        "subtitle": "Atur intensitas cahaya & penglihatan malam (Night Vision CLAHE)",
+        "x": 620,
+        "y": 700,
+        "config": {
+            "brightness": 0,
+            "contrast": 1.0,
+            "useClahe": False,
+            "autoLowLight": True,
+            "lowLightThreshold": 65.0,
+            "clipLimit": 2.5,
+            "tileGridSize": 8,
+        },
+    },
+    "blur_sharpen": {
+        "title": "Blur / Sharpen",
+        "subtitle": "Haluskan noise atau pertajam detail ketajaman gambar",
+        "x": 910,
+        "y": 700,
+        "config": {"operation": "blur", "kernel": 5, "strength": 1.0},
+    },
+    "perspective": {
+        "title": "Perspective Correction",
+        "subtitle": "Luruskan area 4 titik sudut pandang miring",
+        "x": 330,
+        "y": 830,
+        "config": {"points": "0,0; 100,0; 100,100; 0,100", "width": 0, "height": 0},
+    },
+    "undistort": {
+        "title": "Camera Undistortion",
+        "subtitle": "Terapkan kalibrasi lensa untuk koreksi distorsi cembung",
+        "x": 620,
+        "y": 830,
+        "config": {"calibrationPath": "", "alpha": 0.0},
+    },
+    "background_subtract": {
+        "title": "Background Subtraction",
+        "subtitle": "Ekstrak objek bergerak dari latar belakang diam",
+        "x": 910,
+        "y": 830,
+        "config": {
+            "method": "mog2",
+            "history": 500,
+            "threshold": 16,
+            "detectShadows": True,
+        },
+    },
+    "blur_anonymizer": {
+        "title": "Privacy Blur",
+        "subtitle": "Sensor privasi wajah atau plat nomor dengan blur/pixelate",
+        "x": 910,
+        "y": 895,
+        "config": {
+            "classes": "person, face, license_plate",
+            "mode": "gaussian",
+            "kernelSize": 35,
+            "pixelateBlock": 16,
+            "insideBbox": True,
+        },
+    },
+    "if_else": {
+        "title": "If / Else",
+        "subtitle": "Percabangan alur: Loloskan data jika kondisi Benar (IF) atau Salah (ELSE)",
+        "x": 330,
+        "y": 960,
+        "config": {
+            "metric": "object_count",
+            "operator": "gte",
+            "value": 1,
+            "passWhen": "true",
+            "classes": "",
+        },
+    },
+    "compare_value": {
+        "title": "Compare Value",
+        "subtitle": "Bandingkan jumlah objek, confidence, atau hitungan garis dengan ambang batas",
+        "x": 620,
+        "y": 960,
+        "config": {
+            "metric": "object_count",
+            "operator": "gte",
+            "value": 1,
+            "classes": "",
+        },
+    },
+    "roi_filter": {
+        "title": "ROI Filter",
+        "subtitle": "Hanya teruskan deteksi di dalam / luar area zona tertentu",
+        "x": 910,
+        "y": 960,
+        "config": {
+            "shape": "rectangle",
+            "x": 0,
+            "y": 0,
+            "width": 640,
+            "height": 480,
+            "points": [],
+            "mode": "inside",
+            "invertZone": False,
+            "triggerAnchor": "bottom_center",
+            "match": "bottom_center",
+            "crossingDirection": "enter",
+            "showOverlay": True,
+        },
+    },
+    "object_count_condition": {
+        "title": "Object Count Condition",
+        "subtitle": "Loloskan data jika jumlah objek memenuhi kondisi syarat",
+        "x": 330,
+        "y": 1090,
+        "config": {"operator": "gte", "count": 1},
+    },
+    "class_detected_condition": {
+        "title": "Class Detected Condition",
+        "subtitle": "Loloskan data jika kelas target tertentu terdeteksi",
+        "x": 620,
+        "y": 1090,
+        "config": {"classes": "person", "match": "any"},
+    },
+    "confidence_threshold": {
+        "title": "Confidence Threshold",
+        "subtitle": "Loloskan data jika akurasi model memenuhi ambang batas minimal",
+        "x": 910,
+        "y": 1090,
+        "config": {"operator": "gte", "threshold": 0.55, "match": "any"},
+    },
+    "timer_delay": {
+        "title": "Timer / Delay",
+        "subtitle": "Tahan dan stabilkan sinyal selama durasi detik tertentu",
+        "x": 910,
+        "y": 1090,
+        "config": {"seconds": 1.0},
+    },
+    "debounce": {
+        "title": "Debounce",
+        "subtitle": "Cegah pemicuan berulang dari deteksi yang berkedip",
+        "x": 330,
+        "y": 1220,
+        "config": {"seconds": 0.5},
+    },
+    "rate_limiter": {
+        "title": "Rate Limiter",
+        "subtitle": "Batasi frekuensi event dengan jeda waktu pendingin (cooldown)",
+        "x": 620,
+        "y": 1220,
+        "config": {"seconds": 5.0},
+    },
+    "and_or_logic": {
+        "title": "AND / OR Logic",
+        "subtitle": "Kombinasikan beberapa status sinyal logika alur pemrosesan",
+        "x": 910,
+        "y": 1220,
+        "config": {"operator": "and", "enabledValue": True},
+    },
+    "trigger_once": {
+        "title": "Trigger Once",
+        "subtitle": "Hanya loloskan pemicu satu kali hingga kondisi kembali normal",
+        "x": 330,
+        "y": 1350,
+        "config": {"resetOnClear": True},
+    },
+}

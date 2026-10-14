@@ -1,0 +1,6137 @@
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => document.querySelectorAll(s);
+
+  // --- Vector SVG Icon Library (Lucide style) ---
+  const ICONS = {
+    // Sources
+    input: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
+    camera: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
+    ip_camera: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15 10-3 3-3-3"/><path d="M12 13V7"/><circle cx="12" cy="12" r="3"/><path d="M4.93 4.93 3 3"/><path d="M19.07 4.93 21 3"/></svg>',
+
+    // AI Vision Models
+    detector: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>',
+    segmenter: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12v9"/><path d="m12 12 8-4.5"/><path d="M12 12 4 7.5"/></svg>',
+    classifier: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',
+    efficientad: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    detection_crop: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2"/><circle cx="12" cy="12" r="3"/></svg>',
+    barcode_reader: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg>',
+
+    // Tracking & Analysis
+    tracker: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M2 12h5l2-5 6 10 3-5h4"/></svg>',
+    track_snapshot: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>',
+    object_counter: '<svg class="icon-svg" viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>',
+    line_counter: '<svg class="icon-svg" viewBox="0 0 24 24"><line x1="2" y1="12" x2="22" y2="12"/><polyline points="8 8 12 4 16 8"/><polyline points="8 16 12 20 16 16"/></svg>',
+    dwell_time: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M12 2a10 10 0 0 0-7.07 2.93"/></svg>',
+    filter: '<svg class="icon-svg" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>',
+
+    // Preprocessing
+    slicer: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
+    resize: '<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
+    crop: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>',
+    rotate_flip: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>',
+    color_convert: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
+    brightness_contrast: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20z"/></svg>',
+    blur_sharpen: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>',
+    perspective: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="m2 4 6 3v10l-6 3V4z"/><path d="m22 4-6 3v10l6 3V4z"/><path d="M8 7h8"/><path d="M8 17h8"/></svg>',
+    undistort: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
+    background_subtract: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 18 6-6-6-6"/></svg>',
+    blur_anonymizer: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>',
+
+    // Drawing & Annotation
+    overlay_annotate: '<svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+    draw_boxes: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>',
+    draw_text: '<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>',
+
+    // Logic & Flow
+    if_else: '<svg class="icon-svg" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>',
+    compare_value: '<svg class="icon-svg" viewBox="0 0 24 24"><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/></svg>',
+    roi_filter: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2"/><path d="M9 5v14"/><path d="M15 5v14"/></svg>',
+    object_count_condition: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
+    class_detected_condition: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    confidence_threshold: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 20v-6"/><path d="M6 20V10"/><path d="M18 20V4"/></svg>',
+    timer_delay: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    debounce: '<svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+    rate_limiter: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 8 14"/></svg>',
+    and_or_logic: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>',
+    trigger_once: '<svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+
+    // Outputs
+    preview: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+    alert: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+    image_output: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>',
+    webhook_output: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>',
+    database_output: '<svg class="icon-svg" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>',
+
+    // Generic Categories
+    catSources: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
+    catAI: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><circle cx="12" cy="12" r="3"/></svg>',
+    catTracking: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M2 12h5l2-5 6 10 3-5h4"/></svg>',
+    catProcessing: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20z"/></svg>',
+    catDrawing: '<svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/></svg>',
+    catLogic: '<svg class="icon-svg" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>',
+    catOutputs: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/></svg>',
+  };
+
+  function getIcon(name, extraClass = '') {
+    const raw = ICONS[name] || ICONS['input'];
+    if (!extraClass) return raw;
+    return raw.replace('class="icon-svg"', `class="icon-svg ${extraClass}"`);
+  }
+
+  const state = {
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    isPanning: false,
+    panStart: { x: 0, y: 0 },
+    catalog: {},
+    projects: [],
+    project: null,
+    workflow: { nodes: [], edges: [] },
+    selected: null,
+    dirty: false,
+    connecting: null,
+    status: null,
+    poll: null,
+    previewNode: '',
+    defaults: null,
+    pollBusy: false,
+    lastError: null,
+    clearedSeq: 0,
+    logFilter: 'all',
+    models: [],
+    modelEngines: [],
+    cameras: [],
+    uploads: [],
+    templates: [],
+    inspectorTab: 'basic', // 'basic' | 'advanced'
+    autoConnect: true,
+    reconnectingEdge: null, // { index, fixedNode, mode: 'target' | 'source' }
+  };
+
+  const api = async (url, options) => {
+    const res = await fetch(url, options);
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {}
+    if (!res.ok) {
+      throw new Error(data?.detail || data?.error || `Request failed (${res.status})`);
+    }
+    return data;
+  };
+
+  const toast = (message, error = false) => {
+    const el = $('#toast');
+    if (!el) return;
+    el.textContent = message;
+    el.className = `toast show${error ? ' error' : ''}`;
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => el.className = 'toast', 3200);
+  };
+
+  const titleFor = (type) => state.catalog[type]?.title || type.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const nodeFor = (id) => state.workflow.nodes.find(n => n.id === id);
+  const markDirty = () => {
+    state.dirty = true;
+    const dirtyEl = $('#dirty');
+    if (dirtyEl) dirtyEl.hidden = false;
+  };
+  const clone = (value) => JSON.parse(JSON.stringify(value));
+
+  // --- Category Mapping ---
+  function categoryFor(type) {
+    if (type === 'input' || type === 'ip_camera') return 'Sources';
+    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader'].includes(type)) return 'AI Vision Models';
+    if (['tracker', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'filter'].includes(type)) return 'Tracking & Analysis';
+    if (['resize', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'slicer'].includes(type)) return 'Image Preprocessing';
+    if (['overlay_annotate', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
+    if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once'].includes(type)) return 'Logic & Flow Control';
+    return 'Outputs & Export';
+  }
+
+  const CATEGORY_ICONS = {
+    'Sources': 'catSources',
+    'AI Vision Models': 'catAI',
+    'Tracking & Analysis': 'catTracking',
+    'Image Preprocessing': 'catProcessing',
+    'Annotations & Drawing': 'catDrawing',
+    'Logic & Flow Control': 'catLogic',
+    'Outputs & Export': 'catOutputs'
+  };
+
+  const CATEGORY_ORDER = [
+    'Sources',
+    'AI Vision Models',
+    'Tracking & Analysis',
+    'Image Preprocessing',
+    'Annotations & Drawing',
+    'Logic & Flow Control',
+    'Outputs & Export'
+  ];
+
+  // Technical / Performance keys partitioned into "Advanced" tab
+  const ADVANCED_KEYS = new Set([
+    'device',
+    'batchSize',
+    'detectEveryNFrames',
+    'maxDetectionFps',
+    'rfdetrHalfPrecision',
+    'rfdetrTensorRTCudaGraph',
+    'rfdetrTensorRTProcess',
+    'dropFrames',
+    'frameQueueSize',
+    'torchCpuThreads',
+    'asyncPreview',
+    'dahengTimeoutMs',
+    'dahengOpenMode',
+    'topK',
+    'useModelThreshold'
+  ]);
+
+  const FIELD_HELP = {
+    // Sumber Input (Sources)
+    sourceType: {
+      text: 'Pilih jenis sumber input video atau gambar.',
+      guide: 'Pilihan: Webcam (kamera laptop/USB bawaan), Daheng (kamera industri gigE/USB3), Image (gambar statis), Video (rekaman video).'
+    },
+    source: {
+      text: 'Indeks kamera perangkat keras yang terhubung ke sistem.',
+      guide: 'Default: 0 (webcam utama). Jika memiliki lebih dari 1 kamera USB, gunakan 1, 2, dst.'
+    },
+    streamUrl: {
+      text: 'Alamat URL streaming langsung kamera CCTV / IP Camera.',
+      guide: 'Mendukung RTSP (rtsp://ip:port/stream) & HTTP MJPEG (http://ip:port/video). Contoh: rtsp://192.168.1.100:554/stream1'
+    },
+    username: {
+      text: 'Username otentikasi login perangkat IP Camera / CCTV.',
+      guide: 'Kosongkan jika kamera CCTV tidak memerlukan otentikasi password.'
+    },
+    password: {
+      text: 'Password otentikasi login perangkat IP Camera / CCTV.',
+      guide: 'Kredensial akan otomatis digabungkan secara aman ke URL RTSP.'
+    },
+    transport: {
+      text: 'Protokol transmisi paket video stream RTSP.',
+      guide: 'TCP (Sangat direkomendasikan): Bebas korupsi frame dan artefak. UDP: Latensi ultra-rendah namun rentan frame robek jika sinyal Wi-Fi lemah.'
+    },
+    autoReconnect: {
+      text: 'Otomatis menyambungkan kembali stream jika sinyal CCTV terputus.',
+      guide: 'Aktifkan (True) agar pipeline tidak berhenti saat koneksi jaringan kamera berkedip atau restart.'
+    },
+    reconnectDelaySeconds: {
+      text: 'Jeda waktu sebelum mencoba menyambungkan ulang kamera saat koneksi putus.',
+      guide: 'Rentang: 0.5 s/d 10.0 detik. Nilai ideal: 2.0 detik agar tidak membebani router jaringan.'
+    },
+    filePath: {
+      text: 'Lokasi file gambar (.jpg, .png) atau rekaman video (.mp4, .avi) lokal.',
+      guide: 'Gunakan tombol Upload di samping untuk memilih file langsung dari komputer Anda.'
+    },
+    loop: {
+      text: 'Putar ulang video secara otomatis dari awal setelah durasi video habis.',
+      guide: 'Sangat berguna untuk pengujian workflow berulang kali tanpa harus me-restart pipeline.'
+    },
+    width: {
+      text: 'Lebar resolusi frame kamera yang diminta ke driver kamera.',
+      guide: 'Nilai 0 = resolusi asli sensor kamera. Contoh nilai lain: 1280, 1920. Semakin tinggi resolusi, semakin detail namun konsumsi CPU bertambah.'
+    },
+    height: {
+      text: 'Tinggi resolusi frame kamera yang diminta ke driver kamera.',
+      guide: 'Nilai 0 = resolusi asli sensor kamera. Contoh nilai lain: 720, 1080.'
+    },
+    frameQueueSize: {
+      text: 'Kapasitas buffer antrean frame di memori antar thread pemrosesan.',
+      guide: 'Rentang: 1 s/d 64 frame. Nilai lebih kecil (2 - 8) menghasilkan latensi lebih rendah (real-time). Nilai lebih besar (16 - 32) mencegah frame tersendat jika AI model berat.'
+    },
+    dropFrames: {
+      text: 'Buang frame lama jika pemrosesan AI lebih lambat dari FPS kamera.',
+      guide: 'Sangat disarankan Aktif (True) untuk kamera Live CCTV agar preview tidak tertinggal (lagging).'
+    },
+    asyncPreview: {
+      text: 'Jalankan rendering tampilan preview secara asinkron (multi-thread).',
+      guide: 'Aktif (True) mencegah antarmuka web tersendat saat beban inferensi GPU/CPU mencapai 100%.'
+    },
+
+    // Model AI & Inferensi (Detection, Segmentation, Classification)
+    engine: {
+      text: 'Framework / runtime engine yang mengeksekusi model AI.',
+      guide: 'Ultralytics YOLO: Paling populer & cepat (.pt). ONNX Runtime: Teroptimasi CPU & GPU umum. TensorRT: Akselerasi maksimal pada GPU NVIDIA. PyTorch: Standar riset.'
+    },
+    threshold: {
+      text: 'Batas minimum skor keyakinan (confidence score) deteksi objek.',
+      guide: 'Rentang: 0.00 s/d 1.00 (Nilai standar: 0.40 - 0.55). Semakin TINGGI: Deteksi semakin akurat & bersih dari false positive (salah deteksi). Semakin RENDAH: Lebih sensitif mendeteksi objek samar atau jauh.'
+    },
+    minimumConfidence: {
+      text: 'Ambang batas keyakinan minimum agar objek disimpan atau di-event.',
+      guide: 'Rentang: 0.00 s/d 1.00. Semakin tinggi hanya objek dengan deteksi sangat jelas yang dicatat.'
+    },
+    device: {
+      text: 'Perangkat keras pemrosesan komputasi model AI.',
+      guide: 'Auto: Otomatis mendeteksi GPU NVIDIA CUDA jika ada, atau CPU jika tidak ada. CUDA: Memaksimalkan GPU (FPS jauh lebih tinggi).'
+    },
+    customModelPath: {
+      text: 'Path atau nama file model custom (YOLO .pt, ONNX, TFLite).',
+      guide: 'Dapat memilih model yang sudah ada di folder data/models atau klik Upload untuk model terlatih Anda sendiri.'
+    },
+    modelPath: {
+      text: 'File bobot model AI yang akan dimuat ke memori.',
+      guide: 'Mendukung format .pt, .onnx, .tflite, .keras, .h5.'
+    },
+    classes: {
+      text: 'Filter nama kelas objek yang ingin dideteksi (dipisah koma).',
+      guide: 'Contoh: "person, car, motorcycle". Kosongkan jika ingin mendeteksi SEMUA 80 kelas COCO bawaan.'
+    },
+    customClasses: {
+      text: 'Daftar nama label kelas khusus untuk model kustom (dipisah koma).',
+      guide: 'Urutkan sesuai index class 0, 1, 2 pada model (misal: "cacat_goresan, cacat_retak, normal").'
+    },
+    batchSize: {
+      text: 'Jumlah frame yang diproses secara paralel dalam satu batch inferensi GPU.',
+      guide: 'Nilai 1 = ideal untuk stream live kamera tunggal (latensi instan). Nilai 2 - 4 = throughput lebih tinggi jika banyak kamera atau input rekaman.'
+    },
+    detectEveryNFrames: {
+      text: 'Lewati N-1 frame untuk menghemat beban daya CPU / GPU.',
+      guide: 'Nilai 1 = Deteksi setiap frame (paling mulus). Nilai 2 = Deteksi tiap 2 frame sekali (menghemat 50% komputasi AI).'
+    },
+    maxDetectionFps: {
+      text: 'Batas maksimal FPS pemrosesan AI (kecepatan inferensi).',
+      guide: 'Nilai 0 = Tidak dibatasi (performa maksimal). Isi 15 atau 30 jika ingin mengunci konsumsi daya perangkat.'
+    },
+    iouThreshold: {
+      text: 'Ambang batas Non-Maximum Suppression (NMS) tumpang-tindih kotak (IoU).',
+      guide: 'Rentang: 0.10 s/d 0.95. Semakin RENDAH: Mencegah kotak ganda pada satu objek yang sama. Semakin TINGGI: Memungkinkan mendeteksi objek yang saling berhimpitan.'
+    },
+    imageSize: {
+      text: 'Resolusi ukuran gambar (pixels) saat diumpankan ke model AI.',
+      guide: 'Nilai standar: 640. Untuk foto resolusi tinggi dengan orang banyak / wajah kecil di baris belakang, naikkan ke 1024 atau 1280 agar semua orang terdeteksi jelas!'
+    },
+    topK: {
+      text: 'Jumlah kelas probabilitas tertinggi yang diambil dari classifier.',
+      guide: 'Default: 1 (hanya kelas dengan skor paling tinggi yang dimunculkan).'
+    },
+
+    // Pelacakan Objek (Tracking & Analysis)
+    algorithm: {
+      text: 'Algoritma asosiasi pelacakan objek (Object Tracking).',
+      guide: 'ByteTrack: Paling cepat & stabil untuk kamera statis. BoT-SORT: Memiliki kompensasi pergerakan kamera (PTZ/bergerak). OC-SORT: Sangat tangguh saat objek tertutup sementara (oklusi).'
+    },
+    trackHighThreshold: {
+      text: 'Skor keyakinan minimum untuk inisiasi track baru (tahap 1).',
+      guide: 'Rentang: 0.1 s/d 0.9 (Ideal: 0.6). Semakin tinggi memastikan ID hanya dibuat untuk objek yang jelas.'
+    },
+    trackLowThreshold: {
+      text: 'Skor minimum untuk melanjutkan lintasan objek yang bergerak cepat/kabur (tahap 2).',
+      guide: 'Rentang: 0.05 s/d 0.5 (Ideal: 0.1). Membantu menjaga ID tidak hilang saat objek terhalang sedikit.'
+    },
+    newTrackThreshold: {
+      text: 'Skor deteksi untuk mengonfirmasi ID pelacakan permanen.',
+      guide: 'Rentang: 0.4 s/d 0.9 (Ideal: 0.7).'
+    },
+    matchThreshold: {
+      text: 'Batas toleransi jarak / IoU saat mencocokkan objek antar frame.',
+      guide: 'Rentang: 0.1 s/d 0.8. Semakin rendah semakin fleksibel melacak objek berkecepatan tinggi.'
+    },
+    trackBuffer: {
+      text: 'Batas jumlah frame riwayat ID disimpan sebelum dianggap keluar arena.',
+      guide: 'Rentang: 10 s/d 120 frame (Default: 30 frame = 1 detik pada 30 FPS). Semakin TINGGI: ID tidak akan berganti jika objek terhalang tiang selama beberapa detik.'
+    },
+    trackerFrameRate: {
+      text: 'Asumsi kecepatan frame rate kamera untuk estimasi Kalman Filter.',
+      guide: 'Cocokkan dengan FPS kamera (misal: 25 atau 30 FPS) untuk prediksi lintasan gerak paling akurat.'
+    },
+    classAgnostic: {
+      text: 'Lacak objek tanpa membedakan jenis kelasnya.',
+      guide: 'Aktifkan jika ingin ID pelacakan tidak berganti meski model sempat salah membaca kelas mobil menjadi bus di tengah jalan.'
+    },
+    showLostTracks: {
+      text: 'Tetap gambar posisi prediksi objek yang sedang hilang/tertutup.',
+      guide: 'Aktif (True) menampilkan kotak putus-putus pada posisi perkiraan objek saat terhalang.'
+    },
+
+    // Penghitung Objek (Counter & Filter)
+    countOncePerTrack: {
+      text: 'Hitung setiap objek ber-ID unik tepat 1 kali saja.',
+      guide: 'Sangat direkomendasikan Aktif (True) agar objek yang diam di depan kamera tidak dihitung berkali-kali.'
+    },
+    showCounts: {
+      text: 'Tampilkan widget ringkasan jumlah objek di pojok kanan atas preview.',
+      guide: 'Aktifkan untuk melihat statistik akumulasi real-time (misal: "person: 5, car: 2").'
+    },
+    direction: {
+      text: 'Arah pergerakan garis batas untuk penambahan hitungan.',
+      guide: 'Pilihan: Both (semua arah), In / Enter (hanya saat masuk), Out / Exit (hanya saat keluar).'
+    },
+    minCount: {
+      text: 'Jumlah minimum objek terdeteksi untuk meneruskan sinyal/event.',
+      guide: 'Contoh: 3 = Hanya kirim alert jika ada minimal 3 orang terdeteksi bersamaan.'
+    },
+    retentionSeconds: {
+      text: 'Durasi memori penyimpanan ID objek yang sudah terhitung (dalam detik).',
+      guide: 'Default: 3600 detik (1 jam). Setelah waktu ini berlalu, ID lama yang masuk kembali akan dianggap objek baru.'
+    },
+
+    // Preprocessing & Transformasi Citra
+    operation: {
+      text: 'Operasi filter penyaringan matriks gambar OpenCV.',
+      guide: 'Blur: Menghilangkan noise/bintik. Sharpen: Mempertegas tepian garis objek. Bilateral: Menghaluskan permukaan tanpa mengaburkan garis tepi.'
+    },
+    kernel: {
+      text: 'Ukuran matriks konvolusi filter gambar (harus bilangan ganjil).',
+      guide: 'Rentang: 3, 5, 7, 9, 11. Semakin BESAR nilainya, efek blur atau penajaman akan semakin drastis.'
+    },
+    mode: {
+      text: 'Ruang warna target konversi citra.',
+      guide: 'Grayscale: Hitam-putih (1 channel, sangat cepat untuk deteksi tepi). HSV: Mempermudah filter warna berdasarkan Hue (corak warna spesifik).'
+    },
+    rotation: {
+      text: 'Rotasi orientasi sudut gambar kamera.',
+      guide: 'Gunakan 90° atau 270° jika kamera dipasang posisi vertikal (portrait).'
+    },
+    method: {
+      text: 'Algoritma pemisah latar belakang gerak (Background Subtraction).',
+      guide: 'MOG2: Menyesuaikan bayangan secara dinamis. KNN: Sangat efisien untuk deteksi benda yang bergerak meninggalkan latar belakang statis.'
+    },
+
+    // Tampilan & Live Preview
+    showBoxes: {
+      text: 'Tampilkan kotak pembatas (Bounding Box) di sekitar objek.',
+      guide: 'Aktif (True) untuk memperlihatkan lokasi presisi setiap objek yang terdeteksi.'
+    },
+    showLabels: {
+      text: 'Tampilkan teks nama kelas dan persentase skor keyakinan.',
+      guide: 'Menampilkan label nama (misal: "person 92%") di atas bounding box.'
+    },
+    showMasks: {
+      text: 'Tampilkan poligon masker segmentasi transparan pada objek.',
+      guide: 'Khusus node Object Segmentation: mewarnai bentuk kontur presisi dari objek yang ditemukan.'
+    },
+    showTrackIds: {
+      text: 'Tampilkan nomor ID unik pelacakan pada label objek.',
+      guide: 'Menampilkan tag ID (misal: "#1 person") agar Anda dapat memantau pergerakan individu objek.'
+    },
+    showTrails: {
+      text: 'Tampilkan jejak garis riwayat pergerakan lintasan objek.',
+      guide: 'Menggambar garis lintasan masa lalu yang dilalui oleh objek yang sedang bergerak.'
+    },
+    maskOpacity: {
+      text: 'Tingkat kepekatan / transparansi warna masker segmentasi.',
+      guide: 'Rentang: 0.05 (sangat transparan) s/d 0.85 (sangat pekat). Nilai standar yang nyaman: 0.35.'
+    },
+
+    // Output, Event & Alert
+    url: {
+      text: 'Endpoint URL server HTTP tujuan untuk pengiriman Webhook JSON.',
+      guide: 'Contoh: http://192.168.1.50:8000/api/event. Server target akan menerima payload data deteksi secara real-time.'
+    },
+    cooldownSeconds: {
+      text: 'Waktu jeda minimal antar pengiriman alert / notifikasi beruntun.',
+      guide: 'Rentang: 1 s/d 300 detik. Mencegah banjir notifikasi saat objek berada lama di depan kamera.'
+    },
+    message: {
+      text: 'Pesan kustom yang dicatat saat kondisi deteksi terpenuhi.',
+      guide: 'Teks ini akan muncul di jendela terminal event dan dikirimkan ke webhook output.'
+    },
+    sendImage: {
+      text: 'Sertakan gambar cuplikan frame kejadian dalam format Base64 JPEG.',
+      guide: 'Berguna jika backend penerima webhook ingin langsung menyimpan atau menampilkan foto barang/orang yang terdeteksi.'
+    },
+    imageQuality: {
+      text: 'Kualitas kompresi foto JPEG thumbnail Base64 (1 - 100).',
+      guide: 'Nilai 80 = Keseimbangan ideal antara kejernihan gambar dan ukuran bandwidth transmisi yang ringan.'
+    },
+    databasePath: {
+      text: 'Lokasi file database SQLite untuk penyimpanan rekaman log.',
+      guide: 'Kosongkan untuk menggunakan database internal default sistem (data/database.sqlite).'
+    },
+    startPoint: {
+      text: 'Titik koordinat awal garis pelintasan (x1, y1).',
+      guide: 'Format: x,y (misal: 0.1, 0.5 untuk rasio). Gunakan tombol Draw Line di bawah untuk menggambar langsung di Live Preview.'
+    },
+    endPoint: {
+      text: 'Titik koordinat akhir garis pelintasan (x2, y2).',
+      guide: 'Format: x,y (misal: 0.9, 0.5 untuk rasio). Gunakan tombol Draw Line di bawah untuk menggambar langsung di Live Preview.'
+    },
+    triggerAnchor: {
+      text: 'Titik acuan bounding box objek untuk deteksi pelintasan.',
+      guide: 'bottom_center (kaki/dasar objek, sangat cocok untuk orang & mobil), center (tengah), top_center (atas).'
+    },
+    inLabel: {
+      text: 'Label teks untuk arah masuk (IN).',
+      guide: 'Default: IN. Contoh lain: MASUK, NAIK.'
+    },
+    outLabel: {
+      text: 'Label teks untuk arah keluar (OUT).',
+      guide: 'Default: OUT. Contoh lain: KELUAR, TURUN.'
+    },
+    invertDirection: {
+      text: 'Tukar / balik arah pelintasan IN dan OUT.',
+      guide: 'Aktifkan jika arah deteksi masuk/keluar terbalik dari orientasi garis yang Anda gambar.'
+    },
+    countMode: {
+      text: 'Mode arah penghitungan pelintasan objek.',
+      guide: 'both (hitung dua arah IN dan OUT), in_only (hanya hitung IN), out_only (hanya hitung OUT).'
+    },
+    thresholdSeconds: {
+      text: 'Batas durasi waktu maksimum di dalam zona sebelum memicu status loitering.',
+      guide: 'Satuan detik. Contoh: 5.0 detik. Jika objek berdiam di area lebih lama dari nilai ini, status LOITERING akan aktif.'
+    },
+    points: {
+      text: 'Daftar titik koordinat poligon zona (x1,y1; x2,y2; ...).',
+      guide: 'Format: x1,y1; x2,y2... Gunakan tombol Draw Zone di bawah untuk klik 4 titik langsung di Live Preview.'
+    },
+    showTimer: {
+      text: 'Tampilkan label durasi detik di atas objek.',
+      guide: 'Aktifkan (True) untuk melihat timer waktu berjalan di atas bounding box setiap objek secara real-time.'
+    },
+    sliceWidth: {
+      text: 'Lebar petak tile pemotongan frame resolusi tinggi (SAHI).',
+      guide: 'Default: 640 pixel. Menjaga ketajaman deteksi objek kecil pada kamera 4K/1080p.'
+    },
+    sliceHeight: {
+      text: 'Tinggi petak tile pemotongan frame resolusi tinggi (SAHI).',
+      guide: 'Default: 640 pixel.'
+    },
+    overlapRatio: {
+      text: 'Rasio tumpang tindih antar petak (tile overlap).',
+      guide: 'Rentang 0.0 s/d 0.5 (Default: 0.2 atau 20%). Mencegah objek yang berada di perbatasan petak terpotong.'
+    },
+    pixelateBlock: {
+      text: 'Ukuran blok pikselasi untuk sensor privasi.',
+      guide: 'Rentang 4 s/d 32 pixel. Semakin besar nilai, semakin buram sensor kotaknya.'
+    },
+    perClassThresholds: {
+      text: 'Ambang batas confidence per-kelas (contoh: person:0.35, car:0.60).',
+      guide: 'Memungkinkan filter sensitivitas berbeda untuk setiap tipe objek tanpa mengubah threshold global.'
+    },
+    classRemap: {
+      text: 'Pemetaan ulang nama label kelas (contoh: person->visitor, truck->heavy_vehicle).',
+      guide: 'Ganti nama tampilan label secara langsung untuk kebutuhan pelaporan atau klasifikasi bisnis khusus.'
+    },
+    recordClip: {
+      text: 'Otomatis simpan rekaman video MP4 insiden kejadian ke folder data/outputs/events/.',
+      guide: 'Menyimpan klip video melingkar 5 detik saat alert deteksi atau loitering terpicu.'
+    },
+    clipDurationSeconds: {
+      text: 'Durasi klip rekaman video insiden (dalam detik).',
+      guide: 'Default: 5 detik. Klip disimpan dalam format MP4 standar yang dapat diputar langsung di browser.'
+    },
+    minArea: {
+      text: 'Luas minimum kotak bounding box (pixel: lebar x tinggi).',
+      guide: 'Nilai 0 = Nonaktif. Berguna menyaring noise bintik kecil, serangga terbang, atau false positive berukuran mikro.'
+    },
+    maxArea: {
+      text: 'Luas maksimum kotak bounding box (pixel: lebar x tinggi).',
+      guide: 'Nilai 0 = Nonaktif. Mengabaikan objek yang menutupi seluruh layar atau terlalu dekat dengan lensa kamera.'
+    },
+    minAspectRatio: {
+      text: 'Rasio aspek minimum (lebar dibagi tinggi).',
+      guide: 'Nilai 0.0 = Nonaktif. Contoh: 0.2 untuk menyaring objek vertikal tegak (seperti orang berdiri).'
+    },
+    maxAspectRatio: {
+      text: 'Rasio aspek maksimum (lebar dibagi tinggi).',
+      guide: 'Nilai 0.0 = Nonaktif. Contoh: 3.0 untuk menyaring objek memanjang horizontal (seperti mobil/truk).'
+    },
+    excludeBorderMargin: {
+      text: 'Batas jarak aman dari tepi frame kamera (dalam pixel).',
+      guide: 'Nilai 0 = Nonaktif. Isi 10 - 20 jika ingin mengabaikan objek yang baru muncul setengah badan di pinggir layar.'
+    },
+    mode: {
+      text: 'Mode perhitungan jumlah objek pada kamera.',
+      guide: 'Occupancy: Jumlah objek yang sedang aktif di frame saat ini. Cumulative: Total unik objek yang pernah lewat sejak awal.'
+    },
+    maxCapacity: {
+      text: 'Batas kapasitas kuota maksimum area atau ruangan.',
+      guide: 'Nilai 0 = Nonaktif. Jika jumlah orang di area melebihi batas ini, sistem akan memicu alarm status OVERFLOW!'
+    },
+    alertOnCapacityExceeded: {
+      text: 'Pemicu alarm saat kuota kapasitas terlampaui.',
+      guide: 'Aktifkan (True) untuk mencatat kejadian overcapacity ke log event dan webhook secara otomatis.'
+    },
+    captureMode: {
+      text: 'Format cuplikan gambar inspeksi yang disimpan.',
+      guide: 'crop_only: Hanya potongan objek target. full_frame_clean: Frame kamera utuh. full_frame_annotated: Frame utuh lengkap kotak AI.'
+    },
+    maxFilesRetention: {
+      text: 'Batas maksimum jumlah file gambar di folder (FIFO Cleanup).',
+      guide: 'Default: 1000 file. Foto paling lama otomatis dihapus jika kuota tercapai agar hard disk Dokploy/server tidak jebol (Disk Full).'
+    },
+    burnWatermark: {
+      text: 'Sematkan cap tanggal, jam, dan ID deteksi di pojok foto.',
+      guide: 'Sangat direkomendasikan Aktif (True) sebagai bukti otentik inspeksi visual dan kepatuhan audit keamanan.'
+    },
+    payloadTemplate: {
+      text: 'Format template JSON kustom untuk pengiriman webhook API.',
+      guide: 'Mendukung variabel dinamis: {timestamp}, {matches}, {detection.class}, {detection.confidence}, {track.id}. Kosongkan untuk JSON standar.'
+    },
+    retryCount: {
+      text: 'Jumlah percobaan pengiriman ulang otomatis jika server tujuan gagal/timeout.',
+      guide: 'Rentang 0 s/d 5 kali percobaan (Default: 2) dengan interval exponential backoff.'
+    },
+    timeoutSeconds: {
+      text: 'Batas waktu tunggu respon HTTP dari server webhook (dalam detik).',
+      guide: 'Default: 5.0 detik. Mencegah pipeline tersendat jika server penerima webhook lambat.'
+    },
+    contextPaddingPercent: {
+      text: 'Persentase padding tambahan di sekeliling kotak objek target.',
+      guide: 'Contoh: 0.15 (15%) memberikan konteks visual ekstra di sekitar objek agar pemrosesan lanjutan (seperti classifier/OCR) tidak terpotong ketat di tepi.'
+    },
+    square: {
+      text: 'Potong frame menjadi rasio kotak sempurna (1:1) dengan letterbox padding.',
+      guide: 'Aktifkan (True) untuk menstabilkan input model klasifikasi/inspeksi sekunder tanpa distorsi regangan atau perubahan aspect ratio.'
+    },
+    padColor: {
+      text: 'Warna latar belakang padding letterbox jika mode Square aktif.',
+      guide: 'Default: #000000 (Hitam). Format hex RGB (#000000 s/d #ffffff).'
+    },
+    minCropWidth: {
+      text: 'Lebar minimum hasil crop objek (pixel).',
+      guide: 'Objek dengan lebar lebih kecil dari batas ini akan diabaikan agar tidak menghasilkan potongan gambar buram/terlalu kecil.'
+    },
+    minCropHeight: {
+      text: 'Tinggi minimum hasil crop objek (pixel).',
+      guide: 'Objek dengan tinggi lebih kecil dari batas ini akan diabaikan.'
+    },
+    invertZone: {
+      text: 'Mode pantau area luar (zona eksklusi / perimeter terbalik).',
+      guide: 'Jika Aktif (True), hanya objek yang berada di LUAR polygon/kotak yang akan diteruskan (misal: perimeter luar gudang atau area terlarang).'
+    },
+    useClahe: {
+      text: 'Tingkatkan kontras lokal adaptif (Night Vision CLAHE).',
+      guide: 'Menggunakan Contrast Limited Adaptive Histogram Equalization pada kanal luminansi (L*) ruang warna LAB tanpa merusak warna asli.'
+    },
+    autoLowLight: {
+      text: 'Otomatis aktifkan peningkatan malam hanya saat frame gelap.',
+      guide: 'Mendeteksi rata-rata kecerahan sensor CCTV dan mengaktifkan CLAHE otomatis saat malam atau kondisi redup.'
+    },
+    lowLightThreshold: {
+      text: 'Batas rata-rata kecerahan untuk memicu mode low-light.',
+      guide: 'Rentang 0 - 255. Default: 65.0. Nilai di bawah ini akan memicu CLAHE otomatis.'
+    },
+    clipLimit: {
+      text: 'Batas amplifikasi kontras CLAHE untuk mencegah peningkatan noise.',
+      guide: 'Default: 2.5 (Rentang 1.0 - 5.0). Nilai lebih tinggi memberi kontras lebih tajam namun dapat memperjelas noise kamera.'
+    },
+    tileGridSize: {
+      text: 'Ukuran grid blok lokal histogram CLAHE.',
+      guide: 'Default: 8 (Grid 8x8). Mengontrol pembagian area lokal untuk perataan kontras adaptif.'
+    },
+    detectFreeze: {
+      text: 'Deteksi video streaming CCTV yang membeku / macet (Stream Watchdog).',
+      guide: 'Mendeteksi jika frame RTSP identik terus-menerus tanpa ada perubahan selama beberapa detik akibat gangguan decoder atau kamera hang.'
+    },
+    freezeThresholdSeconds: {
+      text: 'Ambang batas durasi diam sebelum dinyatakan macet / beku (dalam detik).',
+      guide: 'Default: 3.0 detik. Jika video tidak bergerak melampaui waktu ini, alarm peringatan stream freeze akan dipicu.'
+    },
+    detectTamper: {
+      text: 'Deteksi sabotase lensa kamera CCTV (tertutup atau silau laser).',
+      guide: 'Mendeteksi perubahan ekstrem jika lensa ditutup kain/cat semprot (gelap total) atau disorot laser/senter kuat (terang benderang).'
+    },
+    tamperDarkThreshold: {
+      text: 'Batas luminansi minimum sabotase lensa tertutup / gelap.',
+      guide: 'Default: 6.0 (Sangat gelap mendekati hitam pekat).'
+    },
+    tamperBrightThreshold: {
+      text: 'Batas luminansi maksimum sabotase lensa disorot cahaya kuat.',
+      guide: 'Default: 248.0 (Putih menyilaukan mendekati 255).'
+    },
+    retentionDays: {
+      text: 'Masa retensi penyimpanan rekaman deteksi lokal SQLite (dalam hari).',
+      guide: 'Default: 14 hari. Data deteksi dan frame debug yang lebih lama otomatis dibersihkan dengan VACUUM agar disk Dokploy tidak penuh.'
+    },
+    aggregateHourly: {
+      text: 'Ringkas otomatis data ke tabel analitik agregasi per jam.',
+      guide: 'Aktifkan (True) untuk mempercepat query dashboard dan pelaporan tren tanpa harus membaca jutaan baris deteksi mentah.'
+    },
+    metric: {
+      text: 'Jenis metrik / nilai data yang ingin dievaluasi untuk percabangan alur.',
+      guide: 'Pilihan: Jumlah Objek (Live Count), Hitungan Masuk (IN) Line Counter, Hitungan Keluar (OUT), Total Hitungan, Ada Objek Melintas (Event Frame), Jumlah Kelas Tertentu, Akurasi Tertinggi, atau Skor Anomali.'
+    },
+    operator: {
+      text: 'Operator logika pembanding antara nilai aktual dengan nilai acuan (threshold).',
+      guide: 'Pilihan: >= (Lebih dari sama dengan), > (Lebih dari), <= (Kurang dari sama dengan), < (Kurang dari), == (Sama dengan), != (Tidak sama dengan).'
+    },
+    value: {
+      text: 'Nilai angka acuan pembanding (threshold) untuk evaluasi kondisi logika.',
+      guide: 'Contoh: 1 (jika ada minimal 1 objek), 5 (jika antrean mencapai 5), 10 (target hitungan masuk Line Counter), atau 0.85 (untuk confidence/akurasi).'
+    },
+    passWhen: {
+      text: 'Pilihan cabang eksekusi alur logika (IF atau ELSE).',
+      guide: 'Cabang IF (True): Meneruskan deteksi/frame ke node berikutnya hanya jika kondisi TERPENUHI. Cabang ELSE (False): Meneruskan ke node berikutnya jika kondisi TIDAK TERPENUHI (kebalikannya).'
+    }
+  };
+
+  // --- Projects Rendering & Management ---
+  function renderProjects() {
+    const root = $('#projects');
+    if (!root) return;
+    root.replaceChildren();
+    if (!state.projects.length) {
+      root.textContent = 'No projects yet';
+      return;
+    }
+    state.projects.forEach(p => {
+      const b = document.createElement('div');
+      b.className = `project-item${state.project?.id === p.id ? ' active' : ''}`;
+
+      const labelWrap = document.createElement('div');
+      labelWrap.className = 'proj-label';
+      labelWrap.innerHTML = '<span class="project-dot"></span>';
+      const label = document.createElement('span');
+      label.textContent = p.name || 'Untitled project';
+      labelWrap.append(label);
+      labelWrap.onclick = () => switchProject(p.id);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'delete-proj';
+      delBtn.title = 'Delete project';
+      delBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        deleteProject(p.id, p.name || 'Untitled project');
+      };
+
+      b.append(labelWrap, delBtn);
+      root.append(b);
+    });
+  }
+
+  async function renameProject() {
+    if (!state.project) return;
+    const currentName = state.project.name || 'Vision Workflow';
+    const newName = prompt('Enter new project name:', currentName);
+    if (!newName || !newName.trim() || newName.trim() === currentName) return;
+
+    try {
+      const data = await api(`/api/projects/${encodeURIComponent(state.project.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName.trim(), workflow: state.workflow })
+      });
+      state.project = data.project;
+      $('#projectName').textContent = state.project.name;
+      await loadProjects();
+      toast('Project renamed');
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  async function deleteProject(id, name) {
+    if (!confirm(`Are you sure you want to delete project "${name}"? This cannot be undone.`)) return;
+    try {
+      await api(`/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      toast('Project deleted');
+      if (state.project?.id === id) {
+        state.project = null;
+        state.workflow = { nodes: [], edges: [] };
+      }
+      await loadProjects();
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  async function loadProjects() {
+    try {
+      const data = await api('/api/projects');
+      state.projects = data.projects || [];
+      if (!state.projects.length) {
+        const created = await api('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'My vision workflow', workflow: state.defaults })
+        });
+        state.projects = [created.project];
+        state.project = null;
+      }
+      if (!state.project && state.projects[0]) {
+        await switchProject(state.projects[0].id, true);
+      }
+      renderProjects();
+    } catch (e) {
+      toast('Failed to load projects: ' + e.message, true);
+    }
+  }
+
+  async function switchProject(id, force = false) {
+    if (!force && state.dirty && !confirm('You have unsaved changes. Switch project anyway?')) return;
+    try {
+      const data = await api(`/api/projects/${encodeURIComponent(id)}`);
+      state.project = data.project;
+      state.workflow = data.workflow || { nodes: [], edges: [] };
+      state.selected = null;
+      state.dirty = false;
+      $('#dirty').hidden = true;
+      $('#projectName').textContent = state.project?.name || 'Untitled project';
+      renderProjects();
+      renderCanvas();
+      renderInspector();
+      updatePreviewSelect();
+    } catch (e) {
+      toast('Failed to load project: ' + e.message, true);
+    }
+  }
+
+  async function newProject() {
+    const name = prompt('Project name', 'New vision workflow');
+    if (!name?.trim()) return;
+    if (state.dirty && !confirm('You have unsaved changes. Create a project anyway?')) return;
+    try {
+      const data = await api('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), workflow: state.defaults })
+      });
+      await loadProjects();
+      await switchProject(data.project.id, true);
+      toast('Project created');
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  async function save() {
+    if (!state.project) return false;
+    const projectId = state.project.id;
+    const snapshot = JSON.stringify(state.workflow);
+    $('#saveBtn').disabled = true;
+    try {
+      const data = await api(`/api/projects/${encodeURIComponent(projectId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workflow: state.workflow })
+      });
+      if (state.project?.id === projectId) {
+        state.project = data.project;
+        state.dirty = false;
+        $('#dirty').hidden = true;
+      }
+      await loadProjects();
+      toast('Changes saved');
+      return true;
+    } catch (e) {
+      toast(e.message, true);
+      return false;
+    } finally {
+      $('#saveBtn').disabled = false;
+    }
+  }
+
+  // --- Node Library Rendering with Vector Icons ---
+  function renderLibrary() {
+    const q = ($('#nodeSearch')?.value || '').toLowerCase();
+    const root = $('#library');
+    if (!root) return;
+    root.replaceChildren();
+
+    const items = Object.entries(state.catalog).filter(([type, bp]) =>
+      `${type} ${bp.title} ${bp.subtitle}`.toLowerCase().includes(q)
+    );
+
+    const groups = {};
+    items.forEach(([type, bp]) => {
+      const cat = categoryFor(type);
+      (groups[cat] ||= []).push([type, bp]);
+    });
+
+    CATEGORY_ORDER.forEach(groupName => {
+      const groupItems = groups[groupName];
+      if (!groupItems || !groupItems.length) return;
+
+      const h = document.createElement('div');
+      h.className = 'library-group';
+      const catIconKey = CATEGORY_ICONS[groupName] || 'input';
+      h.innerHTML = `${getIcon(catIconKey, 'icon-sm')} <span>${groupName.toUpperCase()} (${groupItems.length})</span>`;
+      root.append(h);
+
+      groupItems.forEach(([type, bp]) => {
+        const b = document.createElement('button');
+        b.className = 'library-item';
+        b.dataset.cat = groupName;
+        b.title = bp.subtitle || '';
+
+        const icon = document.createElement('span');
+        icon.className = 'node-icon';
+        icon.innerHTML = getIcon(type, 'icon-sm');
+
+        const text = document.createElement('span');
+        text.className = 'library-text';
+        text.innerHTML = `<strong></strong><small></small>`;
+        text.firstChild.textContent = bp.title || titleFor(type);
+        text.lastChild.textContent = bp.subtitle || type;
+
+        const infoBtn = document.createElement('span');
+        infoBtn.className = 'library-info-btn';
+        infoBtn.title = 'Panduan & Cara Penggunaan (Bahasa Indonesia)';
+        infoBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24" style="width:13px;height:13px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
+        infoBtn.onclick = (e) => {
+          e.stopPropagation();
+          showNodeGuideModal(type);
+        };
+
+        b.append(icon, text, infoBtn);
+        b.onclick = () => addNode(type);
+        root.append(b);
+      });
+    });
+  }
+
+  // --- Canvas Zoom & Rendering ---
+  function setZoom(val) {
+    state.zoom = Math.max(0.3, Math.min(2.0, Number(val.toFixed(2))));
+    $('#zoomLevel').textContent = `${Math.round(state.zoom * 100)}%`;
+    renderCanvas();
+  }
+
+  function renderCanvas() {
+    const canvas = $('#canvas');
+    const root = $('#nodes');
+    const svg = $('#edges');
+    if (!canvas || !root || !svg) return;
+
+    root.style.transform = `scale(${state.zoom}) translate(${state.panX}px, ${state.panY}px)`;
+    root.style.transformOrigin = '0 0';
+    svg.style.transform = `scale(${state.zoom}) translate(${state.panX}px, ${state.panY}px)`;
+    svg.style.transformOrigin = '0 0';
+
+    root.replaceChildren();
+    $('#emptyCanvas').hidden = state.workflow.nodes.length > 0;
+
+    const maxX = Math.max(2000, ...state.workflow.nodes.map(n => (n.x || 0) + 320));
+    const maxY = Math.max(1200, ...state.workflow.nodes.map(n => (n.y || 0) + 240));
+
+    root.style.minWidth = `${maxX}px`;
+    root.style.minHeight = `${maxY}px`;
+    svg.setAttribute('width', maxX);
+    svg.setAttribute('height', maxY);
+    svg.style.width = `${maxX}px`;
+    svg.style.height = `${maxY}px`;
+    svg.removeAttribute('viewBox');
+
+    state.workflow.nodes.forEach(n => {
+      const card = document.createElement('article');
+      const cat = categoryFor(n.type);
+      card.className = `node-card${state.selected === n.id ? ' selected' : ''}`;
+      card.dataset.cat = cat;
+      card.style.left = `${Number(n.x) || 0}px`;
+      card.style.top = `${Number(n.y) || 0}px`;
+      card.dataset.id = n.id;
+
+      const head = document.createElement('div');
+      head.className = 'node-head';
+      const badge = document.createElement('span');
+      badge.className = 'node-badge';
+      badge.innerHTML = getIcon(n.type, 'icon-sm');
+      const strong = document.createElement('strong');
+      strong.textContent = n.title || titleFor(n.type);
+      head.append(badge, strong);
+
+      const meta = document.createElement('div');
+      meta.className = 'node-meta';
+      meta.textContent = n.subtitle || state.catalog[n.type]?.subtitle || n.type;
+
+      if (n.type === 'if_else') {
+        const isElse = String(n.config?.passWhen).toLowerCase() === 'false';
+        const tag = document.createElement('div');
+        tag.style.fontSize = '10px';
+        tag.style.fontWeight = '700';
+        tag.style.marginTop = '4px';
+        tag.style.padding = '2px 6px';
+        tag.style.borderRadius = '4px';
+        tag.style.display = 'inline-block';
+        tag.style.backgroundColor = isElse ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)';
+        tag.style.color = isElse ? '#ef4444' : '#22c55e';
+        tag.style.border = `1px solid ${isElse ? '#ef4444' : '#22c55e'}`;
+        tag.textContent = isElse ? '🔴 CABANG ELSE (False)' : '🟢 CABANG IF (True)';
+        meta.append(tag);
+      }
+
+      const input = document.createElement('button');
+      input.className = 'port input';
+      input.title = 'Connect input';
+      input.setAttribute('aria-label', `Connect to ${n.title || n.type}`);
+
+      const output = document.createElement('button');
+      output.className = 'port output';
+      output.title = 'Connect output';
+      output.setAttribute('aria-label', `Connect from ${n.title || n.type}`);
+
+      if (state.connecting) {
+        if (n.id === state.connecting.from) {
+          card.classList.add('connecting-source');
+        } else {
+          card.classList.add('connecting-target');
+        }
+      }
+
+      card.append(head, meta, input, output);
+
+      card.onclick = (e) => {
+        if (state.reconnectingEdge) {
+          applyEdgeReconnect(n.id);
+          return;
+        }
+        if (state.connecting) {
+          e.stopPropagation();
+          connectTo(n.id);
+          return;
+        }
+        if (e.target.classList.contains('port')) return;
+        selectNode(n.id);
+      };
+
+      input.onclick = (e) => {
+        e.stopPropagation();
+        if (state.reconnectingEdge) {
+          applyEdgeReconnect(n.id);
+          return;
+        }
+        connectTo(n.id);
+      };
+
+      output.onclick = (e) => {
+        e.stopPropagation();
+        if (state.reconnectingEdge) {
+          applyEdgeReconnect(n.id);
+          return;
+        }
+        if (state.connecting && state.connecting.from === n.id) {
+          state.connecting = null;
+          $('#canvasHint').textContent = 'Penyambungan garis dibatalkan';
+          renderCanvas();
+          return;
+        }
+        connectFrom(n.id);
+      };
+
+      // Support drag-to-connect from output port
+      output.onpointerdown = (e) => {
+        e.stopPropagation();
+        connectFrom(n.id);
+      };
+
+      card.onpointerup = (e) => {
+        if (state.connecting && state.connecting.from !== n.id) {
+          e.stopPropagation();
+          connectTo(n.id);
+        }
+      };
+
+      enableDrag(card, n);
+      root.append(card);
+    });
+
+    drawEdges();
+  }
+
+  function hideEdgeContextMenu() {
+    const menu = $('#edgeContextMenu');
+    if (menu) menu.hidden = true;
+  }
+
+  function showEdgeContextMenu(e, edge, index) {
+    const menu = $('#edgeContextMenu');
+    if (!menu) return;
+    const a = nodeFor(edge[0]);
+    const b = nodeFor(edge[1]);
+    const titleA = a ? a.title : edge[0];
+    const titleB = b ? b.title : edge[1];
+
+    menu.replaceChildren();
+
+    // Menu Header
+    const header = document.createElement('div');
+    header.className = 'edge-menu-header';
+    header.innerHTML = `<span>${titleA} → ${titleB}</span>`;
+    menu.append(header);
+
+    // 1. Pindahkan Ujung Tujuan (Target)
+    const btnMoveTarget = document.createElement('button');
+    btnMoveTarget.className = 'edge-menu-item';
+    btnMoveTarget.innerHTML = `
+      <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <span>Pindahkan Ujung Tujuan (Target)</span>
+    `;
+    btnMoveTarget.onclick = (evt) => {
+      evt.stopPropagation();
+      hideEdgeContextMenu();
+      state.reconnectingEdge = {
+        index,
+        edge: [...edge],
+        fixedNode: edge[0],
+        mode: 'target'
+      };
+      $('#canvasHint').textContent = `⚡ Mode Pindah Garis: Klik node TUJUAN baru untuk menyambungkan dari "${titleA}"`;
+      renderCanvas();
+    };
+    menu.append(btnMoveTarget);
+
+    // 2. Pindahkan Ujung Sumber (Source)
+    const btnMoveSource = document.createElement('button');
+    btnMoveSource.className = 'edge-menu-item';
+    btnMoveSource.innerHTML = `
+      <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+      <span>Pindahkan Ujung Sumber (Source)</span>
+    `;
+    btnMoveSource.onclick = (evt) => {
+      evt.stopPropagation();
+      hideEdgeContextMenu();
+      state.reconnectingEdge = {
+        index,
+        edge: [...edge],
+        fixedNode: edge[1],
+        mode: 'source'
+      };
+      $('#canvasHint').textContent = `⚡ Mode Pindah Garis: Klik node SUMBER baru untuk menyambungkan ke "${titleB}"`;
+      renderCanvas();
+    };
+    menu.append(btnMoveSource);
+
+    // 3. Hapus Garis
+    const btnDelete = document.createElement('button');
+    btnDelete.className = 'edge-menu-item danger';
+    btnDelete.innerHTML = `
+      <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+      <span>Hapus Garis (Delete)</span>
+    `;
+    btnDelete.onclick = (evt) => {
+      evt.stopPropagation();
+      hideEdgeContextMenu();
+      state.workflow.edges.splice(index, 1);
+      markDirty();
+      renderCanvas();
+      toast(`Koneksi ${titleA} → ${titleB} dihapus`);
+    };
+    menu.append(btnDelete);
+
+    // Position menu relative to canvas container
+    const canvas = $('#canvas');
+    const canvasRect = canvas.getBoundingClientRect();
+    const mx = Math.max(10, Math.min(canvasRect.width - 230, (e.clientX - canvasRect.left) + canvas.scrollLeft));
+    const my = Math.max(10, Math.min(canvasRect.height - 150, (e.clientY - canvasRect.top) + canvas.scrollTop));
+    menu.style.left = `${mx}px`;
+    menu.style.top = `${my}px`;
+    menu.hidden = false;
+  }
+
+  function applyEdgeReconnect(nodeId) {
+    if (!state.reconnectingEdge) return;
+    const { index, fixedNode, mode } = state.reconnectingEdge;
+    const targetNode = nodeFor(nodeId);
+    const targetTitle = targetNode ? targetNode.title : nodeId;
+
+    let newEdge = null;
+    if (mode === 'target') {
+      if (fixedNode === nodeId) {
+        toast('Tidak bisa menyambungkan ke node yang sama (self-loop)');
+        return;
+      }
+      newEdge = [fixedNode, nodeId];
+    } else {
+      if (nodeId === fixedNode) {
+        toast('Tidak bisa menyambungkan dari node yang sama (self-loop)');
+        return;
+      }
+      newEdge = [nodeId, fixedNode];
+    }
+
+    // Check duplicate
+    const duplicate = state.workflow.edges.some((e, i) => i !== index && e[0] === newEdge[0] && e[1] === newEdge[1]);
+    if (duplicate) {
+      toast('Koneksi tersebut sudah ada');
+      return;
+    }
+
+    state.workflow.edges[index] = newEdge;
+    state.reconnectingEdge = null;
+    $('#canvasHint').textContent = 'Select a node to inspect · drag to arrange · click port to connect';
+    markDirty();
+    renderCanvas();
+    toast(`Koneksi berhasil dialihkan ke ${targetTitle}`);
+  }
+
+  function drawEdges() {
+    const svg = $('#edges');
+    if (!svg) return;
+    svg.replaceChildren();
+
+    state.workflow.edges.forEach((edge, index) => {
+      const a = nodeFor(edge[0]);
+      const b = nodeFor(edge[1]);
+      if (!a || !b) return;
+
+      const x1 = (a.x || 0) + 214;
+      const y1 = (a.y || 0) + 42;
+      const x2 = (b.x || 0);
+      const y2 = (b.y || 0) + 42;
+      const bend = Math.max(45, Math.abs(x2 - x1) * 0.45);
+      const d = `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('class', 'edge-group');
+      if (state.selectedEdge === index) {
+        g.classList.add('selected');
+      }
+      if (state.reconnectingEdge && state.reconnectingEdge.index === index) {
+        g.classList.add('reconnecting');
+      }
+
+      // 1. Visible path (Thin, crisp, elegant 1.8px line)
+      const visiblePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      visiblePath.setAttribute('d', d);
+      visiblePath.setAttribute('class', 'edge-visible-path');
+      visiblePath.setAttribute('fill', 'none');
+      visiblePath.setAttribute('stroke', '#64748b');
+      visiblePath.setAttribute('stroke-width', '1.8');
+      visiblePath.style.cssText = 'fill: none !important; stroke-width: 1.8px !important; pointer-events: none !important;';
+
+      // 2. Invisible hit area (strictly transparent, 18px click target)
+      const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      hitPath.setAttribute('d', d);
+      hitPath.setAttribute('class', 'edge-hit-area');
+      hitPath.setAttribute('fill', 'none');
+      hitPath.setAttribute('stroke', 'transparent');
+      hitPath.setAttribute('style', 'fill: none !important; stroke: transparent !important; stroke-width: 18px !important; pointer-events: stroke !important; cursor: pointer !important;');
+      hitPath.setAttribute('title', 'Klik garis untuk menu aksi, atau klik tombol [✕] merah untuk langsung menghapus');
+
+      hitPath.onclick = (e) => {
+        e.stopPropagation();
+        if (state.connecting) return;
+        state.selectedEdge = index;
+        drawEdges();
+        showEdgeContextMenu(e, edge, index);
+      };
+
+      // 3. Compact 1-Click Delete Button in the center of the wire (appears on hover)
+      const x_mid = (x1 + x2) / 2;
+      const y_mid = (y1 + y2) / 2;
+
+      const delGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      delGroup.setAttribute('class', 'edge-del-btn-group');
+      delGroup.setAttribute('transform', `translate(${x_mid}, ${y_mid})`);
+
+      const delCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      delCircle.setAttribute('r', '7.5');
+      delCircle.setAttribute('class', 'edge-quick-del-circle');
+
+      const delLine1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      delLine1.setAttribute('x1', '-2.8');
+      delLine1.setAttribute('y1', '-2.8');
+      delLine1.setAttribute('x2', '2.8');
+      delLine1.setAttribute('y2', '2.8');
+      delLine1.setAttribute('stroke', '#ffffff');
+      delLine1.setAttribute('stroke-width', '1.6');
+      delLine1.setAttribute('stroke-linecap', 'round');
+
+      const delLine2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      delLine2.setAttribute('x1', '2.8');
+      delLine2.setAttribute('y1', '-2.8');
+      delLine2.setAttribute('x2', '-2.8');
+      delLine2.setAttribute('y2', '2.8');
+      delLine2.setAttribute('stroke', '#ffffff');
+      delLine2.setAttribute('stroke-width', '1.6');
+      delLine2.setAttribute('stroke-linecap', 'round');
+
+      const delTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      delTitle.textContent = `Hapus koneksi ${a.title || a.id} → ${b.title || b.id}`;
+      delGroup.append(delTitle, delCircle, delLine1, delLine2);
+
+      delGroup.onclick = (e) => {
+        e.stopPropagation();
+        hideEdgeContextMenu();
+        state.workflow.edges.splice(index, 1);
+        state.selectedEdge = null;
+        markDirty();
+        renderCanvas();
+        toast(`Koneksi ${a.title || a.id} → ${b.title || b.id} berhasil dihapus`);
+      };
+
+      g.append(visiblePath, hitPath, delGroup);
+      svg.append(g);
+    });
+
+    // 4. Live interactive wire following mouse while pulling line (Thin 1.8px)
+    if (state.connecting) {
+      const fromNode = nodeFor(state.connecting.from);
+      if (fromNode) {
+        const x1 = (fromNode.x || 0) + 214;
+        const y1 = (fromNode.y || 0) + 42;
+        const x2 = state.connecting.mouseX !== undefined ? state.connecting.mouseX : x1 + 80;
+        const y2 = state.connecting.mouseY !== undefined ? state.connecting.mouseY : y1;
+        const bend = Math.max(45, Math.abs(x2 - x1) * 0.45);
+        const previewD = `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
+
+        const previewPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        previewPath.setAttribute('d', previewD);
+        previewPath.setAttribute('class', 'edge-preview-wire');
+        previewPath.setAttribute('fill', 'none');
+        previewPath.setAttribute('stroke', '#0284c7');
+        previewPath.setAttribute('stroke-width', '1.8');
+        previewPath.style.cssText = 'fill: none !important; stroke: #0284c7 !important; stroke-width: 1.8px !important; pointer-events: none !important;';
+        svg.append(previewPath);
+      }
+    }
+  }
+
+  function enableDrag(card, node) {
+    let start;
+    card.onpointerdown = (e) => {
+      if (e.target.classList.contains('port')) return;
+      start = { x: e.clientX, y: e.clientY, nx: node.x || 0, ny: node.y || 0 };
+      card.setPointerCapture(e.pointerId);
+    };
+    card.onpointermove = (e) => {
+      if (!start) return;
+      node.x = Math.max(0, start.nx + (e.clientX - start.x) / state.zoom);
+      node.y = Math.max(0, start.ny + (e.clientY - start.y) / state.zoom);
+      card.style.left = `${node.x}px`;
+      card.style.top = `${node.y}px`;
+      drawEdges();
+      markDirty();
+    };
+    card.onpointerup = () => {
+      start = null;
+    };
+  }
+
+  function selectNode(id) {
+    state.selected = id;
+    renderCanvas();
+    renderInspector();
+  }
+
+  function connectFrom(id) {
+    const fromNode = nodeFor(id);
+    state.connecting = {
+      from: id,
+      mouseX: (fromNode?.x || 0) + 240,
+      mouseY: (fromNode?.y || 0) + 42
+    };
+    $('#canvasHint').innerHTML = `⚡ <b>Sedang menarik garis dari "${fromNode?.title || id}":</b> Klik kartu node tujuan untuk menghubungkan cabang (atau tekan Esc untuk batal)`;
+    renderCanvas();
+  }
+
+  function connectTo(id) {
+    if (!state.connecting || state.connecting.from === id) {
+      state.connecting = null;
+      renderCanvas();
+      return;
+    }
+    const fromId = state.connecting.from;
+    const fromNode = nodeFor(fromId);
+    const toNode = nodeFor(id);
+    const edge = [fromId, id];
+
+    if (state.workflow.edges.some(e => e[0] === edge[0] && e[1] === edge[1])) {
+      toast('Koneksi tersebut sudah ada');
+      state.connecting = null;
+      renderCanvas();
+      return;
+    }
+
+    state.workflow.edges.push(edge);
+    markDirty();
+    toast(`Tersambung: ${fromNode?.title || fromId} ➔ ${toNode?.title || id}`);
+    state.connecting = null;
+    $('#canvasHint').textContent = 'Pilih node untuk konfigurasi · geser untuk atur posisi · klik port untuk sambungkan garis';
+    renderCanvas();
+  }
+
+  // Node types that are "terminal" outputs — we connect INTO them, not FROM them as tail
+  const OUTPUT_NODE_TYPES = new Set([
+    'preview', 'alert', 'webhook_output', 'image_output', 'database_output'
+  ]);
+
+  // Find the best "tail" node to auto-connect from when adding a new node.
+  // Returns the last node that has no outgoing edge, preferring non-output nodes.
+  function findAutoConnectTail(excludeType) {
+    const nodes = state.workflow.nodes;
+    if (nodes.length === 0) return null;
+
+    const edges = state.workflow.edges;
+    const nodesWithOutgoing = new Set(edges.map(e => e[0]));
+
+    // Candidate: nodes without outgoing edges (true "tails")
+    const tails = nodes.filter(n => !nodesWithOutgoing.has(n.id));
+
+    if (tails.length === 0) {
+      // All nodes have outgoing edges — pick the last non-output node in the list
+      const nonOutputs = nodes.filter(n => !OUTPUT_NODE_TYPES.has(n.type));
+      return nonOutputs.length > 0 ? nonOutputs[nonOutputs.length - 1] : nodes[nodes.length - 1];
+    }
+
+    // Prefer the last non-output tail
+    const nonOutputTails = tails.filter(n => !OUTPUT_NODE_TYPES.has(n.type));
+    if (nonOutputTails.length > 0) return nonOutputTails[nonOutputTails.length - 1];
+
+    // If only output tails remain, fall back to last node that feeds INTO those outputs
+    const outputTailIds = new Set(tails.map(n => n.id));
+    const feedsIntoOutput = nodes.filter(n =>
+      !outputTailIds.has(n.id) &&
+      edges.some(e => e[0] === n.id && outputTailIds.has(e[1]))
+    );
+    if (feedsIntoOutput.length > 0) return feedsIntoOutput[feedsIntoOutput.length - 1];
+
+    return tails[tails.length - 1];
+  }
+
+  const PIPELINE_RANK = {
+    // 1. Sources (Inputs)
+    'input': 10,
+    'image_input': 10,
+    'video_input': 10,
+    'webcam_input': 10,
+    'cctv_input': 10,
+    'rtsp_input': 10,
+    'folder_input': 10,
+
+    // 2. Preprocessing / ROI
+    'preprocessing': 20,
+    'crop': 20,
+    'filter': 20,
+    'resize': 20,
+    'roi': 20,
+
+    // 3. Vision Models (Detection / Segmentation / Classification / Pose)
+    'detector': 30,
+    'segmenter': 30,
+    'classifier': 30,
+    'pose_estimation': 30,
+    'ocr': 30,
+    'face_detection': 30,
+
+    // 4. Tracking
+    'tracker': 40,
+    'tracking': 40,
+    'roboflow_tracker': 40,
+    'bytetrack': 40,
+
+    // 5. Counters / Logic / Analysis
+    'object_counter': 50,
+    'counter': 50,
+    'zone_counter': 50,
+    'speed_estimator': 50,
+    'dwell_time': 50,
+    'logic': 50,
+    'filter_class': 50,
+
+    // 6. Outputs / Sinks / Alerts
+    'preview': 60,
+    'live': 60,
+    'alert': 60,
+    'webhook_output': 60,
+    'database_output': 60,
+    'image_output': 60,
+    'video_output': 60
+  };
+
+  function getPipelineRank(node) {
+    if (!node) return 35;
+    if (PIPELINE_RANK[node.type]) return PIPELINE_RANK[node.type];
+    const bp = state.catalog[node.type] || {};
+    const cat = (bp.category || '').toLowerCase();
+    if (cat.includes('input')) return 10;
+    if (cat.includes('preproc') || cat.includes('filter')) return 20;
+    if (cat.includes('detect') || cat.includes('model')) return 30;
+    if (cat.includes('track')) return 40;
+    if (cat.includes('count') || cat.includes('analytic') || cat.includes('logic')) return 50;
+    if (cat.includes('output') || OUTPUT_NODE_TYPES.has(node.type)) return 60;
+    return 35;
+  }
+
+  function autoAssembleWorkflow() {
+    if (!state.workflow.nodes || state.workflow.nodes.length === 0) {
+      toast('Tidak ada node di canvas untuk dirangkai');
+      return;
+    }
+
+    if (state.workflow.nodes.length === 1) {
+      toast('Minimal butuh 2 node untuk merangkai alur kerja');
+      return;
+    }
+
+    // Urutkan node sesuai hierarki pipeline computer vision standar
+    const sorted = [...state.workflow.nodes].sort((a, b) => {
+      const rankDiff = getPipelineRank(a) - getPipelineRank(b);
+      if (rankDiff !== 0) return rankDiff;
+      return (a.x || 0) - (b.x || 0);
+    });
+
+    state.workflow.nodes = sorted;
+
+    // Tata letak posisi secara horizontal proporsional
+    const startX = 80;
+    const startY = 100;
+    const spacingX = 260;
+
+    sorted.forEach((node, idx) => {
+      node.x = startX + idx * spacingX;
+      node.y = startY;
+    });
+
+    // Rangkai koneksi berurutan: Node[0] → Node[1] → ... → Node[N-1]
+    state.workflow.edges = [];
+    for (let i = 0; i < sorted.length - 1; i++) {
+      state.workflow.edges.push([sorted[i].id, sorted[i + 1].id]);
+    }
+
+    markDirty();
+    renderCanvas();
+    updatePreviewSelect();
+
+    const sequenceSummary = sorted.map(n => n.title).join(' → ');
+    toast(`⚡ Alur kerja berhasil dirangkai: ${sequenceSummary}`);
+  }
+
+  function addNode(type) {
+    const bp = state.catalog[type];
+    if (!bp) return;
+    const used = new Set(state.workflow.nodes.map(n => n.id));
+    let id = type, i = 2;
+    while (used.has(id)) id = `${type}-${i++}`;
+
+    // Find a tail node to connect from (before pushing the new node)
+    const tail = state.autoConnect ? findAutoConnectTail(type) : null;
+
+    // Check if tail currently connects directly into an output node
+    // e.g. Detector -> Preview. If we add Tracker, rewire to: Detector -> Tracker -> Preview
+    let outputToRewire = null;
+    if (state.autoConnect && tail && !OUTPUT_NODE_TYPES.has(type)) {
+      const existingOutEdge = state.workflow.edges.find(e => {
+        if (e[0] !== tail.id) return false;
+        const targetNode = nodeFor(e[1]);
+        return targetNode && OUTPUT_NODE_TYPES.has(targetNode.type);
+      });
+      if (existingOutEdge) {
+        outputToRewire = existingOutEdge[1];
+      }
+    }
+
+    // Position: place to the right of the tail node, or in a grid if no tail
+    let nx = 140 + (state.workflow.nodes.length % 4) * 260;
+    let ny = 90 + Math.floor(state.workflow.nodes.length / 4) * 140;
+    if (tail) {
+      nx = tail.x + 240;
+      ny = tail.y;
+      // If there's already a node at roughly that position, push it down slightly
+      const collision = state.workflow.nodes.some(n => Math.abs(n.x - nx) < 80 && Math.abs(n.y - ny) < 60);
+      if (collision) ny += 120;
+    }
+
+    // If rewiring to an output node that sits at or near nx, shift output node to the right
+    if (outputToRewire) {
+      const outNode = nodeFor(outputToRewire);
+      if (outNode && outNode.x <= nx) {
+        outNode.x = nx + 240;
+      }
+    }
+
+    const node = {
+      id,
+      type,
+      title: bp.title,
+      subtitle: bp.subtitle,
+      x: nx,
+      y: ny,
+      enabled: true,
+      status: 'idle',
+      config: clone(bp.config || {})
+    };
+
+    state.workflow.nodes.push(node);
+
+    // Auto-connect if enabled: add an edge from tail -> new node (avoid duplicates)
+    if (state.autoConnect && tail) {
+      const edgeExists = state.workflow.edges.some(e => e[0] === tail.id && e[1] === id);
+      if (!edgeExists) {
+        state.workflow.edges.push([tail.id, id]);
+      }
+    }
+
+    // Rewire into existing output node if applicable
+    if (state.autoConnect && outputToRewire) {
+      // Remove old tail -> output edge
+      state.workflow.edges = state.workflow.edges.filter(e => !(e[0] === tail.id && e[1] === outputToRewire));
+      // Connect new node -> output
+      if (!state.workflow.edges.some(e => e[0] === id && e[1] === outputToRewire)) {
+        state.workflow.edges.push([id, outputToRewire]);
+      }
+    }
+
+    markDirty();
+    renderCanvas();
+    selectNode(id);
+    updatePreviewSelect();
+    toast(state.autoConnect ? `${bp.title} ditambahkan & terhubung` : `${bp.title} ditambahkan (Manual)`);
+  }
+
+  function deleteSelectedNode() {
+    if (!state.selected) return;
+    const deletedId = state.selected;
+    const deletedNode = nodeFor(deletedId);
+    if (!deletedNode) return;
+    const title = deletedNode.title || deletedId;
+
+    // Candidates to bridge: [ [fromId, toId], ... ]
+    let bridged = [];
+
+    // Only compute bridge if state.autoConnect is active
+    if (state.autoConnect) {
+      // 1. Identify direct incoming and outgoing nodes
+      const incomingIds = state.workflow.edges
+        .filter(e => e[1] === deletedId)
+        .map(e => e[0]);
+      const outgoingIds = state.workflow.edges
+        .filter(e => e[0] === deletedId)
+        .map(e => e[1]);
+
+      if (incomingIds.length > 0 && outgoingIds.length > 0) {
+        // Standard chain: bridge all upstream nodes directly to all downstream nodes
+        for (const inId of incomingIds) {
+          for (const outId of outgoingIds) {
+            if (inId !== outId) {
+              bridged.push([inId, outId]);
+            }
+          }
+        }
+      } else if (incomingIds.length > 0 && outgoingIds.length === 0) {
+        // Node only had incoming connections; check if there is an unattached downstream node
+        // in visual sequence (ordered by x coordinate to the right)
+        const otherNodes = state.workflow.nodes
+          .filter(n => n.id !== deletedId && n.x > (deletedNode.x || 0))
+          .sort((a, b) => (a.x || 0) - (b.x || 0));
+
+        const currentInTargets = new Set(
+          state.workflow.edges
+            .filter(e => e[0] !== deletedId && e[1] !== deletedId)
+            .map(e => e[1])
+        );
+        const downstream = otherNodes.find(n => !currentInTargets.has(n.id) || OUTPUT_NODE_TYPES.has(n.type));
+        if (downstream) {
+          for (const inId of incomingIds) {
+            if (inId !== downstream.id) {
+              bridged.push([inId, downstream.id]);
+            }
+          }
+        }
+      } else if (incomingIds.length === 0 && outgoingIds.length > 0) {
+        // Node only had outgoing connections; check if there is an upstream node
+        // in visual sequence (ordered by x coordinate to the left, descending)
+        const otherNodes = state.workflow.nodes
+          .filter(n => n.id !== deletedId && n.x < (deletedNode.x || 0))
+          .sort((a, b) => (b.x || 0) - (a.x || 0));
+
+        const currentOutSources = new Set(
+          state.workflow.edges
+            .filter(e => e[0] !== deletedId && e[1] !== deletedId)
+            .map(e => e[0])
+        );
+        const upstream = otherNodes.find(n => !currentOutSources.has(n.id) && !OUTPUT_NODE_TYPES.has(n.type));
+        if (upstream) {
+          for (const outId of outgoingIds) {
+            if (upstream.id !== outId) {
+              bridged.push([upstream.id, outId]);
+            }
+          }
+        }
+      } else {
+        // Neither incoming nor outgoing were connected; bridge unattached left and right neighbors in sequence
+        const leftNodes = state.workflow.nodes
+          .filter(n => n.id !== deletedId && n.x < (deletedNode.x || 0))
+          .sort((a, b) => (b.x || 0) - (a.x || 0));
+        const rightNodes = state.workflow.nodes
+          .filter(n => n.id !== deletedId && n.x > (deletedNode.x || 0))
+          .sort((a, b) => (a.x || 0) - (b.x || 0));
+
+        const currentOutSources = new Set(
+          state.workflow.edges
+            .filter(e => e[0] !== deletedId && e[1] !== deletedId)
+            .map(e => e[0])
+        );
+        const currentInTargets = new Set(
+          state.workflow.edges
+            .filter(e => e[0] !== deletedId && e[1] !== deletedId)
+            .map(e => e[1])
+        );
+
+        const upstream = leftNodes.find(n => !currentOutSources.has(n.id) && !OUTPUT_NODE_TYPES.has(n.type));
+        const downstream = rightNodes.find(n => !currentInTargets.has(n.id));
+        if (upstream && downstream && upstream.id !== downstream.id) {
+          bridged.push([upstream.id, downstream.id]);
+        }
+      }
+    }
+
+    // 2. Remove deleted node and its associated edges
+    state.workflow.nodes = state.workflow.nodes.filter(item => item.id !== deletedId);
+    state.workflow.edges = state.workflow.edges.filter(e => e[0] !== deletedId && e[1] !== deletedId);
+
+    // 3. Apply newly bridged edges (guard against duplicates and self-loops)
+    const newlyAdded = [];
+    for (const [src, dst] of bridged) {
+      if (src && dst && src !== dst) {
+        const exists = state.workflow.edges.some(e => e[0] === src && e[1] === dst);
+        if (!exists) {
+          state.workflow.edges.push([src, dst]);
+          newlyAdded.push([src, dst]);
+        }
+      }
+    }
+
+    state.selected = null;
+    markDirty();
+    renderCanvas();
+    renderInspector();
+    updatePreviewSelect();
+
+    if (newlyAdded.length > 0) {
+      const summary = newlyAdded
+        .map(([s, d]) => `${nodeFor(s)?.title || s} → ${nodeFor(d)?.title || d}`)
+        .join(', ');
+      toast(`${title} dihapus & otomatis disambungkan (${summary})`);
+    } else {
+      toast(`${title} dihapus`);
+    }
+  }
+
+  // --- Inspector / Tabbed & Conditional Settings ---
+  function renderInspector() {
+    const n = nodeFor(state.selected);
+    const body = $('#inspectorBody');
+    if (!body) return;
+    body.replaceChildren();
+
+    if (!n) {
+      $('#inspectorTitle').textContent = 'Nothing selected';
+      const empty = document.createElement('div');
+      empty.className = 'inspector-empty';
+      empty.innerHTML = `
+        <svg class="icon-svg icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+        <p>Select a node on the canvas to edit its configuration.</p>
+      `;
+      body.append(empty);
+      return;
+    }
+
+    const cat = categoryFor(n.type);
+    $('#inspectorTitle').innerHTML = `
+      <span style="display:inline-flex;align-items:center;gap:8px">
+        ${getIcon(n.type, 'icon-md')} ${n.title || titleFor(n.type)}
+      </span>
+    `;
+
+    const desc = document.createElement('p');
+    desc.className = 'node-description';
+    desc.textContent = state.catalog[n.type]?.subtitle || n.type;
+    body.append(desc);
+
+    const guideBtn = document.createElement('button');
+    guideBtn.type = 'button';
+    guideBtn.className = 'button secondary';
+    guideBtn.style.width = '100%';
+    guideBtn.style.display = 'flex';
+    guideBtn.style.alignItems = 'center';
+    guideBtn.style.justifyContent = 'center';
+    guideBtn.style.gap = '8px';
+    guideBtn.style.fontSize = '12px';
+    guideBtn.style.fontWeight = '600';
+    guideBtn.style.padding = '8px 12px';
+    guideBtn.style.marginBottom = '12px';
+    guideBtn.style.background = 'rgba(56, 189, 248, 0.1)';
+    guideBtn.style.border = '1px solid rgba(56, 189, 248, 0.35)';
+    guideBtn.style.color = '#38bdf8';
+    guideBtn.innerHTML = `
+      <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span>📘 Panduan &amp; Cara Penggunaan Node</span>
+    `;
+    guideBtn.onclick = () => showNodeGuideModal(n);
+    body.append(guideBtn);
+
+    // Tab buttons header
+    const tabNav = document.createElement('div');
+    tabNav.className = 'inspector-tabs';
+
+    const basicTabBtn = document.createElement('button');
+    basicTabBtn.className = `inspector-tab-btn ${state.inspectorTab === 'basic' ? 'active' : ''}`;
+    basicTabBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Basic Settings';
+    basicTabBtn.onclick = () => {
+      state.inspectorTab = 'basic';
+      renderInspector();
+    };
+
+    const advTabBtn = document.createElement('button');
+    advTabBtn.className = `inspector-tab-btn ${state.inspectorTab === 'advanced' ? 'active' : ''}`;
+    advTabBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Advanced & GPU';
+    advTabBtn.onclick = () => {
+      state.inspectorTab = 'advanced';
+      renderInspector();
+    };
+
+    tabNav.append(basicTabBtn, advTabBtn);
+    body.append(tabNav);
+
+    // Section container
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+
+    // Ensure customModelPath and customClasses exist if custom engine is selected
+    if (['detector', 'segmenter', 'classifier'].includes(n.type)) {
+      if (!n.config) n.config = {};
+      const eng = n.config.engine || (n.type === 'classifier' ? 'convnext' : 'rfdetr');
+      if (['ultralytics_yolo', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(eng)) {
+        if (n.config.customModelPath === undefined) n.config.customModelPath = '';
+        if (n.config.customClasses === undefined) n.config.customClasses = '';
+      }
+    }
+
+    if (state.inspectorTab === 'basic') {
+      // Title
+      section.append(field('Node Label', n.title || titleFor(n.type), 'text', value => {
+        n.title = value;
+        markDirty();
+        renderCanvas();
+      }));
+
+      // Enabled checkbox
+      const enabledWrap = document.createElement('label');
+      enabledWrap.className = 'field-check';
+      const toggle = document.createElement('input');
+      toggle.type = 'checkbox';
+      toggle.checked = n.enabled !== false;
+      toggle.onchange = () => {
+        n.enabled = toggle.checked;
+        markDirty();
+      };
+      enabledWrap.append(toggle, document.createTextNode('Enable this node in execution graph'));
+      section.append(enabledWrap);
+
+      // Primary / Basic config fields (filtered conditionally)
+      Object.entries(n.config || {}).forEach(([key, value]) => {
+        if (!ADVANCED_KEYS.has(key) && shouldShowField(n, key)) {
+          section.append(createSmartConfigField(n, key, value));
+        }
+      });
+    } else {
+      // Advanced / Performance tab
+      const advEntries = Object.entries(n.config || {}).filter(([key]) => ADVANCED_KEYS.has(key));
+      if (!advEntries.length) {
+        const noAdv = document.createElement('p');
+        noAdv.className = 'field-help';
+        noAdv.textContent = 'This node uses standard pipeline execution and does not have specialized hardware runtime overrides.';
+        section.append(noAdv);
+      } else {
+        advEntries.forEach(([key, value]) => {
+          if (shouldShowField(n, key)) {
+            section.append(createSmartConfigField(n, key, value));
+          }
+        });
+      }
+    }
+
+    body.append(section);
+
+    // Node Specific Action Buttons
+    if (n.type === 'if_else' || n.type === 'compare_value') {
+      const isElse = String(n.config.passWhen).toLowerCase() === 'false';
+      const branchCard = document.createElement('div');
+      branchCard.style.background = 'var(--bg-card, #1e293b)';
+      branchCard.style.border = '1px solid var(--border, #334155)';
+      branchCard.style.borderRadius = '8px';
+      branchCard.style.padding = '12px';
+      branchCard.style.marginBottom = '14px';
+
+      const statusRow = document.createElement('div');
+      statusRow.style.display = 'flex';
+      statusRow.style.justifyContent = 'space-between';
+      statusRow.style.alignItems = 'center';
+      statusRow.style.marginBottom = '8px';
+
+      const statusTitle = document.createElement('span');
+      statusTitle.style.fontWeight = '600';
+      statusTitle.style.fontSize = '12px';
+      statusTitle.textContent = 'Jalur Percabangan';
+
+      const branchBadge = document.createElement('span');
+      branchBadge.style.fontWeight = '700';
+      branchBadge.style.fontSize = '11px';
+      branchBadge.style.padding = '3px 8px';
+      branchBadge.style.borderRadius = '12px';
+      branchBadge.style.backgroundColor = isElse ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)';
+      branchBadge.style.color = isElse ? '#ef4444' : '#22c55e';
+      branchBadge.style.border = `1px solid ${isElse ? '#ef4444' : '#22c55e'}`;
+      branchBadge.textContent = isElse ? '🔴 CABANG ELSE (Salah)' : '🟢 CABANG IF (Benar)';
+
+      statusRow.append(statusTitle, branchBadge);
+
+      const desc = document.createElement('div');
+      desc.style.fontSize = '11px';
+      desc.style.color = 'var(--text-muted, #94a3b8)';
+      desc.style.lineHeight = '1.4';
+      desc.innerHTML = `Data akan diteruskan ke node selanjutnya <b>hanya jika kondisi bernilai ${isElse ? 'SALAH (False)' : 'BENAR (True)'}</b>.`;
+
+      branchCard.append(statusRow, desc);
+
+      const guideBtn = document.createElement('button');
+      guideBtn.type = 'button';
+      guideBtn.className = 'button secondary';
+      guideBtn.style.width = '100%';
+      guideBtn.style.marginTop = '10px';
+      guideBtn.style.display = 'flex';
+      guideBtn.style.alignItems = 'center';
+      guideBtn.style.justifyContent = 'center';
+      guideBtn.style.gap = '6px';
+      guideBtn.style.fontSize = '12px';
+      guideBtn.innerHTML = '📘 Panduan & Contoh Penerapan Percabangan';
+      guideBtn.onclick = () => showIfElseGuideModal(n);
+      branchCard.append(guideBtn);
+
+      body.append(branchCard);
+    } else if (n.type === 'crop' || n.type === 'roi_filter') {
+      const roiBtn = document.createElement('button');
+      roiBtn.className = 'button ghost';
+      roiBtn.style.width = '100%';
+      roiBtn.style.marginBottom = '8px';
+      roiBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" stroke-dasharray="4"/></svg> 📐 Draw ROI on Preview';
+      roiBtn.onclick = () => startRoiDrawing(n);
+      body.append(roiBtn);
+    } else if (n.type === 'line_counter') {
+      const lines = getOrCreateNodeLines(n);
+      const container = document.createElement('div');
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.gap = '10px';
+      container.style.marginBottom = '14px';
+
+      // Header row with Add Line button
+      const headRow = document.createElement('div');
+      headRow.style.display = 'flex';
+      headRow.style.alignItems = 'center';
+      headRow.style.justifyContent = 'space-between';
+      headRow.innerHTML = `<span style="font-weight:600; font-size:12px; color:var(--text, #f1f5f9);">Daftar Garis (${lines.length})</span>`;
+
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'button secondary';
+      addBtn.style.padding = '4px 8px';
+      addBtn.style.fontSize = '11px';
+      addBtn.innerHTML = '➕ Tambah Garis';
+      addBtn.onclick = () => addNewLine(n);
+      headRow.appendChild(addBtn);
+      container.appendChild(headRow);
+
+      // Global actions bar
+      const globRow = document.createElement('div');
+      globRow.style.display = 'flex';
+      globRow.style.gap = '6px';
+
+      const resetAllBtn = document.createElement('button');
+      resetAllBtn.type = 'button';
+      resetAllBtn.className = 'button ghost';
+      resetAllBtn.style.flex = '1';
+      resetAllBtn.style.padding = '4px 6px';
+      resetAllBtn.style.fontSize = '11px';
+      resetAllBtn.innerHTML = '0️⃣ Reset Semua';
+      resetAllBtn.title = 'Reset hitungan semua garis ke 0';
+      resetAllBtn.onclick = () => resetLineCounts(n);
+
+      const clearAllBtn = document.createElement('button');
+      clearAllBtn.type = 'button';
+      clearAllBtn.className = 'button ghost';
+      clearAllBtn.style.flex = '1';
+      clearAllBtn.style.padding = '4px 6px';
+      clearAllBtn.style.fontSize = '11px';
+      clearAllBtn.style.color = '#ef4444';
+      clearAllBtn.innerHTML = '🗑️ Hapus Semua';
+      clearAllBtn.title = 'Hapus / kosongkan semua gambar garis';
+      clearAllBtn.onclick = () => clearAllLinesDrawing(n);
+
+      globRow.append(resetAllBtn, clearAllBtn);
+      container.appendChild(globRow);
+
+      // Render each line card
+      lines.forEach((line, idx) => {
+        const card = document.createElement('div');
+        card.style.background = 'rgba(255, 255, 255, 0.03)';
+        card.style.border = '1px solid rgba(255, 255, 255, 0.08)';
+        card.style.borderLeft = `4px solid ${line.lineColor || '#22c55e'}`;
+        card.style.borderRadius = '6px';
+        card.style.padding = '8px';
+        card.style.display = 'flex';
+        card.style.flexDirection = 'column';
+        card.style.gap = '6px';
+
+        // Card header: name input + color picker + delete line button
+        const cardHead = document.createElement('div');
+        cardHead.style.display = 'flex';
+        cardHead.style.alignItems = 'center';
+        cardHead.style.gap = '6px';
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = line.name || `Line ${idx + 1}`;
+        nameInput.style.flex = '1';
+        nameInput.style.padding = '3px 6px';
+        nameInput.style.fontSize = '12px';
+        nameInput.style.fontWeight = '600';
+        nameInput.style.borderRadius = '4px';
+        nameInput.style.border = '1px solid rgba(255,255,255,0.12)';
+        nameInput.style.background = 'rgba(0,0,0,0.2)';
+        nameInput.style.color = '#fff';
+        nameInput.onchange = async () => {
+          line.name = nameInput.value.trim() || `Line ${idx + 1}`;
+          markDirty();
+          await save();
+          await liveUpdateWorkflow();
+        };
+
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = line.lineColor || '#22c55e';
+        colorInput.style.width = '24px';
+        colorInput.style.height = '24px';
+        colorInput.style.padding = '0';
+        colorInput.style.border = 'none';
+        colorInput.style.background = 'transparent';
+        colorInput.style.cursor = 'pointer';
+        colorInput.title = 'Ubah warna garis';
+        colorInput.onchange = async () => {
+          line.lineColor = colorInput.value;
+          card.style.borderLeftColor = line.lineColor;
+          markDirty();
+          await save();
+          await liveUpdateWorkflow();
+        };
+
+        cardHead.append(nameInput, colorInput);
+
+        if (lines.length > 1) {
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'button ghost';
+          delBtn.style.padding = '2px 6px';
+          delBtn.style.color = '#ef4444';
+          delBtn.title = 'Hapus garis ini dari daftar';
+          delBtn.innerHTML = '❌';
+          delBtn.onclick = () => removeLine(n, idx);
+          cardHead.appendChild(delBtn);
+        }
+        card.appendChild(cardHead);
+
+        // Status row
+        const statusRow = document.createElement('div');
+        statusRow.style.fontSize = '11px';
+        statusRow.style.display = 'flex';
+        statusRow.style.justifyContent = 'space-between';
+        statusRow.style.alignItems = 'center';
+
+        const hasCoords = line.startPoint && line.endPoint && line.startPoint !== '0,0';
+        if (hasCoords) {
+          statusRow.innerHTML = `<span style="color:#22c55e;">🟢 Terpasang (${line.startPoint} ➔ ${line.endPoint})</span>`;
+        } else {
+          statusRow.innerHTML = `<span style="color:#94a3b8;">⚪ Kosong (Belum Digambar)</span>`;
+        }
+
+        const dirBadge = document.createElement('span');
+        dirBadge.style.fontSize = '10px';
+        dirBadge.style.padding = '1px 5px';
+        dirBadge.style.borderRadius = '3px';
+        dirBadge.style.background = line.invertDirection ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)';
+        dirBadge.style.color = line.invertDirection ? '#f87171' : '#4ade80';
+        dirBadge.textContent = line.invertDirection ? 'Tukar: OUT ➔ IN' : 'Normal: IN ➔ OUT';
+        statusRow.appendChild(dirBadge);
+        card.appendChild(statusRow);
+
+        // Action button row 1: Draw / Redraw
+        const drawBtn = document.createElement('button');
+        drawBtn.type = 'button';
+        drawBtn.className = 'button ghost';
+        drawBtn.style.width = '100%';
+        drawBtn.style.fontSize = '11px';
+        drawBtn.style.padding = '5px 8px';
+        drawBtn.innerHTML = `<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="2" y1="12" x2="22" y2="12"/><polyline points="8 8 12 4 16 8"/><polyline points="8 16 12 20 16 16"/></svg> ✏️ ${hasCoords ? 'Gambar Ulang / Revisi Garis' : 'Gambar Garis di Preview'}`;
+        drawBtn.onclick = () => startLineDrawing(n, idx);
+        card.appendChild(drawBtn);
+
+        // Action button row 2: Swap direction + Reset + Clear line
+        const btnRow = document.createElement('div');
+        btnRow.style.display = 'flex';
+        btnRow.style.gap = '4px';
+
+        const swapBtn = document.createElement('button');
+        swapBtn.type = 'button';
+        swapBtn.className = 'button ghost';
+        swapBtn.style.flex = '1';
+        swapBtn.style.fontSize = '11px';
+        swapBtn.style.padding = '4px 6px';
+        swapBtn.title = 'Tukar arah IN ↔ OUT untuk garis ini';
+        swapBtn.innerHTML = '🔄 Tukar Arah';
+        swapBtn.onclick = () => swapLineDirection(n, idx);
+
+        const rstBtn = document.createElement('button');
+        rstBtn.type = 'button';
+        rstBtn.className = 'button ghost';
+        rstBtn.style.flex = '1';
+        rstBtn.style.fontSize = '11px';
+        rstBtn.style.padding = '4px 6px';
+        rstBtn.title = 'Reset hitungan garis ini ke 0';
+        rstBtn.innerHTML = '0️⃣ Reset';
+        rstBtn.onclick = () => resetLineCounts(n, line.id);
+
+        const clrBtn = document.createElement('button');
+        clrBtn.type = 'button';
+        clrBtn.className = 'button ghost';
+        clrBtn.style.flex = '1';
+        clrBtn.style.fontSize = '11px';
+        clrBtn.style.padding = '4px 6px';
+        clrBtn.style.color = '#ef4444';
+        clrBtn.title = 'Hapus gambar garis ini (kosongkan)';
+        clrBtn.innerHTML = '🗑️ Hapus';
+        clrBtn.onclick = () => clearLineDrawing(n, idx);
+
+        btnRow.append(swapBtn, rstBtn, clrBtn);
+        card.appendChild(btnRow);
+
+        container.appendChild(card);
+      });
+
+      body.append(container);
+    } else if (n.type === 'dwell_time') {
+      const zoneBtn = document.createElement('button');
+      zoneBtn.className = 'button ghost';
+      zoneBtn.style.width = '100%';
+      zoneBtn.style.marginBottom = '8px';
+      zoneBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ✏️ Draw Zone on Preview';
+      zoneBtn.onclick = () => startPolygonZoneDrawing(n);
+      body.append(zoneBtn);
+    } else if (n.type === 'database_output') {
+      const dbActions = document.createElement('div');
+      dbActions.style.display = 'flex';
+      dbActions.style.gap = '8px';
+      dbActions.style.marginBottom = '8px';
+
+      const exportBtn = document.createElement('button');
+      exportBtn.className = 'button ghost';
+      exportBtn.style.flex = '1';
+      exportBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV';
+      exportBtn.onclick = () => window.open('/api/database/export?table=detections');
+
+      const viewBtn = document.createElement('button');
+      viewBtn.className = 'button ghost';
+      viewBtn.style.flex = '1';
+      viewBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg> View Logs';
+      viewBtn.onclick = showDatabaseLogsModal;
+
+      dbActions.append(exportBtn, viewBtn);
+      body.append(dbActions);
+    }
+
+    // Delete node button
+    const delBtn = document.createElement('button');
+    delBtn.className = 'danger-button';
+    delBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Delete This Node';
+    delBtn.onclick = deleteSelectedNode;
+    body.append(delBtn);
+  }
+
+  // Determine conditional visibility for clean forms
+  function shouldShowField(node, key) {
+    const cfg = node.config || {};
+    // Input node conditional visibility
+    if (node.type === 'input') {
+      const src = cfg.sourceType || 'camera';
+      if (src === 'camera') {
+        return !['filePath', 'loop', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
+      }
+      if (src === 'image') {
+        return !['source', 'loop', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
+      }
+      if (src === 'video' || src === 'file') {
+        return !['source', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
+      }
+      if (src === 'daheng') {
+        return !['source', 'filePath', 'loop'].includes(key);
+      }
+    }
+
+    // Line Counter field visibility (internal fields handled in multi-line UI)
+    if (node.type === 'line_counter') {
+      return !['lines', 'startPoint', 'endPoint', 'lineColor', 'lineWidth', 'inLabel', 'outLabel', 'invertDirection', 'countMode'].includes(key);
+    }
+
+    // If/Else & Compare Value visibility (hide classes unless metric is class_count)
+    if (node.type === 'if_else' || node.type === 'compare_value') {
+      if (key === 'classes' && cfg.metric !== 'class_count') {
+        return false;
+      }
+    }
+
+    // Detector / Segmenter / Classifier engine visibility
+    if (['detector', 'segmenter', 'classifier'].includes(node.type)) {
+      const eng = cfg.engine || (node.type === 'classifier' ? 'convnext' : 'rfdetr');
+      if (eng === 'rfdetr') {
+        return !['rfdetrOnnxModel', 'rfdetrOnnxClasses', 'rfdetrTensorRTEngine', 'rfdetrTensorRTClasses', 'rfdetrTensorRTCudaGraph', 'rfdetrTensorRTProcess', 'customModelPath', 'modelPath', 'customClasses', 'samCheckpoint', 'concepts', 'convnextModel', 'convnextCheckpoint', 'convnextClasses', 'convnextImageSize', 'convnextHalfPrecision', 'topK'].includes(key);
+      }
+      if (eng === 'rfdetr_onnx') {
+        return !['rfdetrModel', 'rfdetrCheckpoint', 'rfdetrHalfPrecision', 'rfdetrTensorRTEngine', 'rfdetrTensorRTClasses', 'rfdetrTensorRTCudaGraph', 'rfdetrTensorRTProcess', 'customModelPath', 'modelPath', 'customClasses', 'samCheckpoint', 'concepts', 'convnextModel', 'convnextCheckpoint', 'convnextClasses', 'convnextImageSize', 'convnextHalfPrecision', 'topK'].includes(key);
+      }
+      if (eng === 'rfdetr_tensorrt') {
+        return !['rfdetrModel', 'rfdetrCheckpoint', 'rfdetrOnnxModel', 'rfdetrOnnxClasses', 'customModelPath', 'modelPath', 'customClasses', 'samCheckpoint', 'concepts', 'convnextModel', 'convnextCheckpoint', 'convnextClasses', 'convnextImageSize', 'convnextHalfPrecision', 'topK'].includes(key);
+      }
+      if (eng === 'sam3') {
+        return !['rfdetrModel', 'rfdetrCheckpoint', 'rfdetrHalfPrecision', 'rfdetrOnnxModel', 'rfdetrOnnxClasses', 'rfdetrTensorRTEngine', 'rfdetrTensorRTClasses', 'rfdetrTensorRTCudaGraph', 'rfdetrTensorRTProcess', 'customModelPath', 'modelPath', 'customClasses', 'convnextModel', 'convnextCheckpoint', 'convnextClasses', 'convnextImageSize', 'convnextHalfPrecision', 'topK'].includes(key);
+      }
+      if (eng === 'convnext') {
+        return !['rfdetrModel', 'rfdetrCheckpoint', 'rfdetrHalfPrecision', 'rfdetrOnnxModel', 'rfdetrOnnxClasses', 'rfdetrTensorRTEngine', 'rfdetrTensorRTClasses', 'rfdetrTensorRTCudaGraph', 'rfdetrTensorRTProcess', 'customModelPath', 'modelPath', 'customClasses', 'samCheckpoint', 'concepts'].includes(key);
+      }
+      if (['ultralytics_yolo', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(eng)) {
+        return !['rfdetrModel', 'rfdetrCheckpoint', 'rfdetrHalfPrecision', 'rfdetrOnnxModel', 'rfdetrOnnxClasses', 'rfdetrTensorRTEngine', 'rfdetrTensorRTClasses', 'rfdetrTensorRTCudaGraph', 'rfdetrTensorRTProcess', 'convnextModel', 'convnextCheckpoint', 'convnextClasses', 'convnextImageSize', 'convnextHalfPrecision', 'samCheckpoint', 'concepts', 'customModelPath', 'customClasses'].includes(key);
+      }
+    }
+
+    // Tracker algorithm visibility
+    if (node.type === 'tracker') {
+      const algo = cfg.algorithm || 'bytetrack';
+      if (key === 'trackerConfigVersion') return false;
+      if (algo === 'bytetrack') {
+        if (key.startsWith('botSort') || key.startsWith('ocSort')) return false;
+      } else if (algo === 'botsort') {
+        if (key.startsWith('ocSort')) return false;
+      } else if (algo === 'ocsort') {
+        if (key.startsWith('botSort')) return false;
+      }
+    }
+
+    // Brightness / Contrast CLAHE visibility
+    if (node.type === 'brightness_contrast') {
+      if (!cfg.useClahe && ['autoLowLight', 'lowLightThreshold', 'clipLimit', 'tileGridSize'].includes(key)) {
+        return false;
+      }
+      if (!cfg.autoLowLight && key === 'lowLightThreshold') {
+        return false;
+      }
+    }
+
+    // Detection Crop square padColor visibility
+    if (node.type === 'detection_crop') {
+      if (!cfg.square && key === 'padColor') return false;
+    }
+
+    // IP Camera watchdog visibility
+    if (node.type === 'ip_camera') {
+      if (!cfg.detectFreeze && key === 'freezeThresholdSeconds') return false;
+      if (!cfg.detectTamper && ['tamperDarkThreshold', 'tamperBrightThreshold'].includes(key)) return false;
+    }
+
+    return true;
+  }
+
+  function field(label, value, type, change) {
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+    const l = document.createElement('label');
+    l.textContent = label;
+    const input = document.createElement('input');
+    input.type = type;
+    input.value = value ?? '';
+    input.onchange = () => change(input.value);
+    wrap.append(l, input);
+    return wrap;
+  }
+
+  async function inspectAndApplyModel(node, modelPath) {
+    if (!node || !modelPath) return;
+    try {
+      const data = await api(`/api/models/inspect?path=${encodeURIComponent(modelPath)}`);
+      if (data && data.engine) {
+        node.config.engine = data.engine;
+        node.config.customModelPath = data.path;
+        node.config.modelPath = data.path;
+        if (node.type === 'classifier') {
+          node.config.convnextCheckpoint = data.path;
+        } else if (node.type === 'detector' || node.type === 'segmenter') {
+          if (data.engine === 'onnx_custom' || data.format === 'onnx') {
+            node.config.rfdetrOnnxModel = data.path;
+          } else {
+            node.config.rfdetrCheckpoint = data.path;
+          }
+        }
+        if (data.classes && data.classes.length > 0) {
+          const joined = data.classes.join(', ');
+          node.config.classes = joined;
+          node.config.customClasses = joined;
+        }
+        markDirty();
+        renderInspector();
+        toast(`Configured ${data.name}: ${data.engine} (${data.classesCount || data.classes.length} classes)`);
+      }
+    } catch (err) {
+      console.warn('Inspect model failed:', err);
+    }
+  }
+
+  const FIELD_BOUNDS = {
+    // 0.0 - 1.0 Normalized threshold & ratios
+    threshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    confidence: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    minimumConfidence: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    iouThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    nmsThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    scoreThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    trackHighThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    trackLowThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    newTrackThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    matchThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    botSortFirstIouThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    botSortSecondIouThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    botSortUnconfirmedIouThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    ocSortDetectionThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    ocSortIouThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    ocSortInertia: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    anomalyThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    heatmapOpacity: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    maskOpacity: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    fillOpacity: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    opacity: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    overlapRatio: { min: 0.0, max: 0.8, step: 0.01, isSlider: true, unit: '' },
+    contextPaddingPercent: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    paddingPercent: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+    alpha: { min: 0.0, max: 1.0, step: 0.05, isSlider: true, unit: '' },
+
+    // Visual & Processing parameters
+    contrast: { min: 0.1, max: 3.0, step: 0.1, isSlider: true, unit: 'x' },
+    brightness: { min: -100, max: 100, step: 1, isSlider: true, unit: '' },
+    strength: { min: 0.1, max: 5.0, step: 0.1, isSlider: true, unit: 'x' },
+    clipLimit: { min: 0.1, max: 10.0, step: 0.1, isSlider: true, unit: '' },
+    tileGridSize: { min: 2, max: 32, step: 1, isSlider: true, unit: 'px' },
+    kernel: { min: 1, max: 51, step: 2, isSlider: true, unit: 'px', oddOnly: true },
+    kernelSize: { min: 3, max: 99, step: 2, isSlider: true, unit: 'px', oddOnly: true },
+    pixelateBlock: { min: 2, max: 64, step: 1, isSlider: true, unit: 'px' },
+    lowLightThreshold: { min: 10.0, max: 200.0, step: 1.0, isSlider: true, unit: '' },
+    fontScale: { min: 0.2, max: 4.0, step: 0.05, isSlider: true, unit: 'x' },
+    thickness: { min: 1, max: 12, step: 1, isSlider: true, unit: 'px' },
+    lineWidth: { min: 1, max: 12, step: 1, isSlider: true, unit: 'px' },
+    size: { min: 0.2, max: 3.0, step: 0.05, isSlider: true, unit: 'x' },
+
+    // Time & Delays
+    seconds: { min: 0.1, max: 60.0, step: 0.1, isSlider: true, unit: 'dtk' },
+    thresholdSeconds: { min: 0.5, max: 120.0, step: 0.5, isSlider: true, unit: 'dtk' },
+    cooldownSeconds: { min: 0.1, max: 60.0, step: 0.5, isSlider: true, unit: 'dtk' },
+    timeoutSeconds: { min: 0.5, max: 30.0, step: 0.5, isSlider: true, unit: 'dtk' },
+    clipDurationSeconds: { min: 1, max: 60, step: 1, isSlider: true, unit: 'dtk' },
+    freezeThresholdSeconds: { min: 1.0, max: 60.0, step: 1.0, isSlider: true, unit: 'dtk' },
+
+    // Rates, Buffer & Quality
+    jpegQuality: { min: 10, max: 100, step: 1, isSlider: true, unit: '%' },
+    imageQuality: { min: 10, max: 100, step: 1, isSlider: true, unit: '%' },
+    trackBuffer: { min: 1, max: 180, step: 1, isSlider: true, unit: 'frame' },
+    minimumConsecutiveFrames: { min: 1, max: 10, step: 1, isSlider: true, unit: 'frame' },
+    trackerFrameRate: { min: 1, max: 60, step: 1, isSlider: true, unit: 'fps' },
+    topK: { min: 1, max: 10, step: 1, isSlider: true, unit: '' },
+    detectEveryNFrames: { min: 1, max: 30, step: 1, isSlider: true, unit: 'frame' },
+    batchSize: { min: 1, max: 32, step: 1, isSlider: true, unit: '' },
+    retryCount: { min: 0, max: 5, step: 1, isSlider: true, unit: 'x' },
+
+    // Dimensions
+    width: { min: 16, max: 3840, step: 1 },
+    height: { min: 16, max: 2160, step: 1 },
+    x: { min: 0, max: 3840, step: 1 },
+    y: { min: 0, max: 2160, step: 1 },
+    sliceWidth: { min: 128, max: 2048, step: 32, isSlider: true, unit: 'px' },
+    sliceHeight: { min: 128, max: 2048, step: 32, isSlider: true, unit: 'px' },
+    minCropWidth: { min: 8, max: 512, step: 8, isSlider: true, unit: 'px' },
+    minCropHeight: { min: 8, max: 512, step: 8, isSlider: true, unit: 'px' },
+    maxCrops: { min: 1, max: 64, step: 1, isSlider: true, unit: '' },
+    maxCapacity: { min: 0, max: 10000, step: 1 },
+    count: { min: 0, max: 10000, step: 1 }
+  };
+
+  function createSmartConfigField(node, key, value) {
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+    const label = document.createElement('label');
+    
+    const labelText = document.createElement('span');
+    labelText.className = 'field-label-text';
+    const INDO_FIELD_LABELS = {
+      metric: 'Metrik Kondisi (Metric)',
+      operator: 'Operator Logika',
+      value: 'Nilai Acuan (Threshold)',
+      passWhen: 'Arah Cabang (Pass When)',
+      classes: 'Target Kelas Objek (Classes)',
+      threshold: 'Ambang Batas Akurasi (Threshold)',
+      count: 'Jumlah Objek Target (Count)',
+      seconds: 'Durasi Waktu (Detik)',
+      shape: 'Bentuk Area (Shape)',
+      invertZone: 'Zona Luar / Terbalik',
+      triggerAnchor: 'Titik Acuan Objek (Anchor)',
+      showOverlay: 'Tampilkan Overlay Visual',
+      algorithm: 'Algoritma Pelacakan (Tracker)',
+      trackHighThreshold: 'Ambang Deteksi Tinggi (High Thresh)',
+      trackLowThreshold: 'Ambang Deteksi Rendah (Low Thresh)',
+      newTrackThreshold: 'Ambang Buat Track Baru',
+      matchThreshold: 'Ambang Pencocokan Objek',
+      trackBuffer: 'Memori Jejak Track (Buffer Frame)',
+      minimumConsecutiveFrames: 'Minimal Frame Berturut-turut',
+      trackerFrameRate: 'Target FPS Pelacakan',
+      sourceType: 'Jenis Sumber Video/Kamera',
+      engine: 'Mesin Inferensi AI (Engine)',
+      rfdetrModel: 'Model RF-DETR',
+      device: 'Perangkat Komputasi (Device)',
+      operation: 'Operasi Pemrosesan (Filter)',
+      kernel: 'Ukuran Kernel Blur (Ganjil)',
+      kernelSize: 'Ukuran Kernel Sensor (Ganjil)',
+      strength: 'Kekuatan Ketajaman (Sharpen Strength)',
+      brightness: 'Kecerahan (Brightness)',
+      contrast: 'Kontras Gambar (Contrast)',
+      useClahe: 'Gunakan Night-Vision CLAHE',
+      autoLowLight: 'Otomatis Nyalakan di Cahaya Redup',
+      lowLightThreshold: 'Ambang Batas Redup (Lux)',
+      clipLimit: 'Batas Kontras CLAHE (Clip Limit)',
+      tileGridSize: 'Ukuran Grid CLAHE',
+      pixelateBlock: 'Ukuran Kotak Pixelate Sensor',
+      mode: 'Mode Pemrosesan (Mode)',
+      rotation: 'Sudut Putar & Balik Gambar',
+      flip: 'Balik Arah Gambar (Flip)',
+      interpolation: 'Metode Interpolasi Skala',
+      points: 'Titik Koordinat Area (Points)',
+      width: 'Lebar Resolusi (Width)',
+      height: 'Tinggi Resolusi (Height)',
+      x: 'Posisi Horizontal X',
+      y: 'Posisi Vertikal Y',
+      calibrationPath: 'File Kalibrasi Kamera (.yml/.xml)',
+      alpha: 'Faktor Skala Kalibrasi (Alpha)',
+      method: 'Metode Pengurangan Latar',
+      history: 'Memori Latar Belakang (History)',
+      detectShadows: 'Deteksi Bayangan Latar Belakang',
+      captureMode: 'Mode Pengambilan Gambar (Capture)',
+      format: 'Format File Gambar',
+      jpegQuality: 'Kualitas Kompresi JPEG (%)',
+      imageQuality: 'Kualitas Gambar Webhook (%)',
+      filenameTemplate: 'Pola Penamaan File Gambar',
+      direction: 'Arah Perhitungan (Direction)',
+      countMode: 'Mode Hitungan Garis',
+      thresholdSeconds: 'Waktu Diam Maksimal (Dwell Time)',
+      alertOnExceed: 'Beri Notifikasi Jika Melebihi Batas',
+      showTimer: 'Tampilkan Timer Detik di Layar',
+      zoneColor: 'Warna Garis / Zona Area',
+      lineColor: 'Warna Garis Counter',
+      lineWidth: 'Ketebalan Garis (Line Width)',
+      inLabel: 'Label Masuk (IN)',
+      outLabel: 'Label Keluar (OUT)',
+      invertDirection: 'Balik Arah IN / OUT',
+      minCount: 'Minimal Jumlah Objek',
+      minArea: 'Luas Area Minimal (Pixel)',
+      maxArea: 'Luas Area Maksimal (Pixel)',
+      minAspectRatio: 'Aspek Rasio Minimal',
+      maxAspectRatio: 'Aspek Rasio Maksimal',
+      excludeBorderMargin: 'Abaikan Margin Tepi Layar',
+      maskOpacity: 'Transparansi Masker Segmentasi',
+      heatmapOpacity: 'Transparansi Peta Panas (Heatmap)',
+      fillOpacity: 'Transparansi Isi Kotak (Fill)',
+      showBoxes: 'Tampilkan Kotak Bounding Box',
+      showLabels: 'Tampilkan Teks Label Kelas',
+      showMasks: 'Tampilkan Masker Poligon',
+      showTrackIds: 'Tampilkan Nomor ID Pelacakan',
+      showTrails: 'Tampilkan Jejak Gerakan (Trail)',
+      showCounts: 'Tampilkan Ringkasan Hitungan',
+      cooldownSeconds: 'Jeda Waktu Pendinginan (Cooldown)',
+      resetOnClear: 'Reset Otomatis Jika Bersih',
+      enabledValue: 'Nilai Logika Pengaktif (True/False)'
+    };
+    labelText.textContent = INDO_FIELD_LABELS[key] || key.replace(/([A-Z])/g, ' $1').replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+    label.append(labelText);
+
+    const helpInfo = FIELD_HELP[key];
+    if (helpInfo) {
+      const tip = typeof helpInfo === 'object' ? `${helpInfo.text}\n\n💡 Panduan: ${helpInfo.guide}` : helpInfo;
+      const tooltipIcon = document.createElement('span');
+      tooltipIcon.className = 'field-tooltip-icon';
+      tooltipIcon.textContent = '?';
+      tooltipIcon.title = tip;
+      tooltipIcon.setAttribute('data-tooltip', tip);
+      label.append(tooltipIcon);
+    }
+    wrap.append(label);
+
+    // Dropdown mappings
+    const OPTION_MAPS = {
+      algorithm: [
+        ['bytetrack', 'ByteTrack (Fastest, High/Low Match)'],
+        ['botsort', 'BoT-SORT (Camera Motion Compensation)'],
+        ['ocsort', 'OC-SORT (Observation-Centric, Occlusion Robust)']
+      ],
+      sourceType: [
+        ['camera', 'Camera (USB/Built-in OpenCV)'],
+        ['daheng', 'Daheng Industrial Camera'],
+        ['image', 'Static Image File'],
+        ['video', 'Video File'],
+        ['file', 'Generic File Source']
+      ],
+      engine: [
+        ['rfdetr', 'RF-DETR (PyTorch Engine)'],
+        ['rfdetr_onnx', 'RF-DETR ONNX Runtime'],
+        ['rfdetr_tensorrt', 'RF-DETR TensorRT (CUDA Accelerated)'],
+        ['ultralytics_yolo', 'Ultralytics YOLO (best.pt / yolov8)'],
+        ['onnx_custom', 'Custom ONNX Runtime (.onnx)'],
+        ['tflite', 'TensorFlow Lite (.tflite)'],
+        ['tensorflow_keras', 'TensorFlow / Keras (.keras / .h5)'],
+        ['sam3', 'Segment Anything 3 (SAM 3)'],
+        ['convnext', 'ConvNeXt Classifier'],
+        ['efficientad', 'EfficientAD Visual Inspection']
+      ],
+      rfdetrModel: [
+        ['rfdetr-nano', 'RF-DETR Nano (Fast CPU/GPU)'],
+        ['rfdetr-small', 'RF-DETR Small'],
+        ['rfdetr-medium', 'RF-DETR Medium'],
+        ['rfdetr-large', 'RF-DETR Large (High Accuracy)']
+      ],
+      device: [
+        ['auto', 'Auto (CUDA GPU if available, else CPU)'],
+        ['cpu', 'CPU Only'],
+        ['cuda', 'CUDA GPU']
+      ],
+      mode: (node.type === 'blur_anonymizer') ? [
+        ['gaussian', 'Gaussian Blur (Sensor Halus)'],
+        ['pixelate', 'Pixelate (Sensor Kotak-kotak)']
+      ] : (node.type === 'color_convert') ? [
+        ['gray', 'Grayscale (Hitam Putih)'],
+        ['hsv', 'HSV Color Space'],
+        ['lab', 'CIELAB Color Space'],
+        ['rgb', 'RGB Color Space'],
+        ['bgr', 'BGR Color Space'],
+        ['ycrcb', 'YCrCb Color Space']
+      ] : (node.type === 'object_counter') ? [
+        ['occupancy', 'Occupancy (Jumlah Objek Saat Ini)'],
+        ['cumulative', 'Cumulative (Akumulasi Total Objek Unik)'],
+        ['crossing', 'Crossing (Penghitungan Melintas)']
+      ] : (node.type === 'roi_filter') ? [
+        ['inside', 'Hanya Deteksi DI DALAM Area (Inside)'],
+        ['outside', 'Hanya Deteksi DI LUAR Area (Outside)']
+      ] : [
+        ['gray', 'Grayscale'],
+        ['hsv', 'HSV Color Space'],
+        ['lab', 'CIELAB Color Space']
+      ],
+      shape: [
+        ['rectangle', 'Persegi Panjang (Rectangle)'],
+        ['polygon', 'Poligon Bebas (Multi-Point Polygon)']
+      ],
+      crossingDirection: [
+        ['enter', 'Masuk Area Saja (Enter Zone)'],
+        ['exit', 'Keluar Area Saja (Exit Zone)'],
+        ['both', 'Masuk & Keluar (Both Directions)']
+      ],
+      captureMode: [
+        ['crop_only', 'Hanya Potongan Objek (Crop Only)'],
+        ['full_frame', 'Frame Utuh (Full Frame)'],
+        ['both', 'Keduanya (Crop + Full Frame)']
+      ],
+      format: [
+        ['jpg', 'JPEG (.jpg) — Cepat & Ukuran Ringkas'],
+        ['png', 'PNG (.png) — Lossless Tanpa Kompresi'],
+        ['webp', 'WebP (.webp) — Efisien untuk Web']
+      ],
+      direction: [
+        ['both', 'Dua Arah (Masuk & Keluar)'],
+        ['in', 'Arah Masuk Saja (IN)'],
+        ['out', 'Arah Keluar Saja (OUT)']
+      ],
+      flip: [
+        ['none', 'Tidak Dibalik (None)'],
+        ['horizontal', 'Balik Horizontal (Kiri-Kanan)'],
+        ['vertical', 'Balik Vertikal (Atas-Bawah)'],
+        ['both', 'Balik Keduanya (Diagonal)']
+      ],
+      operation: [
+        ['blur', 'Standard Box Blur'],
+        ['sharpen', 'Edge Sharpening Filter'],
+        ['gaussian_blur', 'Gaussian Blur'],
+        ['median_blur', 'Median Blur (Salt & Pepper)'],
+        ['bilateral', 'Bilateral Filter (Edge-Preserving)']
+      ],
+      rotation: [
+        ['0', '0° (No rotation)'],
+        ['90', '90° Clockwise'],
+        ['180', '180° Inverted'],
+        ['270', '270° Clockwise'],
+        ['flip_h', 'Flip Horizontal'],
+        ['flip_v', 'Flip Vertical'],
+        ['flip_hv', 'Flip Both']
+      ],
+      method: [
+        ['mog2', 'MOG2 Background Subtractor'],
+        ['knn', 'KNN Background Subtractor']
+      ],
+      interpolation: [
+        ['linear', 'Bilinear (Default)'],
+        ['nearest', 'Nearest Neighbor (Fastest)'],
+        ['cubic', 'Bicubic (Smooth)'],
+        ['area', 'Area (Best for Downsampling)'],
+        ['lanczos', 'Lanczos4 (Highest Quality)']
+      ],
+      operator: [
+        ['gte', '>= (Lebih besar atau sama dengan)'],
+        ['gt', '> (Lebih besar dari)'],
+        ['lte', '<= (Lebih kecil atau sama dengan)'],
+        ['lt', '< (Lebih kecil dari)'],
+        ['eq', '== (Sama persis dengan)'],
+        ['neq', '!= (Tidak sama dengan)']
+      ],
+      metric: [
+        ['object_count', 'Jumlah Objek Terdeteksi (Live Detection Count)'],
+        ['line_counter_in', 'Hitungan Masuk Line Counter (IN)'],
+        ['line_counter_out', 'Hitungan Keluar Line Counter (OUT)'],
+        ['line_counter_total', 'Total Hitungan Line Counter (IN + OUT)'],
+        ['line_crossing', 'Ada Objek Melintasi Garis (Event Frame)'],
+        ['class_count', 'Jumlah Objek Kelas Tertentu (Filter Class)'],
+        ['max_confidence', 'Tingkat Akurasi / Confidence Tertinggi'],
+        ['anomaly_score', 'Skor Anomali Cacat (EfficientAD)']
+      ],
+      passWhen: [
+        ['true', '🟢 Cabang IF — Loloskan data jika kondisi BENAR (True)'],
+        ['false', '🔴 Cabang ELSE — Loloskan data jika kondisi SALAH (False)']
+      ],
+      triggerAnchor: [
+        ['bottom_center', 'Bottom Center (Ground Contact / Foot)'],
+        ['center', 'Bounding Box Center'],
+        ['top_center', 'Top Center (Head)'],
+        ['overlap', 'Bounding Box Overlap'],
+        ['contained', 'Fully Contained']
+      ],
+      match: [
+        ['any', 'Setidaknya Salah Satu Memenuhi (Any)'],
+        ['all', 'Semua Wajib Memenuhi (All)'],
+        ['bottom_center', 'Bottom Center (Ground Contact)'],
+        ['center', 'Bounding Box Center'],
+        ['top_center', 'Top Center'],
+        ['overlap', 'Bounding Box Overlap'],
+        ['contained', 'Fully Contained']
+      ],
+      countMode: [
+        ['both', 'IN & OUT (Bidirectional)'],
+        ['in_only', 'IN Only (Masuk Saja)'],
+        ['out_only', 'OUT Only (Keluar Saja)']
+      ]
+    };
+
+    // 1. Dropdown select
+    if (OPTION_MAPS[key]) {
+      let options = OPTION_MAPS[key];
+      if (key === 'engine') {
+        if (node.type === 'detector') {
+          options = [
+            ['rfdetr', 'RF-DETR (PyTorch Engine)'],
+            ['rfdetr_onnx', 'RF-DETR ONNX Runtime'],
+            ['rfdetr_tensorrt', 'RF-DETR TensorRT (CUDA Accelerated)'],
+            ['ultralytics_yolo', 'Ultralytics YOLO (best.pt / yolov8)'],
+            ['onnx_custom', 'Custom ONNX Runtime (.onnx)'],
+            ['tflite', 'TensorFlow Lite (.tflite)'],
+            ['tensorflow_keras', 'TensorFlow / Keras (.keras / .h5)']
+          ];
+        } else if (node.type === 'segmenter') {
+          options = [
+            ['sam3', 'Segment Anything 3 (SAM 3)'],
+            ['rfdetr', 'RF-DETR Segmenter (PyTorch)'],
+            ['rfdetr_onnx', 'RF-DETR Segmenter ONNX'],
+            ['rfdetr_tensorrt', 'RF-DETR Segmenter TensorRT'],
+            ['ultralytics_yolo', 'Ultralytics YOLO Segment (.pt)'],
+            ['onnx_custom', 'Custom ONNX Segmenter (.onnx)'],
+            ['tflite', 'TensorFlow Lite Segmenter (.tflite)']
+          ];
+        } else if (node.type === 'classifier') {
+          options = [
+            ['convnext', 'ConvNeXt Classifier (Default)'],
+            ['ultralytics_yolo', 'Ultralytics YOLO Classify (.pt)'],
+            ['onnx_custom', 'Custom ONNX Classifier (.onnx)'],
+            ['tflite', 'TensorFlow Lite Classifier (.tflite)'],
+            ['tensorflow_keras', 'TensorFlow / Keras (.keras / .h5)']
+          ];
+        }
+      }
+
+      const select = document.createElement('select');
+      options.forEach(([optVal, optLabel]) => {
+        const opt = document.createElement('option');
+        opt.value = optVal;
+        opt.textContent = optLabel;
+        select.append(opt);
+      });
+      select.value = String(value);
+      select.onchange = () => {
+        node.config[key] = select.value;
+        if (key === 'engine' && ['ultralytics_yolo', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(select.value)) {
+          if (node.config.customModelPath === undefined) node.config.customModelPath = '';
+          if (node.config.customClasses === undefined) node.config.customClasses = '';
+        }
+        markDirty();
+        renderInspector(); // Re-render for conditional visibility
+      };
+      wrap.append(select);
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
+    // 1b. Camera Source selector for Input node
+    if (key === 'source' && node.type === 'input') {
+      const row = document.createElement('div');
+      row.className = 'field-row';
+      const select = document.createElement('select');
+      select.style.flex = '1';
+
+      const cameras = (state.cameras && state.cameras.length > 0)
+        ? state.cameras
+        : [
+            { index: 0, label: 'Camera 0 (Default)' },
+            { index: 1, label: 'Camera 1' },
+            { index: 2, label: 'Camera 2' },
+            { index: 3, label: 'Camera 3' }
+          ];
+
+      let matched = false;
+      cameras.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = String(c.index);
+        opt.textContent = c.label;
+        if (String(value) === String(c.index)) {
+          matched = true;
+          opt.selected = true;
+        }
+        select.append(opt);
+      });
+
+      if (!matched && value !== undefined && value !== null && value !== '') {
+        const customOpt = document.createElement('option');
+        customOpt.value = String(value);
+        customOpt.textContent = `Custom (${value})`;
+        customOpt.selected = true;
+        select.append(customOpt);
+      }
+
+      select.value = String(value ?? 0);
+      select.onchange = () => {
+        const val = select.value;
+        node.config[key] = isNaN(Number(val)) ? val : Number(val);
+        markDirty();
+      };
+
+      const scanBtn = document.createElement('button');
+      scanBtn.type = 'button';
+      scanBtn.className = 'button ghost';
+      scanBtn.title = 'Rescan available webcams';
+      scanBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Scan';
+      scanBtn.onclick = async () => {
+        scanBtn.disabled = true;
+        toast('Scanning cameras...');
+        await refreshCameras();
+        scanBtn.disabled = false;
+        renderInspector();
+      };
+
+      row.append(select, scanBtn);
+      wrap.append(row);
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
+    // 1b. IP Camera stream URL with "Discover IP Cameras / ONVIF" button
+    if (key === 'streamUrl') {
+      const row = document.createElement('div');
+      row.className = 'field-row';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = value ?? '';
+      input.placeholder = 'rtsp://192.168.1.100:554/stream1 or http://...';
+      input.onchange = () => {
+        node.config[key] = input.value;
+        markDirty();
+      };
+
+      const scanBtn = document.createElement('button');
+      scanBtn.type = 'button';
+      scanBtn.className = 'button ghost';
+      scanBtn.title = 'Scan local network for ONVIF & RTSP cameras';
+      scanBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg> Discover';
+      scanBtn.onclick = async () => {
+        scanBtn.disabled = true;
+        toast('Discovering IP cameras & ONVIF devices...');
+        try {
+          const res = await api('/api/ip-cameras/discover');
+          const cams = res.cameras || [];
+          if (cams.length > 0) {
+            state.discoveredCameras = cams;
+            toast(`Found ${cams.length} IP camera stream(s)`);
+            renderInspector();
+          } else {
+            toast('No IP cameras responded to multicast probe', true);
+          }
+        } catch (e) {
+          toast('Discovery failed: ' + e.message, true);
+        } finally {
+          scanBtn.disabled = false;
+        }
+      };
+
+      row.append(input, scanBtn);
+      wrap.append(row);
+
+      if (state.discoveredCameras && state.discoveredCameras.length > 0) {
+        const picker = document.createElement('select');
+        picker.style.marginTop = '4px';
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '-- Select detected camera / stream --';
+        picker.append(emptyOpt);
+        state.discoveredCameras.forEach(cam => {
+          const opt = document.createElement('option');
+          opt.value = cam.url;
+          opt.textContent = `${cam.label} (${cam.url})`;
+          if (cam.url === value) opt.selected = true;
+          picker.append(opt);
+        });
+        picker.onchange = () => {
+          if (picker.value) {
+            node.config.streamUrl = picker.value;
+            input.value = picker.value;
+            markDirty();
+          }
+        };
+        wrap.append(picker);
+      }
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
+    // 2. File path inputs with inline "Upload" button and uploaded media dropdown
+    if (key === 'filePath') {
+      const row = document.createElement('div');
+      row.className = 'field-row';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = value ?? '';
+      input.placeholder = 'Path to image or video';
+      input.onchange = () => {
+        node.config[key] = input.value;
+        markDirty();
+      };
+
+      const pickBtn = document.createElement('button');
+      pickBtn.type = 'button';
+      pickBtn.className = 'button ghost';
+      pickBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload';
+      pickBtn.title = 'Upload image/video file';
+      pickBtn.onclick = () => $('#fileInput').click();
+
+      row.append(input, pickBtn);
+      wrap.append(row);
+
+      if (state.uploads && state.uploads.length > 0) {
+        const picker = document.createElement('select');
+        picker.style.marginTop = '4px';
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '-- Select uploaded media --';
+        picker.append(emptyOpt);
+        state.uploads.forEach(u => {
+          const opt = document.createElement('option');
+          opt.value = u.path;
+          opt.textContent = `${u.name} (${u.kind}, ${(u.sizeBytes / 1024).toFixed(0)} KB)`;
+          if (String(value) === u.path) opt.selected = true;
+          picker.append(opt);
+        });
+        picker.onchange = () => {
+          if (picker.value) {
+            input.value = picker.value;
+            node.config[key] = picker.value;
+            const matched = state.uploads.find(u => u.path === picker.value);
+            if (matched && node.type === 'input') {
+              node.config.sourceType = matched.kind;
+            }
+            markDirty();
+            renderInspector();
+          }
+        };
+        wrap.append(picker);
+      }
+
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
+    // 3. Model checkpoint files with Model Picker & Upload
+    if (['rfdetrCheckpoint', 'rfdetrOnnxModel', 'rfdetrTensorRTEngine', 'samCheckpoint', 'convnextCheckpoint', 'efficientadModel', 'customModelPath', 'modelPath'].includes(key)) {
+      const row = document.createElement('div');
+      row.className = 'field-row';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = value ?? '';
+      input.placeholder = 'Blank = default model, or custom file';
+      input.onchange = async () => {
+        node.config[key] = input.value;
+        markDirty();
+        if (input.value) await inspectAndApplyModel(node, input.value);
+      };
+
+      const modelBtn = document.createElement('button');
+      modelBtn.type = 'button';
+      modelBtn.className = 'button ghost';
+      modelBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Upload';
+      modelBtn.onclick = () => $('#modelInput').click();
+
+      row.append(input, modelBtn);
+      wrap.append(row);
+
+      if (state.models.length > 0) {
+        const picker = document.createElement('select');
+        picker.style.marginTop = '4px';
+        const emptyOpt = document.createElement('option');
+        emptyOpt.value = '';
+        emptyOpt.textContent = '-- Select uploaded model --';
+        picker.append(emptyOpt);
+        state.models.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.path;
+          opt.textContent = `${m.name} (${m.format})`;
+          if (String(value) === m.path || String(value) === m.name) {
+            opt.selected = true;
+          }
+          picker.append(opt);
+        });
+        picker.onchange = async () => {
+          if (picker.value) {
+            input.value = picker.value;
+            node.config[key] = picker.value;
+            markDirty();
+            await inspectAndApplyModel(node, picker.value);
+          }
+        };
+        wrap.append(picker);
+      }
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
+    // 3b. Classes filter and label import (.txt / .json)
+    if (['classes', 'customClasses', 'rfdetrOnnxClasses', 'rfdetrTensorRTClasses', 'convnextClasses'].includes(key)) {
+      const row = document.createElement('div');
+      row.className = 'field-row';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = value ?? '';
+      input.placeholder = 'e.g. person, car, dog (or load labels.txt)';
+      input.onchange = () => {
+        node.config[key] = input.value;
+        markDirty();
+      };
+
+      const loadLabelsBtn = document.createElement('button');
+      loadLabelsBtn.type = 'button';
+      loadLabelsBtn.className = 'button ghost';
+      loadLabelsBtn.title = 'Import labels from labels.txt / classes.json';
+      loadLabelsBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Load .txt';
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.txt,.json,.yaml';
+      fileInput.style.display = 'none';
+      fileInput.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const text = evt.target.result;
+            let classList = [];
+            if (file.name.endsWith('.json')) {
+              const parsed = JSON.parse(text);
+              classList = Array.isArray(parsed) ? parsed : Object.values(parsed);
+            } else {
+              classList = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            }
+            if (classList.length > 0) {
+              const joined = classList.join(', ');
+              input.value = joined;
+              node.config[key] = joined;
+              markDirty();
+              toast(`Loaded ${classList.length} classes from ${file.name}`);
+            }
+          } catch (err) {
+            toast('Failed to parse label file: ' + err.message, true);
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      loadLabelsBtn.onclick = () => fileInput.click();
+      row.append(input, loadLabelsBtn, fileInput);
+      wrap.append(row);
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
+    // 4. Color inputs
+    if (key.toLowerCase().includes('color') && typeof value === 'string' && (value.startsWith('#') || value.length === 7)) {
+      const pickerWrap = document.createElement('div');
+      pickerWrap.className = 'field-color-picker';
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.value = value.startsWith('#') ? value : '#2563eb';
+      const textInput = document.createElement('input');
+      textInput.type = 'text';
+      textInput.value = value;
+      textInput.style.flex = '1';
+
+      colorInput.oninput = () => {
+        textInput.value = colorInput.value;
+        node.config[key] = colorInput.value;
+        markDirty();
+      };
+      textInput.onchange = () => {
+        colorInput.value = textInput.value;
+        node.config[key] = textInput.value;
+        markDirty();
+      };
+
+      pickerWrap.append(colorInput, textInput);
+      wrap.append(pickerWrap);
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
+    // 5. Numeric and bounded fields with interactive dual controls
+    let bounds = FIELD_BOUNDS[key];
+    // Dynamic bounds for condition nodes (if_else, compare_value)
+    if ((node.type === 'if_else' || node.type === 'compare_value') && key === 'value') {
+      const metric = node.config?.metric || 'object_count';
+      if (metric === 'max_confidence' || metric === 'anomaly_score') {
+        bounds = { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' };
+      } else {
+        bounds = { min: 0, max: 1000, step: 1, isSlider: true, unit: 'obj' };
+      }
+    }
+
+    if (bounds || typeof value === 'number') {
+      const b = bounds || { min: 0, max: 10000, step: 1, isSlider: false, unit: '' };
+      const min = b.min !== undefined ? b.min : 0;
+      const max = b.max !== undefined ? b.max : 10000;
+      const step = b.step !== undefined ? b.step : (typeof value === 'number' && !Number.isInteger(value) ? 0.01 : 1);
+      const isSlider = b.isSlider && max !== undefined && min !== undefined;
+
+      const clampVal = (v) => {
+        let n = Number(v);
+        if (isNaN(n)) n = min;
+        if (n < min) n = min;
+        if (n > max) n = max;
+        if (b.oddOnly && Math.round(n) % 2 === 0) {
+          n = (n + 1 <= max) ? n + 1 : Math.max(min, n - 1);
+        }
+        return (step >= 1) ? Math.round(n) : Number(n.toFixed(3));
+      };
+
+      const initialVal = clampVal(value !== undefined && value !== null ? value : min);
+
+      if (isSlider) {
+        const group = document.createElement('div');
+        group.className = 'field-slider-group';
+
+        const row = document.createElement('div');
+        row.className = 'field-slider-row';
+
+        const range = document.createElement('input');
+        range.type = 'range';
+        range.min = String(min);
+        range.max = String(max);
+        range.step = String(step);
+        range.value = String(initialVal);
+
+        const numWrap = document.createElement('div');
+        numWrap.className = 'field-num-wrap';
+
+        const numInput = document.createElement('input');
+        numInput.type = 'number';
+        numInput.min = String(min);
+        numInput.max = String(max);
+        numInput.step = String(step);
+        numInput.value = String(initialVal);
+
+        range.oninput = () => {
+          const clamped = clampVal(range.value);
+          numInput.value = String(clamped);
+          node.config[key] = clamped;
+          markDirty();
+        };
+
+        const applyNumChange = () => {
+          const clamped = clampVal(numInput.value);
+          numInput.value = String(clamped);
+          range.value = String(clamped);
+          node.config[key] = clamped;
+          markDirty();
+        };
+
+        numInput.oninput = () => {
+          if (numInput.value !== '') {
+            const raw = Number(numInput.value);
+            if (raw > max) numInput.value = String(max);
+            if (raw < min) numInput.value = String(min);
+            const clamped = clampVal(numInput.value);
+            range.value = String(clamped);
+            node.config[key] = clamped;
+            markDirty();
+          }
+        };
+        numInput.onchange = applyNumChange;
+        numInput.onblur = applyNumChange;
+
+        numWrap.append(numInput);
+        if (b.unit) {
+          const unitSpan = document.createElement('span');
+          unitSpan.className = 'field-unit-badge';
+          unitSpan.textContent = b.unit;
+          numWrap.append(unitSpan);
+        }
+
+        row.append(range, numWrap);
+        group.append(row);
+
+        const boundsHint = document.createElement('div');
+        boundsHint.className = 'field-bounds-hint';
+        boundsHint.innerHTML = `<span>Rentang Nilai:</span> <span class="bounds-range">${min} — ${max}${b.unit ? ' ' + b.unit : ''}</span>`;
+        group.append(boundsHint);
+
+        wrap.append(group);
+      } else {
+        const numInput = document.createElement('input');
+        numInput.type = 'number';
+        numInput.min = String(min);
+        if (max !== undefined) numInput.max = String(max);
+        numInput.step = String(step);
+        numInput.value = String(initialVal);
+
+        const applyVal = () => {
+          const clamped = clampVal(numInput.value);
+          numInput.value = String(clamped);
+          node.config[key] = clamped;
+          markDirty();
+        };
+        numInput.oninput = () => {
+          if (numInput.value !== '') {
+            const raw = Number(numInput.value);
+            if (raw > max) numInput.value = String(max);
+            if (raw < min) numInput.value = String(min);
+            node.config[key] = clampVal(numInput.value);
+            markDirty();
+          }
+        };
+        numInput.onchange = applyVal;
+        numInput.onblur = applyVal;
+
+        wrap.append(numInput);
+      }
+
+      // Add interactive ROI helper button for crop & roi_filter
+      if (['crop', 'roi_filter'].includes(node.type) && key === 'x') {
+        const drawBtn = document.createElement('button');
+        drawBtn.type = 'button';
+        drawBtn.className = 'roi-draw-helper-btn';
+        drawBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M14 14h7v7h-7z"/><path d="M3 14h7v7H3z"/></svg> 📐 Gambar / Pilih Area Langsung di Preview';
+        drawBtn.onclick = () => startRoiDrawing(node);
+        wrap.append(drawBtn);
+      }
+
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
+    // 6. Boolean checkbox
+    if (typeof value === 'boolean') {
+      const line = document.createElement('label');
+      line.className = 'field-check';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = value;
+      input.onchange = () => {
+        node.config[key] = input.checked;
+        markDirty();
+      };
+      line.append(input, document.createTextNode(key.replace(/([A-Z])/g, ' $1')));
+      wrap.replaceChildren(line);
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
+    // 7. Arrays or Objects (JSON textarea)
+    if (Array.isArray(value) || (value && typeof value === 'object')) {
+      const textarea = document.createElement('textarea');
+      textarea.value = JSON.stringify(value, null, 2);
+      textarea.onchange = () => {
+        try {
+          node.config[key] = JSON.parse(textarea.value);
+          markDirty();
+        } catch {
+          toast(`Invalid JSON for ${key}`, true);
+        }
+      };
+      wrap.append(textarea);
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
+    // 8. General text input
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = value ?? '';
+    input.onchange = () => {
+      node.config[key] = input.value;
+      markDirty();
+    };
+    wrap.append(input);
+
+    // If points in roi_filter or dwell_time: add ROI drawing helper
+    if (key === 'points' && ['roi_filter', 'dwell_time'].includes(node.type)) {
+      const drawBtn = document.createElement('button');
+      drawBtn.type = 'button';
+      drawBtn.className = 'roi-draw-helper-btn';
+      drawBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="3 3 21 3 21 21 3 21"/></svg> 📐 Gambar Poligon Langsung di Preview';
+      drawBtn.onclick = () => startRoiDrawing(node);
+      wrap.append(drawBtn);
+    }
+  }
+
+  function appendHelp(wrap, key) {
+    // Keterangan di bawah field dinonaktifkan agar tidak kedouble dengan tooltip (?)
+    return;
+  }
+
+
+  function startRoiDrawing(node) {
+    const img = $('#previewImage');
+    if (!img) return toast('Select a Preview node or start pipeline to draw ROI', true);
+    toast('Click and drag on the preview image to select ROI region...');
+    img.style.cursor = 'crosshair';
+    let startX = 0, startY = 0, isDrawing = false;
+
+    const onMouseDown = (e) => {
+      const rect = img.getBoundingClientRect();
+      startX = (e.clientX - rect.left) / rect.width;
+      startY = (e.clientY - rect.top) / rect.height;
+      isDrawing = true;
+      e.preventDefault();
+    };
+
+    const onMouseUp = (e) => {
+      if (!isDrawing) return;
+      isDrawing = false;
+      img.style.cursor = 'default';
+      img.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mouseup', onMouseUp);
+
+      const rect = img.getBoundingClientRect();
+      const endX = (e.clientX - rect.left) / rect.width;
+      const endY = (e.clientY - rect.top) / rect.height;
+
+      const w = img.naturalWidth || 1280;
+      const h = img.naturalHeight || 720;
+
+      const x1 = Math.max(0, Math.min(startX, endX));
+      const y1 = Math.max(0, Math.min(startY, endY));
+      const x2 = Math.min(1, Math.max(startX, endX));
+      const y2 = Math.min(1, Math.max(startY, endY));
+
+      const boxX = Math.round(x1 * w);
+      const boxY = Math.round(y1 * h);
+      const boxW = Math.max(10, Math.round((x2 - x1) * w));
+      const boxH = Math.max(10, Math.round((y2 - y1) * h));
+
+      node.config.x = boxX;
+      node.config.y = boxY;
+      node.config.width = boxW;
+      node.config.height = boxH;
+      markDirty();
+      renderInspector();
+      toast(`ROI region set: ${boxW}x${boxH} at (${boxX}, ${boxY})`);
+    };
+
+    img.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mouseup', onMouseUp);
+  }
+
+  async function liveUpdateWorkflow() {
+    if (!state.workflow) return;
+    try {
+      await api('/api/workflow/live-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workflow: state.workflow }),
+      });
+    } catch {
+      // Ignore if server is not running or doesn't support live update
+    }
+  }
+
+  const LINE_PALETTE = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#e11d48'];
+
+  function getOrCreateNodeLines(node) {
+    if (!node.config) node.config = {};
+    if (!Array.isArray(node.config.lines) || node.config.lines.length === 0) {
+      node.config.lines = [{
+        id: 'line_1',
+        name: 'Line 1',
+        startPoint: node.config.startPoint || '',
+        endPoint: node.config.endPoint || '',
+        invertDirection: !!node.config.invertDirection,
+        countMode: node.config.countMode || 'both',
+        lineColor: node.config.lineColor || '#22c55e',
+        inLabel: node.config.inLabel || 'IN',
+        outLabel: node.config.outLabel || 'OUT',
+        countIn: 0,
+        countOut: 0,
+      }];
+    }
+    return node.config.lines;
+  }
+
+  async function addNewLine(node) {
+    const lines = getOrCreateNodeLines(node);
+    const newIdx = lines.length + 1;
+    const color = LINE_PALETTE[(newIdx - 1) % LINE_PALETTE.length];
+    const newLine = {
+      id: `line_${Date.now()}_${newIdx}`,
+      name: `Line ${newIdx}`,
+      startPoint: '',
+      endPoint: '',
+      invertDirection: false,
+      countMode: 'both',
+      lineColor: color,
+      inLabel: 'IN',
+      outLabel: 'OUT',
+      countIn: 0,
+      countOut: 0,
+    };
+    lines.push(newLine);
+    markDirty();
+    renderInspector();
+    await save();
+    await liveUpdateWorkflow();
+    toast(`Garis baru "${newLine.name}" berhasil ditambahkan. Klik ✏️ Gambar untuk menggambar garis.`);
+  }
+
+  async function removeLine(node, lineIndex) {
+    const lines = getOrCreateNodeLines(node);
+    if (lines.length <= 1) {
+      return clearLineDrawing(node, 0);
+    }
+    const removed = lines.splice(lineIndex, 1)[0];
+    if (lineIndex === 0 && lines.length > 0) {
+      node.config.startPoint = lines[0].startPoint;
+      node.config.endPoint = lines[0].endPoint;
+    }
+    markDirty();
+    renderInspector();
+    await save();
+    await liveUpdateWorkflow();
+    await resetLineCounts(node, removed.id);
+    toast(`Garis "${removed.name}" telah dihapus.`);
+  }
+
+  async function swapLineDirection(node, lineIndex = 0) {
+    const lines = getOrCreateNodeLines(node);
+    const line = lines[lineIndex];
+    if (!line) return;
+    line.invertDirection = !line.invertDirection;
+    if (lineIndex === 0) {
+      node.config.invertDirection = line.invertDirection;
+    }
+    markDirty();
+    renderInspector();
+    await save();
+    await liveUpdateWorkflow();
+    toast(`Arah "${line.name}" ditukar: ${line.invertDirection ? 'Inverted (OUT ➔ IN)' : 'Normal (IN ➔ OUT)'}`);
+  }
+
+  async function resetLineCounts(node, lineId = null) {
+    const lines = getOrCreateNodeLines(node);
+    if (lineId) {
+      const line = lines.find((l) => l.id === lineId);
+      if (line) {
+        line.countIn = 0;
+        line.countOut = 0;
+      }
+    } else {
+      lines.forEach((l) => {
+        l.countIn = 0;
+        l.countOut = 0;
+      });
+    }
+    renderInspector();
+
+    try {
+      await api('/api/counters/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodeId: node.id, lineId: lineId }),
+      });
+    } catch {
+      // Local count was already reset to 0 in UI; ignore API transport delay
+    }
+
+    if (lineId) {
+      const line = lines.find((l) => l.id === lineId);
+      toast(`Hitungan "${line ? line.name : 'Garis'}" direset ke 0`);
+    } else {
+      toast(`Semua hitungan ${node.title || 'Line Counter'} direset ke 0`);
+    }
+  }
+
+  async function clearLineDrawing(node, lineIndex = 0) {
+    const lines = getOrCreateNodeLines(node);
+    const line = lines[lineIndex];
+    if (!line) return;
+    line.startPoint = '';
+    line.endPoint = '';
+    line.countIn = 0;
+    line.countOut = 0;
+    if (lineIndex === 0) {
+      node.config.startPoint = '';
+      node.config.endPoint = '';
+    }
+    markDirty();
+    renderInspector();
+    await save();
+    await liveUpdateWorkflow();
+    try {
+      await resetLineCounts(node, line.id);
+    } catch {}
+    toast(`Garis "${line.name}" berhasil dihapus (kosong)`);
+  }
+
+  async function clearAllLinesDrawing(node) {
+    const lines = getOrCreateNodeLines(node);
+    lines.forEach((line) => {
+      line.startPoint = '';
+      line.endPoint = '';
+      line.countIn = 0;
+      line.countOut = 0;
+    });
+    node.config.startPoint = '';
+    node.config.endPoint = '';
+    markDirty();
+    renderInspector();
+    await save();
+    await liveUpdateWorkflow();
+    try {
+      await resetLineCounts(node);
+    } catch {}
+    toast('Semua gambar garis berhasil dihapus (kosong)');
+  }
+
+  function startLineDrawing(node, lineIndex = 0) {
+    const img = $('#previewImage');
+    if (!img) return toast('Jalankan pipeline terlebih dahulu untuk menampilkan video & menggambar garis', true);
+
+    const lines = getOrCreateNodeLines(node);
+    const line = lines[lineIndex] || lines[0];
+    const drawColor = line.lineColor || '#22c55e';
+
+    toast(`Klik dan seret (drag) mouse di atas video preview untuk menggambar garis "${line.name}"...`);
+    img.style.cursor = 'crosshair';
+
+    $('#tempDrawOverlay')?.remove();
+
+    const parent = img.parentElement;
+    if (parent && getComputedStyle(parent).position === 'static') {
+      parent.style.position = 'relative';
+    }
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.id = 'tempDrawOverlay';
+    svg.style.position = 'absolute';
+    svg.style.top = img.offsetTop + 'px';
+    svg.style.left = img.offsetLeft + 'px';
+    svg.style.width = img.clientWidth + 'px';
+    svg.style.height = img.clientHeight + 'px';
+    svg.style.pointerEvents = 'none';
+    svg.style.zIndex = '50';
+    if (parent) parent.appendChild(svg);
+
+    let startX = 0, startY = 0, isDrawing = false;
+
+    const onMouseDown = (e) => {
+      const rect = img.getBoundingClientRect();
+      startX = (e.clientX - rect.left) / rect.width;
+      startY = (e.clientY - rect.top) / rect.height;
+      isDrawing = true;
+      e.preventDefault();
+    };
+
+    const onMouseMove = (e) => {
+      if (!isDrawing) return;
+      const rect = img.getBoundingClientRect();
+      const curX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const curY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+
+      const w = img.clientWidth;
+      const h = img.clientHeight;
+      const x1 = startX * w, y1 = startY * h;
+      const x2 = curX * w, y2 = curY * h;
+
+      svg.innerHTML = `
+        <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${drawColor}" stroke-width="3" stroke-linecap="round" />
+        <circle cx="${x1}" cy="${y1}" r="6" fill="${drawColor}" stroke="#fff" stroke-width="2" />
+        <circle cx="${x2}" cy="${y2}" r="6" fill="${drawColor}" stroke="#fff" stroke-width="2" />
+      `;
+    };
+
+    const onMouseUp = async (e) => {
+      if (!isDrawing) return;
+      isDrawing = false;
+      img.style.cursor = 'default';
+      img.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      svg.remove();
+
+      const rect = img.getBoundingClientRect();
+      const endX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const endY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+
+      const dist = Math.hypot(endX - startX, endY - startY);
+      if (dist < 0.02) {
+        return toast('Garis terlalu pendek, silakan seret lebih jauh melintasi area', true);
+      }
+
+      line.startPoint = `${startX.toFixed(3)},${startY.toFixed(3)}`;
+      line.endPoint = `${endX.toFixed(3)},${endY.toFixed(3)}`;
+      if (lineIndex === 0) {
+        node.config.startPoint = line.startPoint;
+        node.config.endPoint = line.endPoint;
+      }
+      markDirty();
+      renderInspector();
+      await save();
+      await liveUpdateWorkflow();
+      toast(`Garis "${line.name}" tersimpan: (${startX.toFixed(2)}, ${startY.toFixed(2)}) ➔ (${endX.toFixed(2)}, ${endY.toFixed(2)})`);
+    };
+
+    img.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }
+
+  function startPolygonZoneDrawing(node) {
+    const img = $('#previewImage');
+    if (!img) return toast('Start the pipeline to view frames and draw zone', true);
+    toast('Click 4 points on the preview image to define the zone polygon...');
+    img.style.cursor = 'crosshair';
+    const points = [];
+
+    const onClick = (e) => {
+      const rect = img.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+      points.push({ x: px, y: py });
+      toast(`Point ${points.length}/4 added at (${px.toFixed(2)}, ${py.toFixed(2)})`);
+
+      if (points.length >= 4) {
+        img.style.cursor = 'default';
+        img.removeEventListener('click', onClick);
+        node.config.points = points.map(p => `${p.x.toFixed(3)},${p.y.toFixed(3)}`).join('; ');
+        markDirty();
+        renderInspector();
+        toast('Dwell time zone polygon updated successfully!');
+      }
+    };
+
+    img.addEventListener('click', onClick);
+  }
+
+  function applyBranchingPreset(presetName, targetNode) {
+    if (!targetNode) return;
+    if (presetName === 'overcrowding') {
+      targetNode.config.metric = 'object_count';
+      targetNode.config.operator = 'gte';
+      targetNode.config.value = 5;
+      targetNode.config.passWhen = 'true';
+      toast('Preset Kapasitas Ruangan (Overcrowding >= 5) berhasil diterapkan!');
+    } else if (presetName === 'line_quota') {
+      targetNode.config.metric = 'line_counter_in';
+      targetNode.config.operator = 'gte';
+      targetNode.config.value = 10;
+      targetNode.config.passWhen = 'true';
+      toast('Preset Kuota Masuk Line Counter (IN >= 10) berhasil diterapkan!');
+    } else if (presetName === 'quality_sort') {
+      targetNode.config.metric = 'max_confidence';
+      targetNode.config.operator = 'gte';
+      targetNode.config.value = 0.85;
+      targetNode.config.passWhen = 'false';
+      toast('Preset Sortir Cacat / Reject (Confidence < 0.85) berhasil diterapkan!');
+    }
+    markDirty();
+    renderCanvas();
+    renderInspector();
+  }
+
+  function showIfElseGuideModal(node) {
+    let modal = $('#ifElseGuideModal');
+    if (!modal) {
+      modal = document.createElement('dialog');
+      modal.id = 'ifElseGuideModal';
+      modal.className = 'template-modal';
+      modal.style.maxWidth = '780px';
+      modal.style.width = '92vw';
+      modal.style.borderRadius = '12px';
+      modal.style.border = '1px solid var(--border, #334155)';
+      modal.style.backgroundColor = 'var(--bg-card, #0f172a)';
+      modal.style.color = 'var(--text, #f1f5f9)';
+      modal.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.7)';
+      document.body.append(modal);
+    }
+    modal.replaceChildren();
+
+    const head = document.createElement('div');
+    head.className = 'modal-head';
+    head.style.display = 'flex';
+    head.style.alignItems = 'center';
+    head.style.justifyContent = 'space-between';
+    head.style.padding = '16px 20px';
+    head.style.borderBottom = '1px solid var(--border, #334155)';
+    head.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:22px;">🔀</span>
+        <div>
+          <h3 style="margin:0; font-size:16px; font-weight:700; color:var(--text, #f8fafc);">Panduan Percabangan Alur (If / Else Logic)</h3>
+          <small style="color:var(--text-muted, #94a3b8);">Cara kerja percabangan, parameter logika, dan 3 contoh kasus nyata</small>
+        </div>
+      </div>
+    `;
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'button ghost';
+    closeBtn.textContent = '✕';
+    closeBtn.style.fontSize = '16px';
+    closeBtn.onclick = () => modal.close();
+    head.append(closeBtn);
+    modal.append(head);
+
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+    body.style.padding = '20px';
+    body.style.maxHeight = '72vh';
+    body.style.overflowY = 'auto';
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+    body.style.gap = '16px';
+
+    body.innerHTML = `
+      <!-- Section 1: Konsep Dasar -->
+      <div style="background:rgba(30, 41, 59, 0.6); border:1px solid #334155; border-radius:8px; padding:14px;">
+        <h4 style="margin:0 0 8px 0; font-size:13px; color:#38bdf8; display:flex; align-items:center; gap:6px;">
+          <span>💡</span> 1. Bagaimana Sistem Percabangan Bekerja?
+        </h4>
+        <p style="margin:0 0 10px 0; font-size:12px; line-height:1.5; color:#cbd5e1;">
+          Node <b>Percabangan (If / Else)</b> bertindak sebagai <i>gerbang seleksi cerdas</i>. Aliran deteksi frame akan <b>DILOLOSKAN</b> ke node downstream (tujuan) jika syarat terpenuhi, atau <b>DITAHAN</b> jika tidak memenuhi syarat.
+        </p>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div style="background:rgba(34, 197, 94, 0.1); border:1px solid rgba(34, 197, 94, 0.3); border-radius:6px; padding:10px;">
+            <div style="font-weight:700; font-size:12px; color:#22c55e; margin-bottom:4px;">🟢 Cabang IF (True)</div>
+            <div style="font-size:11px; color:#94a3b8; line-height:1.4;">
+              Meneruskan data <b>hanya saat kondisi BENAR</b>.<br>
+              <i>Contoh:</i> Jika jumlah orang &ge; 5 &rarr; Teruskan ke <b>Output Alert</b>.
+            </div>
+          </div>
+          <div style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); border-radius:6px; padding:10px;">
+            <div style="font-weight:700; font-size:12px; color:#ef4444; margin-bottom:4px;">🔴 Cabang ELSE (False)</div>
+            <div style="font-size:11px; color:#94a3b8; line-height:1.4;">
+              Meneruskan data <b>hanya saat kondisi SALAH</b>.<br>
+              <i>Contoh:</i> Jika akurasi produk tidak mencapai 85% &rarr; Teruskan ke <b>Reject Output</b>.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Diagram Skema Alur Percabangan -->
+      <div style="background:rgba(15, 23, 42, 0.8); border:1px solid #334155; border-radius:8px; padding:14px;">
+        <h4 style="margin:0 0 10px 0; font-size:13px; color:#38bdf8; display:flex; align-items:center; gap:6px;">
+          <span>📐</span> 2. Skema Menghubungkan Dua Cabang di Canvas
+        </h4>
+        <pre style="margin:0; font-family:monospace; font-size:11px; background:#020617; padding:12px; border-radius:6px; border:1px solid #1e293b; color:#e2e8f0; line-height:1.5; overflow-x:auto;">
+[ Kamera / Input ] ──&gt; [ Object Detection / Tracking ]
+                                  │
+                  ┌───────────────┴───────────────┐
+                  ▼                               ▼
+       [ If/Else: Cabang IF ]          [ If/Else: Cabang ELSE ]
+       (Kondisi: Jumlah &ge; 5)           (Kondisi: Jumlah &lt; 5)
+                  │                               │
+                  ▼                               ▼
+        [ Output Peringatan ]             [ Live Preview ]
+         (Buzzer / Simpan Foto)            (Tampilan Normal)
+        </pre>
+        <p style="margin:8px 0 0 0; font-size:11px; color:#94a3b8;">
+          <b>Tips Cara Pasang:</b> Tarik garis output dari node deteksi ke 2 node If/Else berbeda (satu diset <i>Cabang IF</i>, satu diset <i>Cabang ELSE</i>).
+        </p>
+      </div>
+
+      <!-- Section 3: Tiga Contoh Nyata Kasus Industri -->
+      <div>
+        <h4 style="margin:0 0 10px 0; font-size:13px; color:#f8fafc; display:flex; align-items:center; gap:6px;">
+          <span>🏭</span> 3. Contoh Penerapan Nyata (Pilih &amp; Pasang Otomatis)
+        </h4>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          
+          <!-- Contoh 1: Overcrowding -->
+          <div style="background:rgba(30, 41, 59, 0.5); border:1px solid #334155; border-radius:8px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <div style="font-weight:700; font-size:12px; color:#f8fafc;">Kasus A: Peringatan Batas Kapasitas Ruangan (Overcrowding)</div>
+                <div style="font-size:11px; color:#94a3b8; margin-top:2px;">
+                  Picu alarm hanya saat jumlah orang di ruangan mencapai atau melebihi 5 orang.
+                </div>
+              </div>
+              <button id="applyTplA" class="button secondary" style="font-size:11px; padding:4px 10px;">
+                ⚡ Terapkan ke Node Ini
+              </button>
+            </div>
+            <div style="margin-top:8px; font-size:11px; background:rgba(0,0,0,0.25); padding:6px 10px; border-radius:4px; font-family:monospace; color:#38bdf8;">
+              Metrik: Jumlah Objek | Operator: &ge; | Nilai: 5 | Arah: Cabang IF (True)
+            </div>
+          </div>
+
+          <!-- Contoh 2: Line Counter Quota -->
+          <div style="background:rgba(30, 41, 59, 0.5); border:1px solid #334155; border-radius:8px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <div style="font-weight:700; font-size:12px; color:#f8fafc;">Kasus B: Peringatan Target Kuota Masuk (Line Counter)</div>
+                <div style="font-size:11px; color:#94a3b8; margin-top:2px;">
+                  Otomatis kirim notifikasi/simpan foto saat pengunjung yang masuk (IN) mencapai target 10 orang.
+                </div>
+              </div>
+              <button id="applyTplB" class="button secondary" style="font-size:11px; padding:4px 10px;">
+                ⚡ Terapkan ke Node Ini
+              </button>
+            </div>
+            <div style="margin-top:8px; font-size:11px; background:rgba(0,0,0,0.25); padding:6px 10px; border-radius:4px; font-family:monospace; color:#38bdf8;">
+              Metrik: Hitungan Masuk (IN) | Operator: &ge; | Nilai: 10 | Arah: Cabang IF (True)
+            </div>
+          </div>
+
+          <!-- Contoh 3: Sortir Kualitas / Anomali -->
+          <div style="background:rgba(30, 41, 59, 0.5); border:1px solid #334155; border-radius:8px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <div style="font-weight:700; font-size:12px; color:#f8fafc;">Kasus C: Sortir Produk Cacat / Reject (Cabang ELSE)</div>
+                <div style="font-size:11px; color:#94a3b8; margin-top:2px;">
+                  Arahkan produk yang tidak memenuhi akurasi standar (&lt; 85%) ke jalur Reject/Alarm.
+                </div>
+              </div>
+              <button id="applyTplC" class="button secondary" style="font-size:11px; padding:4px 10px;">
+                ⚡ Terapkan ke Node Ini
+              </button>
+            </div>
+            <div style="margin-top:8px; font-size:11px; background:rgba(0,0,0,0.25); padding:6px 10px; border-radius:4px; font-family:monospace; color:#38bdf8;">
+              Metrik: Akurasi Tertinggi | Operator: &ge; | Nilai: 0.85 | Arah: Cabang ELSE (False)
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    modal.append(body);
+    modal.showModal();
+
+    $('#applyTplA').onclick = () => {
+      if (node) {
+        applyBranchingPreset('overcrowding', node);
+        modal.close();
+      } else {
+        toast('Pilih node If / Else di canvas untuk menerapkan preset ini');
+      }
+    };
+    $('#applyTplB').onclick = () => {
+      if (node) {
+        applyBranchingPreset('line_quota', node);
+        modal.close();
+      } else {
+        toast('Pilih node If / Else di canvas untuk menerapkan preset ini');
+      }
+    };
+    $('#applyTplC').onclick = () => {
+      if (node) {
+        applyBranchingPreset('quality_sort', node);
+        modal.close();
+      } else {
+        toast('Pilih node If / Else di canvas untuk menerapkan preset ini');
+      }
+    };
+  }
+
+  const NODE_GUIDES_ID = {
+  "input": {
+    "concept": "Node sumber input utama yang mengalirkan frame video dari webcam USB, kamera industri Daheng Imaging (Galaxy GXI), file gambar statis, atau file rekaman video lokal.",
+    "diagram": "[ Input (Kamera / Video / Daheng) ] ──▶ [ Preprocessing / Detector ]",
+    "steps": [
+      "Pilih tipe sumber (sourceType): camera (webcam), daheng (kamera industri), atau file (video/gambar).",
+      "Jika menggunakan webcam, pilih indeks kamera (0 untuk webcam internal, 1 untuk webcam USB eksternal).",
+      "Jika menggunakan file video, masukkan path lengkap file pada kolom File Path dan centang Loop agar video berputar otomatis terus-menerus.",
+      "Untuk kamera industri Daheng, atur identifier, exposure time (waktu eksposur), dan gain sensor sesuai pencahayaan pabrik."
+    ],
+    "params": [
+      {
+        "key": "sourceType",
+        "label": "Tipe Sumber",
+        "desc": "Pilihan input: camera (webcam), daheng (kamera industri), file (video/foto)."
+      },
+      {
+        "key": "source",
+        "label": "Indeks Kamera USB",
+        "desc": "Nomor urut webcam perangkat komputer (0, 1, 2, ...)."
+      },
+      {
+        "key": "filePath",
+        "label": "Path File Video/Gambar",
+        "desc": "Lokasi file rekaman video di hard drive untuk simulasi atau analisis."
+      },
+      {
+        "key": "loop",
+        "label": "Putar Berulang (Loop)",
+        "desc": "Memutar ulang video secara terus-menerus dari awal setelah frame habis."
+      },
+      {
+        "key": "dahengExposureUs",
+        "label": "Waktu Eksposur Daheng (µs)",
+        "desc": "Durasi rana sensor kamera industri dalam mikrodetik."
+      },
+      {
+        "key": "dahengGain",
+        "label": "Gain Sensor Daheng",
+        "desc": "Penguat sinyal sensor kamera industri dalam satuan desibel (dB)."
+      }
+    ],
+    "tips": "Untuk pengujian model AI tanpa kamera fisik, Anda bisa menggunakan file rekaman video (.mp4) dengan opsi Loop aktif."
+  },
+  "ip_camera": {
+    "concept": "Node streaming jaringan IP untuk menghubungkan kamera CCTV keamanan, NVR/DVR, atau RTSP/HTTP stream dengan fitur pemulihan koneksi otomatis (auto-reconnect) dan pemantauan kesehatan kamera.",
+    "diagram": "[ IP Camera / CCTV ] ──▶ [ Preprocessing / Object Detection ]",
+    "steps": [
+      "Masukkan URL RTSP lengkap pada kolom Stream URL (contoh: rtsp://admin:pass@192.168.1.100:554/stream1).",
+      "Pilih protokol Transport: TCP (sangat direkomendasikan agar video stabil dan tidak pecah) atau UDP.",
+      "Aktifkan Auto Reconnect agar sistem otomatis menyambung kembali saat koneksi jaringan CCTV terputus.",
+      "Aktifkan Deteksi Freeze & Tamper untuk memicu peringatan jika kamera macet atau lensa ditutup secara sengaja."
+    ],
+    "params": [
+      {
+        "key": "streamUrl",
+        "label": "URL Stream RTSP/HTTP",
+        "desc": "Alamat URL stream kamera CCTV atau NVR (RTSP, RTMP, HTTP)."
+      },
+      {
+        "key": "transport",
+        "label": "Protokol Transport",
+        "desc": "Pilih TCP untuk transmisi stabil bebas glitch atau UDP untuk latensi terendah."
+      },
+      {
+        "key": "autoReconnect",
+        "label": "Rekoneksi Otomatis",
+        "desc": "Mencoba menyambung kembali secara otomatis saat sinyal jaringan terputus."
+      },
+      {
+        "key": "detectFreeze",
+        "label": "Deteksi Kamera Macet (Freeze)",
+        "desc": "Mendeteksi jika frame video berhenti bergerak selama beberapa detik berturut-turut."
+      },
+      {
+        "key": "detectTamper",
+        "label": "Deteksi Sabotase Lensa (Tamper)",
+        "desc": "Mendeteksi jika lensa kamera ditutup kain atau disorot cahaya sangat terang."
+      }
+    ],
+    "tips": "Gunakan sub-stream (resolusi 720p atau VGA) dari NVR/CCTV untuk menghemat bandwidth jaringan dan mengoptimalkan FPS pengolahan AI."
+  },
+  "detector": {
+    "concept": "Model AI Vision untuk mendeteksi lokasi dan klasifikasi kotak pembatas (bounding box) objek secara realtime dalam frame video.",
+    "diagram": "[ Input Kamera ] ──▶ [ Object Detection ] ──▶ [ Object Tracking ]",
+    "steps": [
+      "Pilih arsitektur model pada Engine: RF-DETR (rekomendasi kecepatan & akurasi tinggi), Ultralytics YOLOv8, atau ONNX kustom.",
+      "Atur Threshold akurasi keyakinan minimal: biasanya antara 0.40 hingga 0.60.",
+      "Jika menggunakan model latih sendiri (.pt / .onnx), masukkan path file model pada kolom Custom Model Path.",
+      "Hubungkan output node ini ke node Object Tracking untuk pelacakan objek yang stabil."
+    ],
+    "params": [
+      {
+        "key": "engine",
+        "label": "Mesin Model AI",
+        "desc": "Pilihan engine AI: rfdetr, ultralytics_yolo, onnx_custom, tflite."
+      },
+      {
+        "key": "threshold",
+        "label": "Ambang Batas Akurasi (Confidence)",
+        "desc": "Skor akurasi minimal (0.0 - 1.0) agar objek dianggap valid."
+      },
+      {
+        "key": "iouThreshold",
+        "label": "Ambang Batas NMS / IOU",
+        "desc": "Ambang tumpang-tindih untuk menghapus deteksi ganda pada objek yang sama."
+      },
+      {
+        "key": "rfdetrModel",
+        "label": "Varian Model RF-DETR",
+        "desc": "Pilihan ukuran model: rfdetr-nano, small, medium, large."
+      },
+      {
+        "key": "customModelPath",
+        "label": "Path Model Kustom",
+        "desc": "Lokasi file bobot model (.pt atau .onnx) jika menggunakan model sendiri."
+      }
+    ],
+    "tips": "Untuk mendeteksi objek berukuran sangat kecil pada resolusi tinggi, pasang node Small Object Slicer (SAHI) sebelum node ini."
+  },
+  "slicer": {
+    "concept": "Node SAHI (Slicing Aided Hyper Inference) yang memotong gambar resolusi tinggi (1080p / 4K) menjadi petak-petak kecil bertingkat (tiles) sehingga objek kecil dapat terdeteksi tajam oleh model AI.",
+    "diagram": "[ Input Kamera ] ──▶ [ Small Object Slicer ] ──▶ [ Object Detection ]",
+    "steps": [
+      "Pasang tepat sebelum node Object Detection jika objek target berukuran kecil (seperti sekrup, cacat mikro, atau orang dari CCTV jauh).",
+      "Tentukan ukuran petak potong: Slice Width dan Slice Height (misal: 640x640 piksel).",
+      "Tentukan Overlap Ratio (misal: 0.20 atau 20%) agar objek yang berada di perbatasan petak tetap terdeteksi utuh.",
+      "Hasil potongan petak akan digabungkan kembali secara otomatis menggunakan algoritma NMS/IOU."
+    ],
+    "params": [
+      {
+        "key": "sliceWidth",
+        "label": "Lebar Petak Potongan",
+        "desc": "Lebar setiap potongan petak gambar dalam piksel (misal 640)."
+      },
+      {
+        "key": "sliceHeight",
+        "label": "Tinggi Petak Potongan",
+        "desc": "Tinggi setiap potongan petak gambar dalam piksel (misal 640)."
+      },
+      {
+        "key": "overlapRatio",
+        "label": "Rasio Tumpang Tindih (Overlap)",
+        "desc": "Persentase overlap antar petak bersebelahan (0.10 hingga 0.30)."
+      },
+      {
+        "key": "iouThreshold",
+        "label": "Ambang Batas NMS Penggabungan",
+        "desc": "Ambang batas IOU saat menyatukan kembali deteksi dari semua petak."
+      }
+    ],
+    "tips": "Gunakan SAHI saat kamera mengarah dari jarak jauh dengan sudut pandang lebar (wide angle)."
+  },
+  "segmenter": {
+    "concept": "Model AI Instance Segmentation untuk menghasilkan kontur piksel dan masking presisi dari bentuk objek (bukan sekadar kotak persegi). Mendukung YOLOv8 Segmentation, RF-DETR Seg, dan Segment Anything (SAM 3).",
+    "diagram": "[ Input Kamera ] ──▶ [ Object Segmentation ] ──▶ [ Live Preview / Measurement ]",
+    "steps": [
+      "Pilih engine segmentasi: Ultralytics YOLOv8 Seg, RF-DETR Seg, atau SAM 3 (Segment Anything).",
+      "Atur Threshold akurasi minimal (default: 0.45).",
+      "Jika menggunakan model sendiri, masukkan path file bobot (.pt) pada Custom Model Path.",
+      "Hubungkan ke Live Preview untuk melihat lapisan warna kontur transparan di atas objek."
+    ],
+    "params": [
+      {
+        "key": "engine",
+        "label": "Mesin Segmentasi AI",
+        "desc": "Pilihan engine: ultralytics_yolo, rfdetr_seg, sam3."
+      },
+      {
+        "key": "threshold",
+        "label": "Ambang Batas Akurasi",
+        "desc": "Skor akurasi minimal untuk menampilkan masking segmentasi."
+      },
+      {
+        "key": "concepts",
+        "label": "Konsep Teks (Prompt SAM 3)",
+        "desc": "Kata kunci teks untuk segmentasi zero-shot SAM 3 (misal: 'person, car')."
+      },
+      {
+        "key": "customModelPath",
+        "label": "Path Model Kustom",
+        "desc": "Lokasi file model segmentasi lokal (misal: data/models/yolov8n-seg.pt)."
+      }
+    ],
+    "tips": "Segmentasi sangat ideal untuk inspeksi kualitas industri, mengukur luas permukaan cacat, atau memisahkan objek dari latar belakang."
+  },
+  "efficientad": {
+    "concept": "Model AI Visual Inspection canggih berbasis EfficientAD untuk mendeteksi anomali cacat visual permukaan (sobekan, goresan, noda, keretakan) tanpa memerlukan contoh foto cacat saat pelatihan.",
+    "diagram": "[ Input / Crop ] ──▶ [ Visual Inspection (EfficientAD) ] ──▶ [ Live Preview / Alert ]",
+    "steps": [
+      "Masukkan path model EfficientAD pada kolom EfficientAD Model.",
+      "Atur Anomaly Threshold (ambang batas anomali cacat) sesuai toleransi inspeksi.",
+      "Centang Show Heatmap dan atur Heatmap Opacity untuk melihat visualisasi sebaran lokasi cacat berwarna gradien merah.",
+      "Hubungkan ke node If / Else atau Alert untuk memisahkan produk reject secara otomatis."
+    ],
+    "params": [
+      {
+        "key": "efficientadModel",
+        "label": "Path Model EfficientAD",
+        "desc": "Lokasi file model bobot EfficientAD (.pth / .onnx)."
+      },
+      {
+        "key": "anomalyThreshold",
+        "label": "Ambang Batas Anomali (Cacat)",
+        "desc": "Skor ambang batas anomali; di atas nilai ini produk dianggap cacat/NG."
+      },
+      {
+        "key": "showHeatmap",
+        "label": "Tampilkan Peta Anomali (Heatmap)",
+        "desc": "Menampilkan visualisasi gradien warna pada titik-titik cacat permukaan."
+      },
+      {
+        "key": "heatmapOpacity",
+        "label": "Transparansi Heatmap",
+        "desc": "Tingkat transparansi lapisan warna cacat di atas video asli (0.1 - 1.0)."
+      },
+      {
+        "key": "useModelThreshold",
+        "label": "Gunakan Ambang Batas Bawaan",
+        "desc": "Menggunakan nilai ambang batas otomatis dari file model yang dimuat."
+      }
+    ],
+    "tips": "Cukup latih model dengan foto-foto produk bagus (OK). Setiap perbedaan sekecil apa pun akan otomatis terdeteksi sebagai anomali (NG)."
+  },
+  "classifier": {
+    "concept": "Model AI Klasifikasi Citra untuk menentukan kategori atau status dari keseluruhan frame gambar atau potongan objek terdeteksi menggunakan arsitektur ConvNeXt ImageNet atau model kustom.",
+    "diagram": "[ Input / Detection Crop ] ──▶ [ Image Classification ] ──▶ [ Logic / Alert ]",
+    "steps": [
+      "Hubungkan langsung dari Input untuk klasifikasi seluruh frame, atau dari Detection Crop untuk klasifikasi objek per objek.",
+      "Pilih varian model ConvNeXt (Tiny, Small, Base) atau model kustom Anda.",
+      "Atur Top-K untuk menentukan berapa banyak prediksi teratas yang ingin dicatat.",
+      "Hubungkan output ke Draw Text atau Webhook untuk mengirimkan hasil klasifikasi."
+    ],
+    "params": [
+      {
+        "key": "engine",
+        "label": "Mesin Klasifikasi",
+        "desc": "Pilihan engine: convnext (ImageNet) atau model kustom."
+      },
+      {
+        "key": "convnextModel",
+        "label": "Varian Model ConvNeXt",
+        "desc": "Pilihan ukuran: tiny, small, base, large."
+      },
+      {
+        "key": "threshold",
+        "label": "Ambang Batas Akurasi",
+        "desc": "Skor akurasi minimal agar kelas dianggap valid."
+      },
+      {
+        "key": "topK",
+        "label": "Jumlah Prediksi Teratas (Top-K)",
+        "desc": "Berapa banyak kelas kemungkinan tertinggi yang disimpan."
+      },
+      {
+        "key": "customModelPath",
+        "label": "Path Model Kustom",
+        "desc": "Lokasi file bobot model klasifikasi kustom."
+      }
+    ],
+    "tips": "Kombinasikan Detection Crop dengan Classifier untuk verifikasi bertingkat (misal: deteksi botol ➔ klasifikasi jenis isi botol teh/kopi/air)."
+  },
+  "detection_crop": {
+    "concept": "Node pemotong yang otomatis memotong setiap bounding box objek hasil deteksi menjadi gambar terpisah, sangat ideal untuk diteruskan ke model klasifikasi kedua, OCR, atau barcode scanner.",
+    "diagram": "[ Object Detection ] ──▶ [ Detection Crop ] ──▶ [ Classifier / Barcode ]",
+    "steps": [
+      "Hubungkan output dari node Object Detection ke input Detection Crop.",
+      "Isi kolom Classes jika hanya ingin memotong kelas tertentu (misal: 'bottle' atau 'license_plate').",
+      "Atur Context Padding Percent (misal 0.15 atau 15%) agar potongan tidak terpotong pas di tepi objek.",
+      "Hubungkan output potongan ini ke node Classifier atau Barcode Reader."
+    ],
+    "params": [
+      {
+        "key": "classes",
+        "label": "Filter Kelas Target",
+        "desc": "Hanya potong objek dengan kelas yang tercantum (kosongkan untuk semua objek)."
+      },
+      {
+        "key": "contextPaddingPercent",
+        "label": "Margin Konteks Ekstra",
+        "desc": "Persentase area luar kotak yang ikut disertakan (0.0 - 0.5)."
+      },
+      {
+        "key": "square",
+        "label": "Jadikan Persegi (Square)",
+        "desc": "Membuat hasil potongan menjadi bentuk bujur sangkar dengan bantalan (padding)."
+      },
+      {
+        "key": "minCropWidth",
+        "label": "Lebar Minimal Potongan",
+        "desc": "Abaikan potongan dengan ukuran lebar lebih kecil dari nilai ini."
+      },
+      {
+        "key": "maxCrops",
+        "label": "Batas Maksimal Potongan Per Frame",
+        "desc": "Membatasi beban komputasi jika ada puluhan objek sekaligus dalam satu frame."
+      }
+    ],
+    "tips": "Gunakan opsi Context Padding 15% untuk memberikan konteks visual yang lebih baik pada model klasifikasi downstream."
+  },
+  "barcode_reader": {
+    "concept": "Pemindai kode batang (Barcode 1D: EAN, UPC, Code128) dan kode matriks 2D (QR Code) berkecepatan tinggi terintegrasi OpenCV.",
+    "diagram": "[ Input / Detection Crop ] ──▶ [ Barcode & QR Reader ] ──▶ [ Database / Webhook ]",
+    "steps": [
+      "Hubungkan dari Input Kamera untuk membaca barcode di seluruh layar, atau dari Detection Crop untuk membaca barcode pada label produk terdeteksi.",
+      "Centang Show Overlay untuk menampilkan kotak hijau penanda barcode di layar preview.",
+      "Atur Cooldown Seconds (misal: 2.0 detik) agar barcode yang sama tidak terbaca berulang kali setiap frame.",
+      "Teks hasil pemindaian otomatis tersimpan dalam variabel pipeline dan dapat dikirim via Webhook atau disimpan ke Database."
+    ],
+    "params": [
+      {
+        "key": "cropFromDetections",
+        "label": "Pindai Dari Objek Terdeteksi",
+        "desc": "Memindai barcode dari hasil kotak deteksi upstream."
+      },
+      {
+        "key": "showOverlay",
+        "label": "Tampilkan Kotak Penanda Barcode",
+        "desc": "Menampilkan garis batas dan teks kode langsung di atas video."
+      },
+      {
+        "key": "cooldownSeconds",
+        "label": "Jeda Waktu Pembacaan Ulang (Cooldown)",
+        "desc": "Mencegah pembacaan berulang kode yang sama dalam durasi detik tertentu."
+      }
+    ],
+    "tips": "Untuk label barcode berukuran kecil pada kemasan produk, hubungkan melalui Detection Crop agar barcode terisolasi tajam."
+  },
+  "tracker": {
+    "concept": "Node pelacak objek multi-objek (MOT) yang memberikan nomor ID unik permanen pada setiap objek yang bergerak antar-frame video agar tidak hilang atau dihitung berulang kali.",
+    "diagram": "[ Object Detection ] ──▶ [ Object Tracking ] ──▶ [ Counting / Analysis ]",
+    "steps": [
+      "Wajib dihubungkan langsung dari output node Object Detection.",
+      "Pilih algoritma tracking: ByteTrack (paling cepat & stabil), BoT-SORT (akurat dengan kompensasi gerak kamera), atau OC-SORT.",
+      "Atur Track Buffer (default: 30 frame) sebagai toleransi saat objek tertutup sesaat oleh objek lain.",
+      "Hubungkan output Tracker ke Line Counter, Object Counter, atau Dwell Time."
+    ],
+    "params": [
+      {
+        "key": "algorithm",
+        "label": "Algoritma Pelacakan",
+        "desc": "Pilihan: bytetrack (cepat & stabil), botsort (kamera bergerak), ocsort (akselerasi)."
+      },
+      {
+        "key": "trackHighThreshold",
+        "label": "Ambang Deteksi Kuat",
+        "desc": "Ambang batas skor keyakinan untuk memulai track objek baru."
+      },
+      {
+        "key": "trackBuffer",
+        "label": "Buffer Memori Frame",
+        "desc": "Berapa frame ID dipertahankan saat objek hilang sementara sebelum dihapus."
+      },
+      {
+        "key": "matchThreshold",
+        "label": "Ambang Batas Pencocokan IOU",
+        "desc": "Toleransi pergeseran kotak antar-frame saat menghubungkan track ID."
+      }
+    ],
+    "tips": "Node ini adalah tulang punggung dari semua fitur analitik lanjutan (Line Counter, Object Counter, dan Dwell Time)."
+  },
+  "track_snapshot": {
+    "concept": "Menangkap foto frame terbaik (Best Frame Snapshot) dari setiap objek unik yang terlacak tepat satu kali, mencegah spam inspeksi ganda pada objek yang sama.",
+    "diagram": "[ Object Tracking ] ──▶ [ Once Per Track ] ──▶ [ Save Images / Webhook ]",
+    "steps": [
+      "Pasang langsung setelah node Object Tracking.",
+      "Pilih Capture Mode: best_frame (frame dengan akurasi tertinggi) atau first_seen (saat objek pertama kali muncul).",
+      "Tentukan Minimum Track Age Frames (misal: 3 frame) agar objek terkonfirmasi stabil sebelum difoto.",
+      "Hubungkan output ke Save Images atau Webhook untuk mengirimkan foto bukti inspeksi."
+    ],
+    "params": [
+      {
+        "key": "captureMode",
+        "label": "Mode Pengambilan Foto",
+        "desc": "best_frame (foto terjelas saat confidence tertinggi) atau first_seen."
+      },
+      {
+        "key": "minimumConfidence",
+        "label": "Akurasi Minimal Snapshot",
+        "desc": "Foto hanya diambil jika akurasi objek memenuhi ambang batas minimal ini."
+      },
+      {
+        "key": "minimumTrackAgeFrames",
+        "label": "Usia Minimal Track (Frame)",
+        "desc": "Berapa frame objek harus terlacak sebelum snapshot diambil."
+      },
+      {
+        "key": "retentionSeconds",
+        "label": "Durasi Retensi ID",
+        "desc": "Waktu memori mengingat ID objek agar tidak difoto ulang jika muncul kembali."
+      }
+    ],
+    "tips": "Sangat cocok untuk gerbang parkir/tol otomatis atau conveyor pabrik agar setiap kendaraan/produk hanya difoto satu kali."
+  },
+  "object_counter": {
+    "concept": "Node untuk memantau jumlah objek aktif di layar (Okupansi Langsung) atau menghitung total akumulasi objek unik yang pernah terdeteksi (Kumulatif).",
+    "diagram": "[ Object Detection ] ──▶ [ Object Tracking ] ──▶ [ Object Counter ] ──▶ [ Alert / Database ]",
+    "steps": [
+      "Hubungkan setelah node Object Tracking agar setiap objek memiliki nomor ID unik.",
+      "Pilih mode: Occupancy (jumlah objek saat ini di dalam kamera) atau Cumulative (total akumulasi objek unik yang pernah lewat).",
+      "Jika ingin membatasi daya tampung ruangan, isi nilai Batas Kapasitas (Max Capacity).",
+      "Centang Alarm Saat Melebihi Kapasitas untuk memicu peringatan otomatis jika ruangan penuh."
+    ],
+    "params": [
+      {
+        "key": "mode",
+        "label": "Mode Perhitungan",
+        "desc": "occupancy (okupansi langsung) atau cumulative (total akumulasi objek unik)."
+      },
+      {
+        "key": "maxCapacity",
+        "label": "Batas Kapasitas Maksimal",
+        "desc": "Jumlah batas maksimal objek yang diizinkan (misal: 10 orang)."
+      },
+      {
+        "key": "countOncePerTrack",
+        "label": "Hitung Sekali Per ID",
+        "desc": "Mencegah satu objek/orang yang sama dihitung berulang kali."
+      },
+      {
+        "key": "classes",
+        "label": "Filter Kelas",
+        "desc": "Hanya hitung kelas tertentu (misal: person, vehicle)."
+      },
+      {
+        "key": "alertOnCapacityExceeded",
+        "label": "Alarm Saat Overcapacity",
+        "desc": "Memicu sinyal alarm saat jumlah objek melampaui batas maksimal."
+      }
+    ],
+    "tips": "Untuk membunyikan alarm saat ruangan penuh, sambungkan output node ini ke node If / Else dengan metrik object_count."
+  },
+  "line_counter": {
+    "concept": "Node untuk menghitung objek yang memotong garis virtual dengan deteksi arah masuk (IN) dan keluar (OUT). Objek yang melintasi garis akan diidentifikasi secara otomatis berdasarkan arah pergerakan objek.",
+    "diagram": "[ Object Detection ] ──▶ [ Object Tracking ] ──▶ [ Line Counter ] ──▶ [ Live Preview / Alert ]",
+    "steps": [
+      "Hubungkan output dari node Object Tracking ke input Line Counter agar tiap objek memiliki ID unik.",
+      "Di panel pengaturan kanan (tab Line Counter), klik tombol '+ Tambah Garis Baru'.",
+      "Tentukan titik koordinat awal dan akhir garis (atau klik langsung pada layar frame preview).",
+      "Pilih Mode Hitung: Keduanya (IN & OUT), Hanya Masuk (IN Only), atau Hanya Keluar (OUT Only).",
+      "Gunakan tombol 'Balik Arah (Invert)' jika tanda panah arah IN / OUT terbalik.",
+      "Gunakan tombol 'Hapus Garis' pada kartu garis jika ingin menghapus garis tertentu tanpa mereset data.",
+      "Hubungkan ke node If / Else atau Alert Output untuk memicu aksi saat target kuota tercapai."
+    ],
+    "params": [
+      {
+        "key": "lines",
+        "label": "Daftar Garis (Multi-Line)",
+        "desc": "Mendukung pembuatan multi-line (bisa membuat banyak garis dengan warna dan arah berbeda)."
+      },
+      {
+        "key": "triggerAnchor",
+        "label": "Titik Pemicu Objek",
+        "desc": "center (titik tengah kotak) atau bottom_center (bagian kaki/bawah objek - sangat akurat untuk orang berjalan)."
+      },
+      {
+        "key": "countMode",
+        "label": "Mode Penghitungan",
+        "desc": "Pilihan: both (IN & OUT), in_only (hanya masuk), out_only (hanya keluar)."
+      },
+      {
+        "key": "invertDirection",
+        "label": "Balik Arah Garis",
+        "desc": "Membalik orientasi arah tanda panah IN dan OUT jika terpasang terbalik."
+      },
+      {
+        "key": "classes",
+        "label": "Filter Kelas Objek",
+        "desc": "Batasi hanya menghitung kelas tertentu (misal: 'person' atau 'car'). Kosongkan untuk semua kelas."
+      }
+    ],
+    "tips": "Saat objek menyeberangi garis, bounding box objek akan otomatis berubah warna (hijau/biru/oranye) dan counter IN/OUT akan bertambah secara instan di layar."
+  },
+  "dwell_time": {
+    "concept": "Node ini mengukur durasi waktu (detik) suatu objek berdiam diri di dalam area zona tertentu (Loitering). Sangat efektif untuk mendeteksi orang mencurigakan atau antrean macet.",
+    "diagram": "[ Object Tracking ] ──▶ [ Dwell Time / Loitering ] ──▶ [ Alert Output ]",
+    "steps": [
+      "Hubungkan setelah node Object Tracking.",
+      "Atur titik poligon zona pemantauan pada kolom Points.",
+      "Tentukan batas durasi waktu pada Threshold Seconds (misal: 10 detik).",
+      "Aktifkan Alert on Exceed untuk memicu alarm jika objek berada di zona lebih lama dari batas waktu."
+    ],
+    "params": [
+      {
+        "key": "points",
+        "label": "Titik Koordinat Zona",
+        "desc": "Titik poligon yang membentuk zona pantau (format: x1,y1; x2,y2; ...)."
+      },
+      {
+        "key": "thresholdSeconds",
+        "label": "Ambang Batas Waktu (Detik)",
+        "desc": "Durasi maksimal sebelum status peringatan aktif (misal 5.0 detik)."
+      },
+      {
+        "key": "showTimer",
+        "label": "Tampilkan Timer",
+        "desc": "Menampilkan penghitung detik langsung di atas objek pada video."
+      },
+      {
+        "key": "alertOnExceed",
+        "label": "Picu Alarm Saat Lewat Batas",
+        "desc": "Mengaktifkan status alarm saat waktu singgah melampaui batas."
+      }
+    ],
+    "tips": "Pastikan node Tracker terhubung di upstream agar durasi waktu singgah tercatat akurat per nomor ID objek."
+  },
+  "filter": {
+    "concept": "Node ini menyaring deteksi objek berdasarkan nama kelas, luas kotak piksel, rasio aspek, dan jarak margin tepi layar sebelum masuk ke tahap analisis berikutnya.",
+    "diagram": "[ Object Detection ] ──▶ [ Detection & Geometry Filter ] ──▶ [ Tracker / Output ]",
+    "steps": [
+      "Pasang langsung setelah node Object Detection.",
+      "Tuliskan nama kelas yang diizinkan pada kolom Classes (pisahkan dengan koma, misal: person, car).",
+      "Gunakan Min Area dan Max Area untuk membuang deteksi noise yang terlalu kecil atau terlalu besar.",
+      "Gunakan Exclude Border Margin untuk mengabaikan objek yang terpotong di tepi pinggir layar kamera."
+    ],
+    "params": [
+      {
+        "key": "classes",
+        "label": "Daftar Kelas (Classes)",
+        "desc": "Hanya teruskan objek dengan kelas yang tercantum di sini."
+      },
+      {
+        "key": "minArea",
+        "label": "Luas Area Minimal",
+        "desc": "Abaikan bounding box dengan luas piksel lebih kecil dari nilai ini."
+      },
+      {
+        "key": "maxArea",
+        "label": "Luas Area Maksimal",
+        "desc": "Abaikan bounding box dengan luas piksel lebih besar dari nilai ini."
+      },
+      {
+        "key": "excludeBorderMargin",
+        "label": "Margin Batas Tepi (Piksel)",
+        "desc": "Abaikan objek yang menyentuh margin pinggir kamera."
+      }
+    ],
+    "tips": "Gunakan filter ini untuk membersihkan deteksi palsu sebelum masuk ke tahap tracking dan counting."
+  },
+  "preview": {
+    "concept": "Node penampil streaming video langsung (Live Preview) untuk memantau jalankan pipeline secara visual realtime lengkap dengan anotasi, kotak, label, dan statistik.",
+    "diagram": "[ Any Pipeline Node ] ──▶ [ Live Preview ]",
+    "steps": [
+      "Letakkan di akhir alur yang ingin Anda monitor.",
+      "Centang elemen yang ingin ditampilkan: Bounding Boxes, Labels, Track IDs, Trails, Counts.",
+      "Jika ingin merekam seluruh sesi video ke file, centang Save Video dan tentukan Output Path."
+    ],
+    "params": [
+      {
+        "key": "showBoxes",
+        "label": "Tampilkan Kotak",
+        "desc": "Menampilkan bounding box objek di jendela preview."
+      },
+      {
+        "key": "showLabels",
+        "label": "Tampilkan Label Kelas",
+        "desc": "Menampilkan teks nama kelas dan skor keyakinan."
+      },
+      {
+        "key": "showTrackIds",
+        "label": "Tampilkan ID Pelacak",
+        "desc": "Menampilkan nomor ID objek dari tracker."
+      },
+      {
+        "key": "showCounts",
+        "label": "Tampilkan Counter",
+        "desc": "Menampilkan statistik jumlah objek langsung di atas video."
+      },
+      {
+        "key": "saveVideo",
+        "label": "Rekam Video Lengkap",
+        "desc": "Menyimpan seluruh streaming video hasil pemrosesan ke file video lokal."
+      }
+    ],
+    "tips": "Anda dapat menghubungkan beberapa node Preview ke berbagai tahapan pipeline untuk membandingkan hasil sebelum dan sesudah proses."
+  },
+  "alert": {
+    "concept": "Node penanganan alarm yang mencatat riwayat event ke log, memberikan peringatan visual, dan merekam klip video bukti kejadian secara otomatis.",
+    "diagram": "[ Logic Gate / Counter ] ──▶ [ Alert Output ]",
+    "steps": [
+      "Hubungkan dari node If / Else atau Line Counter.",
+      "Tulis pesan peringatan pada Message.",
+      "Centang Record Clip dan tentukan durasi rekaman (detik) jika ingin menyimpan bukti rekaman otomatis.",
+      "Atur Cooldown Seconds untuk mencegah alarm berbunyi terus-menerus tanpa jeda."
+    ],
+    "params": [
+      {
+        "key": "message",
+        "label": "Pesan Peringatan",
+        "desc": "Teks keterangan yang dicatat saat event terpicu."
+      },
+      {
+        "key": "recordClip",
+        "label": "Rekam Klip Video Bukti",
+        "desc": "Otomatis menyimpan rekaman video sebelum dan sesudah kejadian."
+      },
+      {
+        "key": "clipDurationSeconds",
+        "label": "Durasi Klip (Detik)",
+        "desc": "Panjang video rekaman alarm yang disimpan (misal 5 detik)."
+      },
+      {
+        "key": "cooldownSeconds",
+        "label": "Jeda Waktu (Cooldown)",
+        "desc": "Waktu jeda minimal sebelum alarm boleh terpicu kembali."
+      }
+    ],
+    "tips": "Klip video alarm akan disimpan di folder data/alerts/ dan dapat ditinjau kembali kapan saja melalui tab Logs."
+  },
+  "image_output": {
+    "concept": "Node penyimpan gambar inspeksi ke media penyimpanan lokal dengan fitur manajemen rotasi pembersihan otomatis (FIFO).",
+    "diagram": "[ Pipeline Node ] ──▶ [ Save Images ]",
+    "steps": [
+      "Tentukan lokasi folder penyimpanan pada kolom Output Directory.",
+      "Pilih format gambar (JPG / PNG) dan kualitas kompresi.",
+      "Pilih Capture Mode: Full Frame (seluruh tampilan) atau Crop Only (hanya potongan objek terdeteksi).",
+      "Tentukan batas maksimal file (FIFO) agar kapasitas hard disk tidak habis."
+    ],
+    "params": [
+      {
+        "key": "outputDirectory",
+        "label": "Folder Penyimpanan",
+        "desc": "Folder tempat menyimpan file gambar."
+      },
+      {
+        "key": "captureMode",
+        "label": "Mode Pengambilan",
+        "desc": "crop_only (hanya gambar objek) atau full_frame (seluruh gambar)."
+      },
+      {
+        "key": "maxFilesRetention",
+        "label": "Batas Maksimal File (FIFO)",
+        "desc": "Jumlah file maksimal yang disimpan sebelum file terlama otomatis dihapus."
+      },
+      {
+        "key": "burnWatermark",
+        "label": "Cetak Watermark Waktu",
+        "desc": "Mencetak tanggal, jam, dan ID objek langsung ke pojok foto."
+      }
+    ],
+    "tips": "Aktifkan 'Burn Watermark' untuk mencetak tanggal, waktu, dan ID objek langsung ke gambar sebagai bukti otentik."
+  },
+  "draw_text": {
+    "concept": "Node untuk menggambar teks statis atau teks dinamis dari variabel pipeline (seperti nama kelas, skor akurasi, waktu, dan hitungan counter) langsung ke frame gambar.",
+    "diagram": "[ Tracking / Logic ] ──▶ [ Draw Text ] ──▶ [ Live Preview ]",
+    "steps": [
+      "Tulis format teks pada kolom textTemplate (misal: 'Produk: {detection.class} | Nilai: {detection.confidence}').",
+      "Tentukan koordinat letak teks X dan Y dalam piksel.",
+      "Atur ukuran font (fontScale), ketebalan garis (thickness), dan warna teks.",
+      "Aktifkan Background jika ingin teks memiliki kotak latar belakang gelap agar mudah dibaca di atas gambar terang."
+    ],
+    "params": [
+      {
+        "key": "textTemplate",
+        "label": "Template Teks Variabel",
+        "desc": "Teks yang ditampilkan, mendukung placeholder variabel seperti {detection.class}."
+      },
+      {
+        "key": "x",
+        "label": "Posisi Horizontal X",
+        "desc": "Koordinat piksel dari sisi kiri frame."
+      },
+      {
+        "key": "y",
+        "label": "Posisi Vertikal Y",
+        "desc": "Koordinat piksel dari sisi atas frame."
+      },
+      {
+        "key": "fontScale",
+        "label": "Skala Ukuran Huruf",
+        "desc": "Faktor pengali ukuran font (default 1.0)."
+      },
+      {
+        "key": "color",
+        "label": "Warna Teks (Hex)",
+        "desc": "Kode warna hex teks (contoh: #ffffff untuk putih)."
+      },
+      {
+        "key": "background",
+        "label": "Gunakan Background Teks",
+        "desc": "Menambahkan kotak latar belakang di belakang teks agar terbaca jelas."
+      }
+    ],
+    "tips": "Anda bisa menggunakan variabel counter seperti '{line_counter.in}' atau '{object_counter.count}' langsung pada teks."
+  },
+  "draw_boxes": {
+    "concept": "Node penggambaran kotak pembatas (bounding box) deteksi dan label variabel pada frame gambar dengan kustomisasi warna dan gaya garis.",
+    "diagram": "[ Object Detection ] ──▶ [ Draw Boxes ] ──▶ [ Live Preview ]",
+    "steps": [
+      "Hubungkan dari model deteksi atau tracking.",
+      "Atur warna kotak (color) dan ketebalan garis (thickness).",
+      "Centang Show Label jika ingin menampilkan nama kelas di atas kotak.",
+      "Gunakan fillOpacity (misal 0.15) jika ingin memberi warna transparan lembut di dalam kotak."
+    ],
+    "params": [
+      {
+        "key": "color",
+        "label": "Warna Kotak (Hex)",
+        "desc": "Warna garis pembatas deteksi (misal: #22c55e)."
+      },
+      {
+        "key": "thickness",
+        "label": "Ketebalan Garis (Piksel)",
+        "desc": "Ketebalan garis batas kotak (1 - 5 piksel)."
+      },
+      {
+        "key": "showLabel",
+        "label": "Tampilkan Label Teks",
+        "desc": "Menampilkan nama kelas dan akurasi di atas kotak deteksi."
+      },
+      {
+        "key": "fillOpacity",
+        "label": "Transparansi Warna Isi",
+        "desc": "Tingkat transparansi warna latar belakang di dalam kotak (0.0 = kosong)."
+      }
+    ],
+    "tips": "Untuk proyek dengan banyak layer anotasi, disarankan menggunakan node 'Overlay / Annotate' yang menyatukan semua jenis visual."
+  },
+  "overlay_annotate": {
+    "concept": "Node penggambaran visual serbaguna yang menyatukan seluruh anotasi visual (bounding box, label nama, skor akurasi, ikon OK/NG, jejak gerakan, heatmap) dalam satu node terintegrasi.",
+    "diagram": "[ Tracking / Analysis ] ──▶ [ Overlay / Annotate ] ──▶ [ Live Preview ]",
+    "steps": [
+      "Hubungkan sebelum node Live Preview atau Save Images.",
+      "Buka tab pengaturan Overlay untuk mengaktifkan atau menonaktifkan lapisan layer visual.",
+      "Atur warna, ukuran font, dan posisi untuk setiap elemen visual sesuai standar inspeksi Anda."
+    ],
+    "params": [
+      {
+        "key": "bounding_boxes",
+        "label": "Lapisan Kotak Deteksi",
+        "desc": "Menggambar kotak pembatas objek dengan warna dan ketebalan kustom."
+      },
+      {
+        "key": "labels",
+        "label": "Lapisan Label Kelas",
+        "desc": "Menampilkan nama kelas deteksi di atas objek."
+      },
+      {
+        "key": "confidence",
+        "label": "Lapisan Akurasi",
+        "desc": "Menampilkan persentase skor keyakinan model AI."
+      },
+      {
+        "key": "result_icons",
+        "label": "Lapisan Ikon Hasil (OK/NG)",
+        "desc": "Menampilkan badge centang hijau OK atau silang merah NG."
+      },
+      {
+        "key": "vector_arrow",
+        "label": "Lapisan Panah Vektor Arah",
+        "desc": "Menampilkan garis panah arah pergerakan objek."
+      }
+    ],
+    "tips": "Gunakan template '{detection.class} ({detection.confidence})' untuk menampilkan nama dan akurasi secara ringkas."
+  },
+  "database_output": {
+    "concept": "Menyimpan seluruh data riwayat deteksi, kejadian event alarm, dan statistik pipeline secara permanen ke database lokal SQLite untuk pelaporan dan audit.",
+    "diagram": "[ Any Pipeline Node ] ──▶ [ Database Output ]",
+    "steps": [
+      "Tentukan file database pada Database Path (atau kosongkan untuk memakai default di data/system.db).",
+      "Centang data apa saja yang ingin disimpan: Save Detections, Save Events, atau Save Frames.",
+      "Tentukan Retention Days (misal: 14 hari) agar data yang lebih tua dari batas tersebut otomatis dibersihkan.",
+      "Buka tombol 'Database Records & Logs' pada panel inspector untuk meninjau data yang tersimpan."
+    ],
+    "params": [
+      {
+        "key": "databasePath",
+        "label": "Lokasi File Database SQLite",
+        "desc": "Path file database lokal tempat data disimpan."
+      },
+      {
+        "key": "saveDetections",
+        "label": "Simpan Riwayat Deteksi",
+        "desc": "Mencatat setiap objek yang terdeteksi ke tabel database."
+      },
+      {
+        "key": "saveEvents",
+        "label": "Simpan Kejadian Event Alarm",
+        "desc": "Mencatat trigger event penting (misal crossing garis, overcapacity)."
+      },
+      {
+        "key": "retentionDays",
+        "label": "Batas Retensi Hari (Auto-Cleanup)",
+        "desc": "Jumlah hari data disimpan sebelum data lama otomatis dibersihkan."
+      },
+      {
+        "key": "aggregateHourly",
+        "label": "Agregasi Statistik Per Jam",
+        "desc": "Mengelompokkan data ke statistik ringkasan per jam untuk grafik analitik."
+      }
+    ],
+    "tips": "Aktifkan opsi Event Objects Only agar database hanya mencatat objek saat terjadi event penting, menghemat memori penyimpanan."
+  },
+  "webhook_output": {
+    "concept": "Mengirimkan data payload event dan foto bukti kejadian secara realtime ke REST API endpoint eksternal, webhook Discord/Slack/Telegram, atau backend server pihak ketiga.",
+    "diagram": "[ Alert / Logic ] ──▶ [ Webhook / HTTP Outbound ]",
+    "steps": [
+      "Masukkan URL webhook tujuan pada kolom URL (contoh: http://127.0.0.1:8000/webhook atau URL cloud API).",
+      "Pilih metode HTTP: POST atau PUT.",
+      "Atur Cooldown Seconds (misal: 2.0 detik) agar tidak membanjiri server tujuan.",
+      "Aktifkan Send Image jika ingin menyertakan gambar bukti kejadian dalam format Base64/Multipart."
+    ],
+    "params": [
+      {
+        "key": "url",
+        "label": "URL Endpoint Webhook",
+        "desc": "Alamat URL REST API endpoint server penerima."
+      },
+      {
+        "key": "method",
+        "label": "Metode HTTP",
+        "desc": "Metode permintaan HTTP (POST, PUT, GET)."
+      },
+      {
+        "key": "cooldownSeconds",
+        "label": "Jeda Cooldown Pengiriman",
+        "desc": "Waktu jeda minimal antar pengiriman HTTP request agar tidak spam."
+      },
+      {
+        "key": "sendImage",
+        "label": "Sertakan Foto Kejadian",
+        "desc": "Menyematkan frame foto bukti kejadian ke dalam payload request."
+      },
+      {
+        "key": "imageQuality",
+        "label": "Kualitas Kompresi Foto (JPEG)",
+        "desc": "Kualitas gambar foto yang dikirim (10 - 100)."
+      },
+      {
+        "key": "retryCount",
+        "label": "Jumlah Percobaan Ulang (Retry)",
+        "desc": "Berapa kali pengiriman diulang jika server tujuan gagal merespons."
+      }
+    ],
+    "tips": "Sangat mudah dihubungkan ke bot Telegram, sistem absensi pabrik, atau integrasi SCADA IoT."
+  },
+  "resize": {
+    "concept": "Node pengubah ukuran dimensi frame gambar (skala lebar dan tinggi) ke resolusi target tetap untuk mengoptimalkan kecepatan inferensi AI.",
+    "diagram": "[ Input ] ──▶ [ Resize ] ──▶ [ AI Model ]",
+    "steps": [
+      "Pasang tepat setelah node Input Kamera sebelum masuk ke node model AI.",
+      "Tentukan target Width dan Height dalam piksel (misal: 1280x720 atau 640x360).",
+      "Pilih algoritma Interpolation: linear (seimbang), area (bagus untuk memperkecil), atau nearest (paling cepat)."
+    ],
+    "params": [
+      {
+        "key": "width",
+        "label": "Lebar Target (Piksel)",
+        "desc": "Lebar resolusi frame baru dalam satuan piksel."
+      },
+      {
+        "key": "height",
+        "label": "Tinggi Target (Piksel)",
+        "desc": "Tinggi resolusi frame baru dalam satuan piksel."
+      },
+      {
+        "key": "interpolation",
+        "label": "Algoritma Interpolasi",
+        "desc": "Metode penghitungan piksel: linear, nearest, area, cubic."
+      }
+    ],
+    "tips": "Mengubah resolusi dari 4K/1080p ke 640x360 dapat meningkatkan kecepatan inferensi AI hingga 3x lipat dengan beban GPU yang jauh lebih ringan."
+  },
+  "crop": {
+    "concept": "Node pangkas gambar yang memotong frame video ke koordinat persegi panjang tertentu untuk memfokuskan model AI hanya pada area penting dan menghemat komputasi.",
+    "diagram": "[ Input Kamera ] ──▶ [ Crop / Region of Interest ] ──▶ [ AI Model ]",
+    "steps": [
+      "Pasang tepat setelah node Input Kamera.",
+      "Masukkan koordinat X, Y, Width, dan Height area yang ingin dipotong (atau klik 'Draw ROI on Preview').",
+      "Frame yang dikirim ke node downstream hanya berupa potongan area tersebut."
+    ],
+    "params": [
+      {
+        "key": "x",
+        "label": "Titik Koordinat Awal X",
+        "desc": "Jarak horizontal sudut kiri atas area potong dalam piksel."
+      },
+      {
+        "key": "y",
+        "label": "Titik Koordinat Awal Y",
+        "desc": "Jarak vertikal sudut kiri atas area potong dalam piksel."
+      },
+      {
+        "key": "width",
+        "label": "Lebar Area Potong",
+        "desc": "Lebar potongan gambar dalam satuan piksel."
+      },
+      {
+        "key": "height",
+        "label": "Tinggi Area Potong",
+        "desc": "Tinggi potongan gambar dalam satuan piksel."
+      }
+    ],
+    "tips": "Memotong area kamera ke bagian yang relevan (misal conveyor belt atau meja sortir) secara signifikan meningkatkan akurasi dan FPS."
+  },
+  "rotate_flip": {
+    "concept": "Node untuk mengubah orientasi sudut frame video (rotasi 90°, 180°, 270°) atau membalikkan arah gambar secara horizontal (mirror) dan vertikal.",
+    "diagram": "[ Input ] ──▶ [ Rotate / Flip ] ──▶ [ AI Model ]",
+    "steps": [
+      "Pasang setelah node Input Kamera.",
+      "Pilih sudut rotasi pada Rotation: 0 (normal), 90 (searah jarum jam), 180 (terbalik), atau 270.",
+      "Pilih opsi Flip jika ingin membalikkan orientasi: horizontal (mirroring), vertical, atau both."
+    ],
+    "params": [
+      {
+        "key": "rotation",
+        "label": "Sudut Putaran (Derajat)",
+        "desc": "Pilihan putaran sudut: 0, 90, 180, 270 derajat."
+      },
+      {
+        "key": "flip",
+        "label": "Pembalikan Arah (Flip)",
+        "desc": "Pilihan mirror: none, horizontal, vertical, both."
+      }
+    ],
+    "tips": "Gunakan rotasi 90° atau 270° jika kamera CCTV Anda dipasang secara vertikal (mode portrait) di koridor jalan."
+  },
+  "color_convert": {
+    "concept": "Node konversi ruang warna untuk mengubah representasi warna frame (BGR ke Grayscale, HSV, atau RGB) guna menyederhanakan analisis citra tertentu.",
+    "diagram": "[ Input ] ──▶ [ Color Conversion ] ──▶ [ Image Processing ]",
+    "steps": [
+      "Pilih mode konversi ruang warna yang diinginkan: gray (hitam putih), hsv (rona/kejenuhan), atau rgb.",
+      "Sambungkan ke node pengolahan citra berikutnya (misal thresholding atau background subtraction)."
+    ],
+    "params": [
+      {
+        "key": "mode",
+        "label": "Ruang Warna Target",
+        "desc": "Pilihan konversi: gray (grayscale), hsv, rgb, lab."
+      }
+    ],
+    "tips": "Konversi ke Grayscale memotong ukuran data gambar menjadi 1/3 dari ukuran aslinya, sangat mempercepat pemrosesan algoritma non-AI."
+  },
+  "brightness_contrast": {
+    "concept": "Node pra-pemrosesan citra untuk memperbaiki pencahayaan video gelap atau silau, serta dilengkapi fitur Night Vision CLAHE untuk kondisi rekaman malam hari.",
+    "diagram": "[ Input Kamera ] ──▶ [ Brightness / Contrast ] ──▶ [ AI Model ]",
+    "steps": [
+      "Pasang setelah node Input Kamera sebelum masuk ke node AI.",
+      "Geser slider Brightness untuk menambah atau mengurangi cahaya.",
+      "Centang Auto Low Light atau Use CLAHE untuk mengaktifkan peningkatan kontras adaptif rekaman malam hari (Night Vision)."
+    ],
+    "params": [
+      {
+        "key": "brightness",
+        "label": "Tingkat Kecerahan",
+        "desc": "Penambahan nilai intensitas kecerahan gambar (-100 hingga +100)."
+      },
+      {
+        "key": "contrast",
+        "label": "Faktor Kontras",
+        "desc": "Pengali kontras citra (1.0 = normal)."
+      },
+      {
+        "key": "useClahe",
+        "label": "Night Vision CLAHE",
+        "desc": "Peningkatan kontras adaptif lokal untuk area gelap."
+      },
+      {
+        "key": "autoLowLight",
+        "label": "Deteksi Otomatis Cahaya Rendah",
+        "desc": "Mengaktifkan peningkatan kontras secara dinamis saat ruangan gelap."
+      }
+    ],
+    "tips": "Fitur CLAHE sangat membantu model AI mendeteksi objek di ruangan remang-remang atau kamera CCTV malam hari."
+  },
+  "blur_sharpen": {
+    "concept": "Node filter spasial untuk menghaluskan noise gambar (Blur Gaussian / Median) atau mempertajam detail tepian gambar (Sharpen) sebelum diproses AI.",
+    "diagram": "[ Input ] ──▶ [ Blur / Sharpen ] ──▶ [ AI Model ]",
+    "steps": [
+      "Pilih operasi: blur (rata-rata), gaussian (halus), median (menghapus bintik noise salt-and-pepper), atau sharpen (mempertajam).",
+      "Tentukan ukuran Kernel (bilangan ganjil: 3, 5, 7). Semakin besar kernel, semakin kuat efeknya.",
+      "Atur kekuatan efek pada Strength (default: 1.0)."
+    ],
+    "params": [
+      {
+        "key": "operation",
+        "label": "Tipe Operasi Spasial",
+        "desc": "Pilihan filter: blur, gaussian, median, sharpen."
+      },
+      {
+        "key": "kernel",
+        "label": "Ukuran Kernel Matriks",
+        "desc": "Ukuran jendela filter dalam piksel (harus ganjil: 3, 5, 7, 9)."
+      },
+      {
+        "key": "strength",
+        "label": "Kekuatan Efek (Strength)",
+        "desc": "Faktor pengali intensitas efek penajaman/pengaburan."
+      }
+    ],
+    "tips": "Gunakan filter Sharpen untuk memperjelas teks barcode atau nomor plat kendaraan yang sedikit buram sebelum dibaca model."
+  },
+  "perspective": {
+    "concept": "Node koreksi perspektif (Four-point Bird's Eye View) untuk meluruskan area dengan sudut pandang miring menjadi tampilan tampak atas (Top-Down / Orthogonal).",
+    "diagram": "[ Input Kamera ] ──▶ [ Perspective Correction ] ──▶ [ Tracker / Line Counter ]",
+    "steps": [
+      "Tentukan 4 titik koordinat sudut area miring pada kolom Points (Top-Left; Top-Right; Bottom-Right; Bottom-Left).",
+      "Tentukan target lebar (Width) dan tinggi (Height) gambar lurus hasil koreksi.",
+      "Frame hasil koreksi akan tampak tegak lurus seolah-olah kamera dipasang persis di atas objek."
+    ],
+    "params": [
+      {
+        "key": "points",
+        "label": "Koordinat 4 Titik Sudut",
+        "desc": "Titik sudut poligon miring (format: x1,y1; x2,y2; x3,y3; x4,y4)."
+      },
+      {
+        "key": "width",
+        "label": "Lebar Output Terkoreksi",
+        "desc": "Lebar frame hasil transformasi perspektif dalam piksel."
+      },
+      {
+        "key": "height",
+        "label": "Tinggi Output Terkoreksi",
+        "desc": "Tinggi frame hasil transformasi perspektif dalam piksel."
+      }
+    ],
+    "tips": "Sangat ideal untuk conveyor belt atau pintu masuk parkir agar jarak dan ukuran objek dihitung konsisten di semua sisi."
+  },
+  "undistort": {
+    "concept": "Node kalibrasi lensa kamera untuk menghilangkan efek distorsi cembung (Fisheye Barrel Distortion) menggunakan matriks parameter kalibrasi kamera.",
+    "diagram": "[ Input Kamera ] ──▶ [ Camera Undistortion ] ──▶ [ AI Model ]",
+    "steps": [
+      "Masukkan path file hasil kalibrasi kamera (.yaml / .json) pada Calibration Path.",
+      "Atur nilai Alpha (0.0 = potong area hitam di pinggir, 1.0 = pertahankan seluruh piksel sensor).",
+      "Garis yang awalnya melengkung di tepi kamera wide-angle akan lurus sempurna."
+    ],
+    "params": [
+      {
+        "key": "calibrationPath",
+        "label": "Path File Kalibrasi Lensa",
+        "desc": "File parameter intrinsik kamera dari proses kalibrasi checkerboard."
+      },
+      {
+        "key": "alpha",
+        "label": "Faktor Skala Alpha Lensa",
+        "desc": "Rentang 0.0 (tanpa border hitam) hingga 1.0 (semua piksel dipertahankan)."
+      }
+    ],
+    "tips": "Kalibrasi lensa sangat penting dalam pengukuran dimensi fisik (metrologi) agar ukuran produk tidak terdistorsi lensa."
+  },
+  "background_subtract": {
+    "concept": "Algoritma pemisah latar belakang (Background Subtraction MOG2) untuk mendeteksi dan mengekstrak objek bergerak dari latar belakang statis tanpa memerlukan model AI.",
+    "diagram": "[ Input Kamera ] ──▶ [ Background Subtraction ] ──▶ [ Motion Trigger ]",
+    "steps": [
+      "Pilih metode pemisahan: mog2 (adaptif terhadap bayangan).",
+      "Atur History (jumlah frame yang digunakan untuk mempelajari latar belakang).",
+      "Atur Threshold sensitivitas gerak, dan centang Detect Shadows untuk memisahkan bayangan dari objek asli."
+    ],
+    "params": [
+      {
+        "key": "method",
+        "label": "Algoritma Pemisahan",
+        "desc": "Pilihan algoritma: mog2."
+      },
+      {
+        "key": "history",
+        "label": "Jumlah Frame Memori Latar",
+        "desc": "Berapa banyak frame historis untuk memperbarui model background."
+      },
+      {
+        "key": "threshold",
+        "label": "Ambang Batas Sensitivitas Gerak",
+        "desc": "Ambang batas jarak kuadrat Mahalanobis untuk mengelompokkan piksel bergerak."
+      },
+      {
+        "key": "detectShadows",
+        "label": "Deteksi & Pisahkan Bayangan",
+        "desc": "Membedakan bayangan abu-abu dari objek fisik sebenarnya."
+      }
+    ],
+    "tips": "Sangat hemat daya komputasi CPU sebagai pemicu awal (motion trigger) sebelum mengaktifkan model AI yang lebih berat."
+  },
+  "blur_anonymizer": {
+    "concept": "Node sensor privasi otomatis yang menyamarkan wajah manusia atau plat nomor kendaraan dengan efek blur halus atau sensor piksel (Pixelate) guna mematuhi standar privasi data (GDPR / Privasi Publik).",
+    "diagram": "[ Object Detection ] ──▶ [ Privacy Blur ] ──▶ [ Preview / Save Images ]",
+    "steps": [
+      "Hubungkan setelah node Object Detection.",
+      "Tuliskan daftar kelas target yang ingin disensor pada Classes (misal: 'person, face, license_plate').",
+      "Pilih mode penyensoran: gaussian (blur halus) atau pixelate (sensor kotak-kotak piksel).",
+      "Atur Kernel Size atau Pixelate Block sesuai tingkat keburaman yang diinginkan."
+    ],
+    "params": [
+      {
+        "key": "classes",
+        "label": "Kelas Yang Disensor",
+        "desc": "Daftar nama kelas objek yang akan disensor privasinya."
+      },
+      {
+        "key": "mode",
+        "label": "Tipe Efek Sensor",
+        "desc": "gaussian (blur halus) atau pixelate (sensor piksel mosaik)."
+      },
+      {
+        "key": "kernelSize",
+        "label": "Ukuran Blur Gaussian",
+        "desc": "Tingkat keburaman sensor blur (harus bilangan ganjil)."
+      },
+      {
+        "key": "pixelateBlock",
+        "label": "Ukuran Kotak Mosaik Piksel",
+        "desc": "Ukuran blok piksel sensor (semakin besar semakin tidak terbaca)."
+      },
+      {
+        "key": "insideBbox",
+        "label": "Sensor Hanya di Dalam Kotak",
+        "desc": "Membatasi efek sensor tepat hanya di dalam bounding box objek."
+      }
+    ],
+    "tips": "Wajib digunakan untuk publikasi rekaman video CCTV area publik atau siaran streaming online."
+  },
+  "if_else": {
+    "concept": "Node percabangan alur logika cerdas (Branching Logic Gate). Aliran data akan DILOLOSKAN ke node downstream jika kondisi terpenuhi, atau DITAHAN jika tidak memenuhi syarat.",
+    "diagram": "[ Source / Tracker ] ──▶ [ If / Else (IF or ELSE) ] ──▶ [ Alert / Preview ]",
+    "steps": [
+      "Pilih Metrik Kondisi yang ingin dievaluasi (jumlah objek, hitungan Line Counter IN/OUT, akurasi, dll).",
+      "Pilih Operator logika: >=, >, <=, <, ==, !=.",
+      "Tentukan Nilai Acuan (Threshold) yang menjadi target perbandingan.",
+      "Pilih Arah Cabang Node Ini: Cabang IF (Benar) atau Cabang ELSE (Salah).",
+      "Tarik garis sambungan ke node aksi downstream (seperti Alert Output atau Simpan Foto)."
+    ],
+    "params": [
+      {
+        "key": "metric",
+        "label": "Metrik Kondisi Evaluasi",
+        "desc": "Pilihan data yang diuji: object_count, line_counter_in, line_counter_out, max_confidence."
+      },
+      {
+        "key": "operator",
+        "label": "Operator Perbandingan Logika",
+        "desc": "gte (>=), gt (>), lte (<=), lt (<), eq (==), neq (!=)."
+      },
+      {
+        "key": "value",
+        "label": "Nilai Batas Acuan (Threshold)",
+        "desc": "Angka pembanding untuk pengujian logika."
+      },
+      {
+        "key": "passWhen",
+        "label": "Arah Cabang Node Ini",
+        "desc": "true (lolos saat kondisi terpenuhi / IF) atau false (lolos saat kondisi TIDAK terpenuhi / ELSE)."
+      },
+      {
+        "key": "classes",
+        "label": "Target Kelas Objek",
+        "desc": "Digunakan jika metrik dipilih class_count untuk menghitung kelas tertentu saja."
+      }
+    ],
+    "tips": "Tarik 2 garis dari node deteksi ke 2 node If/Else berbeda untuk membuat cabang ganda (Cabang IF ➔ Alarm, Cabang ELSE ➔ Tampilan Normal)."
+  },
+  "compare_value": {
+    "concept": "Node pembanding nilai metrik data pipeline dengan nilai ambang batas tertentu untuk filter kondisi alur.",
+    "diagram": "[ Pipeline Node ] ──▶ [ Compare Value ] ──▶ [ Action Node ]",
+    "steps": [
+      "Pilih metrik data yang ingin dibandingkan (jumlah objek, hitungan garis, akurasi).",
+      "Tentukan operator perbandingan dan nilai batas ambang acuan.",
+      "Data hanya akan diteruskan ke node selanjutnya jika hasil perbandingan bernilai True."
+    ],
+    "params": [
+      {
+        "key": "metric",
+        "label": "Metrik Yang Dibandingkan",
+        "desc": "Pilihan data metrik pipeline yang diuji."
+      },
+      {
+        "key": "operator",
+        "label": "Operator Perbandingan",
+        "desc": "gte, gt, lte, lt, eq, neq."
+      },
+      {
+        "key": "value",
+        "label": "Nilai Batas Acuan",
+        "desc": "Angka pembanding untuk pengujian kondisi."
+      }
+    ],
+    "tips": "Gunakan node ini sebagai filter selektif sebelum mengirimkan data ke sistem database eksternal."
+  },
+  "roi_filter": {
+    "concept": "Node penyaring Region of Interest (ROI) untuk membatasi pemrosesan hanya pada objek yang berada di dalam atau di luar area zona tertentu.",
+    "diagram": "[ Object Detection ] ──▶ [ ROI Filter ] ──▶ [ Action / Preview ]",
+    "steps": [
+      "Pasang setelah node deteksi objek.",
+      "Tentukan bentuk area: Rectangle (persegi) atau Polygon.",
+      "Pilih mode: Inside (hanya loloskan objek di dalam area) atau Outside (hanya loloskan objek di luar area).",
+      "Tentukan trigger anchor (bagian tengah atau bawah kaki objek) yang diuji terhadap zona."
+    ],
+    "params": [
+      {
+        "key": "shape",
+        "label": "Bentuk Area Pantau",
+        "desc": "Pilihan bentuk: rectangle (persegi) atau polygon."
+      },
+      {
+        "key": "mode",
+        "label": "Mode Filter Area",
+        "desc": "inside (hanya objek di dalam) atau outside (hanya objek di luar)."
+      },
+      {
+        "key": "triggerAnchor",
+        "label": "Titik Acuan Objek",
+        "desc": "center (titik tengah kotak) atau bottom_center (bagian bawah/kaki objek)."
+      },
+      {
+        "key": "showOverlay",
+        "label": "Tampilkan Zona di Preview",
+        "desc": "Menampilkan garis batas area pantau langsung pada video."
+      }
+    ],
+    "tips": "Klik tombol 'Draw ROI on Preview' di panel pengaturan untuk menggambar area langsung pada frame video."
+  },
+  "object_count_condition": {
+    "concept": "Node filter logika sederhana yang meloloskan frame data hanya jika jumlah objek di layar memenuhi kondisi ambang batas yang ditentukan.",
+    "diagram": "[ Object Detection ] ──▶ [ Object Count Condition ] ──▶ [ Alert Output ]",
+    "steps": [
+      "Tentukan operator perbandingan: gte (>=), gt (>), lte (<=), lt (<), eq (==).",
+      "Masukkan target jumlah objek pada count (misal: 5).",
+      "Data hanya diteruskan jika jumlah objek saat ini memenuhi syarat tersebut."
+    ],
+    "params": [
+      {
+        "key": "operator",
+        "label": "Operator Logika",
+        "desc": "gte (>=), gt (>), lte (<=), lt (<), eq (==)."
+      },
+      {
+        "key": "count",
+        "label": "Target Jumlah Objek",
+        "desc": "Batas angka jumlah objek yang diuji."
+      }
+    ],
+    "tips": "Sangat praktis untuk membuat peringatan kerumunan orang (Overcrowding Alert) tanpa konfigurasi rumit."
+  },
+  "class_detected_condition": {
+    "concept": "Node filter logika yang meloloskan frame data hanya jika terdapat deteksi dari kelas target tertentu dalam frame.",
+    "diagram": "[ Object Detection ] ──▶ [ Class Detected Condition ] ──▶ [ Alert Output ]",
+    "steps": [
+      "Tuliskan nama kelas yang dicari pada Classes (misal: 'fire, smoke' atau 'person').",
+      "Pilih mode pencocokan (Match): any (salah satu kelas ada) atau all (semua kelas harus ada).",
+      "Jika terdeteksi, data langsung diteruskan ke node aksi downstream."
+    ],
+    "params": [
+      {
+        "key": "classes",
+        "label": "Daftar Kelas Target",
+        "desc": "Nama kelas objek yang memicu kondisi ini."
+      },
+      {
+        "key": "match",
+        "label": "Mode Pencocokan",
+        "desc": "any (cukup salah satu kelas muncul) atau all (semua kelas harus ada)."
+      }
+    ],
+    "tips": "Gunakan untuk memicu alarm bahaya saat terdeteksi kelas kritis seperti api, asap, atau hewan berbahaya."
+  },
+  "confidence_threshold": {
+    "concept": "Node filter akurasi yang menyaring deteksi objek sehingga hanya deteksi dengan skor keyakinan model di atas ambang batas yang diloloskan.",
+    "diagram": "[ Object Detection ] ──▶ [ Confidence Threshold ] ──▶ [ Quality Sort ]",
+    "steps": [
+      "Tentukan ambang batas akurasi pada Threshold (misal: 0.85 atau 85%).",
+      "Pilih operator perbandingan (>= atau >).",
+      "Deteksi dengan akurasi rendah akan otomatis dibuang agar tidak menimbulkan kesalahan inspeksi."
+    ],
+    "params": [
+      {
+        "key": "threshold",
+        "label": "Ambang Batas Keyakinan Minimal",
+        "desc": "Nilai minimal akurasi (0.0 - 1.0)."
+      },
+      {
+        "key": "operator",
+        "label": "Operator Logika",
+        "desc": "gte (>=), gt (>), lte (<=), lt (<)."
+      }
+    ],
+    "tips": "Efektif untuk inspeksi kontrol kualitas industri yang memerlukan standar kepastian akurasi sangat tinggi."
+  },
+  "timer_delay": {
+    "concept": "Node penahan waktu (Timer Delay) yang menahan dan menstabilkan sinyal pemicu selama durasi detik tertentu sebelum diteruskan ke node berikutnya.",
+    "diagram": "[ Trigger Event ] ──▶ [ Timer / Delay ] ──▶ [ Actuator / Alarm ]",
+    "steps": [
+      "Pasang di antara node pemicu event dan node aksi eksekusi.",
+      "Tentukan durasi jeda waktu dalam detik pada kolom Seconds (misal: 2.5 detik).",
+      "Sinyal akan ditahan selama durasi tersebut sebelum menyalakan aktuator atau alarm."
+    ],
+    "params": [
+      {
+        "key": "seconds",
+        "label": "Durasi Jeda Waktu (Detik)",
+        "desc": "Waktu penahanan sinyal dalam satuan detik."
+      }
+    ],
+    "tips": "Berguna untuk sinkronisasi mekanis pabrik (misal memberi waktu lengan robot bergerak sebelum sensor kamera mengambil foto)."
+  },
+  "debounce": {
+    "concept": "Node stabilisasi sinyal (Debounce) untuk mencegah pemicuan berulang-ulang dari deteksi objek yang berkedip-kedip (flickering) dalam rentang waktu singkat.",
+    "diagram": "[ Logic / Trigger ] ──▶ [ Debounce ] ──▶ [ Webhook / Alert ]",
+    "steps": [
+      "Pasang tepat sebelum node output Alert atau Webhook.",
+      "Tentukan durasi debounce pada Seconds (misal: 0.5 atau 1.0 detik).",
+      "Jika sinyal deteksi berkedip-kedip hilang-timbul cepat, hanya 1 sinyal stabil yang akan diteruskan."
+    ],
+    "params": [
+      {
+        "key": "seconds",
+        "label": "Durasi Stabilisasi Debounce (Detik)",
+        "desc": "Waktu jeda toleransi kestabilan sinyal."
+      }
+    ],
+    "tips": "Wajib digunakan jika kamera mendeteksi objek di area bergetar atau pencahayaan berfluktuasi agar tidak spam notifikasi."
+  },
+  "rate_limiter": {
+    "concept": "Node pembatas frekuensi (Rate Limiter) yang membatasi pengiriman event agar aksi downstream hanya boleh terpicu maksimal satu kali dalam kurun waktu cooldown tertentu.",
+    "diagram": "[ Alert Event ] ──▶ [ Rate Limiter ] ──▶ [ Webhook / Notifikasi ]",
+    "steps": [
+      "Pasang sebelum node pengiriman pesan atau webhook.",
+      "Tentukan batas jeda waktu pada Seconds (misal: 30 detik atau 60 detik).",
+      "Meskipun alarm terpicu puluhan kali, pesan hanya akan dikirim sekali setiap periode cooldown."
+    ],
+    "params": [
+      {
+        "key": "seconds",
+        "label": "Jeda Waktu Cooldown (Detik)",
+        "desc": "Jeda waktu minimal sebelum event berikutnya boleh dikirim."
+      }
+    ],
+    "tips": "Mencegah kuota API webhook habis atau nomor WhatsApp diblokir akibat spam notifikasi bertubi-tubi."
+  },
+  "and_or_logic": {
+    "concept": "Node gerbang logika kombinasi (Boolean AND / OR) untuk menggabungkan beberapa kondisi evaluasi menjadi satu keputusan akhir.",
+    "diagram": "[ Kondisi A & B ] ──▶ [ AND / OR Logic ] ──▶ [ Final Action ]",
+    "steps": [
+      "Sambungkan beberapa node kondisi logika ke input node ini.",
+      "Pilih operator logika: AND (semua kondisi harus bernilai True) atau OR (cukup salah satu kondisi bernilai True).",
+      "Aksi downstream hanya akan dieksekusi jika hasil kombinasi logika terpenuhi."
+    ],
+    "params": [
+      {
+        "key": "operator",
+        "label": "Tipe Gerbang Logika",
+        "desc": "Pilihan: 'and' (semua syarat harus terpenuhi) atau 'or' (salah satu syarat terpenuhi)."
+      },
+      {
+        "key": "enabledValue",
+        "label": "Nilai Status Logika",
+        "desc": "Nilai status boolean yang dicocokkan."
+      }
+    ],
+    "tips": "Contoh: Peringatan hanya menyala jika (Jumlah Orang >= 5) AND (Di Luar Jam Kerja)."
+  },
+  "trigger_once": {
+    "concept": "Node pengunci pemicu (Latch / Trigger Once) yang hanya meloloskan event tepat satu kali saat kondisi pertama kali tercapai, dan mengunci pemicu hingga kondisi kembali normal.",
+    "diagram": "[ Kondisi Alarm ] ──▶ [ Trigger Once ] ──▶ [ Sirene / Notifikasi ]",
+    "steps": [
+      "Pasang tepat sebelum node Alert atau Simpan Foto.",
+      "Centang Reset on Clear agar status pemicu otomatis kembali siap saat objek sudah keluar dari area pantau.",
+      "Peringatan hanya dikirim 1 kali saat objek pertama kali masuk, tidak berulang setiap frame."
+    ],
+    "params": [
+      {
+        "key": "resetOnClear",
+        "label": "Reset Otomatis Saat Kondisi Normal",
+        "desc": "Membuka kembali kunci pemicu saat kondisi kembali normal (False)."
+      }
+    ],
+    "tips": "Sangat efektif untuk sirene atau lampu indikator pabrik agar tidak terus berbunyi saat objek masih berada di zona pantau."
+  }
+};
+
+  function showNodeGuideModal(nodeOrType) {
+    const isObject = typeof nodeOrType === 'object' && nodeOrType !== null;
+    const type = isObject ? nodeOrType.type : String(nodeOrType || '');
+    const node = isObject ? nodeOrType : null;
+    const bp = state.catalog[type] || {};
+
+    if (type === 'if_else') {
+      showIfElseGuideModal(node);
+      return;
+    }
+
+    let modal = $('#nodeUniversalGuideModal');
+    if (!modal) {
+      modal = document.createElement('dialog');
+      modal.id = 'nodeUniversalGuideModal';
+      modal.className = 'template-modal';
+      modal.style.maxWidth = '780px';
+      modal.style.width = '92vw';
+      modal.style.borderRadius = '12px';
+      modal.style.border = '1px solid var(--border, #334155)';
+      modal.style.backgroundColor = 'var(--bg-card, #0f172a)';
+      modal.style.color = 'var(--text, #f1f5f9)';
+      modal.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.7)';
+      document.body.append(modal);
+    }
+    modal.replaceChildren();
+
+    const titleText = (node && node.title) || bp.title || titleFor(type);
+    const subText = bp.subtitle || 'Konfigurasi parameter dan panduan alur node';
+    const catName = categoryFor(type);
+    const guide = NODE_GUIDES_ID[type] || {
+      concept: `Node <b>${titleText}</b> berfungsi untuk memproses data alur vision dalam kategori <b>${catName}</b>.`,
+      diagram: `[ Upstream Node ] ──▶ [ ${titleText} ] ──▶ [ Downstream Node ]`,
+      steps: [
+        `Sambungkan input node ini dari node sumber atau node pemrosesan upstream yang sesuai.`,
+        `Atur parameter konfigurasi pada panel pengaturan inspector di sebelah kanan.`,
+        `Sambungkan output node ini ke node tujuan berikutnya (misalnya Live Preview atau Alert).`
+      ],
+      params: Object.keys(bp.config || {}).map(k => ({
+        key: k,
+        label: INDO_FIELD_LABELS[k] || k,
+        desc: FIELD_HELP[k] || `Pengaturan untuk parameter ${k}.`
+      })),
+      tips: `Pastikan tipe data dan koneksi antar node sesuai agar alur pipeline berjalan lancar.`
+    };
+
+    const head = document.createElement('div');
+    head.className = 'modal-head';
+    head.style.display = 'flex';
+    head.style.alignItems = 'center';
+    head.style.justifyContent = 'space-between';
+    head.style.padding = '16px 20px';
+    head.style.borderBottom = '1px solid var(--border, #334155)';
+    head.innerHTML = `
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:8px; background:rgba(56, 189, 248, 0.15); border:1px solid rgba(56, 189, 248, 0.3);">
+          ${getIcon(type, 'icon-md')}
+        </span>
+        <div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <h3 style="margin:0; font-size:16px; font-weight:700; color:var(--text, #f8fafc);">${titleText}</h3>
+            <span style="font-size:10px; font-weight:600; padding:2px 8px; border-radius:10px; background:#1e293b; color:#94a3b8; border:1px solid #334155;">${catName}</span>
+          </div>
+          <small style="color:var(--text-muted, #94a3b8); display:block; margin-top:2px;">${subText}</small>
+        </div>
+      </div>
+    `;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'button ghost';
+    closeBtn.textContent = '✕';
+    closeBtn.style.fontSize = '16px';
+    closeBtn.onclick = () => modal.close();
+    head.append(closeBtn);
+    modal.append(head);
+
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+    body.style.padding = '20px';
+    body.style.maxHeight = '72vh';
+    body.style.overflowY = 'auto';
+    body.style.display = 'flex';
+    body.style.flexDirection = 'column';
+    body.style.gap = '16px';
+
+    let stepsHtml = '';
+    if (guide.steps && guide.steps.length) {
+      stepsHtml = `
+        <div style="background:rgba(30, 41, 59, 0.5); border:1px solid #334155; border-radius:8px; padding:14px;">
+          <h4 style="margin:0 0 10px 0; font-size:13px; color:#38bdf8; display:flex; align-items:center; gap:6px;">
+            <span>🛠️</span> 3. Langkah-Langkah Cara Penggunaan
+          </h4>
+          <ol style="margin:0; padding-left:18px; font-size:12px; line-height:1.6; color:#e2e8f0;">
+            ${guide.steps.map(s => `<li style="margin-bottom:6px;">${s}</li>`).join('')}
+          </ol>
+        </div>
+      `;
+    }
+
+    let paramsHtml = '';
+    if (guide.params && guide.params.length) {
+      paramsHtml = `
+        <div style="background:rgba(30, 41, 59, 0.5); border:1px solid #334155; border-radius:8px; padding:14px;">
+          <h4 style="margin:0 0 10px 0; font-size:13px; color:#38bdf8; display:flex; align-items:center; gap:6px;">
+            <span>⚙️</span> 4. Penjelasan Parameter &amp; Pengaturan Kunci
+          </h4>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${guide.params.map(p => `
+              <div style="background:rgba(15, 23, 42, 0.6); padding:8px 12px; border-radius:6px; border:1px solid #1e293b;">
+                <div style="font-weight:700; font-size:11px; color:#f1f5f9; display:flex; align-items:center; gap:6px;">
+                  <span style="font-family:monospace; color:#38bdf8;">${p.key}</span>
+                  <span style="color:#64748b;">·</span>
+                  <span>${p.label}</span>
+                </div>
+                <div style="font-size:11px; color:#94a3b8; margin-top:2px; line-height:1.4;">${p.desc}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    let tipsHtml = '';
+    if (guide.tips) {
+      tipsHtml = `
+        <div style="background:rgba(56, 189, 248, 0.08); border:1px solid rgba(56, 189, 248, 0.25); border-radius:8px; padding:12px;">
+          <div style="font-weight:700; font-size:12px; color:#38bdf8; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <span>💡</span> Tips Praktis
+          </div>
+          <div style="font-size:12px; color:#cbd5e1; line-height:1.5;">${guide.tips}</div>
+        </div>
+      `;
+    }
+
+    body.innerHTML = `
+      <!-- Section 1: Konsep Utama -->
+      <div style="background:rgba(30, 41, 59, 0.6); border:1px solid #334155; border-radius:8px; padding:14px;">
+        <h4 style="margin:0 0 8px 0; font-size:13px; color:#38bdf8; display:flex; align-items:center; gap:6px;">
+          <span>💡</span> 1. Konsep &amp; Fungsi Utama
+        </h4>
+        <p style="margin:0; font-size:12px; line-height:1.5; color:#cbd5e1;">
+          ${guide.concept}
+        </p>
+      </div>
+
+      <!-- Section 2: Skema Alur -->
+      <div style="background:rgba(15, 23, 42, 0.8); border:1px solid #334155; border-radius:8px; padding:14px;">
+        <h4 style="margin:0 0 10px 0; font-size:13px; color:#38bdf8; display:flex; align-items:center; gap:6px;">
+          <span>📐</span> 2. Skema Sambungan di Canvas
+        </h4>
+        <pre style="margin:0; font-family:monospace; font-size:11px; background:#020617; padding:12px; border-radius:6px; border:1px solid #1e293b; color:#e2e8f0; line-height:1.5; overflow-x:auto;">${guide.diagram}</pre>
+      </div>
+
+      <!-- Section 3: Langkah Penggunaan -->
+      ${stepsHtml}
+
+      <!-- Section 4: Parameter -->
+      ${paramsHtml}
+
+      <!-- Section 5: Tips -->
+      ${tipsHtml}
+    `;
+
+    modal.append(body);
+    modal.showModal();
+  }
+
+  async function showDatabaseLogsModal() {
+    let modal = $('#dbLogsModal');
+    if (!modal) {
+      modal = document.createElement('dialog');
+      modal.id = 'dbLogsModal';
+      modal.className = 'template-modal';
+      document.body.append(modal);
+    }
+    modal.replaceChildren();
+
+    const head = document.createElement('div');
+    head.className = 'modal-head';
+    head.innerHTML = '<h3>Database Records & Logs</h3>';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'button ghost';
+    closeBtn.textContent = '✕';
+    closeBtn.onclick = () => modal.close();
+    head.append(closeBtn);
+    modal.append(head);
+
+    const body = document.createElement('div');
+    body.className = 'modal-body';
+    body.style.maxHeight = '450px';
+    body.style.overflowY = 'auto';
+    body.textContent = 'Loading records...';
+    modal.append(body);
+    modal.showModal();
+
+    try {
+      const data = await api('/api/database/records?limit=50');
+      if (!data.records || !data.records.length) {
+        body.textContent = 'No records saved in database yet.';
+        return;
+      }
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.fontSize = '12px';
+      table.style.borderCollapse = 'collapse';
+      table.innerHTML = '<thead><tr style="border-bottom:1px solid var(--border);text-align:left;"><th>ID</th><th>Time (ms)</th><th>Class</th><th>Conf</th><th>Box [x,y,w,h]</th></tr></thead>';
+      const tbody = document.createElement('tbody');
+      data.records.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+        const box = `${Math.round(r.x || 0)},${Math.round(r.y || 0)},${Math.round(r.width || 0)},${Math.round(r.height || 0)}`;
+        tr.innerHTML = `<td>${r.id}</td><td>${r.timestamp_ms}</td><td><b>${r.class_name}</b></td><td>${(r.confidence || 0).toFixed(2)}</td><td>${box}</td>`;
+        tbody.append(tr);
+      });
+      table.append(tbody);
+      body.replaceChildren(table);
+    } catch (e) {
+      body.textContent = 'Failed to load logs: ' + e.message;
+    }
+  }
+
+  // --- High-Performance Live Preview Frame Engine ---
+  let _previewLoading = false;
+  let _lastPreviewFetch = 0;
+  let _previewLoopTimer = null;
+  let _currentActiveTarget = '';
+
+  function scheduleNextPreview(targetId) {
+    if (_previewLoopTimer) clearTimeout(_previewLoopTimer);
+    _previewLoopTimer = setTimeout(() => {
+      if (state.status?.running) {
+        loadPreviewFrame(targetId, true);
+      }
+    }, 125); // ~8 FPS silky smooth
+  }
+
+  function loadPreviewFrame(targetId, isRunning) {
+    const img = $('#previewImage');
+    const modalImg = $('#modalPreviewImage');
+    const emptyEl = $('#previewEmpty');
+    if (!img || !targetId) {
+      if (img && !state.status?.running) {
+        img.hidden = true;
+        img.src = '';
+      }
+      if (emptyEl && !img?.src) emptyEl.hidden = false;
+      return;
+    }
+
+    _currentActiveTarget = targetId;
+    const now = Date.now();
+    // Prevent overlapping network requests if one is still in-flight
+    if (_previewLoading && (now - _lastPreviewFetch < 2000)) {
+      return;
+    }
+
+    _previewLoading = true;
+    _lastPreviewFetch = now;
+
+    const frameUrl = `/api/preview/${encodeURIComponent(targetId)}?t=${now}`;
+    const preloader = new Image();
+
+    preloader.onload = () => {
+      _previewLoading = false;
+      img.src = preloader.src;
+      img.hidden = false;
+      if (emptyEl) emptyEl.hidden = true;
+
+      if (modalImg && $('#previewModal')?.open) {
+        modalImg.src = preloader.src;
+      }
+
+      if (isRunning && state.status?.running && _currentActiveTarget === targetId) {
+        scheduleNextPreview(targetId);
+      }
+    };
+
+    preloader.onerror = () => {
+      _previewLoading = false;
+      if (!isRunning && !img.src) {
+        img.hidden = true;
+        if (emptyEl) emptyEl.hidden = false;
+      } else if (isRunning && state.status?.running && _currentActiveTarget === targetId) {
+        scheduleNextPreview(targetId);
+      }
+    };
+
+    preloader.src = frameUrl;
+  }
+
+  // --- Preview Select Dropdown ---
+  function updatePreviewSelect() {
+    const select = $('#previewSelect');
+    if (!select) return;
+    const current = select.value;
+    select.replaceChildren();
+
+    const autoOpt = document.createElement('option');
+    autoOpt.value = '';
+    autoOpt.textContent = 'Auto Preview';
+    select.append(autoOpt);
+
+    const previewNodes = state.workflow.nodes.filter(n => n.type === 'preview');
+    previewNodes.forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n.id;
+      opt.textContent = n.title || n.id;
+      select.append(opt);
+    });
+
+    // Also include any active preview IDs from the server if not already in the list
+    (state.status?.previews || []).forEach(pId => {
+      if (pId !== 'auto_preview' && !previewNodes.some(n => n.id === pId)) {
+        const opt = document.createElement('option');
+        opt.value = pId;
+        opt.textContent = nodeFor(pId)?.title || pId;
+        select.append(opt);
+      }
+    });
+
+    select.value = current;
+    select.onchange = () => {
+      state.previewNode = select.value;
+      const target = state.previewNode || state.status?.previews?.[0];
+      if (target) {
+        loadPreviewFrame(target, !!state.status?.running);
+      }
+      pollStatus();
+    };
+  }
+
+  // --- Snapshot Capture ---
+  async function captureSnapshot() {
+    const img = $('#previewImage');
+    const target = state.previewNode || state.status?.previews?.[0];
+    if (!target && (!img || img.hidden || !img.src)) {
+      toast('No active preview frame to capture', true);
+      return;
+    }
+    try {
+      if (target) {
+        const resp = await fetch(`/api/preview/${encodeURIComponent(target)}?t=${Date.now()}`);
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const link = document.createElement('a');
+          link.download = `afi-vision-builder-snapshot-${target}-${Date.now()}.jpg`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+          toast('Snapshot downloaded (High-res JPG)');
+          return;
+        }
+      }
+      if (img && img.naturalWidth) {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const link = document.createElement('a');
+        link.download = `afi-vision-builder-snapshot-${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        toast('Snapshot downloaded');
+      }
+    } catch (e) {
+      toast('Failed to capture snapshot: ' + e.message, true);
+    }
+  }
+
+  // --- Fullscreen / Expanded Preview ---
+  function toggleFullscreenPreview() {
+    const modal = $('#previewModal');
+    const modalImg = $('#modalPreviewImage');
+    if (!modal || !modalImg) return;
+
+    if (!modal.open) {
+      const target = state.previewNode || state.status?.previews?.[0];
+      if (target) {
+        modalImg.src = state.status?.running
+          ? `/api/preview/${encodeURIComponent(target)}/stream`
+          : `/api/preview/${encodeURIComponent(target)}?t=${Date.now()}`;
+      } else {
+        modalImg.src = $('#previewImage')?.src || '';
+      }
+      $('#modalPreviewTitle').textContent = $('#previewTitle')?.textContent || 'Live Preview';
+      modal.showModal();
+    } else {
+      modalImg.src = '';
+      modal.close();
+    }
+  }
+
+  // --- Templates System ---
+  async function loadTemplates() {
+    try {
+      const data = await api('/api/templates');
+      state.templates = data.templates || [];
+      renderTemplatesModal();
+    } catch (e) {
+      console.warn('Templates endpoint:', e.message);
+    }
+  }
+
+  function renderTemplatesModal() {
+    const list = $('#templatesList');
+    if (!list) return;
+    list.replaceChildren();
+
+    state.templates.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'template-card';
+
+      const h = document.createElement('h3');
+      h.textContent = t.name;
+
+      const p = document.createElement('p');
+      p.textContent = t.description;
+
+      card.append(h, p);
+      card.onclick = () => loadTemplate(t);
+      list.append(card);
+    });
+  }
+
+  async function loadTemplate(t) {
+    if (state.dirty && !confirm('You have unsaved changes. Load template anyway?')) return;
+    const modal = $('#templatesModal');
+    if (modal) modal.close();
+
+    const name = prompt('Name for this template project:', t.name);
+    if (!name?.trim()) return;
+
+    try {
+      const created = await api('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), workflow: t.workflow })
+      });
+      await loadProjects();
+      await switchProject(created.project.id, true);
+      toast(`Template "${t.name}" loaded`);
+    } catch (e) {
+      toast('Failed to load template: ' + e.message, true);
+    }
+  }
+
+  // --- Uploads (Media & Models) ---
+  async function uploadMedia(file) {
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const data = await api('/api/upload', { method: 'POST', body: form });
+      await refreshUploads();
+      const inputNode = state.workflow.nodes.find(n => n.type === 'input');
+      if (!inputNode) {
+        return toast('Add an Input node to attach uploaded media', true);
+      }
+      const kind = data.kind || (file.type.startsWith('video/') ? 'video' : 'image');
+      inputNode.config.sourceType = kind;
+      inputNode.config.filePath = data.path || data.name || file.name;
+      markDirty();
+      selectNode(inputNode.id);
+      renderInspector();
+      toast(`${file.name} attached to Input node`);
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  async function uploadModelFile(file) {
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const data = await api('/api/models/upload', { method: 'POST', body: form });
+      await refreshModels();
+      if (state.selected) {
+        const n = nodeFor(state.selected);
+        if (n) {
+          await inspectAndApplyModel(n, data.path);
+        }
+      } else {
+        toast(`Model ${file.name} uploaded successfully!`);
+      }
+    } catch (e) {
+      toast('Model upload failed: ' + e.message, true);
+    }
+  }
+
+  async function refreshModels() {
+    try {
+      const data = await api('/api/models');
+      state.models = data.models || [];
+      state.modelEngines = data.engines || [];
+    } catch (e) {
+      console.warn('Models error:', e.message);
+    }
+  }
+
+  async function refreshCameras() {
+    try {
+      const data = await api('/api/cameras');
+      state.cameras = data.cameras || [];
+    } catch (e) {
+      console.warn('Cameras error:', e.message);
+      if (!state.cameras || state.cameras.length === 0) {
+        state.cameras = [{ index: 0, label: 'Camera 0 (Default)' }];
+      }
+    }
+  }
+
+  async function refreshUploads() {
+    try {
+      const data = await api('/api/uploads');
+      state.uploads = data.files || [];
+    } catch (e) {
+      console.warn('Uploads error:', e.message);
+    }
+  }
+
+  // --- Import / Export ---
+  function exportWorkflow() {
+    const blob = new Blob([JSON.stringify(state.workflow, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${(state.project?.name || 'workflow').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  async function importWorkflow(file) {
+    if (state.dirty && !confirm('Discard unsaved changes and import workflow?')) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
+        throw new Error('JSON file must contain nodes and edges arrays');
+      }
+      const name = prompt('Name imported project:', file.name.replace(/\.json$/i, ''));
+      if (!name?.trim()) return;
+      const created = await api('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), workflow: data })
+      });
+      await loadProjects();
+      await switchProject(created.project.id, true);
+      toast('Workflow imported');
+    } catch (e) {
+      toast('Import failed: ' + e.message, true);
+    }
+  }
+
+  // --- Runtime Status Polling ---
+  async function pollStatus() {
+    if (state.pollBusy) return;
+    state.pollBusy = true;
+    try {
+      const data = await api('/api/status');
+      state.status = data;
+
+      // Status pill
+      const pill = $('#runState');
+      if (pill) {
+        pill.textContent = data.state ? data.state.toUpperCase() : 'IDLE';
+        pill.className = `status-pill ${data.running ? 'running' : data.error ? 'error' : ''}`;
+      }
+
+      // Buttons
+      if ($('#runBtn')) $('#runBtn').disabled = !!data.running;
+      if ($('#stopBtn')) $('#stopBtn').disabled = !data.running;
+
+      // Realtime metrics
+      const fps = data.fps || data.previewFps || 0;
+      const latency = data.latencyMs || 0;
+      const count = data.objectCount || 0;
+      const device = data.device || 'CPU';
+
+      if ($('#statFps')) $('#statFps').textContent = `${Number(fps).toFixed(1)} FPS`;
+      if ($('#statLatency')) $('#statLatency').textContent = `${Math.round(latency)} ms`;
+      if ($('#statCount')) $('#statCount').textContent = `${count} obj${count === 1 ? '' : 's'}`;
+      if ($('#statDevice')) $('#statDevice').textContent = device;
+
+      if (data.error && data.error !== state.lastError) {
+        toast(data.error, true);
+      }
+      state.lastError = data.error;
+
+      // Logs
+      renderLogs(data.logs || [], data.events || []);
+
+      // Preview frame
+      const availablePreviews = data.previews || [];
+      let targetPreviewId = state.previewNode;
+      if (!targetPreviewId || !availablePreviews.includes(targetPreviewId)) {
+        targetPreviewId = availablePreviews[0];
+      }
+
+      if (targetPreviewId && availablePreviews.includes(targetPreviewId)) {
+        loadPreviewFrame(targetPreviewId, !!data.running);
+        const nodeTitle = targetPreviewId === 'auto_preview' ? 'Live Pipeline Preview' : (nodeFor(targetPreviewId)?.title || targetPreviewId);
+        $('#previewTitle').textContent = nodeTitle;
+      } else {
+        const img = $('#previewImage');
+        if (img && !img.src) {
+          img.hidden = true;
+          const emptyEl = $('#previewEmpty');
+          if (emptyEl) emptyEl.hidden = false;
+        }
+        $('#previewTitle').textContent = data.running ? 'Processing input…' : 'Waiting for a run';
+      }
+    } catch (e) {
+      $('#runtimeText').textContent = 'Connection interrupted';
+    } finally {
+      state.pollBusy = false;
+    }
+  }
+
+  function renderLogs(logs, events) {
+    const list = $('#logList');
+    if (!list) return;
+
+    let unified = [];
+    (logs || []).forEach(l => {
+      const text = String(l.text || '');
+      const isErr = text.toUpperCase().includes('ERROR') || text.toUpperCase().includes('FAILED');
+      const isWarn = text.toUpperCase().includes('WARN');
+      unified.push({
+        seq: l.seq || 0,
+        time: l.time,
+        text: text,
+        type: isErr ? 'error' : (isWarn ? 'warn' : 'log')
+      });
+    });
+
+    (events || []).forEach(e => {
+      unified.push({
+        seq: (e.time || 0) * 1000,
+        time: e.time,
+        text: `${e.title || 'Event'}: ${e.detail || ''}`,
+        type: 'event'
+      });
+    });
+
+    unified.sort((a, b) => (a.time || 0) - (b.time || 0));
+
+    if (state.clearedSeq) {
+      unified = unified.filter(item => (item.seq || 0) > state.clearedSeq);
+    }
+
+    if (state.logFilter === 'errors') {
+      unified = unified.filter(i => i.type === 'error');
+    } else if (state.logFilter === 'events') {
+      unified = unified.filter(i => i.type === 'event');
+    }
+
+    if (state.logSearchQuery) {
+      const q = state.logSearchQuery.toLowerCase();
+      unified = unified.filter(i => i.text.toLowerCase().includes(q));
+    }
+
+    const isAtBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60;
+
+    const lastItemSeq = unified[unified.length - 1]?.seq;
+    if (state._lastLogSeq === lastItemSeq && state._lastLogCount === unified.length && !state._forceLogRender) {
+      return;
+    }
+    state._lastLogSeq = lastItemSeq;
+    state._lastLogCount = unified.length;
+    state._forceLogRender = false;
+
+    list.replaceChildren();
+    if (!unified.length) {
+      const empty = document.createElement('div');
+      empty.className = 'log-empty';
+      empty.textContent = state.logSearchQuery ? 'No matching log entries found.' : 'No runtime events yet.';
+      list.append(empty);
+      return;
+    }
+
+    unified.slice(-150).forEach(item => {
+      const row = document.createElement('div');
+      const isErr = item.type === 'error';
+      const isEvt = item.type === 'event';
+      row.className = `log-line ${isErr ? 'error' : (isEvt ? 'event' : '')}`;
+
+      const stamp = document.createElement('span');
+      stamp.className = 'log-time';
+      stamp.textContent = typeof item.time === 'number'
+        ? new Date(item.time * 1000).toLocaleTimeString()
+        : (item.time || '');
+
+      const tag = document.createElement('span');
+      tag.className = `log-tag ${isErr ? 'err' : (isEvt ? 'evt' : 'info')}`;
+      tag.textContent = isErr ? 'ERR' : (isEvt ? 'EVT' : 'INFO');
+
+      const text = document.createElement('span');
+      text.style.flex = '1';
+      text.textContent = item.text;
+
+      row.append(stamp, tag, text);
+      list.append(row);
+    });
+
+    if (isAtBottom) {
+      list.scrollTop = list.scrollHeight;
+    }
+  }
+
+  function copyLogs() {
+    const list = $('#logList');
+    if (!list) return;
+    const lines = Array.from(list.querySelectorAll('.log-line')).map(r => r.innerText.replace(/\s+/g, ' ').trim());
+    if (!lines.length) {
+      toast('No logs to copy', true);
+      return;
+    }
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+      toast(`Copied ${lines.length} log lines to clipboard`);
+    }).catch(() => {
+      toast('Failed to copy to clipboard', true);
+    });
+  }
+
+  // --- Run & Stop ---
+  async function run() {
+    try {
+      if (state.dirty && !(await save())) return;
+      const data = await api('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workflow: state.workflow })
+      });
+      state.previewNode = state.workflow.nodes.find(n => n.type === 'preview')?.id || '';
+      toast(data.message || 'Workflow pipeline running');
+      pollStatus();
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  async function stop() {
+    try {
+      await api('/api/stop', { method: 'POST' });
+      toast('Workflow stopped');
+      pollStatus();
+    } catch (e) {
+      toast(e.message, true);
+    }
+  }
+
+  // --- Canvas Panning & Wire Tracking ---
+  function setupCanvasPan() {
+    const canvas = $('#canvas');
+    if (!canvas) return;
+
+    canvas.onpointerdown = (e) => {
+      // If user clicks on canvas background while connecting, cancel connecting
+      if (state.connecting && (e.target.id === 'canvas' || e.target.id === 'edges' || e.target.tagName === 'svg')) {
+        state.connecting = null;
+        $('#canvasHint').textContent = 'Penyambungan garis dibatalkan';
+        renderCanvas();
+        return;
+      }
+      if (e.target.id === 'canvas' || e.target.id === 'edges' || e.target.tagName === 'svg') {
+        state.selectedEdge = null;
+        state.isPanning = true;
+        state.panStart = { x: e.clientX - state.panX, y: e.clientY - state.panY };
+        canvas.setPointerCapture(e.pointerId);
+      }
+    };
+
+    canvas.onpointermove = (e) => {
+      if (state.connecting) {
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        state.connecting.mouseX = (cx / state.zoom) - state.panX;
+        state.connecting.mouseY = (cy / state.zoom) - state.panY;
+        drawEdges();
+      }
+      if (!state.isPanning) return;
+      state.panX = e.clientX - state.panStart.x;
+      state.panY = e.clientY - state.panStart.y;
+      renderCanvas();
+    };
+
+    canvas.onpointerup = () => {
+      state.isPanning = false;
+    };
+
+    // Also track pointermove globally when connecting wire is active
+    document.addEventListener('pointermove', (e) => {
+      if (state.connecting) {
+        const canvas = $('#canvas');
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        state.connecting.mouseX = (cx / state.zoom) - state.panX;
+        state.connecting.mouseY = (cy / state.zoom) - state.panY;
+        drawEdges();
+      }
+    });
+
+    canvas.onwheel = (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.08 : -0.08;
+      setZoom(state.zoom + delta);
+    };
+  }
+
+  // --- Event Wireup ---
+  function wireEvents() {
+    $('#nodeSearch')?.addEventListener('input', renderLibrary);
+    $('#saveBtn')?.addEventListener('click', save);
+    $('#runBtn')?.addEventListener('click', run);
+    $('#stopBtn')?.addEventListener('click', stop);
+    $('#newProject')?.addEventListener('click', newProject);
+    $('#renameProject')?.addEventListener('click', renameProject);
+
+    $('#uploadBtn')?.addEventListener('click', () => $('#fileInput').click());
+    $('#fileInput')?.addEventListener('change', e => e.target.files[0] && uploadMedia(e.target.files[0]));
+
+    $('#uploadModelBtn')?.addEventListener('click', () => $('#modelInput').click());
+    $('#modelInput')?.addEventListener('change', e => e.target.files[0] && uploadModelFile(e.target.files[0]));
+
+    $('#templatesBtn')?.addEventListener('click', () => {
+      const modal = $('#templatesModal');
+      if (modal) modal.showModal();
+    });
+    $('#closeTemplatesModal')?.addEventListener('click', () => $('#templatesModal')?.close());
+
+    $('#exportBtn')?.addEventListener('click', exportWorkflow);
+    $('#importBtn')?.addEventListener('click', () => $('#importInput').click());
+    $('#importInput')?.addEventListener('change', e => e.target.files[0] && importWorkflow(e.target.files[0]));
+
+    $('#closeInspector')?.addEventListener('click', () => {
+      state.selected = null;
+      renderCanvas();
+      renderInspector();
+    });
+
+    $('#deleteBtn')?.addEventListener('click', deleteSelectedNode);
+
+    // Auto-Connect Toggle & Auto-Assemble button
+    const autoToggle = $('#autoConnectToggle');
+    if (autoToggle) {
+      autoToggle.checked = state.autoConnect !== false;
+      autoToggle.addEventListener('change', e => {
+        state.autoConnect = !!e.target.checked;
+        toast(state.autoConnect ? '⚡ Mode Auto-Connect aktif' : '🛠️ Mode Manual aktif (koneksi manual)');
+      });
+    }
+
+    $('#autoAssembleBtn')?.addEventListener('click', autoAssembleWorkflow);
+
+    // Dismiss edge context menu on click outside
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#edgeContextMenu') && !e.target.closest('.edge-hit-area')) {
+        hideEdgeContextMenu();
+      }
+    });
+
+    // Zoom Controls
+    $('#zoomInBtn')?.addEventListener('click', () => setZoom(state.zoom + 0.15));
+    $('#zoomOutBtn')?.addEventListener('click', () => setZoom(state.zoom - 0.15));
+    $('#zoomResetBtn')?.addEventListener('click', () => {
+      state.panX = 0;
+      state.panY = 0;
+      setZoom(1.0);
+    });
+
+    $('#fitBtn')?.addEventListener('click', () => {
+      const canvas = $('#canvas');
+      if (!state.workflow.nodes.length) {
+        state.panX = 0;
+        state.panY = 0;
+        setZoom(1.0);
+        return;
+      }
+      const maxX = Math.max(...state.workflow.nodes.map(n => (n.x || 0) + 240));
+      const maxY = Math.max(...state.workflow.nodes.map(n => (n.y || 0) + 160));
+      state.panX = 20;
+      state.panY = 20;
+      const fitZoom = Math.min(1.0, Math.max(0.4, Math.min(
+        (canvas.clientWidth - 40) / maxX,
+        (canvas.clientHeight - 40) / maxY
+      )));
+      setZoom(fitZoom);
+    });
+
+    // Preview actions
+    $('#snapshotBtn')?.addEventListener('click', captureSnapshot);
+    $('#fullscreenBtn')?.addEventListener('click', toggleFullscreenPreview);
+    $('#closePreviewModal')?.addEventListener('click', () => $('#previewModal')?.close());
+
+    // Logs actions
+    $('#clearLogs')?.addEventListener('click', () => {
+      const allLogs = state.status?.logs || [];
+      const allEvents = state.status?.events || [];
+      const maxLogSeq = Math.max(0, ...allLogs.map(l => l.seq || 0));
+      const maxEventSeq = Math.max(0, ...allEvents.map(e => (e.time || 0) * 1000));
+      state.clearedSeq = Math.max(maxLogSeq, maxEventSeq);
+      state._forceLogRender = true;
+      renderLogs([], []);
+      toast('Console logs cleared');
+    });
+
+    $('#copyLogsBtn')?.addEventListener('click', copyLogs);
+
+    $('#filterLogsBtn')?.addEventListener('click', () => {
+      if (state.logFilter === 'all') {
+        state.logFilter = 'events';
+        $('#filterLogsBtn').textContent = 'Events';
+        $('#filterLogsBtn').classList.add('active-filter');
+      } else if (state.logFilter === 'events') {
+        state.logFilter = 'errors';
+        $('#filterLogsBtn').textContent = 'Errors';
+        $('#filterLogsBtn').classList.add('active-filter');
+      } else {
+        state.logFilter = 'all';
+        $('#filterLogsBtn').textContent = 'All';
+        $('#filterLogsBtn').classList.remove('active-filter');
+      }
+      state._forceLogRender = true;
+      renderLogs(state.status?.logs || [], state.status?.events || []);
+    });
+
+    $('#logSearchInput')?.addEventListener('input', e => {
+      state.logSearchQuery = e.target.value.trim();
+      state._forceLogRender = true;
+      renderLogs(state.status?.logs || [], state.status?.events || []);
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', e => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+        if (state.selectedEdge !== null && state.selectedEdge !== undefined && state.workflow.edges[state.selectedEdge]) {
+          const edge = state.workflow.edges[state.selectedEdge];
+          const a = nodeFor(edge[0]);
+          const b = nodeFor(edge[1]);
+          state.workflow.edges.splice(state.selectedEdge, 1);
+          state.selectedEdge = null;
+          markDirty();
+          renderCanvas();
+          toast(`Koneksi ${a?.title || edge[0]} → ${b?.title || edge[1]} berhasil dihapus`);
+          return;
+        }
+        deleteSelectedNode();
+      }
+      if (e.key === 'Escape') {
+        hideEdgeContextMenu();
+        if (state.reconnectingEdge) {
+          state.reconnectingEdge = null;
+          $('#canvasHint').textContent = 'Select a node to inspect · drag to arrange · click port to connect';
+          renderCanvas();
+        }
+        if (state.connecting) {
+          state.connecting = null;
+          $('#canvasHint').textContent = 'Select a node to inspect · drag to arrange · click port to connect';
+          renderCanvas();
+        }
+        $('#templatesModal')?.close();
+        $('#previewModal')?.close();
+      }
+    });
+
+    window.addEventListener('beforeunload', e => {
+      if (state.dirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+
+    setupCanvasPan();
+  }
+
+  // --- Bootstrap ---
+  (async () => {
+    try {
+      wireEvents();
+      const catalog = await api('/api/catalog');
+      state.catalog = catalog.catalog || {};
+      state.defaults = catalog.defaults;
+      $('#runtimeText').textContent = catalog.runtime?.python ? `Python ${catalog.runtime.python}` : 'Ready';
+
+      renderLibrary();
+      await Promise.all([
+        refreshModels(),
+        refreshCameras(),
+        refreshUploads(),
+        loadTemplates(),
+        loadProjects(),
+      ]);
+      await pollStatus();
+      state.poll = setInterval(pollStatus, 800);
+    } catch (e) {
+      toast('Initialization error: ' + e.message, true);
+      $('#runtimeText').textContent = 'API unavailable';
+    }
+  })();
+})();

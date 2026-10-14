@@ -1,0 +1,533 @@
+from __future__ import annotations
+
+import json
+import os
+import re
+import time
+from pathlib import Path
+from typing import Any
+
+# Standard COCO classes fallback
+COCO_CLASSES = [
+    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
+    "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
+    "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
+    "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
+    "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
+    "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+    "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair",
+    "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote",
+    "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book",
+    "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"
+]
+
+_MODEL_CACHE: dict[str, Any] = {}
+_LABELS_CACHE: dict[str, list[str]] = {}
+
+
+def detect_model_engine(path_str: str) -> str:
+    """Auto-detect the appropriate engine from file extension."""
+    suffix = Path(path_str).suffix.lower()
+    if suffix in (".pt", ".pth", ".ckpt"):
+        return "ultralytics_yolo"
+    if suffix == ".onnx":
+        return "onnx_custom"
+    if suffix == ".tflite":
+        return "tflite"
+    if suffix in (".keras", ".h5"):
+        return "tensorflow_keras"
+    return "ultralytics_yolo"
+
+
+def extract_model_labels(model_path_str: str) -> list[str]:
+    """Extract embedded class labels from model metadata or sibling label files."""
+    path = Path(model_path_str)
+    if not path.is_file():
+        return COCO_CLASSES
+
+    cache_key = str(path.resolve())
+    if cache_key in _LABELS_CACHE:
+        return _LABELS_CACHE[cache_key]
+
+    # Check for sibling labels.txt / classes.txt / data.yaml
+    for sibling_name in ("labels.txt", "classes.txt", "labels.json"):
+        sibling = path.parent / sibling_name
+        if sibling.is_file():
+            try:
+                if sibling_name.endswith(".json"):
+                    data = json.loads(sibling.read_text(encoding="utf-8"))
+                    if isinstance(data, list):
+                        _LABELS_CACHE[cache_key] = [str(x) for x in data]
+                        return _LABELS_CACHE[cache_key]
+                    if isinstance(data, dict):
+                        _LABELS_CACHE[cache_key] = [str(v) for _, v in sorted(data.items(), key=lambda i: int(i[0]) if str(i[0]).isdigit() else str(i[0]))]
+                        return _LABELS_CACHE[cache_key]
+                else:
+                    lines = [line.strip() for line in sibling.read_text(encoding="utf-8").splitlines() if line.strip()]
+                    if lines:
+                        _LABELS_CACHE[cache_key] = lines
+                        return lines
+            except Exception:
+                pass
+
+    # Try extracting from Ultralytics model metadata
+    suffix = path.suffix.lower()
+    if suffix in (".pt", ".pth"):
+        try:
+            from ultralytics import YOLO
+            m = YOLO(str(path))
+            if hasattr(m, "names") and isinstance(m.names, dict):
+                labels = [str(m.names[k]) for k in sorted(m.names.keys())]
+                _LABELS_CACHE[cache_key] = labels
+                return labels
+        except Exception:
+            pass
+
+    # Try extracting from ONNX model metadata
+    if suffix == ".onnx":
+        try:
+            import onnxruntime as ort
+            sess = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+            meta = sess.get_modelmeta().custom_metadata_map
+            if "names" in meta:
+                raw_names = meta["names"]
+                parsed = json.loads(raw_names.replace("'", '"')) if isinstance(raw_names, str) else raw_names
+                if isinstance(parsed, dict):
+                    labels = [str(parsed[k]) for k in sorted(parsed.keys(), key=lambda x: int(x) if str(x).isdigit() else str(x))]
+                    _LABELS_CACHE[cache_key] = labels
+                    return labels
+                if isinstance(parsed, list):
+                    _LABELS_CACHE[cache_key] = [str(x) for x in parsed]
+                    return _LABELS_CACHE[cache_key]
+        except Exception:
+            pass
+
+    return COCO_CLASSES
+
+
+def resolve_model_file(raw_path: str) -> Path:
+    """Find model path directly or inside data/models directory."""
+    p = Path(raw_path)
+    if p.is_file():
+        return p.resolve()
+    app_data = Path(os.environ.get("VISONODE_APP_DATA_DIR", "data"))
+    candidates = [
+        app_data / "models" / raw_path,
+        app_data / "models" / p.name,
+        Path("data/models") / raw_path,
+        Path("data/models") / p.name,
+        Path("webapp/data/models") / raw_path,
+        Path("webapp/data/models") / p.name,
+    ]
+    for c in candidates:
+        if c.is_file():
+            return c.resolve()
+    return p.resolve()
+
+
+def _resolve_labels(config: dict, model_path: str) -> list[str]:
+    # Check if user explicitly provided comma-separated classes in config
+    custom_classes_str = str(config.get("classes") or config.get("customClasses") or "").strip()
+    if custom_classes_str:
+        return [c.strip() for c in custom_classes_str.split(",") if c.strip()]
+    return extract_model_labels(model_path)
+
+
+class ModelRunnerHandle:
+    """Container for preloaded model metadata returned to core pipeline."""
+    def __init__(self, engine_type: str, model_path: str, raw_model: Any, classes: list[str]):
+        self.detected_engine = engine_type
+        self.model_path = model_path
+        self.raw_model = raw_model
+        self.classes = classes
+
+
+class CustomModelRunner:
+    """Universal AI inference runner supporting Ultralytics (best.pt), ONNX, TFLite, and TF/Keras."""
+
+    @classmethod
+    def get_or_load(cls, *args, **kwargs) -> Any:
+        if args and isinstance(args[0], dict):
+            config = args[0]
+            device = kwargs.get("device", "cpu")
+            raw_path = str(
+                config.get("modelPath")
+                or config.get("customModelPath")
+                or config.get("rfdetrCheckpoint")
+                or config.get("rfdetrOnnxModel")
+                or config.get("convnextCheckpoint")
+                or config.get("rfdetrModel")
+                or ""
+            ).strip().strip('"')
+            model_path_obj = resolve_model_file(raw_path)
+            model_path = str(model_path_obj)
+            engine = config.get("engine", "custom_auto")
+            if engine in ("custom_auto", "rfdetr") and model_path_obj.is_file():
+                engine = detect_model_engine(model_path)
+            raw_model = cls._load_raw(engine, model_path, device=device)
+            classes = _resolve_labels(config, model_path)
+            return ModelRunnerHandle(engine, model_path, raw_model, classes)
+        else:
+            engine_type = args[0]
+            model_path = args[1]
+            device = args[2] if len(args) > 2 else kwargs.get("device", "cpu")
+            return cls._load_raw(engine_type, model_path, device=device)
+
+    @classmethod
+    def _load_raw(cls, engine_type: str, model_path: str, device: str = "cpu") -> Any:
+        cache_key = f"{engine_type}:{model_path}:{device}"
+        if cache_key in _MODEL_CACHE:
+            return _MODEL_CACHE[cache_key]
+
+        path = resolve_model_file(model_path)
+        if not path.is_file():
+            if engine_type == "ultralytics_yolo" and (model_path.endswith(".pt") or model_path.startswith("yolo") or model_path.startswith("rtdetr")):
+                from ultralytics import YOLO
+                model = YOLO(model_path)
+                _MODEL_CACHE[cache_key] = model
+                return model
+            raise FileNotFoundError(f"Custom model file not found: {model_path}")
+
+        if engine_type == "ultralytics_yolo":
+            from ultralytics import YOLO
+            model = YOLO(str(path))
+            _MODEL_CACHE[cache_key] = model
+            return model
+
+        if engine_type == "onnx_custom":
+            import onnxruntime as ort
+            providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if "cuda" in device.lower() else ["CPUExecutionProvider"]
+            try:
+                session = ort.InferenceSession(str(path), providers=providers)
+            except Exception:
+                session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+            _MODEL_CACHE[cache_key] = session
+            return session
+
+        if engine_type == "tflite":
+            import tensorflow as tf
+            interpreter = tf.lite.Interpreter(model_path=str(path))
+            interpreter.allocate_tensors()
+            _MODEL_CACHE[cache_key] = interpreter
+            return interpreter
+
+        if engine_type == "tensorflow_keras":
+            import tensorflow as tf
+            model = tf.keras.models.load_model(str(path))
+            _MODEL_CACHE[cache_key] = model
+            return model
+
+        raise ValueError(f"Unsupported custom model engine: {engine_type}")
+
+    @classmethod
+    def run_frame(cls, frame, inference_node: dict) -> list[dict]:
+        config = inference_node.get("config", {})
+        node_id = inference_node.get("id", "detector")
+        node_type = inference_node.get("type", "detector")
+
+        # Get model path from whichever field is populated
+        raw_path = str(
+            config.get("modelPath")
+            or config.get("customModelPath")
+            or config.get("rfdetrCheckpoint")
+            or config.get("rfdetrOnnxModel")
+            or config.get("convnextCheckpoint")
+            or ""
+        ).strip().strip('"')
+
+        if not raw_path:
+            raise RuntimeError(f"Node '{node_id}' requires a custom model file path.")
+
+        path = resolve_model_file(raw_path)
+        if not path.is_file():
+            raise FileNotFoundError(f"Model file not found: {raw_path}")
+
+        engine_type = config.get("engine") or detect_model_engine(str(path))
+        if engine_type in ("custom_auto", "auto"):
+            engine_type = detect_model_engine(str(path))
+
+        # Safe inference device resolution with automatic CPU fallback
+        raw_device = str(config.get("device", "auto")).strip().lower()
+        has_cuda = False
+        try:
+            import torch
+            has_cuda = bool(torch.cuda.is_available() and torch.cuda.device_count() > 0)
+        except Exception:
+            has_cuda = False
+
+        if raw_device in ("auto", ""):
+            device = "cuda:0" if has_cuda else "cpu"
+        elif "cuda" in raw_device or raw_device.isdigit():
+            device = raw_device if has_cuda else "cpu"
+        else:
+            device = raw_device
+
+        threshold = float(config.get("threshold", 0.5))
+        labels = _resolve_labels(config, str(path))
+
+        # 1. Ultralytics YOLO inference (.pt, .pth)
+        if engine_type == "ultralytics_yolo":
+            model = cls.get_or_load(engine_type, str(path), device=device)
+            iou_threshold = float(config.get("iouThreshold", config.get("nmsThreshold", 0.7)) or 0.7)
+            imgsz_val = int(config.get("imageSize", config.get("imgsz", config.get("rfdetrImageSize", 0))) or 0)
+            predict_kwargs: dict[str, Any] = {
+                "conf": threshold,
+                "iou": iou_threshold,
+                "device": device,
+                "verbose": False,
+            }
+            if imgsz_val > 0:
+                predict_kwargs["imgsz"] = imgsz_val
+            try:
+                results = model.predict(frame, **predict_kwargs)
+            except Exception as exc:
+                err_str = str(exc).lower()
+                if device != "cpu" and ("cuda" in err_str or "device" in err_str):
+                    logger.warning("CUDA execution failed (%s); automatically falling back to CPU.", exc)
+                    predict_kwargs["device"] = "cpu"
+                    results = model.predict(frame, **predict_kwargs)
+                else:
+                    raise
+            if not results:
+                return []
+            res = results[0]
+
+            detections = []
+            # Check for Bounding Boxes (Object Detection)
+            if hasattr(res, "boxes") and res.boxes is not None and len(res.boxes) > 0:
+                boxes = res.boxes.xyxy.cpu().numpy()
+                confs = res.boxes.conf.cpu().numpy()
+                classes = res.boxes.cls.cpu().numpy()
+
+                masks_data = res.masks.data.cpu().numpy() if (hasattr(res, "masks") and res.masks is not None) else None
+                configured_classes = [c.strip().casefold() for c in str(config.get("classes") or "").split(",") if c.strip()]
+
+                for i, box in enumerate(boxes):
+                    score = float(confs[i])
+                    if score < threshold:
+                        continue
+                    cls_idx = int(classes[i])
+                    cls_name = model.names.get(cls_idx, labels[cls_idx] if cls_idx < len(labels) else f"class_{cls_idx}")
+                    if configured_classes and str(cls_name).casefold() not in configured_classes:
+                        continue
+                    x1, y1, x2, y2 = [float(v) for v in box]
+
+                    item: dict[str, Any] = {
+                        "class": str(cls_name),
+                        "score": score,
+                        "bbox": [x1, y1, x2 - x1, y2 - y1],
+                        "sourceNodeId": node_id,
+                        "kind": "segmentation" if node_type == "segmenter" else "detection",
+                    }
+                    if masks_data is not None and i < len(masks_data):
+                        import cv2
+                        import numpy as np
+                        mask = (masks_data[i] > 0.5).astype(np.uint8) * 255
+                        mask_resized = cv2.resize(mask, (frame.shape[1], frame.shape[0]))
+                        contours, _ = cv2.findContours(mask_resized, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        if contours:
+                            c = max(contours, key=cv2.contourArea).reshape(-1, 2)
+                            if len(c) >= 3:
+                                item["mask"] = [[float(p[0]), float(p[1])] for p in c]
+
+                    detections.append(item)
+                return detections
+
+            # Check for Classification probabilities
+            if hasattr(res, "probs") and res.probs is not None:
+                probs = res.probs.data.cpu().numpy()
+                top_k = int(config.get("topK", 1))
+                top_indices = probs.argsort()[-top_k:][::-1]
+                for idx in top_indices:
+                    score = float(probs[idx])
+                    if score >= threshold:
+                        cls_name = model.names.get(idx, labels[idx] if idx < len(labels) else f"class_{idx}")
+                        detections.append({
+                            "class": str(cls_name),
+                            "classId": int(idx),
+                            "score": score,
+                            "sourceNodeId": node_id,
+                            "kind": "classification",
+                        })
+                return detections
+
+            return []
+
+        # 2. Custom ONNX Runtime (.onnx)
+        if engine_type == "onnx_custom":
+            import cv2
+            import numpy as np
+
+            session = cls.get_or_load(engine_type, str(path), device=device)
+            input_meta = session.get_inputs()[0]
+            input_name = input_meta.name
+            shape = input_meta.shape
+
+            # Default to 640x640 if dynamic
+            in_h = shape[2] if len(shape) >= 4 and isinstance(shape[2], int) else 640
+            in_w = shape[3] if len(shape) >= 4 and isinstance(shape[3], int) else 640
+
+            resized = cv2.resize(frame, (in_w, in_h))
+            blob = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+            blob = np.transpose(blob, (2, 0, 1))[np.newaxis, ...]
+
+            outputs = session.run(None, {input_name: blob})
+            if not outputs:
+                return []
+
+            out = np.squeeze(outputs[0])
+            detections = []
+
+            # If YOLO output: shape [num_features, num_predictions] or [num_predictions, num_features]
+            if out.ndim == 2:
+                if out.shape[0] < out.shape[1] and out.shape[0] in (84, 85, len(labels) + 4):
+                    out = out.T  # Transpose to [num_predictions, num_features]
+
+                scale_x = frame.shape[1] / in_w
+                scale_y = frame.shape[0] / in_h
+
+                for row in out:
+                    cx, cy, w, h = row[:4]
+                    class_scores = row[4:]
+                    cls_id = int(np.argmax(class_scores))
+                    score = float(class_scores[cls_id])
+                    if score >= threshold:
+                        x = (cx - w / 2) * scale_x
+                        y = (cy - h / 2) * scale_y
+                        cls_name = labels[cls_id] if cls_id < len(labels) else f"class_{cls_id}"
+                        detections.append({
+                            "class": str(cls_name),
+                            "score": score,
+                            "bbox": [float(x), float(y), float(w * scale_x), float(h * scale_y)],
+                            "sourceNodeId": node_id,
+                            "kind": "detection",
+                        })
+                return detections
+
+            # If classification: 1D array of probabilities
+            if out.ndim == 1:
+                top_k = int(config.get("topK", 1))
+                top_indices = out.argsort()[-top_k:][::-1]
+                for idx in top_indices:
+                    score = float(out[idx])
+                    if score >= threshold:
+                        cls_name = labels[idx] if idx < len(labels) else f"class_{idx}"
+                        detections.append({
+                            "class": str(cls_name),
+                            "classId": int(idx),
+                            "score": score,
+                            "sourceNodeId": node_id,
+                            "kind": "classification",
+                        })
+                return detections
+
+            return []
+
+        # 3. TensorFlow Lite (.tflite)
+        if engine_type == "tflite":
+            import cv2
+            import numpy as np
+
+            interpreter = cls.get_or_load(engine_type, str(path), device=device)
+            input_details = interpreter.get_input_details()
+            output_details = interpreter.get_output_details()
+
+            in_shape = input_details[0]["shape"]
+            in_h, in_w = in_shape[1], in_shape[2]
+
+            resized = cv2.resize(frame, (in_w, in_h))
+            input_dtype = input_details[0]["dtype"]
+            if input_dtype == np.uint8:
+                input_data = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)[np.newaxis, ...]
+            else:
+                input_data = (cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0)[np.newaxis, ...]
+
+            interpreter.set_tensor(input_details[0]["index"], input_data)
+            interpreter.invoke()
+
+            detections = []
+            # Standard SSD MobileNet TFLite outputs (boxes, classes, scores, count)
+            if len(output_details) >= 4:
+                boxes = np.squeeze(interpreter.get_tensor(output_details[0]["index"]))
+                classes = np.squeeze(interpreter.get_tensor(output_details[1]["index"]))
+                scores = np.squeeze(interpreter.get_tensor(output_details[2]["index"]))
+
+                for i, score in enumerate(scores):
+                    if float(score) >= threshold:
+                        y1, x1, y2, x2 = boxes[i]
+                        cls_id = int(classes[i])
+                        cls_name = labels[cls_id] if cls_id < len(labels) else f"class_{cls_id}"
+                        detections.append({
+                            "class": str(cls_name),
+                            "score": float(score),
+                            "bbox": [
+                                float(x1 * frame.shape[1]),
+                                float(y1 * frame.shape[0]),
+                                float((x2 - x1) * frame.shape[1]),
+                                float((y2 - y1) * frame.shape[0]),
+                            ],
+                            "sourceNodeId": node_id,
+                            "kind": "detection",
+                        })
+                return detections
+
+            # Generic single output TFLite (YOLO or classifier)
+            out = np.squeeze(interpreter.get_tensor(output_details[0]["index"]))
+            if out.ndim == 1:
+                top_k = int(config.get("topK", 1))
+                top_indices = out.argsort()[-top_k:][::-1]
+                for idx in top_indices:
+                    score = float(out[idx])
+                    if score >= threshold:
+                        cls_name = labels[idx] if idx < len(labels) else f"class_{idx}"
+                        detections.append({
+                            "class": str(cls_name),
+                            "classId": int(idx),
+                            "score": score,
+                            "sourceNodeId": node_id,
+                            "kind": "classification",
+                        })
+                return detections
+
+            return []
+
+        # 4. TensorFlow Keras (.keras, .h5)
+        if engine_type == "tensorflow_keras":
+            import cv2
+            import numpy as np
+
+            model = cls.get_or_load(engine_type, str(path), device=device)
+            # Default classification size
+            in_h, in_w = 224, 224
+            if hasattr(model, "input_shape") and model.input_shape and len(model.input_shape) >= 3:
+                in_h = model.input_shape[1] or 224
+                in_w = model.input_shape[2] or 224
+
+            resized = cv2.resize(frame, (in_w, in_h))
+            blob = (cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0)[np.newaxis, ...]
+            preds = model.predict(blob, verbose=0)
+            out = np.squeeze(preds)
+
+            detections = []
+            if out.ndim == 1:
+                top_k = int(config.get("topK", 1))
+                top_indices = out.argsort()[-top_k:][::-1]
+                for idx in top_indices:
+                    score = float(out[idx])
+                    if score >= threshold:
+                        cls_name = labels[idx] if idx < len(labels) else f"class_{idx}"
+                        detections.append({
+                            "class": str(cls_name),
+                            "classId": int(idx),
+                            "score": score,
+                            "sourceNodeId": node_id,
+                            "kind": "classification",
+                        })
+            return detections
+
+        raise ValueError(f"Unknown engine: {engine_type}")
+
+
+def run_custom_model_frame(frame, inference_node: dict) -> list[dict]:
+    """Top-level helper for single-frame inference on custom AI models."""
+    return CustomModelRunner.run_frame(frame, inference_node)

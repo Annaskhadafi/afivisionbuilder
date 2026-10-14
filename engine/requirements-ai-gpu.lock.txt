@@ -1,0 +1,27 @@
+# Optional NVIDIA runtime packages. Install only when a compatible NVIDIA
+# driver is detected. All packages are exact so pip cannot update one of the
+# TensorRT components independently.
+tensorrt-cu13==11.1.0.106
+tensorrt-cu13-bindings==11.1.0.106
+tensorrt-cu13-libs==11.1.0.106
+
+# Exact Linux CUDA dependencies declared by torch 2.12.1+cu132. These are
+# installed without dependency resolution together with the shared lock.
+cuda-bindings==13.0.3; platform_system == "Linux"
+cuda-pathfinder==1.2.2; platform_system == "Linux"
+cuda-toolkit==13.2.1; platform_system == "Linux"
+nvidia-cublas==13.4.0.1; platform_system == "Linux"
+nvidia-cuda-cupti==13.2.75; platform_system == "Linux"
+nvidia-cuda-nvrtc==13.2.78; platform_system == "Linux"
+nvidia-cuda-runtime==13.2.75; platform_system == "Linux"
+nvidia-cudnn-cu13==9.20.0.48; platform_system == "Linux"
+nvidia-cufft==12.2.0.46; platform_system == "Linux"
+nvidia-cufile==1.17.1.22; platform_system == "Linux"
+nvidia-curand==10.4.2.55; platform_system == "Linux"
+nvidia-cusolver==12.2.0.1; platform_system == "Linux"
+nvidia-cusparse==12.7.10.1; platform_system == "Linux"
+nvidia-cusparselt-cu13==0.8.1; platform_system == "Linux"
+nvidia-nccl-cu13==2.29.7; platform_system == "Linux"
+nvidia-nvjitlink==13.2.78; platform_system == "Linux"
+nvidia-nvshmem-cu13==3.4.5; platform_system == "Linux"
+nvidia-nvtx==13.2.75; platform_system == "Linux"
