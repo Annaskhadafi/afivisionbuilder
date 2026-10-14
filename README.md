@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="static/logo.png" alt="AFI Vision Builder Logo" width="120" style="border-radius: 12px; margin-bottom: 12px;" />
-</p>
+
 
 <h1 align="center">AFI Vision Builder 🚀</h1>
 
