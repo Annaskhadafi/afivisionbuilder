@@ -3,6 +3,18 @@ from __future__ import annotations
 INPUT_NODE_ID = "input"
 LEGACY_CAMERA_NODE_ID = "camera"
 
+PYTHON_SCRIPT_DEFAULT_CODE = '''def process(frame, state):
+    state["frames"] = state.get("frames", 0) + 1
+    if state["frames"] % 30 == 0:
+        print(f"python_script frames={state['frames']}")
+    return frame.copy()
+'''
+PYTHON_SCRIPT_DEFAULTS = {
+    "code": PYTHON_SCRIPT_DEFAULT_CODE,
+    "timeoutMs": 500,
+    "onError": "stop",
+}
+
 EFFICIENTAD_DEFAULTS = {
     "engine": "efficientad", "efficientadModel": "", "threshold": 0.0,
     "useModelThreshold": True, "anomalyThreshold": 0.1,
@@ -29,6 +41,7 @@ IMAGE_PROCESSING_NODE_TYPES = (
     "perspective",
     "undistort",
     "background_subtract",
+    "python_script",
 )
 DRAWING_NODE_TYPES = ("overlay_annotate",)
 LEGACY_DRAWING_NODE_TYPES = ("draw_text", "draw_boxes")
@@ -318,11 +331,12 @@ CONVNEXT_MODEL_OPTIONS = [
     ("convnext_base.fb_in22k_ft_in1k", "ConvNeXt Base"),
     ("convnext_large.fb_in22k_ft_in1k", "ConvNeXt Large"),
 ]
-TRACKING_ALGORITHMS = ("bytetrack", "botsort", "ocsort")
+TRACKING_ALGORITHMS = ("bytetrack", "botsort", "ocsort", "cbiou")
 TRACKING_ALGORITHM_OPTIONS = [
     ("bytetrack", "ByteTrack"),
     ("botsort", "BoT-SORT"),
     ("ocsort", "OC-SORT"),
+    ("cbiou", "C-BIoU (Buffered Motion)"),
 ]
 BOT_SORT_CMC_OPTIONS = [
     ("sparseOptFlow", "Sparse optical flow"),
@@ -330,7 +344,7 @@ BOT_SORT_CMC_OPTIONS = [
     ("sift", "SIFT features"),
     ("ecc", "ECC alignment"),
 ]
-TRACKER_CONFIG_VERSION = 2
+TRACKER_CONFIG_VERSION = 3
 OBSOLETE_TRACKER_CONFIG_KEYS = (
     "proximityThreshold",
     "appearanceThreshold",
@@ -352,12 +366,12 @@ TRACKER_CONFIG_DEFAULTS = {
     "trackerConfigVersion": TRACKER_CONFIG_VERSION,
     "algorithm": "bytetrack",
     # Roboflow ByteTrack and BoT-SORT confidence/lifecycle settings.
-    "trackHighThreshold": 0.6,
+    "trackHighThreshold": 0.45,
     "trackLowThreshold": 0.1,
-    "newTrackThreshold": 0.7,
+    "newTrackThreshold": 0.5,
     "matchThreshold": 0.1,
-    "trackBuffer": 30,
-    "minimumConsecutiveFrames": 2,
+    "trackBuffer": 90,
+    "minimumConsecutiveFrames": 1,
     "trackerFrameRate": 30,
     # Roboflow BoT-SORT association and camera-motion settings.
     "botSortFirstIouThreshold": 0.2,
@@ -367,10 +381,10 @@ TRACKER_CONFIG_DEFAULTS = {
     "botSortCmcMethod": "sparseOptFlow",
     "botSortCmcDownscale": 2,
     # Roboflow OC-SORT settings.
-    "ocSortDetectionThreshold": 0.6,
+    "ocSortDetectionThreshold": 0.45,
     "ocSortIouThreshold": 0.3,
-    "ocSortMaxAge": 30,
-    "ocSortMinHits": 3,
+    "ocSortMaxAge": 90,
+    "ocSortMinHits": 1,
     "ocSortDeltaT": 3,
     "ocSortInertia": 0.2,
     # Settings shared by every tracker.
@@ -386,7 +400,7 @@ def migrate_tracker_config(config: dict) -> None:
         version = int(config.get("trackerConfigVersion", 0))
     except (TypeError, ValueError):
         version = 0
-    if version < TRACKER_CONFIG_VERSION:
+    if version < 2:
         legacy_default_updates = {
             "trackHighThreshold": (0.5, 0.6),
             "newTrackThreshold": (0.6, 0.7),
@@ -396,6 +410,15 @@ def migrate_tracker_config(config: dict) -> None:
         for key, (legacy_default, roboflow_default) in legacy_default_updates.items():
             if config.get(key) == legacy_default:
                 config[key] = roboflow_default
+    if version < 3:
+        for key, old_default in {
+            "trackHighThreshold": 0.6, "newTrackThreshold": 0.7,
+            "trackBuffer": 30, "minimumConsecutiveFrames": 2,
+            "ocSortDetectionThreshold": 0.6, "ocSortMaxAge": 30,
+            "ocSortMinHits": 3,
+        }.items():
+            if config.get(key) == old_default:
+                config[key] = TRACKER_CONFIG_DEFAULTS[key]
     for key in OBSOLETE_TRACKER_CONFIG_KEYS:
         config.pop(key, None)
     config["trackerConfigVersion"] = TRACKER_CONFIG_VERSION
@@ -582,7 +605,7 @@ NODE_BLUEPRINTS = {
     },
     "tracker": {
         "title": "Object Tracking",
-        "subtitle": "Pelacakan identitas ID objek dengan ByteTrack, BoT-SORT, atau OC-SORT",
+        "subtitle": "Pelacakan ID dengan ByteTrack, BoT-SORT, OC-SORT, atau C-BIoU",
         "x": 620,
         "y": 230,
         "config": dict(TRACKER_CONFIG_DEFAULTS),
@@ -809,6 +832,21 @@ NODE_BLUEPRINTS = {
         "x": 330,
         "y": 570,
         "config": {"width": 1280, "height": 720, "interpolation": "linear"},
+    },
+    "frame_sampler": {
+        "title": "Frame Sampler",
+        "subtitle": "Batasi FPS pemrosesan per cabang",
+        "x": 330,
+        "y": 635,
+        "config": {"targetFps": 10},
+    },
+    "python_script": {
+        "title": "Custom Python Script",
+        "subtitle": "Jalankan process(frame, state) pada frame BGR uint8 tanpa mengubah dimensinya",
+        "category": "Image Preprocessing",
+        "x": 620,
+        "y": 700,
+        "config": dict(PYTHON_SCRIPT_DEFAULTS),
     },
     "crop": {
         "title": "Crop / Region of Interest",

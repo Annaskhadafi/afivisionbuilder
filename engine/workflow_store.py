@@ -16,6 +16,7 @@ from node_catalog import (
     INPUT_NODE_ID,
     LEGACY_CAMERA_NODE_ID,
     NODE_BLUEPRINTS,
+    PYTHON_SCRIPT_DEFAULTS,
     RFDETR_NATIVE_IMAGE_SIZE,
     SAM3_DEFAULT_THRESHOLD,
     SAM3_IMAGE_SIZE,
@@ -333,6 +334,13 @@ def normalize_workflow(workflow: dict) -> dict:
             config.setdefault("saveVideo", False)
             config.setdefault("outputPath", "")
             config.setdefault("outputFps", 0)
+        if node.get("type") == "frame_sampler":
+            config = node.setdefault("config", {})
+            config.setdefault("targetFps", 10)
+        if node.get("type") == "python_script":
+            config = node.setdefault("config", {})
+            for key, value in PYTHON_SCRIPT_DEFAULTS.items():
+                config.setdefault(key, value)
         if node.get("type") == "draw_text":
             config = node.setdefault("config", {})
             config.setdefault("textTemplate", "{classification.class}  {classification.confidence}")

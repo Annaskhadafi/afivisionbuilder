@@ -27,14 +27,16 @@ import json
 import traceback
 from collections import deque
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass
-from threading import Condition, Event, Lock, Thread
+from dataclasses import dataclass, field
+from graphlib import TopologicalSorter
+from threading import Condition, Event, Lock, RLock, Thread
 from typing import Callable
 from pathlib import Path
 
 import main as engine
 from detector_process import DetectorProcessStopped, TensorRTDetectorProcess
 from visonode_database import DatabaseWriter
+from python_script_runtime import ScriptError, ScriptStopped, ScriptTimeout, PythonScriptRunner
 
 
 _torch_thread_scope_lock = Lock()
@@ -1681,6 +1683,8 @@ class FramePacket:
     timestamp: float  # capture time (time.monotonic), carried through the pipeline
     duration_ms: float = 0.0
     source_label: str = ""
+    workflow: dict | None = None
+    script_frames: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -1692,6 +1696,8 @@ class DetectionPacket:
     filtered: list[dict]
     crop_batches: dict[str, list[dict]]
     timestamp: float  # capture time of the underlying frame
+    workflow: dict | None = None
+    script_frames: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -1705,6 +1711,126 @@ class TrackingPacket:
     object_records: list[dict]
     count_records: list[dict]
     timestamp: float  # capture time of the underlying frame
+    workflow: dict | None = None
+    script_frames: dict = field(default_factory=dict)
+
+
+def _sampler_target_fps(node: dict) -> float:
+    raw = node.get("config", {}).get("targetFps", 10)
+    if isinstance(raw, bool):
+        raise ValueError("Frame sampler targetFps must be a finite number >= 0")
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        raise ValueError("Frame sampler targetFps must be a finite number >= 0") from None
+    if not math.isfinite(value) or value < 0:
+        raise ValueError("Frame sampler targetFps must be a finite number >= 0")
+    return value
+
+
+def sample_frame_workflow(workflow: dict, runtime: dict, now: float) -> dict:
+    """Return this frame's graph view after frame-sampler gates are evaluated."""
+    nodes = list(workflow.get("nodes", []))
+    node_by_id = {str(node.get("id")): node for node in nodes}
+    source_id = str(engine.source_node_id(workflow))
+    sampler_ids = {
+        node_id for node_id, node in node_by_id.items()
+        if node.get("type") == "frame_sampler"
+    }
+    if not sampler_ids:
+        return workflow
+
+    edges = list(dict.fromkeys(
+        (str(edge[0]), str(edge[1])) for edge in workflow.get("edges", []) if len(edge) >= 2
+    ))
+    incoming = {node_id: [] for node_id in node_by_id}
+    for source, target in edges:
+        if source in node_by_id and target in node_by_id:
+            incoming[target].append(source)
+    # Workflows are editor DAGs; this order also makes nested samplers count
+    # only frames that actually arrive through an upstream passing sampler.
+    order = TopologicalSorter(incoming).static_order()
+
+    reachable = {source_id}
+    blocked = set()
+    for node_id in order:
+        if node_id == source_id:
+            continue
+        arrived = any(parent in reachable for parent in incoming[node_id])
+        node = node_by_id[node_id]
+        if not node.get("enabled", True) and node.get("type") != "frame_sampler":
+            arrived = False
+        if not arrived:
+            continue
+        if node_id in sampler_ids and node.get("enabled", True):
+            state = runtime.setdefault(node_id, {"inputFrames": 0, "outputFrames": 0, "lastPass": None, "startedAt": now})
+            state["inputFrames"] = int(state.get("inputFrames", 0)) + 1
+            fps = _sampler_target_fps(node)
+            last_pass = state.get("lastPass")
+            passed = fps <= 0 or last_pass is None or now - float(last_pass) >= (1.0 / fps) - 1e-9
+            if passed:
+                state["lastPass"] = now
+                state["outputFrames"] = int(state.get("outputFrames", 0)) + 1
+            else:
+                blocked.add(node_id)
+                continue
+        reachable.add(node_id)
+
+    view = copy.copy(workflow)
+    view["edges"] = [edge for edge in edges if str(edge[0]) not in blocked]
+    view["nodes"] = [dict(node) for node in nodes]
+    reachable_ids = set(engine._reachable_node_ids(
+        frozenset(
+            str(node.get("id")) for node in nodes
+            if node.get("enabled", True) or node.get("type") == "frame_sampler"
+        ),
+        tuple(view["edges"]),
+        source_id,
+    ))
+    for node in view["nodes"]:
+        if str(node.get("id")) not in reachable_ids and node.get("enabled", True):
+            node["enabled"] = False
+    view = engine.prepare_runtime_workflow(view)
+    view.common_processing_ids = {
+        str(node.get("id") or "")
+        for node in engine.active_image_processing_nodes(workflow)
+    }
+    original_reachable = {
+        str(node.get("id")) for node in nodes
+        if node.get("enabled", True)
+        and engine.has_active_path(workflow, source_id, str(node.get("id")))
+    }
+    original_leaves = {
+        node_id for node_id in original_reachable
+        if not any(target in original_reachable for source, target in edges if source == node_id)
+    }
+    if not original_leaves:
+        view.auto_preview_enabled = True
+    else:
+        view.auto_preview_enabled = any(
+            node_id in reachable_ids
+            and node_id not in blocked
+            for node_id in original_leaves
+        )
+    return view
+
+
+def frame_sampler_stats(runtime: dict, now: float) -> dict:
+    result = {}
+    for node_id, state in runtime.items():
+        input_frames = int(state.get("inputFrames", 0))
+        output_frames = int(state.get("outputFrames", 0))
+        started = state.setdefault("startedAt", now)
+        elapsed = max(0.0, now - float(started))
+        output_rate_count = max(0, output_frames - 1)
+        result[str(node_id)] = {
+            "inputFps": round(max(0, input_frames - 1) / elapsed, 3) if elapsed else 0.0,
+            "outputFps": round(output_rate_count / elapsed, 3) if elapsed else 0.0,
+            "inputFrames": input_frames,
+            "outputFrames": output_frames,
+            "droppedFrames": max(0, input_frames - output_frames),
+        }
+    return result
 
 
 class StageQueue:
@@ -2130,6 +2256,7 @@ class WorkflowRunner:
 
         self._lock = Lock()
         self._stop_event = Event()
+        self._python_last_errors = {}
         self._thread: Thread | None = None
         self._debug_enabled = False
         self._node_debug_last_emit: dict[str, float] = {}
@@ -2151,7 +2278,84 @@ class WorkflowRunner:
             "model": None,
             "device": "CPU",
             "error": None,
+            "frameSamplers": {},
+            "pythonScripts": {},
         }
+
+    def _python_script_context(self, workflow: dict) -> dict:
+        statuses = {}
+        for node in workflow.get("nodes", []):
+            if node.get("type") != "python_script":
+                continue
+            node_id = str(node.get("id") or "python_script")
+            enabled = bool(node.get("enabled", True))
+            statuses[node_id] = {
+                "state": "idle" if enabled else "bypassed",
+                "processedFrames": 0,
+                "errorCount": 0,
+                "lastDurationMs": 0,
+                "lastRunAt": None,
+                "error": None,
+                "logs": "",
+            }
+        context = {
+            "runners": {},
+            "errors": {},
+            "lock": RLock(),
+            "stop_event": self._stop_event,
+            "statuses": statuses,
+            "last_errors": {},
+            "callback": self._python_script_notify,
+        }
+        self._set_status(pythonScripts=copy.deepcopy(statuses))
+        return context
+
+    def _python_script_notify(self, node, **fields) -> None:
+        node_id = str(node.get("id") or node.get("type") or "python_script")
+        with self._lock:
+            scripts = self._status.setdefault("pythonScripts", {})
+            status = scripts.setdefault(node_id, {
+                "state": "idle", "processedFrames": 0, "errorCount": 0,
+                "lastDurationMs": 0, "lastRunAt": None, "error": None, "logs": "",
+            })
+            state = fields.get("state")
+            if state:
+                status["state"] = state
+            elif not fields.get("error"):
+                status["state"] = "success"
+                status["processedFrames"] += 1
+            if fields.get("error"):
+                status["errorCount"] += 1
+                status["error"] = str(fields["error"])
+            elif state in ("running", "starting"):
+                status["error"] = None
+            if "logs" in fields:
+                status["logs"] = str(fields.get("logs") or "")[-4096:]
+            if "durationMs" in fields:
+                status["lastDurationMs"] = round(float(fields.get("durationMs") or 0), 2)
+            if state in ("success", "error", "timeout") or (not state and not fields.get("error")):
+                status["lastRunAt"] = time.time()
+            snapshot = copy.deepcopy(scripts)
+        self._set_status(pythonScripts=snapshot)
+        error = fields.get("error")
+        if error:
+            previous = getattr(self, "_python_last_errors", {}).get(node_id)
+            if previous != str(error):
+                self._python_last_errors = getattr(self, "_python_last_errors", {})
+                self._python_last_errors[node_id] = str(error)
+                self._emit_log(f"[Python {node_id}] {error}")
+        elif fields.get("logs"):
+            self._emit_log(f"[Python {node_id}] {str(fields['logs'])[-4096:]}")
+
+    @staticmethod
+    def _close_python_scripts(context: dict) -> None:
+        for runner in list((context or {}).get("runners", {}).values()):
+            try:
+                runner[1].close()
+            except Exception:
+                traceback.print_exc()
+        if context:
+            context.get("runners", {}).clear()
 
     # -- public control -------------------------------------------------
     def is_running(self) -> bool:
@@ -2186,7 +2390,10 @@ class WorkflowRunner:
             device="CPU",
             error=None,
             errorTraceback="",
+            frameSamplers={},
+            pythonScripts={},
         )
+        self._python_context = self._python_script_context(workflow)
         self._emit_log("Workflow launched from desktop Run button")
         self._emit_log("Starting workflow runner")
         self._thread = Thread(target=self._run, args=(workflow,), daemon=True)
@@ -2349,12 +2556,14 @@ class WorkflowRunner:
             "latency_ms_sum": 0.0,
             "latency_frames": 0,
         }
+        sampler_runtime: dict = {}
+        base_workflow = workflow
         logic_runtime: dict = {}
         event_runtime: dict = {}
         self._event_runtime = event_runtime
         self._active_workflow = workflow
         logic_lock = Lock()
-        preview_processing_runtime: dict = {}
+        preview_processing_runtime: dict = {"__python_scripts": self._python_context}
         detector_processes: dict = {}
 
         def fail_safe(name: str, target) -> None:
@@ -2647,7 +2856,8 @@ class WorkflowRunner:
                 raw_queue.close()
 
             def processing_stage() -> None:
-                processing_runtime: dict = {}
+                processing_runtime: dict = {"__python_scripts": self._python_context}
+                last_sampler_status_at = 0.0
 
                 def on_processing_debug(node, before_frame, after_frame, duration_ms) -> None:
                     self._emit_node_debug(
@@ -2670,10 +2880,13 @@ class WorkflowRunner:
                     if packet is None:
                         break
                     started_at = time.monotonic()
+                    packet_workflow = sample_frame_workflow(base_workflow, sampler_runtime, time.monotonic())
                     frame = engine.apply_image_processing(
                         packet.frame,
-                        workflow,
+                        packet_workflow,
                         processing_runtime,
+                        processing_nodes=engine.active_image_processing_nodes(packet_workflow),
+                        script_frames=packet.script_frames,
                         debug_callback=on_processing_debug if self._debug_enabled else None,
                     )
                     if not processed_queue.put(FramePacket(
@@ -2682,11 +2895,22 @@ class WorkflowRunner:
                         timestamp=packet.timestamp,
                         duration_ms=(time.monotonic() - started_at) * 1000,
                         source_label=packet.source_label,
+                        workflow=packet_workflow,
+                        script_frames=packet.script_frames,
                     ), self._stop_event):
                         break
+                    status_now = time.monotonic()
+                    if status_now - last_sampler_status_at >= 0.5:
+                        last_sampler_status_at = status_now
+                        self._set_status(frameSamplers=frame_sampler_stats(sampler_runtime, status_now))
+                self._set_status(frameSamplers=frame_sampler_stats(sampler_runtime, time.monotonic()))
                 processed_queue.close()
 
             def detection_stage() -> None:
+                workflow = base_workflow
+                inference_nodes = engine.active_inference_nodes(base_workflow)
+                frame_inference_plan = _frame_inference_plan(base_workflow, engine.active_frame_inference_nodes(base_workflow))
+                detection_crop_bindings = engine.active_pretracking_detection_crop_bindings(base_workflow)
                 if not inference_nodes:
                     detection_queue.close()
                     return
@@ -2705,18 +2929,33 @@ class WorkflowRunner:
                         ),
                     ),
                 )
+                if any(node.get("type") == "frame_sampler" for node in base_workflow.get("nodes", [])):
+                    detector_batch_size = 1  # ponytail: group by sampler mask later if batching matters.
+                remaining_batch = []
                 while not self._stop_event.is_set():
                     get_detection_batch = (
                         processed_queue.get_latest_batch if drop_frames else processed_queue.get_batch
                     )
-                    batch = get_detection_batch(
-                        self._stop_event,
-                        detector_batch_size,
-                        timeout=0.1,
-                        collect_timeout=0.02,
-                    )
+                    if remaining_batch:
+                        batch, remaining_batch = remaining_batch[:1], remaining_batch[1:]
+                    else:
+                        batch = get_detection_batch(
+                            self._stop_event,
+                            detector_batch_size,
+                            timeout=0.1,
+                            collect_timeout=0.02,
+                        )
+                        # A live edit can introduce sampling while this batch is collected.
+                        if len(batch) > 1 and any(packet.workflow is not base_workflow for packet in batch):
+                            batch, remaining_batch = batch[:1], batch[1:]
                     if not batch:
                         break
+                    packet_workflow = batch[0].workflow or base_workflow
+                    if packet_workflow is not workflow:
+                        workflow = packet_workflow
+                        inference_nodes = engine.active_inference_nodes(workflow)
+                        frame_inference_plan = _frame_inference_plan(workflow, engine.active_frame_inference_nodes(workflow))
+                        detection_crop_bindings = engine.active_pretracking_detection_crop_bindings(workflow)
                     now = time.monotonic()
                     detections_by_index: list[list[dict]] = [[] for _ in batch]
                     tracking_detections_by_index: list[list[dict]] = [
@@ -2743,40 +2982,54 @@ class WorkflowRunner:
                         frames_seen_by_node[node_id] = seen
                         if not eligible_indices:
                             continue
+                        branch_script_nodes = [
+                            node for node in engine.active_image_processing_nodes_for_path(
+                                workflow, engine.source_node_id(workflow), node_id,
+                            ) if node.get("type") == "python_script"
+                        ]
+                        inference_frames = [batch[index].frame for index in eligible_indices]
+                        if branch_script_nodes:
+                            inference_frames = [
+                                engine.apply_image_processing(
+                                    batch[index].frame, workflow, processing_runtime,
+                                    processing_nodes=branch_script_nodes,
+                                    script_frames=batch[index].script_frames,
+                                ) for index in eligible_indices
+                            ]
                         eng = config.get("engine", "rfdetr")
                         inference_started_at = time.monotonic()
                         if eng == "sam3":
                             node_results = [
                                 engine.run_sam3_frame(
-                                    batch[index].frame,
+                                    inference_frames[position],
                                     runtime_inference_node,
                                 )
-                                for index in eligible_indices
+                                for position, index in enumerate(eligible_indices)
                             ]
                         elif eng == "rfdetr":
                             node_results = engine.run_rfdetr_batch(
-                                [batch[index].frame for index in eligible_indices],
+                                inference_frames,
                                 runtime_inference_node,
                             )
                         elif eng == "rfdetr_onnx":
                             node_results = engine.run_rfdetr_onnx_batch(
-                                [batch[index].frame for index in eligible_indices],
+                                inference_frames,
                                 runtime_inference_node,
                             )
                         elif eng == "rfdetr_tensorrt":
                             node_results = _run_tensorrt_for_run(
-                                [batch[index].frame for index in eligible_indices],
+                                inference_frames,
                                 runtime_inference_node,
                                 detector_processes, self._stop_event,
                             )
                         elif eng == "efficientad":
                             node_results = engine.run_efficientad_batch(
-                                [batch[index].frame for index in eligible_indices],
+                                inference_frames,
                                 runtime_inference_node,
                             )
                         elif eng == "convnext":
                             node_results = engine.run_convnext_batch(
-                                [batch[index].frame for index in eligible_indices],
+                                inference_frames,
                                 runtime_inference_node,
                             )
                         elif eng in ("ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
@@ -2785,8 +3038,8 @@ class WorkflowRunner:
                             except ImportError:
                                 from custom_model_runtime import run_custom_model_frame
                             node_results = [
-                                run_custom_model_frame(batch[index].frame, runtime_inference_node)
-                                for index in eligible_indices
+                                run_custom_model_frame(inference_frames[position], runtime_inference_node)
+                                for position, index in enumerate(eligible_indices)
                             ]
                         else:
                             raise RuntimeError(
@@ -2798,7 +3051,9 @@ class WorkflowRunner:
                             slicer = slicer_nodes[0]
                             iou_th = float(slicer.get("config", {}).get("iouThreshold", 0.45) or 0.45)
                             for r_idx, b_idx in enumerate(eligible_indices):
-                                tiles = _generate_slicer_tiles(batch[b_idx].frame, slicer)
+                                tiles = _generate_slicer_tiles(
+                                    inference_frames[eligible_indices.index(b_idx)], slicer
+                                )
                                 if tiles:
                                     accumulated = list(node_results[r_idx])
                                     for tile_img, ox, oy, _, _ in tiles:
@@ -2948,11 +3203,14 @@ class WorkflowRunner:
                             filtered=detections,
                             crop_batches=crop_batches_by_index[index],
                             timestamp=packet.timestamp,
+                            workflow=workflow,
+                            script_frames=packet.script_frames,
                         ), self._stop_event):
                             return
                 detection_queue.close()
 
             def tracking_stage() -> None:
+                workflow = base_workflow
                 if not inference_nodes:
                     tracking_queue.close()
                     return
@@ -2979,6 +3237,8 @@ class WorkflowRunner:
                     if not batch:
                         break
                     for packet in batch:
+                        workflow = packet.workflow or base_workflow
+                        tracker_node = engine.active_tracking_node(workflow)
                         now = time.monotonic()
                         detections = packet.detections
                         tracking_detections = packet.tracking_detections
@@ -3021,9 +3281,7 @@ class WorkflowRunner:
                                     duration_ms=(time.monotonic() - tracking_started_at) * 1000,
                                     sample={"tracked": _detection_sample(tracked)},
                                 )
-                        else:
-                            tracker_runtime = None
-                            tracker_signature = None
+                        # Keep tracker state warm while a sampler blocks this branch.
 
                         # Regular Detection Crop branches are materialized in
                         # the detection stage. Persist them here, alongside the
@@ -3086,6 +3344,8 @@ class WorkflowRunner:
                             object_records=object_records,
                             count_records=count_records,
                             timestamp=packet.timestamp,
+                            workflow=workflow,
+                            script_frames=packet.script_frames,
                         ), self._stop_event):
                             return
                 tracking_queue.close()
@@ -3118,6 +3378,7 @@ class WorkflowRunner:
                         if packet is None:
                             break
                         frame = packet.frame
+                        workflow = packet.workflow or base_workflow
                         frame_detections = packet.detections
                         frame_tracked = packet.tracked
                         frame_filtered = packet.filtered
@@ -3132,6 +3393,7 @@ class WorkflowRunner:
                         if packet is None:
                             break
                         frame = packet.frame
+                        workflow = packet.workflow or base_workflow
                         frame_detections = []
                         frame_tracked = []
                         frame_filtered = []
@@ -3170,9 +3432,12 @@ class WorkflowRunner:
                     now = time.monotonic()
                     display_frame_for_outputs = frame
                     preview_counts: list[int] = []
+                    incident_detections: list[dict] = []
                     displayed = False
                     for preview in preview_nodes:
                         preview_id = str(preview.get("id") or "")
+                        if not preview.get("enabled", True) or not engine.has_active_path(workflow, source_id, preview_id):
+                            continue
                         display_due = _preview_display_due(preview, now, last_display_at)
                         video_output = video_outputs.get(preview_id)
                         render_needed = display_due or video_output is not None or self._debug_enabled
@@ -3215,6 +3480,7 @@ class WorkflowRunner:
                             preview_detections,
                             preview_processing_runtime,
                         )
+                        incident_detections.extend(preview_detections)
                         # Database frame metadata still describes this preview's
                         # processed dimensions even when display rendering waits.
                         display_frame_for_outputs = preview_frame
@@ -3374,7 +3640,7 @@ class WorkflowRunner:
 
                     # Loitering automatic incident recording
                     if len(rolling_frame_buffer) >= 5:
-                        for det in preview_detections:
+                        for det in incident_detections:
                             if det.get("isLoitering") and det.get("trackId") is not None and det.get("trackId") not in recorded_loiter_tracks:
                                 recorded_loiter_tracks.add(det.get("trackId"))
                                 self._save_incident_clip_async(
@@ -3431,6 +3697,8 @@ class WorkflowRunner:
                             database_started_at = time.monotonic()
                             database_config = database_node.get("config", {})
                             database_id = str(database_node.get("id") or "")
+                            if not database_node.get("enabled", True) or not engine.has_active_path(workflow, source_id, database_id):
+                                continue
                             event_objects_only = (
                                 database_config.get("eventObjectsOnly", True)
                                 and engine.object_event_upstream_of(workflow, database_id)
@@ -3692,6 +3960,8 @@ class WorkflowRunner:
             self._close_database_outputs(database_outputs, run_status)
 
     def _run_serial(self, workflow: dict) -> None:
+        if any(node.get("type") == "frame_sampler" for node in workflow.get("nodes", [])):
+            return self._run_pipeline(workflow)
         import cv2
 
         input_source = None
@@ -3713,7 +3983,7 @@ class WorkflowRunner:
         filtered: list[dict] = []
         tracker_runtime: engine.ObjectTracker | None = None
         tracker_signature: str | None = None
-        processing_runtime: dict = {}
+        processing_runtime: dict = {"__python_scripts": self._python_context}
         logic_runtime: dict = {}
         event_runtime: dict = {}
         self._event_runtime = event_runtime
@@ -3923,11 +4193,13 @@ class WorkflowRunner:
                         sample={"inputFrame": _frame_summary(before_frame), "outputFrame": _frame_summary(after_frame)},
                     )
 
+                script_frames = {}
                 frame = engine.apply_image_processing(
                     frame,
                     workflow,
                     processing_runtime,
                     debug_callback=on_processing_debug if self._debug_enabled else None,
+                    script_frames=script_frames,
                 )
                 if not video_output_initialized:
                     video_output_initialized = True
@@ -3986,38 +4258,51 @@ class WorkflowRunner:
                     tracking_detections = []
                     for inference_node, threshold, tracking_threshold, runtime_inference_node in frame_inference_plan:
                         config = inference_node.get("config", {})
+                        inference_frame = frame
+                        branch_script_nodes = [
+                            node for node in engine.active_image_processing_nodes_for_path(
+                                workflow, engine.source_node_id(workflow),
+                                str(inference_node.get("id") or ""),
+                            ) if node.get("type") == "python_script"
+                        ]
+                        if branch_script_nodes:
+                            inference_frame = engine.apply_image_processing(
+                                frame, workflow, processing_runtime,
+                                processing_nodes=branch_script_nodes,
+                                script_frames=script_frames,
+                            )
                         eng = config.get("engine", "rfdetr")
                         if eng == "sam3":
                             inference_started_at = time.monotonic()
                             node_detections = engine.run_sam3_frame(
-                                frame,
+                                inference_frame,
                                 runtime_inference_node,
                             )
                         elif eng == "rfdetr":
                             inference_started_at = time.monotonic()
                             node_detections = engine.run_rfdetr_frame(
-                                frame,
+                                inference_frame,
                                 runtime_inference_node,
                             )
                         elif eng == "rfdetr_onnx":
                             inference_started_at = time.monotonic()
                             node_detections = engine.run_rfdetr_onnx_frame(
-                                frame, runtime_inference_node,
+                                inference_frame, runtime_inference_node,
                             )
                         elif eng == "rfdetr_tensorrt":
                             inference_started_at = time.monotonic()
                             node_detections = _run_tensorrt_for_run(
-                                [frame],
+                                [inference_frame],
                                 runtime_inference_node,
                                 detector_processes, self._stop_event,
                             )[0]
                         elif eng == "efficientad":
                             inference_started_at = time.monotonic()
-                            node_detections = engine.run_efficientad_frame(frame, runtime_inference_node)
+                            node_detections = engine.run_efficientad_frame(inference_frame, runtime_inference_node)
                         elif eng == "convnext":
                             inference_started_at = time.monotonic()
                             node_detections = engine.run_convnext_frame(
-                                frame,
+                                inference_frame,
                                 runtime_inference_node,
                             )
                         elif eng in ("ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
@@ -4026,7 +4311,7 @@ class WorkflowRunner:
                                 from .custom_model_runtime import run_custom_model_frame
                             except ImportError:
                                 from custom_model_runtime import run_custom_model_frame
-                            node_detections = run_custom_model_frame(frame, runtime_inference_node)
+                            node_detections = run_custom_model_frame(inference_frame, runtime_inference_node)
                         else:
                             raise RuntimeError(
                                 f"Backend runtime does not support inference engine '{eng}'."
@@ -4244,6 +4529,7 @@ class WorkflowRunner:
                         preview_id,
                         preview_detections,
                         processing_runtime,
+                        script_frames=script_frames,
                     )
                     display_frame_for_outputs = preview_frame
                     if render_needed:

@@ -139,6 +139,30 @@ def validate_workflow(workflow: Any) -> dict:
             raise HTTPException(400, f"node enabled must be boolean: {node['id']}")
         if not isinstance(node.get("config", {}), dict):
             raise HTTPException(400, f"node config must be an object: {node['id']}")
+        if node["type"] == "frame_sampler":
+            target_fps = node.get("config", {}).get("targetFps", 10)
+            if isinstance(target_fps, bool):
+                raise HTTPException(400, f"node '{node['id']}' Target FPS must be a finite number greater than or equal to 0")
+            try:
+                target_fps = float(target_fps)
+            except (TypeError, ValueError):
+                target_fps = -1
+            if not math.isfinite(target_fps) or target_fps < 0:
+                raise HTTPException(400, f"node '{node['id']}' Target FPS must be a finite number greater than or equal to 0")
+        if node["type"] == "python_script":
+            from python_script_runtime import validate_script
+            config = {**node_catalog.PYTHON_SCRIPT_DEFAULTS, **node.get("config", {})}
+            timeout = config["timeoutMs"]
+            if isinstance(timeout, bool) or not isinstance(timeout, int) or not 1 <= timeout <= 60000:
+                raise HTTPException(400, f"node '{node['id']}' timeoutMs must be an integer between 1 and 60000")
+            if config["onError"] not in ("stop", "pass"):
+                raise HTTPException(400, f"node '{node['id']}' onError must be 'stop' or 'pass'")
+            if not isinstance(config["code"], str) or len(config["code"]) > 65536:
+                raise HTTPException(400, f"node '{node['id']}' script must contain at most 65536 characters")
+            try:
+                validate_script(config["code"])
+            except ValueError as exc:
+                raise HTTPException(400, f"node '{node['id']}': {exc}") from exc
         for key in ("x", "y"):
             if key in node and not _finite(node[key]):
                 raise HTTPException(400, f"node {key} must be finite")
@@ -254,6 +278,20 @@ def status() -> dict:
     with _lock:
         current = _runner.status() if _runner else {"running": False, "state": "idle", "error": None}
         return {**current, "logs": list(_logs), "events": list(_events), "previews": list(_previews)}
+
+
+@app.post("/api/scripts/validate")
+def check_python_script(request: Request, body: dict) -> dict:
+    _write_allowed(request)
+    from python_script_runtime import validate_script
+    code = body.get("code")
+    if not isinstance(code, str) or len(code) > 65536:
+        raise HTTPException(400, "Script must contain at most 65536 characters")
+    try:
+        validate_script(code)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"valid": True}
 
 
 def _write_allowed(request: Request) -> None:
@@ -598,6 +636,7 @@ def live_update_workflow(request: Request, body: dict) -> dict:
     _write_allowed(request)
     wf = body.get("workflow")
     if wf:
+        wf = validate_workflow(wf)
         with _lock:
             runner = _runner
         if runner and runner.is_running():

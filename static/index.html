@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Afi Vision Builder - Computer Vision Studio</title>
   <link rel="icon" href="/static/logo.png">
-  <link rel="stylesheet" href="/static/style.css?v=2.7">
-  <script defer src="/static/app.js?v=2.8"></script>
+  <link rel="stylesheet" href="/static/style.css?v=2.8">
+  <script defer src="/static/app.js?v=3.1"></script>
 </head>
 <body>
   <header class="topbar">
@@ -128,6 +128,17 @@
             <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             <span>Rangkai Otomatis</span>
           </button>
+          <div class="panel-layout-actions" aria-label="Tampilkan panel">
+            <button class="icon-button panel-toggle" id="toggleSidebar" type="button" aria-label="Sembunyikan panel kiri" title="Sembunyikan panel kiri" aria-pressed="false">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+            </button>
+            <button class="icon-button panel-toggle" id="toggleBottom" type="button" aria-label="Sembunyikan panel bawah" title="Sembunyikan panel bawah" aria-pressed="false">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15h18"/></svg>
+            </button>
+            <button class="icon-button panel-toggle" id="toggleInspector" type="button" aria-label="Sembunyikan panel kanan" title="Sembunyikan panel kanan" aria-pressed="false">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -142,6 +153,7 @@
         </div>
       </div>
 
+      <div class="panel-resizer panel-resizer-bottom" id="resizeBottom" role="separator" aria-orientation="horizontal" aria-label="Ubah tinggi panel bawah" aria-valuemin="180" aria-valuemax="600" tabindex="0" title="Tarik untuk mengubah tinggi panel bawah"></div>
       <div class="bottom-grid">
         <section class="preview panel">
           <div class="panel-heading">
@@ -196,6 +208,9 @@
         </section>
       </div>
     </section>
+
+    <div class="panel-resizer panel-resizer-side panel-resizer-left" id="resizeSidebar" role="separator" aria-orientation="vertical" aria-label="Ubah lebar panel kiri" aria-valuemin="180" aria-valuemax="400" tabindex="0" title="Tarik untuk mengubah lebar panel kiri"></div>
+    <div class="panel-resizer panel-resizer-side panel-resizer-right" id="resizeInspector" role="separator" aria-orientation="vertical" aria-label="Ubah lebar panel kanan" aria-valuemin="220" aria-valuemax="480" tabindex="0" title="Tarik untuk mengubah lebar panel kanan"></div>
 
     <aside class="inspector panel">
       <div class="inspector-heading">

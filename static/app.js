@@ -1,6 +1,15 @@
 (() => {
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
+  const PANEL_LAYOUT_KEY = 'afiVisionBuilder.panelLayout';
+
+  function readPanelLayout() {
+    try {
+      return JSON.parse(localStorage.getItem(PANEL_LAYOUT_KEY) || '{}');
+    } catch {
+      return {};
+    }
+  }
 
   // --- Vector SVG Icon Library (Lucide style) ---
   const ICONS = {
@@ -28,6 +37,7 @@
     // Preprocessing
     slicer: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
     resize: '<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
+    frame_sampler: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/><path d="M5 4 3 6"/><path d="m19 4 2 2"/></svg>',
     crop: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>',
     rotate_flip: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>',
     color_convert: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>',
@@ -36,6 +46,7 @@
     perspective: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="m2 4 6 3v10l-6 3V4z"/><path d="m22 4-6 3v10l6 3V4z"/><path d="M8 7h8"/><path d="M8 17h8"/></svg>',
     undistort: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
     background_subtract: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 18 6-6-6-6"/></svg>',
+    python_script: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></svg>',
     blur_anonymizer: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>',
 
     // Drawing & Annotation
@@ -80,6 +91,15 @@
   }
 
   const state = {
+    panelLayout: {
+      sidebarWidth: 236,
+      inspectorWidth: 300,
+      bottomHeight: 320,
+      sidebarHidden: false,
+      inspectorHidden: false,
+      bottomHidden: false,
+      ...readPanelLayout(),
+    },
     zoom: 1,
     panX: 0,
     panY: 0,
@@ -109,6 +129,32 @@
     autoConnect: true,
     reconnectingEdge: null, // { index, fixedNode, mode: 'target' | 'source' }
   };
+
+  function applyPanelLayout() {
+    const layout = state.panelLayout;
+    const shell = $('.app-shell');
+    if (!shell) return;
+    shell.dataset.sidebarHidden = String(layout.sidebarHidden);
+    shell.dataset.inspectorHidden = String(layout.inspectorHidden);
+    shell.dataset.bottomHidden = String(layout.bottomHidden);
+    shell.style.setProperty('--sidebar-width', `${layout.sidebarWidth}px`);
+    shell.style.setProperty('--inspector-width', `${layout.inspectorWidth}px`);
+    shell.style.setProperty('--bottom-height', `${layout.bottomHeight}px`);
+
+    for (const [id, key, label] of [
+      ['toggleSidebar', 'sidebarHidden', 'panel kiri'],
+      ['toggleBottom', 'bottomHidden', 'panel bawah'],
+      ['toggleInspector', 'inspectorHidden', 'panel kanan'],
+    ]) {
+      const button = $(`#${id}`);
+      if (!button) continue;
+      const hidden = layout[key];
+      const action = hidden ? 'Tampilkan' : 'Sembunyikan';
+      button.setAttribute('aria-label', `${action} ${label}`);
+      button.title = `${action} ${label}`;
+      button.setAttribute('aria-pressed', String(hidden));
+    }
+  }
 
   const api = async (url, options) => {
     const res = await fetch(url, options);
@@ -145,7 +191,7 @@
     if (type === 'input' || type === 'ip_camera') return 'Sources';
     if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader'].includes(type)) return 'AI Vision Models';
     if (['tracker', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'filter'].includes(type)) return 'Tracking & Analysis';
-    if (['resize', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'slicer'].includes(type)) return 'Image Preprocessing';
+    if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer'].includes(type)) return 'Image Preprocessing';
     if (['overlay_annotate', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
     if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once'].includes(type)) return 'Logic & Flow Control';
     return 'Outputs & Export';
@@ -240,6 +286,10 @@
       text: 'Tinggi resolusi frame kamera yang diminta ke driver kamera.',
       guide: 'Nilai 0 = resolusi asli sensor kamera. Contoh nilai lain: 720, 1080.'
     },
+    targetFps: {
+      text: 'Batas FPS frame yang diproses oleh node-node downstream; FPS sumber capture tetap berjalan sendiri.',
+      guide: 'Nilai 0 berarti tanpa batas. Contoh: 10 membatasi pemrosesan cabang ini hingga 10 FPS.'
+    },
     frameQueueSize: {
       text: 'Kapasitas buffer antrean frame di memori antar thread pemrosesan.',
       guide: 'Rentang: 1 s/d 64 frame. Nilai lebih kecil (2 - 8) menghasilkan latensi lebih rendah (real-time). Nilai lebih besar (16 - 32) mencegah frame tersendat jika AI model berat.'
@@ -314,11 +364,11 @@
     // Pelacakan Objek (Tracking & Analysis)
     algorithm: {
       text: 'Algoritma asosiasi pelacakan objek (Object Tracking).',
-      guide: 'ByteTrack: Paling cepat & stabil untuk kamera statis. BoT-SORT: Memiliki kompensasi pergerakan kamera (PTZ/bergerak). OC-SORT: Sangat tangguh saat objek tertutup sementara (oklusi).'
+      guide: 'ByteTrack: ringan untuk kamera statis. BoT-SORT: kompensasi gerak kamera. OC-SORT: arah gerak objek. C-BIoU: area pencocokan lebih luas untuk gerakan mendadak atau frame yang disampling.'
     },
     trackHighThreshold: {
-      text: 'Skor keyakinan minimum untuk inisiasi track baru (tahap 1).',
-      guide: 'Rentang: 0.1 s/d 0.9 (Ideal: 0.6). Semakin tinggi memastikan ID hanya dibuat untuk objek yang jelas.'
+      text: 'Pisahkan deteksi kuat untuk pencocokan utama dari deteksi lemah untuk pemulihan track.',
+      guide: 'Default: 0.45. Ambang pembuatan ID baru diatur terpisah melalui New Track Threshold.'
     },
     trackLowThreshold: {
       text: 'Skor minimum untuk melanjutkan lintasan objek yang bergerak cepat/kabur (tahap 2).',
@@ -326,7 +376,7 @@
     },
     newTrackThreshold: {
       text: 'Skor deteksi untuk mengonfirmasi ID pelacakan permanen.',
-      guide: 'Rentang: 0.4 s/d 0.9 (Ideal: 0.7).'
+      guide: 'Default: 0.5. Turunkan jika objek sulit mendapat ID; naikkan jika terlalu banyak track dari deteksi keliru.'
     },
     matchThreshold: {
       text: 'Batas toleransi jarak / IoU saat mencocokkan objek antar frame.',
@@ -334,11 +384,11 @@
     },
     trackBuffer: {
       text: 'Batas jumlah frame riwayat ID disimpan sebelum dianggap keluar arena.',
-      guide: 'Rentang: 10 s/d 120 frame (Default: 30 frame = 1 detik pada 30 FPS). Semakin TINGGI: ID tidak akan berganti jika objek terhalang tiang selama beberapa detik.'
+      guide: 'Default: 90 pada skala 30 FPS. Frame yang sengaja dilewati sampler tidak dianggap deteksi kosong. Nilai besar memperpanjang memori tetapi bisa mencocokkan objek baru ke track lama.'
     },
     trackerFrameRate: {
-      text: 'Asumsi kecepatan frame rate kamera untuk estimasi Kalman Filter.',
-      guide: 'Cocokkan dengan FPS kamera (misal: 25 atau 30 FPS) untuk prediksi lintasan gerak paling akurat.'
+      text: 'Skala FPS untuk buffer kehilangan track.',
+      guide: 'Library menskalakan buffer dengan FPS ini / 30. Ini bukan batas kecepatan inferensi; gunakan Frame Sampler untuk membatasi FPS.'
     },
     classAgnostic: {
       text: 'Lacak objek tanpa membedakan jenis kelasnya.',
@@ -1697,6 +1747,34 @@
   }
 
   // --- Inspector / Tabbed & Conditional Settings ---
+  function updateFrameSamplerStatus(nodeId, status = state.status) {
+    const card = document.getElementById(`frame-sampler-stats-${nodeId}`);
+    if (!card) return;
+    const stats = status?.frameSamplers?.[nodeId];
+    const value = (key, suffix = '') => {
+      const raw = stats?.[key];
+      if (raw === undefined || raw === null || !Number.isFinite(Number(raw))) return '—';
+      return `${Number(raw).toFixed(key.toLowerCase().includes('fps') ? 1 : 0)}${suffix}`;
+    };
+    card.querySelector('[data-stat="inputFps"]').textContent = value('inputFps', ' FPS');
+    card.querySelector('[data-stat="outputFps"]').textContent = value('outputFps', ' FPS');
+    card.querySelector('[data-stat="inputFrames"]').textContent = value('inputFrames');
+    card.querySelector('[data-stat="outputFrames"]').textContent = value('outputFrames');
+    card.querySelector('[data-stat="droppedFrames"]').textContent = value('droppedFrames');
+    card.querySelector('[data-stat="waiting"]').hidden = !!stats;
+  }
+
+  function updatePythonScriptStatus(nodeId, status = state.status) {
+    const card = document.getElementById(`python-script-status-${nodeId}`);
+    if (!card) return;
+    const stats = status?.pythonScripts?.[nodeId] || {};
+    const stateName = String(stats.state || 'idle').toUpperCase();
+    card.querySelector('[data-stat="status"]').textContent = stateName;
+    card.querySelector('[data-stat="metrics"]').textContent = `Frames: ${stats.processedFrames ?? '—'} · Errors: ${stats.errorCount ?? '—'} · Last: ${stats.lastDurationMs ?? '—'} ms · ${stats.lastRunAt || 'Belum ada run'}`;
+    const details = [stats.error, ...(Array.isArray(stats.logs) ? stats.logs : [])].filter(Boolean).map(String).slice(-30);
+    card.querySelector('[data-stat="logs"]').textContent = details.join('\n');
+  }
+
   function renderInspector() {
     const n = nodeFor(state.selected);
     const body = $('#inspectorBody');
@@ -1832,6 +1910,33 @@
     }
 
     body.append(section);
+
+    if (n.type === 'frame_sampler') {
+      const statsCard = document.createElement('div');
+      statsCard.id = `frame-sampler-stats-${n.id}`;
+      statsCard.style.cssText = 'margin-top:12px;padding:12px;border:1px solid var(--border,#334155);border-radius:8px;background:var(--bg-card,#1e293b);font-size:11px;';
+      statsCard.innerHTML = `
+        <div style="font-weight:600;font-size:12px;margin-bottom:8px;">Runtime status</div>
+        <div data-stat="waiting" style="color:var(--text-muted,#94a3b8);margin-bottom:8px;">Menunggu runtime...</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;color:var(--text-muted,#94a3b8);">
+          <span>Input FPS <b data-stat="inputFps" style="color:var(--text,#f1f5f9)">—</b></span>
+          <span>Output FPS <b data-stat="outputFps" style="color:var(--text,#f1f5f9)">—</b></span>
+          <span>Input frames <b data-stat="inputFrames" style="color:var(--text,#f1f5f9)">—</b></span>
+          <span>Passed frames <b data-stat="outputFrames" style="color:var(--text,#f1f5f9)">—</b></span>
+          <span>Dropped frames <b data-stat="droppedFrames" style="color:var(--text,#f1f5f9)">—</b></span>
+        </div>`;
+      body.append(statsCard);
+      updateFrameSamplerStatus(n.id);
+    }
+
+    if (n.type === 'python_script') {
+      const card = document.createElement('div');
+      card.id = `python-script-status-${n.id}`;
+      card.style.cssText = 'margin-top:12px;padding:12px;border:1px solid var(--border,#334155);border-radius:8px;background:var(--bg-card,#1e293b);font-size:11px;';
+      card.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><strong>Python Script Runtime</strong><span data-stat="status" style="font-weight:700;color:var(--text-muted,#94a3b8)">IDLE</span></div><div data-stat="metrics" style="color:var(--text-muted,#94a3b8)"></div><pre data-stat="logs" style="white-space:pre-wrap;max-height:100px;overflow:auto;margin:8px 0 0;color:var(--text-muted,#94a3b8)"></pre>';
+      body.append(card);
+      updatePythonScriptStatus(n.id);
+    }
 
     // Node Specific Action Buttons
     if (n.type === 'if_else' || n.type === 'compare_value') {
@@ -2197,8 +2302,10 @@
       if (key === 'trackerConfigVersion') return false;
       if (algo === 'bytetrack') {
         if (key.startsWith('botSort') || key.startsWith('ocSort')) return false;
-      } else if (algo === 'botsort') {
+      } else if (algo === 'botsort' || algo === 'cbiou') {
         if (key.startsWith('ocSort')) return false;
+        if (key === 'matchThreshold') return false;
+        if (algo === 'cbiou' && ['botSortGmc', 'botSortCmcMethod', 'botSortCmcDownscale'].includes(key)) return false;
       } else if (algo === 'ocsort') {
         if (key.startsWith('botSort')) return false;
       }
@@ -2308,6 +2415,7 @@
     thresholdSeconds: { min: 0.5, max: 120.0, step: 0.5, isSlider: true, unit: 'dtk' },
     cooldownSeconds: { min: 0.1, max: 60.0, step: 0.5, isSlider: true, unit: 'dtk' },
     timeoutSeconds: { min: 0.5, max: 30.0, step: 0.5, isSlider: true, unit: 'dtk' },
+    timeoutMs: { min: 1, max: 60000, step: 1, isSlider: false, unit: 'ms' },
     clipDurationSeconds: { min: 1, max: 60, step: 1, isSlider: true, unit: 'dtk' },
     freezeThresholdSeconds: { min: 1.0, max: 60.0, step: 1.0, isSlider: true, unit: 'dtk' },
 
@@ -2363,7 +2471,11 @@
       matchThreshold: 'Ambang Pencocokan Objek',
       trackBuffer: 'Memori Jejak Track (Buffer Frame)',
       minimumConsecutiveFrames: 'Minimal Frame Berturut-turut',
-      trackerFrameRate: 'Target FPS Pelacakan',
+      trackerFrameRate: 'Skala FPS Buffer Tracking',
+      botSortFirstIouThreshold: 'Ambang Pencocokan Tahap Pertama',
+      botSortSecondIouThreshold: 'Ambang Pencocokan Deteksi Lemah',
+      botSortUnconfirmedIouThreshold: 'Ambang Pencocokan Track Baru',
+      targetFps: 'Target FPS Pemrosesan',
       sourceType: 'Jenis Sumber Video/Kamera',
       engine: 'Mesin Inferensi AI (Engine)',
       rfdetrModel: 'Model RF-DETR',
@@ -2387,6 +2499,9 @@
       points: 'Titik Koordinat Area (Points)',
       width: 'Lebar Resolusi (Width)',
       height: 'Tinggi Resolusi (Height)',
+      code: 'Kode Python process(frame, state)',
+      timeoutMs: 'Batas Waktu Eksekusi (ms)',
+      onError: 'Jika Script Gagal',
       x: 'Posisi Horizontal X',
       y: 'Posisi Vertikal Y',
       calibrationPath: 'File Kalibrasi Kamera (.yml/.xml)',
@@ -2444,12 +2559,30 @@
     }
     wrap.append(label);
 
+    if (key === 'targetFps') {
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = 'any';
+      input.required = true;
+      input.value = value ?? 10;
+      input.onchange = () => {
+        if (!input.reportValidity()) return;
+        node.config[key] = input.valueAsNumber;
+        markDirty();
+      };
+      wrap.append(input);
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
     // Dropdown mappings
     const OPTION_MAPS = {
       algorithm: [
         ['bytetrack', 'ByteTrack (Fastest, High/Low Match)'],
         ['botsort', 'BoT-SORT (Camera Motion Compensation)'],
-        ['ocsort', 'OC-SORT (Observation-Centric, Occlusion Robust)']
+        ['ocsort', 'OC-SORT (Observation-Centric, Occlusion Robust)'],
+        ['cbiou', 'C-BIoU (Buffered Motion / Sampled Frames)']
       ],
       sourceType: [
         ['camera', 'Camera (USB/Built-in OpenCV)'],
@@ -2602,8 +2735,52 @@
         ['both', 'IN & OUT (Bidirectional)'],
         ['in_only', 'IN Only (Masuk Saja)'],
         ['out_only', 'OUT Only (Keluar Saja)']
+      ],
+      onError: [
+        ['stop', 'Stop workflow (berhenti jika error)'],
+        ['pass', 'Pass-through (teruskan frame asli)']
       ]
     };
+
+    if (node.type === 'python_script' && key === 'code') {
+      const textarea = document.createElement('textarea');
+      textarea.value = value ?? '';
+      textarea.rows = 9;
+      textarea.spellcheck = false;
+      textarea.style.fontFamily = 'ui-monospace, SFMono-Regular, Consolas, monospace';
+      textarea.style.fontSize = '12px';
+      textarea.onchange = () => {
+        node.config.code = textarea.value;
+        markDirty();
+      };
+      wrap.append(textarea);
+      const help = document.createElement('p');
+      help.className = 'field-help';
+      help.textContent = 'Kontrak: def process(frame, state) -> frame. frame adalah uint8 HxWx3 BGR; pertahankan shape untuk kompatibilitas box. np dan cv2 tersedia. state bertahan per node/per run. Gunakan resize yang sudah ada untuk mengubah ukuran.';
+      wrap.append(help);
+      const checkBtn = document.createElement('button');
+      checkBtn.type = 'button';
+      checkBtn.className = 'button secondary';
+      checkBtn.style.marginTop = '6px';
+      checkBtn.textContent = 'Check Script';
+      checkBtn.onclick = async () => {
+        checkBtn.disabled = true;
+        try {
+          await api('/api/scripts/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: textarea.value })
+          });
+          toast('Script valid');
+        } catch (e) {
+          toast(e.message, true);
+        } finally {
+          checkBtn.disabled = false;
+        }
+      };
+      wrap.append(checkBtn);
+      return wrap;
+    }
 
     // 1. Dropdown select
     if (OPTION_MAPS[key]) {
@@ -3755,6 +3932,23 @@
   }
 
   const NODE_GUIDES_ID = {
+  "frame_sampler": {
+    "concept": "Frame Sampler membatasi FPS frame yang diteruskan ke pemrosesan pada cabang ini. Sumber capture tetap berjalan pada FPS kamera.",
+    "diagram": "[ Input ] ──▶ [ Preview asli ]\n[ Input ] ──▶ [ Frame Sampler ] ──▶ [ YOLO ] ──▶ [ Preview AI ]",
+    "steps": [
+      "Hubungkan Input ke Frame Sampler lalu sambungkan outputnya ke YOLO atau node pemrosesan lain.",
+      "Isi Target FPS dengan angka 0 atau lebih; gunakan 0 untuk tanpa batas.",
+      "Cabang Preview yang terhubung langsung dari Input tetap menerima frame tanpa sampler."
+    ],
+    "params": [
+      {
+        "key": "targetFps",
+        "label": "Target FPS Pemrosesan",
+        "desc": "Batas FPS downstream; 0 berarti unlimited dan tidak mengubah FPS capture sumber."
+      }
+    ],
+    "tips": "Gunakan 10 FPS untuk mengurangi beban model berat. Status runtime menampilkan FPS input/output serta frame yang diteruskan dan dibuang."
+  },
   "input": {
     "concept": "Node sumber input utama yang mengalirkan frame video dari webcam USB, kamera industri Daheng Imaging (Galaxy GXI), file gambar statis, atau file rekaman video lokal.",
     "diagram": "[ Input (Kamera / Video / Daheng) ] ──▶ [ Preprocessing / Detector ]",
@@ -4087,20 +4281,20 @@
     "diagram": "[ Object Detection ] ──▶ [ Object Tracking ] ──▶ [ Counting / Analysis ]",
     "steps": [
       "Wajib dihubungkan langsung dari output node Object Detection.",
-      "Pilih algoritma tracking: ByteTrack (paling cepat & stabil), BoT-SORT (akurat dengan kompensasi gerak kamera), atau OC-SORT.",
-      "Atur Track Buffer (default: 30 frame) sebagai toleransi saat objek tertutup sesaat oleh objek lain.",
+      "Pilih ByteTrack untuk kamera statis, BoT-SORT untuk kamera bergerak, OC-SORT untuk arah gerak, atau C-BIoU untuk pergeseran besar antar-frame.",
+      "Track Buffer default 90, ambang deteksi kuat 0.45, ambang track baru 0.5, dan konfirmasi 1 frame. Frame sampler tidak menghabiskan buffer.",
       "Hubungkan output Tracker ke Line Counter, Object Counter, atau Dwell Time."
     ],
     "params": [
       {
         "key": "algorithm",
         "label": "Algoritma Pelacakan",
-        "desc": "Pilihan: bytetrack (cepat & stabil), botsort (kamera bergerak), ocsort (akselerasi)."
+        "desc": "Pilihan: bytetrack, botsort, ocsort, cbiou (pencocokan dengan area kotak diperluas)."
       },
       {
         "key": "trackHighThreshold",
         "label": "Ambang Deteksi Kuat",
-        "desc": "Ambang batas skor keyakinan untuk memulai track objek baru."
+        "desc": "Ambang deteksi kuat untuk pencocokan utama; pembuatan track baru memakai New Track Threshold."
       },
       {
         "key": "trackBuffer",
@@ -5683,6 +5877,12 @@
     try {
       const data = await api('/api/status');
       state.status = data;
+      state.workflow.nodes.filter(node => node.type === 'frame_sampler').forEach(node => {
+        updateFrameSamplerStatus(node.id, data);
+      });
+      state.workflow.nodes.filter(node => node.type === 'python_script').forEach(node => {
+        updatePythonScriptStatus(node.id, data);
+      });
 
       // Status pill
       const pill = $('#runState');
@@ -5937,6 +6137,82 @@
 
   // --- Event Wireup ---
   function wireEvents() {
+    const shell = $('.app-shell');
+    const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value) || min));
+    const persistPanelLayout = () => {
+      try { localStorage.setItem(PANEL_LAYOUT_KEY, JSON.stringify(state.panelLayout)); } catch {}
+    };
+
+    applyPanelLayout();
+    $('#toggleSidebar')?.addEventListener('click', () => {
+      state.panelLayout.sidebarHidden = !state.panelLayout.sidebarHidden;
+      applyPanelLayout();
+      persistPanelLayout();
+    });
+    $('#toggleBottom')?.addEventListener('click', () => {
+      state.panelLayout.bottomHidden = !state.panelLayout.bottomHidden;
+      applyPanelLayout();
+      persistPanelLayout();
+    });
+    $('#toggleInspector')?.addEventListener('click', () => {
+      state.panelLayout.inspectorHidden = !state.panelLayout.inspectorHidden;
+      applyPanelLayout();
+      persistPanelLayout();
+    });
+
+    for (const [id, size, min, max, direction] of [
+      ['resizeSidebar', 'sidebarWidth', 180, 400, 'x'],
+      ['resizeInspector', 'inspectorWidth', 220, 480, 'x'],
+      ['resizeBottom', 'bottomHeight', 180, 600, 'y'],
+    ]) {
+      const separator = $(`#${id}`);
+      if (!separator) continue;
+      const setSize = value => {
+        state.panelLayout[size] = clamp(value, min, max);
+        separator.setAttribute('aria-valuenow', String(state.panelLayout[size]));
+        if (shell) shell.style.setProperty(
+          size === 'sidebarWidth' ? '--sidebar-width' : size === 'inspectorWidth' ? '--inspector-width' : '--bottom-height',
+          `${state.panelLayout[size]}px`,
+        );
+      };
+      setSize(state.panelLayout[size]);
+      separator.addEventListener('pointerdown', event => {
+        if (direction === 'x' && window.matchMedia('(max-width: 920px)').matches) return;
+        event.preventDefault();
+        separator.setPointerCapture(event.pointerId);
+        const start = direction === 'x' ? event.clientX : event.clientY;
+        const initial = state.panelLayout[size];
+        document.body.style.cursor = direction === 'x' ? 'col-resize' : 'row-resize';
+        document.body.style.userSelect = 'none';
+        const move = moveEvent => {
+          const delta = (direction === 'x' ? moveEvent.clientX : moveEvent.clientY) - start;
+          setSize(initial + (id === 'resizeInspector' || direction === 'y' ? -delta : delta));
+        };
+        const end = () => {
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          persistPanelLayout();
+          separator.removeEventListener('pointermove', move);
+          separator.removeEventListener('pointerup', end);
+          separator.removeEventListener('pointercancel', end);
+        };
+        separator.addEventListener('pointermove', move);
+        separator.addEventListener('pointerup', end);
+        separator.addEventListener('pointercancel', end);
+      });
+      separator.addEventListener('keydown', event => {
+        if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+        event.preventDefault();
+        const directionKey = direction === 'x'
+          ? (id === 'resizeInspector' ? -1 : 1) * (event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0)
+          : (event.key === 'ArrowDown' ? -1 : event.key === 'ArrowUp' ? 1 : 0);
+        if (directionKey) {
+          setSize(state.panelLayout[size] + directionKey * (event.shiftKey ? 40 : 12));
+          persistPanelLayout();
+        }
+      });
+    }
+
     $('#nodeSearch')?.addEventListener('input', renderLibrary);
     $('#saveBtn')?.addEventListener('click', save);
     $('#runBtn')?.addEventListener('click', run);

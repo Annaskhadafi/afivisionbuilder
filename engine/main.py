@@ -16,16 +16,26 @@ import warnings
 from functools import lru_cache, wraps
 from contextlib import contextmanager
 from pathlib import Path
-from threading import Event, Lock, Thread
+from threading import Event, Lock, RLock, Thread
 from urllib.parse import urlsplit
 
 from app_version import APP_NAME, VERSION as APP_VERSION
 from node_catalog import (
     ALL_DRAWING_NODE_TYPES,
     TRACKER_CONFIG_VERSION,
+    TRACKING_ALGORITHMS,
+    TRACKER_CONFIG_DEFAULTS,
     migrate_tracker_config,
     normalize_overlay_config,
     normalize_efficientad_config,
+    PYTHON_SCRIPT_DEFAULTS,
+)
+from python_script_runtime import (
+    PythonScriptRunner,
+    ScriptError,
+    ScriptStopped,
+    ScriptTimeout,
+    validate_script,
 )
 
 ROOT = Path(__file__).resolve().parent
@@ -42,33 +52,6 @@ CONVNEXT_MODEL_ALIASES = {
     "ConvNeXt-Small": CONVNEXT_MODELS[1],
     "ConvNeXt-Base": CONVNEXT_MODELS[2],
     "ConvNeXt-Large": CONVNEXT_MODELS[3],
-}
-TRACKING_ALGORITHMS = ("bytetrack", "botsort", "ocsort")
-TRACKER_CONFIG_DEFAULTS = {
-    "trackerConfigVersion": TRACKER_CONFIG_VERSION,
-    "algorithm": "bytetrack",
-    "trackHighThreshold": 0.6,
-    "trackLowThreshold": 0.1,
-    "newTrackThreshold": 0.7,
-    "matchThreshold": 0.1,
-    "trackBuffer": 30,
-    "minimumConsecutiveFrames": 2,
-    "trackerFrameRate": 30,
-    "botSortFirstIouThreshold": 0.2,
-    "botSortSecondIouThreshold": 0.5,
-    "botSortUnconfirmedIouThreshold": 0.3,
-    "botSortGmc": True,
-    "botSortCmcMethod": "sparseOptFlow",
-    "botSortCmcDownscale": 2,
-    "ocSortDetectionThreshold": 0.6,
-    "ocSortIouThreshold": 0.3,
-    "ocSortMaxAge": 30,
-    "ocSortMinHits": 3,
-    "ocSortDeltaT": 3,
-    "ocSortInertia": 0.2,
-    "batchSize": 1,
-    "classAgnostic": False,
-    "showLostTracks": False,
 }
 RFDETR_MODEL_CLASSES = {
     "rfdetr-nano": "RFDETRNano",
@@ -88,9 +71,10 @@ RFDETR_NATIVE_IMAGE_SIZE = 0
 INPUT_NODE_ID = "input"
 LEGACY_CAMERA_NODE_ID = "camera"
 INFERENCE_NODE_IDS = ("detector", "segmenter", "classifier", "efficientad")
+FRAME_SAMPLER_NODE_TYPE = "frame_sampler"
 IMAGE_PROCESSING_NODE_TYPES = (
     "resize", "crop", "rotate_flip", "color_convert", "brightness_contrast",
-    "blur_sharpen", "perspective", "undistort", "background_subtract",
+    "blur_sharpen", "perspective", "undistort", "background_subtract", "python_script",
 )
 DRAWING_NODE_TYPES = ALL_DRAWING_NODE_TYPES
 LOGIC_NODE_TYPES = (
@@ -1181,6 +1165,30 @@ def normalize_workflow(workflow: dict) -> dict:
             config.pop("youtubeUrl", None)
             config.pop("youtubeMaxHeight", None)
             config.pop("youtubeMaxFps", None)
+        if node.get("type") == FRAME_SAMPLER_NODE_TYPE:
+            config = node.setdefault("config", {})
+            if isinstance(config.get("targetFps", 10), bool):
+                raise ValueError("Frame sampler targetFps must be a finite number >= 0")
+            try:
+                target_fps = float(config.get("targetFps", 10))
+            except (TypeError, ValueError):
+                raise ValueError("Frame sampler targetFps must be a finite number >= 0") from None
+            if not math.isfinite(target_fps) or target_fps < 0:
+                raise ValueError("Frame sampler targetFps must be a finite number >= 0")
+            config["targetFps"] = target_fps
+        if node.get("type") == "python_script":
+            config = node.setdefault("config", {})
+            for key, value in PYTHON_SCRIPT_DEFAULTS.items():
+                config.setdefault(key, value)
+            code = config.get("code")
+            if not isinstance(code, str):
+                raise ValueError("Python script code must be a string")
+            validate_script(code)
+            timeout_ms = config.get("timeoutMs")
+            if isinstance(timeout_ms, bool) or not isinstance(timeout_ms, int) or not 1 <= timeout_ms <= 60000:
+                raise ValueError("Python script timeoutMs must be an integer between 1 and 60000")
+            if config.get("onError") not in ("stop", "pass"):
+                raise ValueError("Python script onError must be 'stop' or 'pass'")
         if node.get("type") == "detector":
             config = node.setdefault("config", {})
             if config.get("engine") not in ("rfdetr", "rfdetr_tensorrt", "rfdetr_onnx", "ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
@@ -1405,6 +1413,9 @@ def active_image_processing_nodes(workflow: dict) -> list[dict]:
             for target_id in frame_targets
         )
     ]
+    common_ids = getattr(workflow, "common_processing_ids", None)
+    if common_ids is not None:
+        nodes = [node for node in nodes if str(node.get("id") or "") in common_ids]
     return _ordered_image_processing_nodes(workflow, nodes)
 
 
@@ -1518,12 +1529,75 @@ def _calibration_data(path_value: object):
     return matrix, distortion
 
 
+def run_python_script_node(frame, node: dict, runtime: dict, script_frames=None):
+    """Run one persistent Python script node against a BGR frame."""
+    context = runtime.setdefault("__python_scripts", {})
+    runners = context.setdefault("runners", {})
+    errors = context.setdefault("errors", {})
+    callback = context.get("callback")
+    stop_event = context.get("stop_event")
+    lock = context.setdefault("lock", RLock())
+    node_id = str(node.get("id") or node.get("type") or "python_script")
+    config = node.get("config", {})
+    signature = (config.get("code"), config.get("timeoutMs"), config.get("onError"))
+    if script_frames is not None and node_id in script_frames:
+        return script_frames[node_id]
+
+    def notify(**fields):
+        if callback:
+            callback(node, **fields)
+
+    with lock:
+        if script_frames is not None and node_id in script_frames:
+            return script_frames[node_id]
+        if errors.get(node_id, (None,))[0] == signature:
+            return frame.copy()
+        current = runners.get(node_id)
+        if current is None or current[0] != signature:
+            if current is not None:
+                current[1].close()
+            errors.pop(node_id, None)
+            notify(state="starting")
+            try:
+                # ponytail: one shared lock serializes lookup and execution; add per-node locks only if profiling proves contention.
+                runner = PythonScriptRunner(
+                    config["code"], config["timeoutMs"], stop_event, on_error="stop",
+                )
+            except BaseException as exc:
+                errors[node_id] = (signature, exc)
+                state = "timeout" if isinstance(exc, ScriptTimeout) else "error"
+                notify(state=state, error=str(exc), logs=getattr(exc, "logs", ""), durationMs=0)
+                if config["onError"] == "pass":
+                    return frame.copy()
+                raise
+            runners[node_id] = (signature, runner)
+        runner = runners[node_id][1]
+        started_at = time.monotonic()
+        notify(state="running")
+        try:
+            result = runner.run(frame)
+        except ScriptStopped:
+            raise
+        except ScriptError as exc:
+            duration_ms = (time.monotonic() - started_at) * 1000
+            state = "timeout" if isinstance(exc, ScriptTimeout) else "error"
+            notify(state=state, error=str(exc), logs=getattr(exc, "logs", ""), durationMs=duration_ms)
+            if config["onError"] == "pass":
+                return frame.copy()
+            raise
+        notify(logs=result.logs, durationMs=result.duration_ms, error=None)
+        if script_frames is not None:
+            script_frames[node_id] = result.frame
+        return result.frame
+
+
 def apply_image_processing(
     frame,
     workflow: dict,
     runtime: dict | None = None,
     debug_callback=None,
     processing_nodes: list[dict] | None = None,
+    script_frames: dict | None = None,
 ):
     """Apply the workflow's frame processing chain and return a BGR frame."""
     import cv2
@@ -1640,6 +1714,8 @@ def apply_image_processing(
                 subtractor = factory(history=signature[1], dist2Threshold=signature[2], detectShadows=signature[3]) if signature[0] == "knn" else factory(history=signature[1], varThreshold=signature[2], detectShadows=signature[3])
                 cached = runtime[node_id] = {"signature": signature, "subtractor": subtractor}
             frame = cv2.cvtColor(cached["subtractor"].apply(frame), cv2.COLOR_GRAY2BGR)
+        elif node_type == "python_script":
+            frame = run_python_script_node(frame, node, runtime, script_frames)
         if debug_callback:
             debug_callback(node, before_frame, frame, (time.monotonic() - started_at) * 1000)
     return frame
@@ -1651,6 +1727,7 @@ def apply_preview_image_processing(
     target_id: str,
     detections: list[dict],
     runtime: dict | None = None,
+    script_frames: dict | None = None,
 ):
     """Apply processors local to one preview branch and remap its boxes."""
     common_ids = {
@@ -1671,7 +1748,7 @@ def apply_preview_image_processing(
     for node in branch_nodes:
         before_height, before_width = result.shape[:2]
         result = apply_image_processing(
-            result, workflow, runtime, processing_nodes=[node],
+            result, workflow, runtime, processing_nodes=[node], script_frames=script_frames,
         )
         after_height, after_width = result.shape[:2]
         node_type = node.get("type")
@@ -1734,7 +1811,7 @@ class _RuntimeWorkflow(dict):
 
 def prepare_runtime_workflow(workflow: dict) -> dict:
     snapshot = _RuntimeWorkflow(copy.deepcopy(dict(workflow)))
-    enabled_ids = frozenset(node.get("id") for node in snapshot.get("nodes", []) if node.get("enabled", True))
+    enabled_ids = frozenset(node.get("id") for node in snapshot.get("nodes", []) if node.get("enabled", True) or node.get("type") == FRAME_SAMPLER_NODE_TYPE)
     edges = tuple((edge[0], edge[1]) for edge in snapshot.get("edges", []))
     # Attributes stay out of JSON/database workflow serialization.
     snapshot.reachability = {
@@ -1745,12 +1822,14 @@ def prepare_runtime_workflow(workflow: dict) -> dict:
 
 def has_active_path(workflow: dict, from_id: str, to_id: str) -> bool:
     if to_id == "auto_preview":
+        if isinstance(workflow, _RuntimeWorkflow):
+            return bool(getattr(workflow, "auto_preview_enabled", True))
         return True
     if isinstance(workflow, _RuntimeWorkflow):
         return to_id in workflow.reachability.get(from_id, ())
     # Key the cache by topology, not mutable workflow identity. Config edits do
     # not invalidate reachability; edge and enabled-state edits take effect now.
-    enabled_ids = frozenset(node.get("id") for node in workflow.get("nodes", []) if node.get("enabled", True))
+    enabled_ids = frozenset(node.get("id") for node in workflow.get("nodes", []) if node.get("enabled", True) or node.get("type") == FRAME_SAMPLER_NODE_TYPE)
     edges = tuple((edge[0], edge[1]) for edge in workflow.get("edges", []))
     return to_id in _reachable_node_ids(enabled_ids, edges, from_id)
 
@@ -2211,7 +2290,7 @@ def tracking_input_threshold(workflow: dict, inference_node: dict) -> float:
         return display_threshold
     tracker_config = tracker.get("config", {})
     algorithm = str(tracker_config.get("algorithm", "bytetrack")).lower()
-    if algorithm in ("bytetrack", "botsort"):
+    if algorithm in ("bytetrack", "botsort", "cbiou"):
         tracker_threshold = _clamp_probability(
             tracker_config.get("trackLowThreshold", 0.1),
             0.1,
@@ -2316,7 +2395,8 @@ def tracking_results_for_node(workflow: dict, node_id: str, tracked: list[dict])
         return []
     return [
         detection for detection in tracked
-        if has_active_path(workflow, detection.get("sourceNodeId", "tracker"), node_id)
+        if detection.get("trackId") is not None
+        and has_active_path(workflow, detection.get("sourceNodeId", "tracker"), node_id)
     ]
 
 
@@ -2390,6 +2470,11 @@ def detections_for_node(
     tracked: list[dict] | None = None,
 ) -> list[dict]:
     if node_id == "auto_preview":
+        tracker = active_tracking_node(workflow)
+        if tracker and tracked is not None and has_active_path(
+            workflow, str(tracker.get("id") or "tracker"), node_id
+        ):
+            return tracking_results_for_node(workflow, node_id, tracked)
         return tracked if tracked is not None else (filtered if filtered is not None else detections)
     node = enabled_node(workflow, node_id)
     input_id = source_node_id(workflow)
@@ -6001,6 +6086,8 @@ class WorkflowRunner:
     def start(self, workflow: dict) -> dict:
         self.stop()
         workflow = normalize_workflow(workflow)
+        if any(node.get("type") in (FRAME_SAMPLER_NODE_TYPE, "python_script") for node in workflow.get("nodes", [])):
+            raise RuntimeError("Frame Sampler and Python Script nodes require the threaded runtime.")
         if not active_input_node(workflow):
             raise ValueError("Input node is disabled.")
 

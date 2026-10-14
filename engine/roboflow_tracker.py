@@ -15,6 +15,7 @@ from typing import Hashable
 
 import numpy as np
 import supervision as sv
+from node_catalog import TRACKER_CONFIG_DEFAULTS
 
 with warnings.catch_warnings():
     warnings.filterwarnings(
@@ -22,22 +23,24 @@ with warnings.catch_warnings():
         message=r"target=None is deprecated.*",
         category=FutureWarning,
     )
-    from trackers import BoTSORTTracker, ByteTrackTracker, OCSORTTracker
+    from trackers import BoTSORTTracker, ByteTrackTracker, CBIoUTracker, OCSORTTracker
 
 
 SOURCE_INDEX_KEY = "visonode_source_index"
-SUPPORTED_ALGORITHMS = ("bytetrack", "botsort", "ocsort")
+SUPPORTED_ALGORITHMS = ("bytetrack", "botsort", "ocsort", "cbiou")
 CMC_METHODS = ("orb", "sift", "sparseOptFlow", "ecc")
 EXPECTED_TRACKERS_VERSION = "2.5.0.post0"
 ROBOFLOW_TRACKER_CLASSES = {
     "bytetrack": ByteTrackTracker,
     "botsort": BoTSORTTracker,
     "ocsort": OCSORTTracker,
+    "cbiou": CBIoUTracker,
 }
 ROBOFLOW_TRACKER_MODULES = {
     "bytetrack": "trackers.core.bytetrack.tracker",
     "botsort": "trackers.core.botsort.tracker",
     "ocsort": "trackers.core.ocsort.tracker",
+    "cbiou": "trackers.core.cbiou.tracker",
 }
 
 
@@ -98,15 +101,12 @@ class RoboflowTracker:
         self.algorithm = (
             algorithm if algorithm in SUPPORTED_ALGORITHMS else "bytetrack"
         )
-        self.config = dict(config)
-        self.class_agnostic = bool(config.get("classAgnostic", False))
-        self.show_lost_tracks = bool(config.get("showLostTracks", False))
-        self.frame_rate = self._positive_float(config.get("trackerFrameRate", 30), 30)
-        self.track_buffer = self._positive_int(config.get("trackBuffer", 30), 30)
-        self._maximum_source_gap = (
-            int(self._lost_buffer_for_algorithm() * self.frame_rate / 30.0) + 1
-        )
-
+        self.config = dict(TRACKER_CONFIG_DEFAULTS)
+        self.config.update(config)
+        self.class_agnostic = bool(self.config.get("classAgnostic", False))
+        self.show_lost_tracks = bool(self.config.get("showLostTracks", False))
+        self.frame_rate = self._positive_float(self.config.get("trackerFrameRate", 30), 30)
+        self.track_buffer = self._positive_int(self.config.get("trackBuffer", 90), 90)
         self._runtimes: dict[Hashable, object] = {}
         self._global_ids: dict[tuple[Hashable, int], int] = {}
         self._track_state: dict[int, dict] = {}
@@ -135,13 +135,7 @@ class RoboflowTracker:
         frame_id: int | None = None,
         timestamp: float | None = None,
     ) -> list[dict]:
-        gap = self._source_gap(frame_id, timestamp)
-        if gap > self._maximum_source_gap:
-            # No track can legally survive this gap. Reset the library runtimes
-            # while retaining VisoNode's monotonically increasing global IDs.
-            self._clear_library_state()
-        else:
-            self._advance_empty_frames(gap - 1)
+        self._check_source_continuity(frame_id, timestamp)
 
         indexed = self._valid_detections(detections)
         grouped: dict[Hashable, list[tuple[int, dict, list[float], float]]] = {}
@@ -174,13 +168,10 @@ class RoboflowTracker:
                     det = dict(item[1])
                     box = [float(v) for v in item[2]]
                     sc = float(item[3])
-                    fallback_id = self._global_id(scope, -20000 - src_idx)
-                    self._update_track_state(fallback_id, det, box, sc, library_age=1)
                     scope_outputs.append((
                         src_idx,
-                        self._decorate_detection(fallback_id, det, box, sc, 0),
+                        self._decorate_untracked(det, box, sc),
                     ))
-                    scope_matches.add((scope, -20000 - src_idx))
             outputs.extend(scope_outputs)
             current_matches.update(scope_matches)
 
@@ -209,12 +200,12 @@ class RoboflowTracker:
                 lost_track_buffer=self.track_buffer,
                 frame_rate=self.frame_rate,
                 track_activation_threshold=self._probability(
-                    self.config.get("newTrackThreshold", 0.7),
-                    0.7,
+                    self.config.get("newTrackThreshold", 0.5),
+                    0.5,
                 ),
                 minimum_consecutive_frames=self._positive_int(
-                    self.config.get("minimumConsecutiveFrames", 2),
-                    2,
+                    self.config.get("minimumConsecutiveFrames", 1),
+                    1,
                 ),
                 minimum_iou_threshold_first_assoc=self._probability(
                     self.config.get("botSortFirstIouThreshold", 0.2),
@@ -229,8 +220,8 @@ class RoboflowTracker:
                     0.3,
                 ),
                 high_conf_det_threshold=self._probability(
-                    self.config.get("trackHighThreshold", 0.6),
-                    0.6,
+                    self.config.get("trackHighThreshold", 0.45),
+                    0.45,
                 ),
                 enable_cmc=bool(self.config.get("botSortGmc", True)),
                 cmc_method=cmc_method,
@@ -267,24 +258,37 @@ class RoboflowTracker:
                     3,
                 ),
             )
+        if self.algorithm == "cbiou":
+            return self._tracker_classes["cbiou"](
+                lost_track_buffer=self.track_buffer,
+                frame_rate=self.frame_rate,
+                track_activation_threshold=self._probability(self.config.get("newTrackThreshold", 0.5), 0.5),
+                minimum_consecutive_frames=self._positive_int(self.config.get("minimumConsecutiveFrames", 1), 1),
+                minimum_iou_threshold_first_assoc=self._probability(self.config.get("botSortFirstIouThreshold", 0.2), 0.2),
+                minimum_iou_threshold_second_assoc=self._probability(self.config.get("botSortSecondIouThreshold", 0.5), 0.5),
+                minimum_iou_threshold_unconfirmed_assoc=self._probability(self.config.get("botSortUnconfirmedIouThreshold", 0.3), 0.3),
+                high_conf_det_threshold=self._probability(self.config.get("trackHighThreshold", 0.45), 0.45),
+                buffer_ratio_first=0.3,
+                buffer_ratio_second=0.5,
+            )
         return self._tracker_classes["bytetrack"](
             lost_track_buffer=self.track_buffer,
             frame_rate=self.frame_rate,
             track_activation_threshold=self._probability(
-                self.config.get("newTrackThreshold", 0.7),
-                0.7,
+                self.config.get("newTrackThreshold", 0.5),
+                0.5,
             ),
             minimum_consecutive_frames=self._positive_int(
-                self.config.get("minimumConsecutiveFrames", 2),
-                2,
+                self.config.get("minimumConsecutiveFrames", 1),
+                1,
             ),
             minimum_iou_threshold=self._probability(
                 self.config.get("matchThreshold", 0.1),
                 0.1,
             ),
             high_conf_det_threshold=self._probability(
-                self.config.get("trackHighThreshold", 0.6),
-                0.6,
+                self.config.get("trackHighThreshold", 0.45),
+                0.45,
             ),
         )
 
@@ -363,7 +367,15 @@ class RoboflowTracker:
             if not 0 <= source_index < len(source_detections):
                 continue
             if local_id < 0:
-                local_id = -10000 - source_index
+                outputs.append((
+                    source_index,
+                    self._decorate_untracked(
+                        source_detections[source_index],
+                        [float(value) for value in tracked.xyxy[row]],
+                        float(confidences[row]) if confidences is not None else 0.0,
+                    ),
+                ))
+                continue
             global_id = self._global_id(scope, local_id)
             detection = dict(source_detections[source_index])
             score = (
@@ -466,6 +478,21 @@ class RoboflowTracker:
         result["trail"] = list(state["trail"])
         return result
 
+    def _decorate_untracked(
+        self, detection: dict, box: list[float], score: float
+    ) -> dict:
+        result = dict(detection)
+        result["bbox"] = [box[0], box[1], max(0.0, box[2] - box[0]), max(0.0, box[3] - box[1])]
+        result["score"] = score
+        for key in ("trackId", "trackAge", "trackLost", "trail"):
+            result.pop(key, None)
+        result["trackingAlgorithm"] = self.algorithm
+        result["trackingLibrary"] = "roboflow-trackers"
+        result["trackingLibraryVersion"] = self.library_version
+        result["originSourceNodeId"] = result.get("sourceNodeId", "detector")
+        result["sourceNodeId"] = "tracker"
+        return result
+
     def _update_track_state(
         self,
         global_id: int,
@@ -498,12 +525,11 @@ class RoboflowTracker:
             return "__all__"
         return str(detection.get("class", "object"))
 
-    def _source_gap(
+    def _check_source_continuity(
         self,
         frame_id: int | None,
         timestamp: float | None,
-    ) -> int:
-        gap = 1
+    ) -> None:
         if frame_id is not None:
             try:
                 current_frame_id = int(frame_id)
@@ -512,16 +538,11 @@ class RoboflowTracker:
             if current_frame_id is not None:
                 if (
                     self._last_frame_id is not None
-                    and current_frame_id > self._last_frame_id
-                ):
-                    gap = current_frame_id - self._last_frame_id
-                elif (
-                    self._last_frame_id is not None
                     and current_frame_id <= self._last_frame_id
                 ):
                     self._clear_library_state()
                 self._last_frame_id = current_frame_id
-        elif timestamp is not None:
+        if timestamp is not None:
             try:
                 current_timestamp = float(timestamp)
             except (TypeError, ValueError):
@@ -531,26 +552,15 @@ class RoboflowTracker:
                     self._last_timestamp is not None
                     and current_timestamp > self._last_timestamp
                 ):
-                    gap = max(
-                        1,
-                        int(round(
-                            (current_timestamp - self._last_timestamp)
-                            * self.frame_rate
-                        )),
-                    )
+                    inactivity_limit = self._lost_buffer_for_algorithm() / 30.0
+                    if current_timestamp - self._last_timestamp > inactivity_limit:
+                        self._clear_library_state()
                 elif (
                     self._last_timestamp is not None
                     and current_timestamp <= self._last_timestamp
                 ):
                     self._clear_library_state()
                 self._last_timestamp = current_timestamp
-        return max(1, gap)
-
-    def _advance_empty_frames(self, count: int) -> None:
-        for _ in range(max(0, count)):
-            empty = sv.Detections.empty()
-            for runtime in self._runtimes.values():
-                runtime.update(empty, frame=None)
 
     def _clear_library_state(self) -> None:
         self._runtimes.clear()
