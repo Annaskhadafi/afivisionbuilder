@@ -37,9 +37,11 @@ desktop.ini
 .env
 .env*.local
 
-# Agent instructions
+# Agent instructions & internal docs
 AGENTS.md
 agent.md
+docs/PRD.md
+PRD.md
 
 # Node modules
 node_modules/
