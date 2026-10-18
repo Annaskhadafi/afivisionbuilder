@@ -720,6 +720,74 @@ def _templates() -> list[dict]:
             },
         },
         {
+            "id": "restaurant_table_occupancy",
+            "name": "Restaurant Table Occupancy & Dining Dwell Tracker",
+            "description": "Pemantauan okupansi meja restoran dan durasi tamu duduk (dwell time): input kamera CCTV, deteksi orang (person), ByteTrack tracker, Multi-Zone Occupancy & Activity Tracker untuk menghitung berapa lama setiap meja terisi (Meja 01 s/d Meja 04), visual HUD overlay timer meja, deteksi overstay, dan pencatatan event turnover ke database.",
+            "tags": ["Restaurant", "Table Tracker", "Dwell Time", "Multi-Zone"],
+            "badge": "Hospitality",
+            "modelSize": "Includes models · 6.2 MB",
+            "workflow": {
+                "nodes": [
+                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "video", "filePath": "D:/CCTV-EATON-Cafe-SnapYT.App.mp4", "loop": True}),
+                    store.make_node("detector", id="detector", x=280, y=140, config={"threshold": 0.20, "modelPath": "yolov8n.pt"}),
+                    store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
+                    store.make_node(
+                        "multi_zone_occupancy",
+                        id="table_tracker",
+                        x=720,
+                        y=140,
+                        config={
+                            "targetClasses": "person",
+                            "confirmationSeconds": 2.0,
+                            "graceSeconds": 10.0,
+                            "maxDwellMinutes": 30.0,
+                            "labelPosition": "center",
+                            "compactLabel": True,
+                            "showHudOverlay": True,
+                            "showSummaryCard": True,
+                            "zones": [
+                                {
+                                    "id": "meja_01",
+                                    "name": "Meja 01 (Tengah)",
+                                    "capacity": 2,
+                                    "points": "0.42,0.28; 0.62,0.28; 0.62,0.62; 0.42,0.62"
+                                },
+                                {
+                                    "id": "meja_02",
+                                    "name": "Meja 02 (Kiri Depan)",
+                                    "capacity": 4,
+                                    "points": "0.15,0.54; 0.41,0.54; 0.41,0.98; 0.15,0.98"
+                                },
+                                {
+                                    "id": "meja_03",
+                                    "name": "Meja 03 (Kiri Belakang)",
+                                    "capacity": 6,
+                                    "points": "0.07,0.17; 0.40,0.17; 0.40,0.52; 0.07,0.52"
+                                },
+                                {
+                                    "id": "meja_04",
+                                    "name": "Meja 04 (Kanan Depan)",
+                                    "capacity": 4,
+                                    "points": "0.63,0.47; 0.98,0.47; 0.98,0.98; 0.63,0.98"
+                                }
+                            ]
+                        }
+                    ),
+                    store.make_node("overlay_annotate", id="annotate", x=940, y=140),
+                    store.make_node("database_output", id="db_out", x=1160, y=80, config={"table": "restaurant_table_events"}),
+                    store.make_node("preview", id="preview", x=1160, y=220),
+                ],
+                "edges": [
+                    ["input", "detector"],
+                    ["detector", "tracker"],
+                    ["tracker", "table_tracker"],
+                    ["table_tracker", "annotate"],
+                    ["annotate", "db_out"],
+                    ["annotate", "preview"],
+                ],
+            },
+        },
+        {
             "id": "bottle_visual_inspection",
             "name": "Bottle Visual Inspection",
             "description": "Detect bottles and classify each one as OK or DEFECT using a visual inspection workflow. This template shows a typical manufacturing pipeline with bottle detection, ROI cropping, anomaly inspection, and result visualization.",

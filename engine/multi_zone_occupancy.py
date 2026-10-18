@@ -105,6 +105,11 @@ def is_detection_in_zone(det: dict, polygon: list[tuple[float, float]]) -> bool:
             (x + w / 2.0, y + h),        # Bottom / feet
             (x + w / 2.0, y + h / 2.0),  # Center / torso
             (x + w / 2.0, y + 0.75 * h), # Lower torso / waist
+            (x + 0.25 * w, y + 0.75 * h),# Left waist
+            (x + 0.75 * w, y + 0.75 * h),# Right waist
+            (x + w / 2.0, y + 0.35 * h), # Upper torso / chest
+            (x + 0.25 * w, y + h),       # Left foot
+            (x + 0.75 * w, y + h),       # Right foot
         ]
         return any(_inside_polygon(pt, polygon) for pt in test_points)
 
@@ -301,7 +306,7 @@ def process_multi_zone_occupancy(
                 else:
                     zstate["status"] = "CONFIRMING"
 
-            elif prev_status in ("CONFIRMING", "OCCUPIED", "OVER_CAPACITY", "OVERSTAY"):
+            elif prev_status in ("CONFIRMING", "OCCUPIED", "OVER_CAPACITY", "OVERSTAY", "PENDING_VACANT"):
                 if prev_status == "CONFIRMING":
                     if now - zstate["confirmStart"] >= confirmation_sec:
                         zstate["status"] = "OCCUPIED" if curr_count <= capacity else "OVER_CAPACITY"
@@ -325,9 +330,13 @@ def process_multi_zone_occupancy(
                         }
                         emitted_events.append(evt)
                 else:
+                    # Restore status if recovering from PENDING_VACANT
+                    if prev_status == "PENDING_VACANT":
+                        zstate["status"] = "OCCUPIED" if curr_count <= capacity else "OVER_CAPACITY"
+
                     # Accumulate occupied timer
                     if zstate.get("sessionStart") is not None:
-                        zstate["occupiedSeconds"] = now - zstate["sessionStart"]
+                        zstate["occupiedSeconds"] = max(0.0, now - zstate["sessionStart"])
 
                     # Check overcapacity status
                     if curr_count > capacity:
@@ -357,8 +366,6 @@ def process_multi_zone_occupancy(
 
         else:
             # 0 objects in zone
-            zstate["confirmStart"] = None
-
             if prev_status in ("OCCUPIED", "OVER_CAPACITY", "OVERSTAY", "PENDING_VACANT"):
                 if zstate.get("missingSince") is None:
                     zstate["missingSince"] = now
@@ -392,9 +399,19 @@ def process_multi_zone_occupancy(
                     zstate["sessionStart"] = None
                     zstate["occupiedSeconds"] = 0.0
                     zstate["missingSince"] = None
+                    zstate["confirmStart"] = None
                     zstate["overstayNotified"] = False
+            elif prev_status == "CONFIRMING":
+                # Brief tolerance during confirming to avoid resetting on a single dropped frame
+                if zstate.get("missingSince") is None:
+                    zstate["missingSince"] = now
+                elif now - zstate["missingSince"] >= 1.0:
+                    zstate["status"] = "VACANT"
+                    zstate["confirmStart"] = None
+                    zstate["missingSince"] = None
             else:
                 zstate["status"] = "VACANT"
+                zstate["confirmStart"] = None
                 zstate["occupiedSeconds"] = 0.0
 
         if zstate["status"] in ("OCCUPIED", "OVER_CAPACITY", "OVERSTAY", "PENDING_VACANT"):

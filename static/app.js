@@ -1729,6 +1729,40 @@
           const tagsHtml = (t.tags || [t.badge || 'Computer Vision']).map(tg => `<span class="hub-tag-badge blue">${escapeHtml(tg)}</span>`).join(' ');
           const modelMeta = t.modelSize || 'Includes pre-trained weights';
 
+          let bannerGraphic = `
+            <g stroke="#38bdf8" stroke-width="1.5" fill="none" opacity="0.6">
+              <rect x="30" y="25" width="60" height="90" rx="6" stroke-dasharray="4 2"/>
+              <line x1="60" y1="20" x2="60" y2="120" stroke="#22c55e" stroke-width="2"/>
+              <rect x="110" y="25" width="60" height="90" rx="6" stroke="#22c55e"/>
+              <line x1="140" y1="20" x2="140" y2="120" stroke="#22c55e" stroke-width="2"/>
+              <rect x="190" y="35" width="60" height="80" rx="6" stroke="#ef4444"/>
+              <line x1="220" y1="20" x2="220" y2="120" stroke="#ef4444" stroke-width="2"/>
+              <rect x="270" y="25" width="60" height="90" rx="6" stroke-dasharray="4 2"/>
+              <line x1="300" y1="20" x2="300" y2="120" stroke="#22c55e" stroke-width="2"/>
+            </g>
+          `;
+          if (t.id === 'restaurant_table_occupancy') {
+            bannerGraphic = `
+              <g opacity="0.92">
+                <rect x="35" y="20" width="130" height="42" rx="7" stroke="#10b981" stroke-width="2" fill="#10b98126"/>
+                <circle cx="50" cy="41" r="4.5" fill="#10b981"/>
+                <text x="62" y="45" fill="#6ee7b7" font-size="11" font-weight="700" font-family="system-ui, sans-serif">MEJA 01 • 34m</text>
+                
+                <rect x="195" y="20" width="130" height="42" rx="7" stroke="#38bdf8" stroke-width="2" fill="#38bdf826"/>
+                <circle cx="210" cy="41" r="4.5" fill="#38bdf8"/>
+                <text x="222" y="45" fill="#bae6fd" font-size="11" font-weight="700" font-family="system-ui, sans-serif">MEJA 02 • 15m</text>
+                
+                <rect x="35" y="78" width="130" height="42" rx="7" stroke="#f59e0b" stroke-width="2" fill="#f59e0b26"/>
+                <circle cx="50" cy="99" r="4.5" fill="#f59e0b"/>
+                <text x="62" y="103" fill="#fde68a" font-size="11" font-weight="700" font-family="system-ui, sans-serif">MEJA 03 • 52m ⚠</text>
+                
+                <rect x="195" y="78" width="130" height="42" rx="7" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 2" fill="#0f172a33"/>
+                <circle cx="210" cy="99" r="4.5" fill="#64748b"/>
+                <text x="222" y="103" fill="#cbd5e1" font-size="11" font-weight="600" font-family="system-ui, sans-serif">MEJA 04 • KOSONG</text>
+              </g>
+            `;
+          }
+
           card.innerHTML = `
             <div class="hub-template-banner">
               <svg width="100%" height="100%" viewBox="0 0 360 140" preserveAspectRatio="none" style="opacity: 0.85;">
@@ -1739,16 +1773,7 @@
                   </linearGradient>
                 </defs>
                 <rect width="360" height="140" fill="url(#grad-${t.id})"/>
-                <g stroke="#38bdf8" stroke-width="1.5" fill="none" opacity="0.6">
-                  <rect x="30" y="25" width="60" height="90" rx="6" stroke-dasharray="4 2"/>
-                  <line x1="60" y1="20" x2="60" y2="120" stroke="#22c55e" stroke-width="2"/>
-                  <rect x="110" y="25" width="60" height="90" rx="6" stroke="#22c55e"/>
-                  <line x1="140" y1="20" x2="140" y2="120" stroke="#22c55e" stroke-width="2"/>
-                  <rect x="190" y="35" width="60" height="80" rx="6" stroke="#ef4444"/>
-                  <line x1="220" y1="20" x2="220" y2="120" stroke="#ef4444" stroke-width="2"/>
-                  <rect x="270" y="25" width="60" height="90" rx="6" stroke-dasharray="4 2"/>
-                  <line x1="300" y1="20" x2="300" y2="120" stroke="#22c55e" stroke-width="2"/>
-                </g>
+                ${bannerGraphic}
               </svg>
             </div>
             <div class="hub-template-body">
@@ -3583,6 +3608,23 @@
         <input type="number" class="input" id="mzMaxDwell" value="${node.config.maxDwellMinutes ?? 0.0}" min="0" step="5">
       </div>
 
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+        <div class="inspector-field-group">
+          <label>Posisi Label &amp; Timer</label>
+          <select class="input select" id="mzLabelPosition">
+            <option value="center" ${(node.config.labelPosition || 'center') === 'center' ? 'selected' : ''}>🎯 Tengah Area (Center)</option>
+            <option value="top" ${node.config.labelPosition === 'top' ? 'selected' : ''}>⬆️ Atas Poligon (Top)</option>
+          </select>
+        </div>
+        <div class="inspector-field-group">
+          <label>Gaya &amp; Ukuran Teks</label>
+          <select class="input select" id="mzCompactLabel">
+            <option value="true" ${node.config.compactLabel !== false ? 'selected' : ''}>✨ Ringkas &amp; Minimalis</option>
+            <option value="false" ${node.config.compactLabel === false ? 'selected' : ''}>📋 Detail &amp; Lengkap</option>
+          </select>
+        </div>
+      </div>
+
       <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
         <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text);">
           <input type="checkbox" id="mzShowHud" ${node.config.showHudOverlay !== false ? 'checked' : ''}>
@@ -3599,6 +3641,8 @@
     paramsCard.querySelector('#mzConfirmSec').onchange = (e) => { node.config.confirmationSeconds = parseFloat(e.target.value) || 0; markDirty(); };
     paramsCard.querySelector('#mzGraceSec').onchange = (e) => { node.config.graceSeconds = parseFloat(e.target.value) || 0; markDirty(); };
     paramsCard.querySelector('#mzMaxDwell').onchange = (e) => { node.config.maxDwellMinutes = parseFloat(e.target.value) || 0; markDirty(); };
+    paramsCard.querySelector('#mzLabelPosition').onchange = (e) => { node.config.labelPosition = e.target.value; markDirty(); };
+    paramsCard.querySelector('#mzCompactLabel').onchange = (e) => { node.config.compactLabel = e.target.value === 'true'; markDirty(); };
     paramsCard.querySelector('#mzShowHud').onchange = (e) => { node.config.showHudOverlay = e.target.checked; markDirty(); };
     paramsCard.querySelector('#mzShowSummary').onchange = (e) => { node.config.showSummaryCard = e.target.checked; markDirty(); };
 
@@ -8586,6 +8630,16 @@
       if (pill) {
         pill.textContent = sameProject ? (data.state ? data.state.toUpperCase() : 'IDLE') : 'OTHER PROJECT';
         pill.className = `status-pill ${sameProject && data.running ? 'running' : sameProject && data.error ? 'error' : ''}`;
+      }
+      const breadcrumbPill = $('#breadcrumbStatePill');
+      if (breadcrumbPill) {
+        if (sameProject && data.running) {
+          breadcrumbPill.textContent = '• Running';
+          breadcrumbPill.className = 'status-indicator-pill running';
+        } else {
+          breadcrumbPill.textContent = '• Stopped';
+          breadcrumbPill.className = 'status-indicator-pill';
+        }
       }
 
       // Buttons

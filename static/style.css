@@ -2260,6 +2260,10 @@
 /* ==========================================================================
    Topbar & Hub Mode Switches
    ========================================================================== */
+.brand strong {
+  white-space: nowrap;
+}
+
 .version-tag {
   font-size: 10.5px !important;
   color: #0284c7 !important;
@@ -2268,7 +2272,8 @@
   border-radius: 6px !important;
   font-weight: 600 !important;
   letter-spacing: 0 !important;
-  margin-left: 6px !important;
+  margin-left: 0 !important;
+  margin-top: 2px !important;
   display: inline-block !important;
 }
 
@@ -2286,6 +2291,21 @@
 
 .project-nav-btn:hover {
   background: #f1f5f9 !important;
+}
+
+.topbar {
+  position: relative;
+  z-index: 20;
+}
+
+.top-actions {
+  position: relative;
+  z-index: 25;
+}
+
+.top-actions .button {
+  position: relative;
+  z-index: 30;
 }
 
 .breadcrumb-sep {

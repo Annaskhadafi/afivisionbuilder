@@ -1424,7 +1424,10 @@ def _draw_multi_zone_occupancy_overlays(frame, workflow: dict, event_runtime: di
 
         cv2.addWeighted(overlay, 0.18, frame, 0.82, 0, frame)
 
-        # Pass 2: Glassmorphism badges on each zone
+        # Pass 2: Badges on each zone (supporting center/top placement and compact/detailed style)
+        label_pos = str(config.get("labelPosition", "center")).strip().lower()  # "center" or "top"
+        compact = bool(config.get("compactLabel", True))
+
         for z in zones:
             pts_raw = _parse_polygon(z.get("points", ""), w, h)
             if len(pts_raw) < 3:
@@ -1432,46 +1435,110 @@ def _draw_multi_zone_occupancy_overlays(frame, workflow: dict, event_runtime: di
             poly = np.array(pts_raw, np.int32)
             status = z.get("status", "VACANT")
             if status in ("OCCUPIED", "CONFIRMING"):
-                color = (35, 145, 235)
+                color = (35, 145, 235)  # Amber / Orange BGR
             elif status in ("OVER_CAPACITY", "OVERSTAY"):
-                color = (40, 40, 230)
+                color = (40, 40, 230)   # Red BGR
             else:
-                color = (80, 200, 60)
+                color = (80, 200, 60)   # Emerald Green BGR
 
-            # Badge anchor point (centered horizontally, top of polygon)
-            cx = int(poly[:, 0].mean())
-            cy = int(poly[:, 1].min())
+            # Anchor point: "center" (centroid) or "top"
+            if label_pos == "top":
+                cx = int(poly[:, 0].mean())
+                cy = int(poly[:, 1].min())
+            else:
+                M = cv2.moments(poly)
+                if M["m00"] != 0:
+                    cx = int(M["m10"] / M["m00"])
+                    cy = int(M["m01"] / M["m00"])
+                else:
+                    cx = int(poly[:, 0].mean())
+                    cy = int(poly[:, 1].mean())
 
-            name = str(z.get("name") or "Zona")
+            raw_name = str(z.get("name") or "Zona").strip()
             count = z.get("currentCount", 0)
             cap = z.get("capacity", 4)
             dur = z.get("occupiedFormatted", "0s")
 
-            line1 = f"{name} [{count}/{cap}] {status}"
-            line2 = f"Dur: {dur}" if status != "VACANT" else ""
-
             font = cv2.FONT_HERSHEY_SIMPLEX
-            scale1 = 0.44
-            thick = 1
-            (w1, h1), _ = cv2.getTextSize(line1, font, scale1, thick)
-            w2, h2 = (0, 0)
-            if line2:
-                (w2, h2), _ = cv2.getTextSize(line2, font, 0.40, thick)
 
-            box_w = max(w1, w2) + 16
-            box_h = h1 + (h2 + 8 if line2 else 0) + 12
+            if compact:
+                # Clean concise name (e.g. "Meja 01 (Tengah)" -> "Meja 01")
+                short_name = raw_name.split("(")[0].strip() if "(" in raw_name and len(raw_name) > 9 else raw_name
+                base_scale = 0.32 if min(w, h) <= 480 else 0.38
+                scale1 = base_scale
+                scale2 = base_scale + 0.04
+                thick = 1
 
-            bx1 = max(4, min(w - box_w - 4, cx - box_w // 2))
-            by1 = max(4, min(h - box_h - 4, cy - box_h - 6))
-            bx2 = bx1 + box_w
-            by2 = by1 + box_h
+                if status == "VACANT":
+                    line1 = f"{short_name} ({count}/{cap})"
+                    line2 = ""
+                else:
+                    line1 = f"{short_name} ({count}/{cap})"
+                    line2 = f"{dur}"
 
-            cv2.rectangle(frame, (bx1, by1), (bx2, by2), (15, 23, 42), -1)
-            cv2.rectangle(frame, (bx1, by1), (bx2, by2), color, 1, cv2.LINE_AA)
+                (w1, h1), _ = cv2.getTextSize(line1, font, scale1, thick)
+                w2, h2 = (0, 0)
+                if line2:
+                    (w2, h2), _ = cv2.getTextSize(line2, font, scale2, thick)
 
-            cv2.putText(frame, line1, (bx1 + 8, by1 + h1 + 5), font, scale1, (240, 245, 250), thick, cv2.LINE_AA)
-            if line2:
-                cv2.putText(frame, line2, (bx1 + 8, by1 + h1 + h2 + 9), font, 0.40, (160, 210, 255), thick, cv2.LINE_AA)
+                box_w = max(w1, w2) + 12
+                box_h = h1 + (h2 + 5 if line2 else 0) + 8
+
+                if label_pos == "top":
+                    bx1 = max(2, min(w - box_w - 2, cx - box_w // 2))
+                    by1 = max(2, min(h - box_h - 2, cy - box_h - 4))
+                else:
+                    bx1 = max(2, min(w - box_w - 2, cx - box_w // 2))
+                    by1 = max(2, min(h - box_h - 2, cy - box_h // 2))
+                bx2 = bx1 + box_w
+                by2 = by1 + box_h
+
+                # Semi-transparent glass background so it doesn't block underlying action
+                sub = frame[by1:by2, bx1:bx2]
+                if sub.shape[0] > 0 and sub.shape[1] > 0:
+                    bg = np.full_like(sub, (15, 23, 42))
+                    cv2.addWeighted(bg, 0.72, sub, 0.28, 0, sub)
+                    cv2.rectangle(frame, (bx1, by1), (bx2, by2), color, 1, cv2.LINE_AA)
+
+                # Center text inside the compact box
+                tx1 = bx1 + (box_w - w1) // 2
+                cv2.putText(frame, line1, (tx1, by1 + h1 + 3), font, scale1, (240, 245, 250), thick, cv2.LINE_AA)
+                if line2:
+                    tx2 = bx1 + (box_w - w2) // 2
+                    cv2.putText(frame, line2, (tx2, by1 + h1 + h2 + 6), font, scale2, (100, 230, 255), thick, cv2.LINE_AA)
+            else:
+                line1 = f"{raw_name} [{count}/{cap}] {status}"
+                line2 = f"Dur: {dur}" if status != "VACANT" else ""
+
+                scale1 = 0.40 if min(w, h) <= 480 else 0.44
+                scale2 = 0.36 if min(w, h) <= 480 else 0.40
+                thick = 1
+                (w1, h1), _ = cv2.getTextSize(line1, font, scale1, thick)
+                w2, h2 = (0, 0)
+                if line2:
+                    (w2, h2), _ = cv2.getTextSize(line2, font, scale2, thick)
+
+                box_w = max(w1, w2) + 16
+                box_h = h1 + (h2 + 8 if line2 else 0) + 12
+
+                if label_pos == "top":
+                    bx1 = max(4, min(w - box_w - 4, cx - box_w // 2))
+                    by1 = max(4, min(h - box_h - 4, cy - box_h - 6))
+                else:
+                    bx1 = max(4, min(w - box_w - 4, cx - box_w // 2))
+                    by1 = max(4, min(h - box_h - 4, cy - box_h // 2))
+                bx2 = bx1 + box_w
+                by2 = by1 + box_h
+
+                sub = frame[by1:by2, bx1:bx2]
+                if sub.shape[0] > 0 and sub.shape[1] > 0:
+                    bg = np.full_like(sub, (15, 23, 42))
+                    cv2.addWeighted(bg, 0.80, sub, 0.20, 0, sub)
+                    cv2.rectangle(frame, (bx1, by1), (bx2, by2), color, 1, cv2.LINE_AA)
+
+                cv2.putText(frame, line1, (bx1 + 8, by1 + h1 + 5), font, scale1, (240, 245, 250), thick, cv2.LINE_AA)
+                if line2:
+                    cv2.putText(frame, line2, (bx1 + 8, by1 + h1 + h2 + 9), font, scale2, (160, 210, 255), thick, cv2.LINE_AA)
 
         # Pass 3: Summary HUD Card in top corner if enabled
         if config.get("showSummaryCard", True):
@@ -1480,23 +1547,43 @@ def _draw_multi_zone_occupancy_overlays(frame, workflow: dict, event_runtime: di
             rate = snapshot.get("occupancyRate", 0.0)
             total_o = snapshot.get("totalObjects", 0)
 
-            hud_text1 = f"ZONA: {occ_z}/{total_z} Terisi ({rate:.0f}%)"
-            hud_text2 = f"TOTAL OBJEK: {total_o}"
+            if compact or min(w, h) <= 480:
+                hud_text = f"Meja: {occ_z}/{total_z} ({rate:.0f}%) | Tamu: {total_o}"
+                (hw, hh), _ = cv2.getTextSize(hud_text, cv2.FONT_HERSHEY_SIMPLEX, 0.32, 1)
+                h_box_w = hw + 12
+                h_box_h = hh + 8
+                h_bx1 = max(4, w - h_box_w - 6)
+                h_by1 = 6
+                h_bx2 = h_bx1 + h_box_w
+                h_by2 = h_by1 + h_box_h
 
-            (hw1, hh1), _ = cv2.getTextSize(hud_text1, cv2.FONT_HERSHEY_SIMPLEX, 0.48, 1)
-            (hw2, hh2), _ = cv2.getTextSize(hud_text2, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)
-            h_box_w = max(hw1, hw2) + 20
-            h_box_h = hh1 + hh2 + 20
+                sub_h = frame[h_by1:h_by2, h_bx1:h_bx2]
+                if sub_h.shape[0] > 0 and sub_h.shape[1] > 0:
+                    bg_h = np.full_like(sub_h, (15, 23, 42))
+                    cv2.addWeighted(bg_h, 0.75, sub_h, 0.25, 0, sub_h)
+                    cv2.rectangle(frame, (h_bx1, h_by1), (h_bx2, h_by2), (56, 189, 248), 1, cv2.LINE_AA)
+                    cv2.putText(frame, hud_text, (h_bx1 + 6, h_by1 + hh + 3), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (56, 189, 248), 1, cv2.LINE_AA)
+            else:
+                hud_text1 = f"ZONA: {occ_z}/{total_z} Terisi ({rate:.0f}%)"
+                hud_text2 = f"TOTAL OBJEK: {total_o}"
 
-            h_bx1 = max(8, w - h_box_w - 12)
-            h_by1 = 12
-            h_bx2 = h_bx1 + h_box_w
-            h_by2 = h_by1 + h_box_h
+                (hw1, hh1), _ = cv2.getTextSize(hud_text1, cv2.FONT_HERSHEY_SIMPLEX, 0.46, 1)
+                (hw2, hh2), _ = cv2.getTextSize(hud_text2, cv2.FONT_HERSHEY_SIMPLEX, 0.40, 1)
+                h_box_w = max(hw1, hw2) + 16
+                h_box_h = hh1 + hh2 + 16
 
-            cv2.rectangle(frame, (h_bx1, h_by1), (h_bx2, h_by2), (15, 23, 42), -1)
-            cv2.rectangle(frame, (h_bx1, h_by1), (h_bx2, h_by2), (56, 189, 248), 1, cv2.LINE_AA)
-            cv2.putText(frame, hud_text1, (h_bx1 + 10, h_by1 + hh1 + 6), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (56, 189, 248), 1, cv2.LINE_AA)
-            cv2.putText(frame, hud_text2, (h_bx1 + 10, h_by1 + hh1 + hh2 + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (203, 213, 225), 1, cv2.LINE_AA)
+                h_bx1 = max(8, w - h_box_w - 10)
+                h_by1 = 10
+                h_bx2 = h_bx1 + h_box_w
+                h_by2 = h_by1 + h_box_h
+
+                sub_h = frame[h_by1:h_by2, h_bx1:h_bx2]
+                if sub_h.shape[0] > 0 and sub_h.shape[1] > 0:
+                    bg_h = np.full_like(sub_h, (15, 23, 42))
+                    cv2.addWeighted(bg_h, 0.80, sub_h, 0.20, 0, sub_h)
+                    cv2.rectangle(frame, (h_bx1, h_by1), (h_bx2, h_by2), (56, 189, 248), 1, cv2.LINE_AA)
+                    cv2.putText(frame, hud_text1, (h_bx1 + 8, h_by1 + hh1 + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.46, (56, 189, 248), 1, cv2.LINE_AA)
+                    cv2.putText(frame, hud_text2, (h_bx1 + 8, h_by1 + hh1 + hh2 + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (203, 213, 225), 1, cv2.LINE_AA)
 
 
 def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict) -> None:

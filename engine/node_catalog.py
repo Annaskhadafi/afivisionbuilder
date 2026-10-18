@@ -779,6 +779,8 @@ NODE_BLUEPRINTS = {
             "confirmationSeconds": 3.0,
             "graceSeconds": 10.0,
             "maxDwellMinutes": 0.0,
+            "labelPosition": "center",
+            "compactLabel": True,
             "showHudOverlay": True,
             "showSummaryCard": True,
             "zones": [

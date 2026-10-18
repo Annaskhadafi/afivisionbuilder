@@ -118,6 +118,52 @@ def test_process_multi_zone_occupancy_lifecycle():
     assert z1_vac["status"] == "VACANT"
     assert runtime["node_mzo_1"]["snapshot"]["occupiedZones"] == 0
 
+def test_pending_vacant_recovery_and_progressive_timer():
+    dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    node = {
+        "id": "node_mzo_test",
+        "type": "multi_zone_occupancy",
+        "config": {
+            "targetClasses": "person",
+            "confirmationSeconds": 2.0,
+            "graceSeconds": 5.0,
+            "zones": [
+                {"id": "table_1", "name": "Meja 1", "capacity": 2, "points": "0.1,0.1; 0.9,0.1; 0.9,0.9; 0.1,0.9"}
+            ]
+        }
+    }
+    runtime = {}
+    det = [{"class": "person", "bbox": [100.0, 100.0, 50.0, 50.0]}]
+
+    # Confirm over 2s
+    process_multi_zone_occupancy(node, dummy_frame, det, runtime, now=10.0)
+    process_multi_zone_occupancy(node, dummy_frame, det, runtime, now=11.0)
+    process_multi_zone_occupancy(node, dummy_frame, det, runtime, now=12.0)
+    z = runtime["node_mzo_test"]["snapshot"]["zones"][0]
+    assert z["status"] == "OCCUPIED"
+
+    # Advance 3s -> occupiedSeconds = 3.0s
+    process_multi_zone_occupancy(node, dummy_frame, det, runtime, now=15.0)
+    z = runtime["node_mzo_test"]["snapshot"]["zones"][0]
+    assert z["occupiedSeconds"] == 3.0
+
+    # Temporary drop for 1 frame (0.1s) -> PENDING_VACANT
+    process_multi_zone_occupancy(node, dummy_frame, [], runtime, now=15.1)
+    z = runtime["node_mzo_test"]["snapshot"]["zones"][0]
+    assert z["status"] == "PENDING_VACANT"
+    assert z["occupiedSeconds"] == 3.0
+
+    # Person re-detected at t=16.0s -> MUST recover to OCCUPIED and timer MUST advance to 4.0s (not stuck!)
+    process_multi_zone_occupancy(node, dummy_frame, det, runtime, now=16.0)
+    z = runtime["node_mzo_test"]["snapshot"]["zones"][0]
+    assert z["status"] == "OCCUPIED"
+    assert z["occupiedSeconds"] == 4.0
+
+    # Advance to t=25.0s -> timer reaches 13.0s
+    process_multi_zone_occupancy(node, dummy_frame, det, runtime, now=25.0)
+    z = runtime["node_mzo_test"]["snapshot"]["zones"][0]
+    assert z["occupiedSeconds"] == 13.0
+
 def test_catalog_registration():
     from engine.node_catalog import NODE_BLUEPRINTS, OBJECT_EVENT_NODE_TYPES
     assert "multi_zone_occupancy" in OBJECT_EVENT_NODE_TYPES
