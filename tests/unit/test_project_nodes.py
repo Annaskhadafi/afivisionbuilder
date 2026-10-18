@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "engine"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "engine"))
 from project_nodes import process_project_nodes, validate_project_config
 
 

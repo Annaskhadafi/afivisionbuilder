@@ -12,7 +12,7 @@ import numpy as np
 import cv2
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "engine"))
 
 import core  # noqa: E402

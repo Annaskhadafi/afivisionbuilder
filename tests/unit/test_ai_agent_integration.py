@@ -8,7 +8,7 @@ from unittest.mock import patch
 from fastapi import HTTPException
 import numpy as np
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "engine"))
 sys.path.insert(0, str(ROOT))
 

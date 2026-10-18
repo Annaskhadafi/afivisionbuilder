@@ -1,5 +1,6 @@
 """Standalone checks for the custom Python script runtime."""
 from __future__ import annotations
+from pathlib import Path
 
 import multiprocessing as mp
 import os
@@ -10,7 +11,7 @@ import unittest
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from engine.python_script_runtime import (  # noqa: E402
     PythonScriptRunner,
     ScriptStopped,

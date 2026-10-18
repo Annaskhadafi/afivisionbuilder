@@ -9,7 +9,7 @@ temp_dir = tempfile.TemporaryDirectory(prefix="visonode-persist-")
 os.environ["VISONODE_APP_DATA_DIR"] = temp_dir.name
 
 # Add webapp directory to path
-webapp_dir = Path(__file__).resolve().parent
+webapp_dir = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(webapp_dir))
 
 import server

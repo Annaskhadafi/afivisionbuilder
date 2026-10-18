@@ -12,7 +12,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-ENGINE = Path(__file__).resolve().parent / "engine"
+ENGINE = Path(__file__).resolve().parents[2] / "engine"
 sys.path.insert(0, str(ENGINE))
 import main as nodes  # noqa: E402
 

@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-webapp_dir = Path(__file__).resolve().parent
+webapp_dir = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(webapp_dir))
 
 from fastapi import HTTPException

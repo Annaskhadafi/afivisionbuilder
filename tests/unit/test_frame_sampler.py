@@ -3,6 +3,7 @@
 Run from the repository root with ``python webapp/test_frame_sampler.py``.
 """
 from __future__ import annotations
+from pathlib import Path
 
 import os
 import sys
@@ -21,8 +22,8 @@ import numpy as np
 _TEST_DATA = tempfile.TemporaryDirectory(prefix="visonode-sampler-tests-")
 os.environ.setdefault("VISONODE_APP_DATA_DIR", _TEST_DATA.name)
 
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "engine"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, os.path.join(str(Path(__file__).resolve().parents[2]), "engine"))
 
 from engine import core, main, node_catalog, workflow_store  # noqa: E402
 

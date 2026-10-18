@@ -3,6 +3,7 @@
 Run from this directory with ``python test_tracking_integration.py``.
 """
 from __future__ import annotations
+from pathlib import Path
 
 import os
 import sys
@@ -15,8 +16,8 @@ for _name in ("OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "OMP_NUM_THREADS", "NUM
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "engine"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, os.path.join(str(Path(__file__).resolve().parents[2]), "engine"))
 
 from engine import core, main, node_catalog, workflow_store  # noqa: E402
 

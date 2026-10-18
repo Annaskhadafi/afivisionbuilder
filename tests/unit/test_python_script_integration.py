@@ -3,6 +3,7 @@
 Run sequentially with ``python webapp/test_python_script_integration.py``.
 """
 from __future__ import annotations
+from pathlib import Path
 
 import os
 import sys
@@ -20,8 +21,8 @@ os.environ["VISONODE_APP_DATA_DIR"] = _DATA.name
 import cv2  # noqa: E402
 import numpy as np  # noqa: E402
 
-sys.path.insert(0, os.path.dirname(__file__))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "engine"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, os.path.join(str(Path(__file__).resolve().parents[2]), "engine"))
 
 from engine import core, main, node_catalog, workflow_store  # noqa: E402
 from engine.python_script_runtime import (  # noqa: E402

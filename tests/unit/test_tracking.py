@@ -1,7 +1,9 @@
 """Small installed-runtime checks for the Roboflow tracker adapter."""
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "engine")
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "engine"))
 
 from roboflow_tracker import RoboflowTracker, SUPPORTED_ALGORITHMS
 
