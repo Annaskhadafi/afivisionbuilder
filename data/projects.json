@@ -1,17 +1,17 @@
 {
-  "active_project_id": "c520a9f601f64399a505ab33fb8a726e",
+  "active_project_id": "733240f514454a71bc65ae45f3fd9245",
   "projects": [
     {
-      "id": "5265af2c568e4c4d9dc2e13b04a2612f",
-      "name": "Workshop Bay 1 Workflow",
-      "created_at": "2026-10-18T10:37:00+00:00",
-      "modified_at": "2026-10-18T10:37:01+00:00"
+      "id": "733240f514454a71bc65ae45f3fd9245",
+      "name": "Restaurant Table Occupancy & Dining Dwell Tracker",
+      "created_at": "2026-10-18T12:28:11+00:00",
+      "modified_at": "2026-10-18T14:04:19+00:00"
     },
     {
-      "id": "c520a9f601f64399a505ab33fb8a726e",
-      "name": "YOLOv8 Test 01 \u2014 Deteksi & Overlay",
-      "created_at": "2026-10-18T08:58:40+00:00",
-      "modified_at": "2026-10-18T08:59:00+00:00"
+      "id": "5c45d44113dc4321b6abc96e5807a9af",
+      "name": "Integration",
+      "created_at": "2026-10-18T12:10:47+00:00",
+      "modified_at": "2026-10-18T12:10:47+00:00"
     }
   ]
 }

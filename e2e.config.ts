@@ -2,6 +2,31 @@ import type { E2EConfig } from 'e2e';
 import { web } from '@e2e-dev/web';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 
+import fs from 'node:fs';
+import path from 'node:path';
+
+// Load local .env safely without hardcoding secrets in version control
+try {
+  const envPath = path.resolve(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf8').split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const k = trimmed.slice(0, eqIdx).trim();
+        const v = trimmed.slice(eqIdx + 1).trim().replace(/^['"]|['"]$/g, '');
+        if (!process.env[k]) {
+          process.env[k] = v;
+        }
+      }
+    }
+  }
+} catch {
+  // ignore
+}
+
 // 9router defaults to text/event-stream unless stream: false is explicitly set in the request JSON
 const routerFetch: typeof fetch = async (url, options) => {
   if (options?.body && typeof options.body === 'string') {
@@ -21,7 +46,7 @@ const routerFetch: typeof fetch = async (url, options) => {
 const router = createOpenAICompatible({
   name: '9router',
   baseURL: process.env.OPENAI_BASE_URL ?? process.env.ROUTER_BASE_URL ?? 'https://9router.chitraparatama.com/v1',
-  apiKey: process.env.OPENAI_API_KEY ?? process.env.ROUTER_API_KEY ?? 'sk-a510b6e65efa23d4-hpbvtn-35dad8f5',
+  apiKey: process.env.OPENAI_API_KEY ?? process.env.ROUTER_API_KEY ?? '',
   fetch: routerFetch,
 });
 

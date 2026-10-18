@@ -1,0 +1,236 @@
+{
+  "nodes": [
+    {
+      "id": "input",
+      "type": "input",
+      "title": "Input",
+      "subtitle": "Video file source",
+      "x": 76.66665649414062,
+      "y": 98.88888549804688,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "sourceType": "video",
+        "source": 0,
+        "width": 16,
+        "height": 23,
+        "dahengOpenMode": "index",
+        "dahengIdentifier": "1",
+        "dahengTimeoutMs": 1000,
+        "dahengFrameRate": 0,
+        "dahengExposureUs": 0,
+        "dahengGain": 0,
+        "filePath": "D:/CCTV-EATON-Cafe-SnapYT.App.mp4",
+        "loop": true,
+        "frameQueueSize": 8,
+        "torchCpuThreads": 0,
+        "asyncPreview": false,
+        "dropFrames": true
+      }
+    },
+    {
+      "id": "table_tracker",
+      "type": "multi_zone_occupancy",
+      "title": "Multi-Zone Occupancy & Activity Tracker",
+      "subtitle": "Pantau keterisian banyak zona/meja/slot sekaligus, timer durasi, kapasitas, dan status Vacant/Occupied",
+      "x": 737.7778930664062,
+      "y": 33.33332824707031,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "targetClasses": "person",
+        "confirmationSeconds": 2,
+        "graceSeconds": 10,
+        "maxDwellMinutes": 30,
+        "labelPosition": "center",
+        "compactLabel": true,
+        "showHudOverlay": true,
+        "showSummaryCard": true,
+        "zones": [
+          {
+            "id": "meja_01",
+            "name": "Meja 01 (Tengah)",
+            "capacity": 2,
+            "points": "0.406,0.383; 0.541,0.285; 0.634,0.429; 0.528,0.538"
+          },
+          {
+            "id": "meja_02",
+            "name": "Meja 02 (Kiri Depan)",
+            "capacity": 4,
+            "points": "0.206,0.655; 0.402,0.567; 0.444,0.649; 0.250,0.818"
+          },
+          {
+            "id": "meja_03",
+            "name": "Meja 03 (Kiri Belakang)",
+            "capacity": 1,
+            "points": "0.085,0.371; 0.279,0.277; 0.331,0.346; 0.125,0.465"
+          },
+          {
+            "id": "meja_04",
+            "name": "Meja 04 (Kanan Depan)",
+            "capacity": 4,
+            "points": "0.783,0.588; 0.897,0.676; 0.783,0.922; 0.653,0.739"
+          }
+        ]
+      }
+    },
+    {
+      "id": "annotate",
+      "type": "overlay_annotate",
+      "title": "Overlay / Annotate",
+      "subtitle": "Gambarkan seluruh anotasi (kotak, label, ikon, heatmap) di satu tempat",
+      "x": 910,
+      "y": 101.111083984375,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "layers": []
+      }
+    },
+    {
+      "id": "db_out",
+      "type": "database_output",
+      "title": "Database Output",
+      "subtitle": "Simpan hasil deteksi dan log event ke database lokal SQLite",
+      "x": 1160,
+      "y": 80,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "databasePath": "",
+        "saveDetections": true,
+        "eventObjectsOnly": true,
+        "saveFrames": false,
+        "saveEvents": true,
+        "saveDebug": false,
+        "sampleEvery": 1,
+        "batchSize": 128,
+        "flushIntervalMs": 500,
+        "maxQueue": 10000,
+        "retentionDays": 14,
+        "aggregateHourly": true,
+        "table": "restaurant_table_events"
+      }
+    },
+    {
+      "id": "preview",
+      "type": "preview",
+      "title": "Live Preview",
+      "subtitle": "Jendela tampilan streaming video hasil pemrosesan",
+      "x": 1160,
+      "y": 220,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "showBoxes": true,
+        "showLabels": true,
+        "showMasks": true,
+        "showTrackIds": true,
+        "showTrails": true,
+        "showCounts": false,
+        "maskOpacity": 0.35,
+        "cropGridMaxItems": 16,
+        "cropGridColumns": 0,
+        "cropGridGap": 8,
+        "holdLastEvent": true,
+        "maxPreviewFps": 0,
+        "saveVideo": false,
+        "outputPath": "",
+        "outputFps": 0
+      }
+    },
+    {
+      "id": "detector",
+      "type": "detector",
+      "title": "Object Detection",
+      "subtitle": "Deteksi objek dengan model RF-DETR PyTorch, TensorRT, atau YOLO",
+      "x": 358.88885498046875,
+      "y": 107.77777099609375,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "engine": "ultralytics_yolo",
+        "threshold": 0.17,
+        "rfdetrModel": "rfdetr-nano",
+        "rfdetrCheckpoint": "",
+        "rfdetrImageSize": 0,
+        "rfdetrHalfPrecision": true,
+        "rfdetrTensorRTEngine": "",
+        "rfdetrTensorRTClasses": "",
+        "rfdetrTensorRTCudaGraph": false,
+        "rfdetrTensorRTProcess": false,
+        "rfdetrOnnxModel": "",
+        "rfdetrOnnxClasses": "",
+        "detectEveryNFrames": 1,
+        "maxDetectionFps": 0,
+        "batchSize": 1,
+        "iouThreshold": 0.13,
+        "device": "auto",
+        "customModelPath": "D:\\[01] PROJECT\\REA\\webapp\\yolo11n.pt",
+        "customClasses": "person",
+        "perClassThresholds": "",
+        "classRemap": "",
+        "modelPath": "D:\\[01] PROJECT\\REA\\webapp\\yolo11n.pt",
+        "classes": ""
+      }
+    },
+    {
+      "id": "tracker",
+      "type": "tracker",
+      "title": "Object Tracking",
+      "subtitle": "Pelacakan ID dengan ByteTrack, BoT-SORT, OC-SORT, atau C-BIoU",
+      "x": 598.8888549804688,
+      "y": 110,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "trackerConfigVersion": 3,
+        "algorithm": "bytetrack",
+        "trackHighThreshold": 0.45,
+        "trackLowThreshold": 0.1,
+        "newTrackThreshold": 0.5,
+        "matchThreshold": 0.1,
+        "trackBuffer": 90,
+        "minimumConsecutiveFrames": 1,
+        "trackerFrameRate": 30,
+        "botSortFirstIouThreshold": 0.2,
+        "botSortSecondIouThreshold": 0.5,
+        "botSortUnconfirmedIouThreshold": 0.3,
+        "botSortGmc": true,
+        "botSortCmcMethod": "sparseOptFlow",
+        "botSortCmcDownscale": 2,
+        "ocSortDetectionThreshold": 0.45,
+        "ocSortIouThreshold": 0.3,
+        "ocSortMaxAge": 90,
+        "ocSortMinHits": 1,
+        "ocSortDeltaT": 3,
+        "ocSortInertia": 0.2,
+        "batchSize": 1,
+        "classAgnostic": false,
+        "showLostTracks": false
+      }
+    }
+  ],
+  "edges": [
+    [
+      "table_tracker",
+      "annotate"
+    ],
+    [
+      "annotate",
+      "preview"
+    ],
+    [
+      "input",
+      "detector"
+    ],
+    [
+      "detector",
+      "tracker"
+    ],
+    [
+      "tracker",
+      "table_tracker"
+    ]
+  ]
+}

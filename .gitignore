@@ -23,6 +23,9 @@ data/uploads/*
 *.log
 *.tmp
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
 .cache/
 
 # OS specific files
