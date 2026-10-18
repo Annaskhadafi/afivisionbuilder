@@ -6,6 +6,13 @@ test('verify Tracking and Analysis v2 nodes, inspector controls, and zone guides
   await app.open('/');
   await expect(browser.locator('.brand')).toBeVisible();
 
+  // Open workflow from Projects Hub if visible
+  const openProjBtn = browser.locator('button:has-text("Open workflow →")').first();
+  if (await openProjBtn.isVisible()) {
+    await openProjBtn.click();
+  }
+  await expect(browser.locator('#studioWorkflowArea')).toBeVisible({ timeout: 10000 });
+
   // Test Node: Object Tracking (ByteTrack / BoT-SORT / OC-SORT)
   const trackerLib = browser.locator('.library-item:has-text("Object Tracking")').first();
   await expect(trackerLib).toBeVisible();

@@ -297,20 +297,24 @@ Dependensi: rilis awal stabil; detail perangkat/API tersedia. Output: pilot terp
 | 2026-10-18 | Direct Shortcut & Interactive Drawing Poligon Area Kamera (ROI Durasi Kerja) | PASS UI, Canvas, Unit & E2E (`camera_settings_workflow.e2e.ts`) | `static/index.html`, `static/style.css`, `static/app.js`, `tests/camera_settings_workflow.e2e.ts`, `.e2e/report.json` | Penambahan fitur alur gambar poligon area langsung dari kamera: (1) Tombol shortcut visual `[📐 Gambar Poligon Area]` (`#camDrawPolygonBtn`) di modal Pengaturan Kamera; (2) Klik shortcut otomatis membuka Studio, memuat workflow kamera, memilih node `zone_activity_timer` / `zone_exit_event`, dan mengaktifkan SVG editor poligon interaktif di atas frame preview live/kalibrasi; (3) Fallback frame kalibrasi 16:9 ber-grid jika pipeline belum distart, sehingga operator dapat langsung menentukan titik sudut sebelum streaming dimulai; (4) Toolbar interaktif (status titik, geser vertex handle, tambah titik di garis, hapus titik, Simpan zona, Batal); (5) Pengujian unit backend 21/21 PASS dan pengujian E2E `tests/camera_settings_workflow.e2e.ts` lulus 100% dalam 5.91s dengan bukti visual tangkapan layar nyata. |
 | 2026-10-18 | Multi-Zone Occupancy & Activity Tracker (General Table / Area / Bay Tracker) | PASS engine, pipeline, inspector, visual editor, unit & E2E (`multi_zone_occupancy.e2e.ts`) | `engine/multi_zone_occupancy.py`, `engine/node_catalog.py`, `engine/core.py`, `engine/main.py`, `static/app.js`, `static/style.css`, `test_multi_zone_occupancy.py`, `tests/multi_zone_occupancy.e2e.ts`, `.e2e/report.json` | Implementasi node Multi-Zone Occupancy & Activity Tracker yang 100% GENERAL & MODULAR (berdasarkan analisis video YouTube Restaurant & Multi-Zone Analytics): (1) Engine komputasi multi-poligon point-in-polygon (feet/torso/chest testing untuk person, center untuk objek lain); (2) Finite State Machine per-zona independen (`VACANT` ➔ `CONFIRMING` ➔ `OCCUPIED` / `OVER_CAPACITY` / `OVERSTAY` ➔ `PENDING_VACANT` ➔ `VACANT`) dengan timer durasi terisi real-time, toleransi grace period, dan deteksi overstay; (3) Event emisi `zone_occupied`, `zone_vacated` (dengan durasi total & turnover index), dan `zone_overstay` untuk downstream alerts/database; (4) Visual overlay renderer di pipeline dengan glassmorphism badge kartu meja/zona dan top HUD summary; (5) Multi-Zone Visual Polygon Editor di atas frame preview dengan pemilih area aktif, input nama & kapasitas, penambahan/penghapusan area baru, dan draggable vertex handles; (6) 5/5 unit tests pytest PASS dan E2E test `multi_zone_occupancy.e2e.ts` lulus 100% dalam 6.28s dengan 4 bukti tangkapan layar visual. |
 
+| 2026-10-18 | Fix Error 'No module named supervision' & Launcher .venv Priority | PASS unit, integrasi & E2E (`nodes_tracking_analysis.e2e.ts`) | `requirements.txt`, `run.bat`, `tests/nodes_tracking_analysis.e2e.ts`, `test_tracking_integration.py`, `.e2e/report.json` | Memperbaiki bug kegagalan tracking thread `No module named 'supervision'`: (1) Mengupdate `run.bat` untuk memprioritaskan `.venv\Scripts\python.exe` secara otomatis bila tersedia (seperti pada `run.sh`), menghindari ketidaksinkronan package dengan Python sistem; (2) Menambahkan dependensi `supervision>=0.25.0,<=0.30.9` dan `trackers==2.5.0.post0` ke `requirements.txt`; (3) Memasang versi tervalidasi `supervision==0.30.9` dan `trackers==2.5.0.post0` pada Python sistem sebagai proteksi ganda; (4) Pengujian `test_tracking_integration.py` lulus 100% pada kedua environment (.venv & sistem); (5) Pengujian E2E `nodes_tracking_analysis.e2e.ts` lulus 100% dalam 6.12s dengan 7 tangkapan layar visual. |
+
 ### Checks yang dapat dijalankan sesi berikutnya
 
 ```powershell
 npm run test:e2e
+npx e2e run tests/nodes_tracking_analysis.e2e.ts
 npx e2e run tests/multi_zone_occupancy.e2e.ts
 npx e2e run tests/camera_settings_workflow.e2e.ts
 npx e2e run tests/dashboard_operations.e2e.ts
+.venv/Scripts/python.exe test_tracking_integration.py
 .venv/Scripts/python.exe -m pytest -v test_multi_zone_occupancy.py
 .venv/Scripts/python.exe -m pytest -q test_nodes.py test_project_nodes.py
 node -c "static/app.js"
 git diff --check
 ```
 
-Hasil terbaru 18 Oktober: Node General Multi-Zone Occupancy & Activity Tracker telah selesai diimplementasikan secara menyeluruh (Engine, Pipeline, Event Routing, Inspector, dan Multi-Zone Visual Polygon Editor). Seluruh unit tests (5/5) dan E2E test (`tests/multi_zone_occupancy.e2e.ts`, 6.28s, 7.1k tokens) LULUS 100% dengan 4 tangkapan layar visual nyata terlampir.
+Hasil terbaru 18 Oktober: Bug error runtime tracking thread `No module named 'supervision'` berhasil diatasi secara tuntas. `run.bat` kini secara otomatis mengarahkan eksekusi ke `.venv\Scripts\python.exe`, dan dependensi `supervision` + `trackers` telah diselaraskan di `requirements.txt` serta diinstal. Pengujian unit `test_tracking_integration.py` (PASS) dan E2E test `tests/nodes_tracking_analysis.e2e.ts` (PASS, 6.12s, 8.3k tokens) membuktikan workflow tracking siap dijalankan tanpa error.
 
 
 
