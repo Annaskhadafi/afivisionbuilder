@@ -2457,7 +2457,7 @@ def results_for_node(
 
     project_sources = {
         str(node.get("id") or "") for node in workflow.get("nodes", [])
-        if node.get("type") in ("zone_activity_timer", "zone_exit_event")
+        if node.get("type") in ("zone_activity_timer", "zone_exit_event", "multi_zone_occupancy")
         and node.get("enabled", True)
         and str(node.get("id") or "") != node_id
         and has_active_path(workflow, str(node.get("id") or ""), node_id)
@@ -2466,7 +2466,7 @@ def results_for_node(
         "alert", "webhook_output", "image_output", "database_output", "ai_agent",
     ):
         events = [item for item in detections
-                  if item.get("kind") in ("zone_activity_event", "zone_exit")
+                  if item.get("kind") in ("zone_activity_event", "zone_exit", "zone_occupied", "zone_vacated", "zone_overstay")
                   and str(item.get("sourceNodeId") or "") in project_sources]
         return filter_project_inputs(workflow, node_id, events, after_sources=project_sources)
     tracker = active_tracking_node(workflow) or active_vlm_box_tracker_node(workflow)

@@ -98,11 +98,11 @@ def test_shared_track_event_path_and_sparse_outputs():
 
 def test_status_projects_stale_timer_as_unknown_without_mutating_runtime():
     timer = _node("timer", "zone_activity_timer", confirmationSeconds=0, maxObservationGapSeconds=5)
-    workflow = _wf([{"id": "input", "type": "input", "config": {}}, timer], [("input", "timer")])
+    workflow = _wf([{"id": "input", "type": "input", "config": {}}, {"id": "tracker", "type": "tracker", "config": {}}, timer], [("input", "tracker"), ("tracker", "timer")])
     tracked = [_track("tire", "t1"), _track("person", "p1", (50, 20, 10, 20))]
     runtime = {}
     base = wallclock.monotonic()
-    core._process_track_event_nodes(cv2, FRAME, workflow, [], tracked, {}, runtime, base)
+    core._process_track_event_nodes(cv2, FRAME, workflow, tracked, tracked, {}, runtime, base)
     runner = core.WorkflowRunner(native_preview=False)
     runner._event_runtime = runtime
     runner._active_workflow = workflow

@@ -134,7 +134,15 @@ def _in_zone(det, polygon, width, height):
         return False
     x, y, w, h = box
     cls = str(det.get("class", "")).lower()
-    point = (x + w / 2, y + h if cls == "person" else y + h / 2)
+    if cls == "person":
+        # Check feet (bottom edge), center (torso), or lower torso for sitting/webcam views
+        pts = [
+            (x + w / 2, y + h),
+            (x + w / 2, y + h / 2),
+            (x + w / 2, y + 0.75 * h),
+        ]
+        return any(_inside(pt, polygon) for pt in pts)
+    point = (x + w / 2, y + h / 2)
     return _inside(point, polygon)
 
 

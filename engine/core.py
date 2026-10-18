@@ -724,7 +724,7 @@ def _process_track_event_nodes(
     extra_results.extend(dwell_events)
 
     for project_node in workflow.get("nodes", []):
-        if project_node.get("type") not in ("zone_activity_timer", "zone_exit_event") or not project_node.get("enabled", True):
+        if project_node.get("type") not in ("zone_activity_timer", "zone_exit_event", "multi_zone_occupancy") or not project_node.get("enabled", True):
             continue
         project_id = str(project_node.get("id") or "")
         if not engine.has_active_path(workflow, engine.source_node_id(workflow), project_id):
@@ -733,7 +733,11 @@ def _process_track_event_nodes(
         candidates = engine.filter_project_inputs(workflow, project_id, candidates, (frame.shape[1], frame.shape[0]))
         with logic_lock if logic_lock is not None else nullcontext():
             candidates = engine.apply_logic_nodes(workflow, project_id, candidates, logic_runtime, now)
-        extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
+        if project_node.get("type") == "multi_zone_occupancy":
+            from multi_zone_occupancy import process_multi_zone_occupancy
+            extra_results.extend(process_multi_zone_occupancy(project_node, frame, candidates, event_runtime, now))
+        else:
+            extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
 
     # Process Roboflow Barcode & QR Code Reader
     barcode_dets = _process_barcode_reading(workflow, frame, detections)
@@ -1367,7 +1371,9 @@ def _draw_project_zone_overlays(frame, workflow: dict, event_runtime: dict) -> N
         label = str(config.get("zoneName") or node.get("title") or node.get("type"))
         if node.get("type") == "zone_activity_timer":
             label += f" | {state} | work {float(snapshot.get('workingSeconds', 0)):.1f}s"
-            label += f" | tire {snapshot.get('requiredCount', 0)} person {snapshot.get('triggerCount', 0)}"
+            req_name = str(config.get("requiredClasses", "tire")).split(",")[0].strip()
+            trig_name = str(config.get("triggerClasses", "person")).split(",")[0].strip()
+            label += f" | {req_name} {snapshot.get('requiredCount', 0)} {trig_name} {snapshot.get('triggerCount', 0)}"
         else:
             label += " | OUT"
         x = max(0, min(w - 1, int(poly[:, 0].min())))
@@ -1375,8 +1381,127 @@ def _draw_project_zone_overlays(frame, workflow: dict, event_runtime: dict) -> N
         cv2.putText(frame, label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, .45, color, 1, cv2.LINE_AA)
 
 
+def _draw_multi_zone_occupancy_overlays(frame, workflow: dict, event_runtime: dict) -> None:
+    import cv2
+    import numpy as np
+    if frame is None or not hasattr(frame, "shape"):
+        return
+    h, w = frame.shape[:2]
+
+    for node in workflow.get("nodes", []):
+        if node.get("type") != "multi_zone_occupancy" or not node.get("enabled", True):
+            continue
+        config = node.get("config", {})
+        if not config.get("showHudOverlay", True):
+            continue
+        node_id = str(node.get("id") or "multi_zone_occupancy")
+        snapshot = dict(event_runtime.get(node_id, {}).get("snapshot", {}))
+        if not snapshot:
+            continue
+
+        zones = snapshot.get("zones", [])
+        if not zones:
+            continue
+
+        overlay = frame.copy()
+
+        # Pass 1: Semi-transparent tinted polygon fills
+        for z in zones:
+            pts_raw = _parse_polygon(z.get("points", ""), w, h)
+            if len(pts_raw) < 3:
+                continue
+            poly = np.array(pts_raw, np.int32)
+            status = z.get("status", "VACANT")
+            if status in ("OCCUPIED", "CONFIRMING"):
+                color = (35, 145, 235)  # Amber / Orange BGR
+            elif status in ("OVER_CAPACITY", "OVERSTAY"):
+                color = (40, 40, 230)   # Red BGR
+            else:
+                color = (80, 200, 60)   # Emerald Green BGR
+
+            cv2.fillPoly(overlay, [poly], color)
+            cv2.polylines(frame, [poly], True, color, 2, cv2.LINE_AA)
+
+        cv2.addWeighted(overlay, 0.18, frame, 0.82, 0, frame)
+
+        # Pass 2: Glassmorphism badges on each zone
+        for z in zones:
+            pts_raw = _parse_polygon(z.get("points", ""), w, h)
+            if len(pts_raw) < 3:
+                continue
+            poly = np.array(pts_raw, np.int32)
+            status = z.get("status", "VACANT")
+            if status in ("OCCUPIED", "CONFIRMING"):
+                color = (35, 145, 235)
+            elif status in ("OVER_CAPACITY", "OVERSTAY"):
+                color = (40, 40, 230)
+            else:
+                color = (80, 200, 60)
+
+            # Badge anchor point (centered horizontally, top of polygon)
+            cx = int(poly[:, 0].mean())
+            cy = int(poly[:, 1].min())
+
+            name = str(z.get("name") or "Zona")
+            count = z.get("currentCount", 0)
+            cap = z.get("capacity", 4)
+            dur = z.get("occupiedFormatted", "0s")
+
+            line1 = f"{name} [{count}/{cap}] {status}"
+            line2 = f"Dur: {dur}" if status != "VACANT" else ""
+
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            scale1 = 0.44
+            thick = 1
+            (w1, h1), _ = cv2.getTextSize(line1, font, scale1, thick)
+            w2, h2 = (0, 0)
+            if line2:
+                (w2, h2), _ = cv2.getTextSize(line2, font, 0.40, thick)
+
+            box_w = max(w1, w2) + 16
+            box_h = h1 + (h2 + 8 if line2 else 0) + 12
+
+            bx1 = max(4, min(w - box_w - 4, cx - box_w // 2))
+            by1 = max(4, min(h - box_h - 4, cy - box_h - 6))
+            bx2 = bx1 + box_w
+            by2 = by1 + box_h
+
+            cv2.rectangle(frame, (bx1, by1), (bx2, by2), (15, 23, 42), -1)
+            cv2.rectangle(frame, (bx1, by1), (bx2, by2), color, 1, cv2.LINE_AA)
+
+            cv2.putText(frame, line1, (bx1 + 8, by1 + h1 + 5), font, scale1, (240, 245, 250), thick, cv2.LINE_AA)
+            if line2:
+                cv2.putText(frame, line2, (bx1 + 8, by1 + h1 + h2 + 9), font, 0.40, (160, 210, 255), thick, cv2.LINE_AA)
+
+        # Pass 3: Summary HUD Card in top corner if enabled
+        if config.get("showSummaryCard", True):
+            total_z = snapshot.get("totalZones", len(zones))
+            occ_z = snapshot.get("occupiedZones", 0)
+            rate = snapshot.get("occupancyRate", 0.0)
+            total_o = snapshot.get("totalObjects", 0)
+
+            hud_text1 = f"ZONA: {occ_z}/{total_z} Terisi ({rate:.0f}%)"
+            hud_text2 = f"TOTAL OBJEK: {total_o}"
+
+            (hw1, hh1), _ = cv2.getTextSize(hud_text1, cv2.FONT_HERSHEY_SIMPLEX, 0.48, 1)
+            (hw2, hh2), _ = cv2.getTextSize(hud_text2, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)
+            h_box_w = max(hw1, hw2) + 20
+            h_box_h = hh1 + hh2 + 20
+
+            h_bx1 = max(8, w - h_box_w - 12)
+            h_by1 = 12
+            h_bx2 = h_bx1 + h_box_w
+            h_by2 = h_by1 + h_box_h
+
+            cv2.rectangle(frame, (h_bx1, h_by1), (h_bx2, h_by2), (15, 23, 42), -1)
+            cv2.rectangle(frame, (h_bx1, h_by1), (h_bx2, h_by2), (56, 189, 248), 1, cv2.LINE_AA)
+            cv2.putText(frame, hud_text1, (h_bx1 + 10, h_by1 + hh1 + 6), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (56, 189, 248), 1, cv2.LINE_AA)
+            cv2.putText(frame, hud_text2, (h_bx1 + 10, h_by1 + hh1 + hh2 + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (203, 213, 225), 1, cv2.LINE_AA)
+
+
 def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict) -> None:
     _draw_project_zone_overlays(frame, workflow, event_runtime)
+    _draw_multi_zone_occupancy_overlays(frame, workflow, event_runtime)
     import cv2
     import math
     import time

@@ -192,7 +192,7 @@
   function categoryFor(type) {
     if (type === 'input' || type === 'ip_camera') return 'Sources';
     if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ai_agent'].includes(type)) return 'AI Vision Models';
-    if (['tracker', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'vlm_box_tracker', 'filter'].includes(type)) return 'Tracking & Analysis';
+    if (['tracker', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter'].includes(type)) return 'Tracking & Analysis';
     if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer'].includes(type)) return 'Image Preprocessing';
     if (['overlay_annotate', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
     if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once'].includes(type)) return 'Logic & Flow Control';
@@ -3460,6 +3460,159 @@
     body.append(delBtn);
   }
 
+  function renderMultiZoneOccupancyInspector(node, body) {
+    if (!node.config) node.config = {};
+    let rawZones = node.config.zones;
+    if (typeof rawZones === 'string') {
+      try { rawZones = JSON.parse(rawZones); } catch { rawZones = null; }
+    }
+    if (!Array.isArray(rawZones) || rawZones.length === 0) {
+      rawZones = [
+        { id: 'zone_1', name: 'Zona A', capacity: 4, points: '0.15,0.20; 0.45,0.20; 0.45,0.80; 0.15,0.80' },
+        { id: 'zone_2', name: 'Zona B', capacity: 2, points: '0.55,0.20; 0.85,0.20; 0.85,0.80; 0.55,0.80' }
+      ];
+      node.config.zones = rawZones;
+    }
+
+    // Title Row
+    const titleRow = document.createElement('div');
+    titleRow.className = 'inspector-header-row';
+    titleRow.innerHTML = `
+      <span class="inspector-title-text">Node settings</span>
+      <span class="inspector-node-badge" style="background:rgba(56,189,248,0.15); color:#38bdf8;">Multi-Zone Occupancy</span>
+    `;
+    const titleEl = $('#inspectorTitle');
+    if (titleEl) titleEl.replaceChildren(titleRow);
+
+    const subtitle = document.createElement('p');
+    subtitle.className = 'inspector-subtitle';
+    subtitle.textContent = 'Pemantauan okupansi, kapasitas, dan durasi multi-area real-time.';
+    body.append(subtitle);
+
+    // Guide button
+    const guideBtn = document.createElement('button');
+    guideBtn.type = 'button';
+    guideBtn.className = 'button secondary';
+    guideBtn.style.width = '100%';
+    guideBtn.style.display = 'flex';
+    guideBtn.style.alignItems = 'center';
+    guideBtn.style.justifyContent = 'center';
+    guideBtn.style.gap = '8px';
+    guideBtn.style.fontSize = '12px';
+    guideBtn.style.fontWeight = '600';
+    guideBtn.style.padding = '8px 12px';
+    guideBtn.style.marginBottom = '14px';
+    guideBtn.style.background = 'rgba(56, 189, 248, 0.1)';
+    guideBtn.style.border = '1px solid rgba(56, 189, 248, 0.35)';
+    guideBtn.style.color = '#38bdf8';
+    guideBtn.innerHTML = `
+      <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span>📖 Panduan &amp; Cara Penggunaan Node</span>
+    `;
+    guideBtn.onclick = () => showNodeGuideModal(node.type);
+    body.append(guideBtn);
+
+    // Node Enabled Toggle
+    const toggleWrap = document.createElement('div');
+    toggleWrap.className = 'inspector-field-row';
+    toggleWrap.innerHTML = `
+      <span class="inspector-field-label">Enabled</span>
+      <label class="switch">
+        <input type="checkbox" ${node.enabled !== false ? 'checked' : ''} id="multiZoneEnabledToggle">
+        <span class="slider round"></span>
+      </label>
+    `;
+    toggleWrap.querySelector('#multiZoneEnabledToggle').onchange = (e) => {
+      node.enabled = e.target.checked;
+      markDirty();
+      renderCanvas();
+    };
+    body.append(toggleWrap);
+
+    // Multi-Zone Visual Draw Button
+    const drawCard = document.createElement('div');
+    drawCard.className = 'multi-zone-inspector-card';
+    drawCard.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-weight:600; color:var(--text); font-size:13px;">Daftar Area / Zona (${rawZones.length})</span>
+      </div>
+      <button type="button" class="button primary" id="openMultiZoneEditorBtn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:12px;">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="3 3 21 3 21 21 3 21"/></svg>
+        📐 Gambar Poligon Zona di Preview
+      </button>
+      <div class="multi-zone-list-preview" id="multiZoneListPreview"></div>
+    `;
+    drawCard.querySelector('#openMultiZoneEditorBtn').onclick = () => startMultiZoneDrawing(node);
+
+    const listContainer = drawCard.querySelector('#multiZoneListPreview');
+    rawZones.forEach((z, idx) => {
+      const zItem = document.createElement('div');
+      zItem.className = 'multi-zone-item-chip';
+      zItem.innerHTML = `
+        <span class="multi-zone-chip-name">${idx + 1}. ${escapeHtml(z.name || ('Zona ' + (idx + 1)))}</span>
+        <span class="multi-zone-chip-cap">Kapasitas: ${z.capacity || 4}</span>
+      `;
+      listContainer.append(zItem);
+    });
+    body.append(drawCard);
+
+    // General Parameters
+    const paramsCard = document.createElement('div');
+    paramsCard.className = 'multi-zone-params-card';
+    paramsCard.innerHTML = `
+      <div style="font-weight:600; color:var(--text); font-size:13px; margin-bottom:10px;">Pengaturan Umum</div>
+
+      <div class="inspector-field-group">
+        <label>Target Kelas Objek (Target Classes)</label>
+        <input type="text" class="input" id="mzTargetClasses" value="${escapeHtml(node.config.targetClasses || 'person')}" placeholder="person, car, dll">
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+        <div class="inspector-field-group">
+          <label>Konfirmasi Terisi (s)</label>
+          <input type="number" class="input" id="mzConfirmSec" value="${node.config.confirmationSeconds ?? 3.0}" min="0" step="0.5">
+        </div>
+        <div class="inspector-field-group">
+          <label>Toleransi Kosong (s)</label>
+          <input type="number" class="input" id="mzGraceSec" value="${node.config.graceSeconds ?? 10.0}" min="0" step="1">
+        </div>
+      </div>
+
+      <div class="inspector-field-group" style="margin-top:8px;">
+        <label>Batas Waktu Maksimal / Overstay (menit, 0 = nonaktif)</label>
+        <input type="number" class="input" id="mzMaxDwell" value="${node.config.maxDwellMinutes ?? 0.0}" min="0" step="5">
+      </div>
+
+      <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text);">
+          <input type="checkbox" id="mzShowHud" ${node.config.showHudOverlay !== false ? 'checked' : ''}>
+          Tampilkan Kartu HUD Meja/Zona di Preview
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text);">
+          <input type="checkbox" id="mzShowSummary" ${node.config.showSummaryCard !== false ? 'checked' : ''}>
+          Tampilkan Kotak Ringkasan Total di Pojok Preview
+        </label>
+      </div>
+    `;
+
+    paramsCard.querySelector('#mzTargetClasses').onchange = (e) => { node.config.targetClasses = e.target.value.trim() || 'person'; markDirty(); };
+    paramsCard.querySelector('#mzConfirmSec').onchange = (e) => { node.config.confirmationSeconds = parseFloat(e.target.value) || 0; markDirty(); };
+    paramsCard.querySelector('#mzGraceSec').onchange = (e) => { node.config.graceSeconds = parseFloat(e.target.value) || 0; markDirty(); };
+    paramsCard.querySelector('#mzMaxDwell').onchange = (e) => { node.config.maxDwellMinutes = parseFloat(e.target.value) || 0; markDirty(); };
+    paramsCard.querySelector('#mzShowHud').onchange = (e) => { node.config.showHudOverlay = e.target.checked; markDirty(); };
+    paramsCard.querySelector('#mzShowSummary').onchange = (e) => { node.config.showSummaryCard = e.target.checked; markDirty(); };
+
+    body.append(paramsCard);
+
+    // Delete node button at bottom
+    const delBtn = document.createElement('button');
+    delBtn.className = 'danger-button';
+    delBtn.style.marginTop = '24px';
+    delBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Delete This Node';
+    delBtn.onclick = deleteSelectedNode;
+    body.append(delBtn);
+  }
+
   function renderInspector() {
     const n = nodeFor(state.selected);
     const body = $('#inspectorBody');
@@ -3482,6 +3635,11 @@
 
     if (n.type === 'overlay_annotate') {
       renderOverlayAnnotateInspector(n, body);
+      return;
+    }
+
+    if (n.type === 'multi_zone_occupancy') {
+      renderMultiZoneOccupancyInspector(n, body);
       return;
     }
 
@@ -5437,6 +5595,7 @@
 
   function cancelActiveZoneEditor() {
     $('#previewImage')?._cancelZoneDrawing?.();
+    $('#previewImage')?._cancelMultiZoneDrawing?.();
   }
 
   function startPolygonZoneDrawing(node) {
@@ -5464,6 +5623,7 @@
       return;
     }
     if (img._cancelZoneDrawing) img._cancelZoneDrawing();
+    if (img._cancelMultiZoneDrawing) img._cancelMultiZoneDrawing();
 
     const parsePoints = (value) => String(value || '').split(';').map((part) => {
       const [x, y] = part.trim().split(',').map(Number);
@@ -5598,6 +5758,432 @@
     resizeObserver.observe(parent);
     draw();
     toast('Editor zona aktif. Simpan hanya setelah bentuk zona selesai.');
+  }
+
+  function startMultiZoneDrawing(node) {
+    const img = $('#previewImage');
+    if (!img) return toast('Preview container tidak ditemukan', true);
+    if (!img.naturalWidth || img.hidden) {
+      const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+        <rect width="100%" height="100%" fill="#090d16"/>
+        <defs>
+          <pattern id="camgrid2" width="80" height="80" patternUnits="userSpaceOnUse">
+            <path d="M 80 0 L 0 0 0 80" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#camgrid2)" />
+        <rect x="40" y="40" width="1200" height="640" fill="none" stroke="rgba(56,189,248,0.3)" stroke-width="1.5" stroke-dasharray="6 6"/>
+        <text x="640" y="340" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="24" text-anchor="middle" font-weight="600">📐 Frame Kalibrasi Multi-Zone / Area</text>
+        <text x="640" y="380" fill="#64748b" font-family="system-ui, sans-serif" font-size="15" text-anchor="middle">Tentukan poligon setiap area (Meja/Bay/Zona) untuk memantau okupansi dan durasi</text>
+      </svg>`;
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(placeholderSvg);
+      img.hidden = false;
+      $('#previewEmpty')?.setAttribute('hidden', 'true');
+      img.onload = () => {
+        startMultiZoneDrawing(node);
+      };
+      return;
+    }
+
+    if (img._cancelZoneDrawing) img._cancelZoneDrawing();
+    if (img._cancelMultiZoneDrawing) img._cancelMultiZoneDrawing();
+
+    if (!node.config) node.config = {};
+    let rawZones = node.config.zones;
+    if (typeof rawZones === 'string') {
+      try { rawZones = JSON.parse(rawZones); } catch { rawZones = null; }
+    }
+    if (!Array.isArray(rawZones) || rawZones.length === 0) {
+      rawZones = [
+        { id: 'zone_1', name: 'Zona A', capacity: 4, points: '0.15,0.20; 0.45,0.20; 0.45,0.80; 0.15,0.80' },
+        { id: 'zone_2', name: 'Zona B', capacity: 2, points: '0.55,0.20; 0.85,0.20; 0.85,0.80; 0.55,0.80' }
+      ];
+    }
+
+    const parsePoints = (value) => String(value || '').split(';').map((part) => {
+      const [x, y] = part.trim().split(',').map(Number);
+      return Number.isFinite(x) && Number.isFinite(y) ? { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) } : null;
+    }).filter(Boolean);
+
+    const workingZones = rawZones.map((z, idx) => ({
+      id: z.id || ('zone_' + (idx + 1)),
+      name: z.name || ('Zona ' + (idx + 1)),
+      capacity: parseInt(z.capacity, 10) || 4,
+      points: parsePoints(z.points)
+    }));
+
+    let activeIndex = 0;
+    let selectedVertex = -1;
+    let suppressAddClick = false;
+    let disposed = false;
+    const editorProjectId = state.project?.id;
+    let resizeObserver;
+
+    const parent = img.parentElement;
+    if (!parent) return;
+    if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('zone-preview-editor');
+    svg.setAttribute('role', 'application');
+    svg.setAttribute('aria-label', 'Editor Multi-Zone');
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'zone-preview-toolbar multi-zone-toolbar';
+
+    const zoneSelect = document.createElement('select');
+    zoneSelect.className = 'multi-zone-select';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'multi-zone-name-input';
+    nameInput.placeholder = 'Nama Area';
+
+    const capInput = document.createElement('input');
+    capInput.type = 'number';
+    capInput.min = '1';
+    capInput.max = '999';
+    capInput.className = 'multi-zone-cap-input';
+    capInput.title = 'Kapasitas maksimal objek';
+
+    const addZoneBtn = document.createElement('button');
+    addZoneBtn.type = 'button';
+    addZoneBtn.className = 'button ghost';
+    addZoneBtn.textContent = '+ Area';
+    addZoneBtn.title = 'Tambah area / zona baru';
+
+    const delZoneBtn = document.createElement('button');
+    delZoneBtn.type = 'button';
+    delZoneBtn.className = 'button ghost';
+    delZoneBtn.textContent = '🗑️ Area';
+    delZoneBtn.title = 'Hapus area aktif saat ini';
+
+    const removePointBtn = document.createElement('button');
+    removePointBtn.type = 'button';
+    removePointBtn.className = 'button ghost';
+    removePointBtn.textContent = 'Hapus Titik';
+    removePointBtn.disabled = true;
+
+    const status = document.createElement('span');
+    status.className = 'zone-preview-status';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'button ghost';
+    cancelBtn.textContent = 'Batal';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'button primary';
+    saveBtn.textContent = 'Simpan Semua Area';
+
+    toolbar.append(zoneSelect, nameInput, capInput, addZoneBtn, delZoneBtn, removePointBtn, status, cancelBtn, saveBtn);
+    parent.append(svg, toolbar);
+
+    const updateSelector = () => {
+      zoneSelect.replaceChildren();
+      workingZones.forEach((z, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = `${i + 1}. ${z.name || ('Zona ' + (i + 1))} (Cap: ${z.capacity})`;
+        if (i === activeIndex) opt.selected = true;
+        zoneSelect.append(opt);
+      });
+      const active = workingZones[activeIndex];
+      if (active) {
+        nameInput.value = active.name || '';
+        capInput.value = active.capacity || 4;
+      }
+      delZoneBtn.disabled = workingZones.length <= 1;
+    };
+
+    zoneSelect.onchange = () => {
+      activeIndex = parseInt(zoneSelect.value, 10) || 0;
+      selectedVertex = -1;
+      updateSelector();
+      draw();
+    };
+
+    nameInput.oninput = () => {
+      if (workingZones[activeIndex]) {
+        workingZones[activeIndex].name = nameInput.value.trim() || `Zona ${activeIndex + 1}`;
+        if (zoneSelect.options[activeIndex]) {
+          zoneSelect.options[activeIndex].textContent = `${activeIndex + 1}. ${workingZones[activeIndex].name} (Cap: ${workingZones[activeIndex].capacity})`;
+        }
+      }
+    };
+
+    capInput.oninput = () => {
+      if (workingZones[activeIndex]) {
+        workingZones[activeIndex].capacity = Math.max(1, parseInt(capInput.value, 10) || 1);
+        if (zoneSelect.options[activeIndex]) {
+          zoneSelect.options[activeIndex].textContent = `${activeIndex + 1}. ${workingZones[activeIndex].name} (Cap: ${workingZones[activeIndex].capacity})`;
+        }
+      }
+    };
+
+    addZoneBtn.onclick = () => {
+      const newIdx = workingZones.length + 1;
+      const offsetX = Math.min(0.5, (newIdx * 0.08) % 0.5);
+      const offsetY = Math.min(0.5, (newIdx * 0.08) % 0.5);
+      workingZones.push({
+        id: 'zone_' + Date.now(),
+        name: 'Zona ' + newIdx,
+        capacity: 4,
+        points: [
+          { x: 0.15 + offsetX, y: 0.20 + offsetY },
+          { x: 0.35 + offsetX, y: 0.20 + offsetY },
+          { x: 0.35 + offsetX, y: 0.50 + offsetY },
+          { x: 0.15 + offsetX, y: 0.50 + offsetY }
+        ]
+      });
+      activeIndex = workingZones.length - 1;
+      selectedVertex = -1;
+      updateSelector();
+      draw();
+      toast(`Area baru "Zona ${newIdx}" ditambahkan`);
+    };
+
+    delZoneBtn.onclick = () => {
+      if (workingZones.length <= 1) return toast('Minimal harus memiliki 1 area', true);
+      const removed = workingZones.splice(activeIndex, 1)[0];
+      activeIndex = Math.max(0, activeIndex - 1);
+      selectedVertex = -1;
+      updateSelector();
+      draw();
+      toast(`Area "${removed.name}" dihapus`);
+    };
+
+    const imageBox = () => {
+      const frame = parent.getBoundingClientRect();
+      const rect = img.getBoundingClientRect();
+      const fit = Math.min(rect.width / img.naturalWidth, rect.height / img.naturalHeight);
+      const width = img.naturalWidth * fit;
+      const height = img.naturalHeight * fit;
+      return { left: rect.left - frame.left + (rect.width - width) / 2, top: rect.top - frame.top + (rect.height - height) / 2, width, height };
+    };
+
+    const pointAt = (event) => {
+      const box = imageBox();
+      const frame = parent.getBoundingClientRect();
+      const x = (event.clientX - frame.left - box.left) / box.width;
+      const y = (event.clientY - frame.top - box.top) / box.height;
+      return x >= 0 && x <= 1 && y >= 0 && y <= 1 ? { x, y } : null;
+    };
+
+    const cleanup = () => {
+      if (disposed) return;
+      disposed = true;
+      resizeObserver?.disconnect();
+      window.removeEventListener('keydown', onKey);
+      img.removeEventListener('load', draw);
+      img.style.cursor = 'default';
+      svg.remove();
+      toolbar.remove();
+      delete img._cancelMultiZoneDrawing;
+    };
+
+    const draw = () => {
+      if (disposed) return;
+      const box = imageBox();
+      svg.style.left = `${box.left}px`;
+      svg.style.top = `${box.top}px`;
+      svg.setAttribute('width', String(box.width));
+      svg.setAttribute('height', String(box.height));
+      svg.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`);
+      svg.replaceChildren();
+
+      const activeZone = workingZones[activeIndex];
+      const activePts = activeZone ? activeZone.points : [];
+      const valid = activePts.length >= 3;
+      status.textContent = `[${activeZone?.name || 'Area'}] ${activePts.length} titik${valid ? '' : ' (min 3)'}. Klik area lain untuk berpindah.`;
+      removePointBtn.disabled = selectedVertex < 0 || activePts.length <= 3;
+
+      workingZones.forEach((z, zIdx) => {
+        if (zIdx === activeIndex) return;
+        if (z.points.length > 1) {
+          const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+          poly.setAttribute('points', z.points.map(p => `${p.x * box.width},${p.y * box.height}`).join(' '));
+          poly.setAttribute('class', 'zone-preview-polygon passive-zone');
+          poly.style.cursor = 'pointer';
+          poly.onclick = (e) => {
+            e.stopPropagation();
+            activeIndex = zIdx;
+            selectedVertex = -1;
+            updateSelector();
+            draw();
+          };
+          svg.append(poly);
+
+          const avgX = z.points.reduce((sum, p) => sum + p.x, 0) / z.points.length;
+          const avgY = z.points.reduce((sum, p) => sum + p.y, 0) / z.points.length;
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          label.setAttribute('x', String(avgX * box.width));
+          label.setAttribute('y', String(avgY * box.height));
+          label.setAttribute('fill', '#94a3b8');
+          label.setAttribute('font-size', '13');
+          label.setAttribute('font-weight', '600');
+          label.setAttribute('text-anchor', 'middle');
+          label.setAttribute('dominant-baseline', 'middle');
+          label.style.pointerEvents = 'none';
+          label.textContent = z.name;
+          svg.append(label);
+        }
+      });
+
+      if (activeZone && activePts.length > 1) {
+        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        poly.setAttribute('points', activePts.map(p => `${p.x * box.width},${p.y * box.height}`).join(' '));
+        poly.setAttribute('class', 'zone-preview-polygon active-zone');
+        svg.append(poly);
+
+        const avgX = activePts.reduce((sum, p) => sum + p.x, 0) / activePts.length;
+        const avgY = activePts.reduce((sum, p) => sum + p.y, 0) / activePts.length;
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', String(avgX * box.width));
+        label.setAttribute('y', String(avgY * box.height));
+        label.setAttribute('fill', '#38bdf8');
+        label.setAttribute('font-size', '14');
+        label.setAttribute('font-weight', 'bold');
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('dominant-baseline', 'middle');
+        label.style.pointerEvents = 'none';
+        label.textContent = `${activeZone.name} (Maks ${activeZone.capacity})`;
+        svg.append(label);
+      }
+
+      if (activeZone) {
+        activePts.forEach((point, index) => {
+          const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          handle.setAttribute('cx', String(point.x * box.width));
+          handle.setAttribute('cy', String(point.y * box.height));
+          handle.setAttribute('r', index === selectedVertex ? '8' : '6');
+          handle.setAttribute('class', `zone-preview-vertex${index === selectedVertex ? ' selected' : ''}`);
+          handle.setAttribute('tabindex', '0');
+          handle.setAttribute('aria-label', `Titik ${index + 1}`);
+
+          handle.onpointerdown = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            suppressAddClick = true;
+            selectedVertex = index;
+            draw();
+            const move = (moveEvent) => {
+              const next = pointAt(moveEvent);
+              if (next) {
+                activePts[index] = next;
+                draw();
+              }
+            };
+            const up = () => {
+              window.removeEventListener('pointermove', move);
+              window.removeEventListener('pointerup', up);
+              setTimeout(() => { suppressAddClick = false; }, 0);
+            };
+            window.addEventListener('pointermove', move);
+            window.addEventListener('pointerup', up, { once: true });
+          };
+
+          handle.onclick = (event) => {
+            event.stopPropagation();
+            selectedVertex = index;
+            draw();
+          };
+
+          svg.append(handle);
+        });
+      }
+    };
+
+    const onKey = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        cleanup();
+        toast('Editor area dibatalkan');
+        return;
+      }
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target?.tagName) || event.target?.isContentEditable) return;
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault();
+        const activePts = workingZones[activeIndex]?.points;
+        if (selectedVertex >= 0 && activePts && activePts.length > 3) {
+          activePts.splice(selectedVertex, 1);
+          selectedVertex = -1;
+          draw();
+        }
+      }
+    };
+
+    const onAdd = (event) => {
+      if (event.target !== svg || suppressAddClick) return;
+      const point = pointAt(event);
+      if (!point) return;
+      const activePts = workingZones[activeIndex]?.points;
+      if (activePts) {
+        activePts.push(point);
+        selectedVertex = activePts.length - 1;
+        draw();
+      }
+    };
+
+    const commit = async () => {
+      for (const z of workingZones) {
+        if (!z.points || z.points.length < 3) {
+          return toast(`Area "${z.name}" membutuhkan minimal 3 titik`, true);
+        }
+      }
+      if (state.project?.id !== editorProjectId || nodeFor(node.id) !== node) {
+        cleanup();
+        return toast('Project atau node sudah berubah; editor dibatalkan', true);
+      }
+
+      const finalZones = workingZones.map(z => ({
+        id: z.id,
+        name: z.name,
+        capacity: z.capacity,
+        points: z.points.map(p => `${p.x.toFixed(3)},${p.y.toFixed(3)}`).join('; ')
+      }));
+
+      node.config.zones = finalZones;
+      markDirty();
+      const saved = await save();
+      if (!saved) {
+        renderInspector();
+        return;
+      }
+      await liveUpdateWorkflow();
+      cleanup();
+      renderInspector();
+      toast(`${workingZones.length} Area / Zona berhasil disimpan`);
+    };
+
+    removePointBtn.onclick = () => {
+      const activePts = workingZones[activeIndex]?.points;
+      if (selectedVertex >= 0 && activePts && activePts.length > 3) {
+        activePts.splice(selectedVertex, 1);
+        selectedVertex = -1;
+        draw();
+      }
+    };
+
+    cancelBtn.onclick = () => {
+      cleanup();
+      toast('Gambar area dibatalkan');
+    };
+
+    saveBtn.onclick = commit;
+
+    svg.addEventListener('click', onAdd);
+    window.addEventListener('keydown', onKey);
+    img.addEventListener('load', draw);
+    img.style.cursor = 'crosshair';
+    img._cancelMultiZoneDrawing = cleanup;
+    resizeObserver = new ResizeObserver(draw);
+    resizeObserver.observe(parent);
+
+    updateSelector();
+    draw();
+    toast('Editor Multi-Zone aktif. Klik gambar untuk menambah titik, atau pilih area lain.');
   }
 
   function applyBranchingPreset(presetName, targetNode) {
@@ -5866,6 +6452,22 @@
       { "key": "absenceGraceSeconds", "label": "Toleransi Keluar", "desc": "Durasi observasi di luar zona sebelum event exit diterbitkan." }
     ],
     "tips": "Kehilangan track atau objek yang tidak teramati tidak dianggap keluar sampai ada observasi di luar zona."
+  },
+  "multi_zone_occupancy": {
+    "concept": "Multi-Zone Occupancy & Activity Tracker memantau banyak area/meja/slot/workstation sekaligus dalam satu frame kamera dengan kapasitas, durasi, status Vacant/Occupied, dan event ringkasan sesi.",
+    "diagram": "[ Detector / YOLO ] ──▶ [ Tracker ] ──▶ [ Multi-Zone Occupancy ] ──▶ [ Live Preview / DB / Webhook ]",
+    "steps": [
+      "Buka 'Gambar Poligon Zona di Preview' untuk menambah banyak zona/meja dan mengatur titik poligon masing-masing.",
+      "Tentukan targetClasses (contoh: person untuk meja/restoran, car untuk parkir, atau box/forklift untuk gudang).",
+      "Atur kapasitas kursi/objek per zona, durasi konfirmasi terisi, serta toleransi kepergian sesaat (grace period)."
+    ],
+    "params": [
+      { "key": "targetClasses", "label": "Target Kelas Objek", "desc": "Kelas objek yang dipantau (contoh: person, car, forklift)." },
+      { "key": "confirmationSeconds", "label": "Konfirmasi Terisi (detik)", "desc": "Durasi objek harus bertahan di zona sebelum status berubah menjadi OCCUPIED." },
+      { "key": "graceSeconds", "label": "Toleransi Kosong (detik)", "desc": "Jeda waktu saat objek tidak teramati sesaat sebelum sesi dianggap selesai." },
+      { "key": "maxDwellMinutes", "label": "Batas Waktu Maksimal (menit)", "desc": "Batas waktu maksimal berada di zona sebelum alert OVERSTAY dipicu (0 = nonaktif)." }
+    ],
+    "tips": "Gunakan multi-polygon editor di preview frame untuk mengelola posisi dan kapasitas seluruh zona/meja secara visual."
   },
   "vlm_box_tracker": {
     "concept": "VLM Box Tracker mendeteksi dan melacak objek menggunakan Vision Language Model (OpenRouter / TypeSafe Jev) yang dipadukan dengan Lucas-Kanade Optical Flow dan Kalman Filter rewind-replay untuk pergerakan mulus 30+ FPS tanpa memblokir video.",

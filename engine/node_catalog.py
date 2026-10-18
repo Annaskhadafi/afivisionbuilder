@@ -308,6 +308,7 @@ OBJECT_EVENT_NODE_TYPES = (
     "object_counter",
     "zone_activity_timer",
     "zone_exit_event",
+    "multi_zone_occupancy",
     "vlm_box_tracker",
     "ai_agent",
 )
@@ -765,6 +766,35 @@ NODE_BLUEPRINTS = {
             "absenceGraceSeconds": 2,
             "maxObservationGapSeconds": 5,
             "showOverlay": True,
+        },
+    },
+    "multi_zone_occupancy": {
+        "title": "Multi-Zone Occupancy & Activity Tracker",
+        "subtitle": "Pantau keterisian banyak zona/meja/slot sekaligus, timer durasi, kapasitas, dan status Vacant/Occupied",
+        "category": "Tracking & Analysis",
+        "x": 920,
+        "y": 520,
+        "config": {
+            "targetClasses": "person",
+            "confirmationSeconds": 3.0,
+            "graceSeconds": 10.0,
+            "maxDwellMinutes": 0.0,
+            "showHudOverlay": True,
+            "showSummaryCard": True,
+            "zones": [
+                {
+                    "id": "zone_1",
+                    "name": "Zona A",
+                    "capacity": 4,
+                    "points": "0.15,0.20; 0.45,0.20; 0.45,0.80; 0.15,0.80"
+                },
+                {
+                    "id": "zone_2",
+                    "name": "Zona B",
+                    "capacity": 2,
+                    "points": "0.55,0.20; 0.85,0.20; 0.85,0.80; 0.55,0.80"
+                }
+            ],
         },
     },
     "vlm_box_tracker": {

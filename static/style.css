@@ -2733,6 +2733,115 @@
   box-shadow: 0 6px 16px rgba(25, 76, 75, 0.35) !important;
 }
 
+/* Multi-Zone Occupancy & Floorplan Styles */
+.multi-zone-toolbar {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 6px 12px !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  flex-wrap: wrap !important;
+}
+
+.multi-zone-toolbar-left,
+.multi-zone-toolbar-right {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.multi-zone-toolbar-label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #94a3b8 !important;
+}
+
+.multi-zone-select {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #334155 !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+}
+
+.multi-zone-name-input {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #334155 !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  width: 90px !important;
+}
+
+.multi-zone-cap-input {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #334155 !important;
+  border-radius: 6px !important;
+  padding: 4px 6px !important;
+  font-size: 12px !important;
+  width: 50px !important;
+  text-align: center !important;
+}
+
+.zone-preview-polygon.passive-zone {
+  fill: rgba(56, 189, 248, 0.08) !important;
+  stroke: rgba(56, 189, 248, 0.65) !important;
+  stroke-dasharray: 6 4 !important;
+  stroke-width: 1.5 !important;
+}
+
+.zone-preview-polygon.active-zone {
+  fill: rgba(16, 185, 129, 0.22) !important;
+  stroke: #10b981 !important;
+  stroke-width: 2 !important;
+}
+
+.multi-zone-inspector-card,
+.multi-zone-params-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.multi-zone-list-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.multi-zone-item-chip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg-hover);
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.multi-zone-chip-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.multi-zone-chip-cap {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 
 
 
