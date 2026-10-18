@@ -295,9 +295,10 @@ def test_privacy_blur():
     assert not np.array_equal(copy2[20:40, 20:40], frame[20:40, 20:40])
 
 
-def test_all_46_nodes_catalog_audit():
+def test_all_nodes_catalog_audit():
     import node_catalog
-    assert len(node_catalog.NODE_BLUEPRINTS) == 46, f"Expected 46 blueprints, got {len(node_catalog.NODE_BLUEPRINTS)}"
+    assert {"zone_activity_timer", "zone_exit_event"} <= node_catalog.NODE_BLUEPRINTS.keys()
+    assert len(node_catalog.NODE_BLUEPRINTS) >= 48
     for key, bp in node_catalog.NODE_BLUEPRINTS.items():
         assert "title" in bp, f"Node {key} missing title"
         assert "subtitle" in bp, f"Node {key} missing subtitle"
@@ -317,7 +318,7 @@ def main():
         test_if_else_branching,
         test_blur_sharpen_all_algorithms,
         test_privacy_blur,
-        test_all_46_nodes_catalog_audit,
+        test_all_nodes_catalog_audit,
     )
     for check in checks:
         try:

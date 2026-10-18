@@ -64,7 +64,19 @@ def extract_model_labels(model_path_str: str) -> list[str]:
         return []
 
     stat = path.stat()
-    cache_key = f"{path.resolve()}:{stat.st_mtime_ns}:{stat.st_size}"
+    sidecar_fingerprint = []
+    for sibling_name in ("labels.txt", "classes.txt", "labels.json"):
+        sibling = path.parent / sibling_name
+        try:
+            sibling_stat = sibling.stat()
+            sidecar_fingerprint.append(
+                f"{sibling_name}:{sibling_stat.st_mtime_ns}:{sibling_stat.st_size}"
+            )
+        except OSError:
+            sidecar_fingerprint.append(f"{sibling_name}:missing")
+    cache_key = ":".join(
+        [f"{path.resolve()}", str(stat.st_mtime_ns), str(stat.st_size), *sidecar_fingerprint]
+    )
     if cache_key in _LABELS_CACHE:
         return _LABELS_CACHE[cache_key]
 

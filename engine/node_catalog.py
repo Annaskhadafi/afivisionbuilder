@@ -306,6 +306,10 @@ LOGIC_NODE_TYPES = (
 OBJECT_EVENT_NODE_TYPES = (
     "track_snapshot",
     "object_counter",
+    "zone_activity_timer",
+    "zone_exit_event",
+    "vlm_box_tracker",
+    "ai_agent",
 )
 OUTPUT_NODE_TYPES = (
     "preview",
@@ -430,6 +434,7 @@ NODE_BLUEPRINTS = {
     "input": {
         "title": "Input",
         "subtitle": "Sumber kamera USB/webcam, Daheng, gambar, atau file video",
+        "category": "Sources",
         "x": 40,
         "y": 60,
         "config": {
@@ -454,6 +459,7 @@ NODE_BLUEPRINTS = {
     "ip_camera": {
         "title": "IP Camera / CCTV",
         "subtitle": "Streaming RTSP atau HTTP CCTV dengan rekoneksi otomatis",
+        "category": "Sources",
         "x": 40,
         "y": 180,
         "config": {
@@ -476,6 +482,7 @@ NODE_BLUEPRINTS = {
     "detector": {
         "title": "Object Detection",
         "subtitle": "Deteksi objek dengan model RF-DETR PyTorch, TensorRT, atau YOLO",
+        "category": "AI Vision Models",
         "x": 330,
         "y": 60,
         "config": {
@@ -505,6 +512,7 @@ NODE_BLUEPRINTS = {
     "slicer": {
         "title": "Small Object Slicer",
         "subtitle": "Inferensi berpetak (SAHI) untuk objek kecil pada resolusi tinggi",
+        "category": "Image Preprocessing",
         "x": 330,
         "y": 145,
         "config": {
@@ -517,6 +525,7 @@ NODE_BLUEPRINTS = {
     "segmenter": {
         "title": "Object Segmentation",
         "subtitle": "Segmentasi dan masking piksel objek YOLOv8, RF-DETR, atau SAM 3",
+        "category": "AI Vision Models",
         "x": 620,
         "y": 60,
         "config": {
@@ -548,12 +557,14 @@ NODE_BLUEPRINTS = {
     "efficientad": {
         "title": "Visual Inspection",
         "subtitle": "Deteksi anomali cacat visual tanpa sampel cacat dengan EfficientAD",
+        "category": "AI Vision Models",
         "x": 620, "y": 145,
         "config": dict(EFFICIENTAD_DEFAULTS),
     },
     "classifier": {
         "title": "Image Classification",
         "subtitle": "Klasifikasi kategori gambar dengan model ConvNeXt atau kustom",
+        "category": "AI Vision Models",
         "x": 620,
         "y": 145,
         "config": {
@@ -577,6 +588,7 @@ NODE_BLUEPRINTS = {
     "detection_crop": {
         "title": "Detection Crop",
         "subtitle": "Potong setiap objek hasil deteksi untuk klasifikasi atau inspeksi",
+        "category": "AI Vision Models",
         "x": 620,
         "y": 230,
         "config": {
@@ -594,6 +606,7 @@ NODE_BLUEPRINTS = {
     "barcode_reader": {
         "title": "Barcode & QR Reader",
         "subtitle": "Pemindai kode QR & barcode bawaan OpenCV",
+        "category": "AI Vision Models",
         "x": 620,
         "y": 315,
         "config": {
@@ -603,9 +616,36 @@ NODE_BLUEPRINTS = {
             "cooldownSeconds": 2.0,
         },
     },
+    "ai_agent": {
+        "title": "AI Agent",
+        "subtitle": "Penalaran AI multimodal mirip n8n (OpenAI, OpenRouter, Ollama) untuk analisis visual & audit insiden",
+        "category": "AI Vision Models",
+        "x": 620,
+        "y": 315,
+        "config": {
+            "provider": "openai",
+            "apiKey": "",
+            "baseUrl": "https://api.openai.com/v1",
+            "model": "gpt-4o-mini",
+            "triggerMode": "on_event",
+            "periodicIntervalSeconds": 10.0,
+            "cooldownSeconds": 5.0,
+            "taskMode": "decision",
+            "includeImage": True,
+            "imageQuality": 80,
+            "imageMaxDimension": 720,
+            "systemPrompt": "You are an industrial safety & operations AI auditor. Evaluate the situation accurately.",
+            "userPrompt": "Analyze the visual scene and detection data: {{detections}}. Are there any violations or critical events? Respond in JSON with keys: decision (bool), reason (str), and severity (str).",
+            "jsonSchema": "",
+            "temperature": 0.2,
+            "maxTokens": 500,
+            "passDownstreamOn": "decision_true",
+        },
+    },
     "tracker": {
         "title": "Object Tracking",
         "subtitle": "Pelacakan ID dengan ByteTrack, BoT-SORT, OC-SORT, atau C-BIoU",
+        "category": "Tracking & Analysis",
         "x": 620,
         "y": 230,
         "config": dict(TRACKER_CONFIG_DEFAULTS),
@@ -613,6 +653,7 @@ NODE_BLUEPRINTS = {
     "track_snapshot": {
         "title": "Once Per Track",
         "subtitle": "Kirim satu event inspeksi terbaik untuk setiap objek terlacak",
+        "category": "Tracking & Analysis",
         "x": 910,
         "y": 230,
         "config": {
@@ -627,6 +668,7 @@ NODE_BLUEPRINTS = {
     "object_counter": {
         "title": "Object Counter",
         "subtitle": "Hitung okupansi langsung atau total akumulasi objek terlacak",
+        "category": "Tracking & Analysis",
         "x": 910,
         "y": 315,
         "config": {
@@ -642,6 +684,7 @@ NODE_BLUEPRINTS = {
     "line_counter": {
         "title": "Line Counter",
         "subtitle": "Hitung objek melintasi garis (IN / OUT, Multi-Line)",
+        "category": "Tracking & Analysis",
         "x": 910,
         "y": 360,
         "config": {
@@ -674,6 +717,7 @@ NODE_BLUEPRINTS = {
     "dwell_time": {
         "title": "Dwell Time / Loitering",
         "subtitle": "Ukur durasi waktu objek berada di dalam zona tertentu",
+        "category": "Tracking & Analysis",
         "x": 910,
         "y": 425,
         "config": {
@@ -686,9 +730,67 @@ NODE_BLUEPRINTS = {
             "alertOnExceed": True,
         },
     },
+    "zone_activity_timer": {
+        "title": "Zone Activity Timer",
+        "subtitle": "Ukur aktivitas objek di dalam zona tanpa memerlukan ID track per objek",
+        "category": "Tracking & Analysis",
+        "x": 910,
+        "y": 490,
+        "config": {
+            "zoneName": "Workshop Area",
+            "points": "0.2,0.2; 0.8,0.2; 0.8,0.8; 0.2,0.8",
+            "requiredClasses": "tire",
+            "requiredCount": 1,
+            "triggerClasses": "person",
+            "triggerCount": 1,
+            "confirmationSeconds": 10,
+            "countFromStart": True,
+            "personGraceSeconds": 3,
+            "requiredGraceSeconds": 15,
+            "maxObservationGapSeconds": 5,
+            "maxSessionDurationSeconds": 0,
+            "showOverlay": True,
+        },
+    },
+    "zone_exit_event": {
+        "title": "Zone Exit Event",
+        "subtitle": "Kirim event saat objek terlacak keluar dari zona setelah sebelumnya terlihat di dalam",
+        "category": "Tracking & Analysis",
+        "x": 910,
+        "y": 555,
+        "config": {
+            "zoneName": "Warehouse Exit",
+            "points": "0.2,0.2; 0.8,0.2; 0.8,0.8; 0.2,0.8",
+            "classes": "truck,tire",
+            "absenceGraceSeconds": 2,
+            "maxObservationGapSeconds": 5,
+            "showOverlay": True,
+        },
+    },
+    "vlm_box_tracker": {
+        "title": "VLM Box Tracker",
+        "subtitle": "Pelacakan objek real-time via TypeSafe Jev / OpenRouter VLM dengan Optical Flow & Kalman Filter",
+        "category": "Tracking & Analysis",
+        "x": 620,
+        "y": 230,
+        "config": {
+            "provider": "openrouter",
+            "apiKey": "",
+            "model": "google/gemini-2.0-flash-001",
+            "objectPrompt": "tire, person",
+            "queryIntervalSeconds": 1.0,
+            "minConfidence": 0.5,
+            "opticalFlowEnabled": True,
+            "showOpticalFlowPoints": False,
+            "historySeconds": 5.0,
+            "trackWidth": 480,
+            "sendWidth": 640,
+        },
+    },
     "filter": {
         "title": "Detection & Geometry Filter",
         "subtitle": "Filter berdasarkan nama kelas, ukuran luas, rasio, dan margin batas",
+        "category": "Tracking & Analysis",
         "x": 330,
         "y": 230,
         "config": {
@@ -704,6 +806,7 @@ NODE_BLUEPRINTS = {
     "preview": {
         "title": "Live Preview",
         "subtitle": "Jendela tampilan streaming video hasil pemrosesan",
+        "category": "Outputs & Export",
         "x": 40,
         "y": 400,
         "config": {
@@ -727,6 +830,7 @@ NODE_BLUEPRINTS = {
     "alert": {
         "title": "Alert Output",
         "subtitle": "Catat riwayat log event dan rekam klip video alarm",
+        "category": "Outputs & Export",
         "x": 330,
         "y": 400,
         "config": {
@@ -739,6 +843,7 @@ NODE_BLUEPRINTS = {
     "image_output": {
         "title": "Save Images",
         "subtitle": "Simpan gambar inspeksi dengan rotasi pembersihan otomatis (FIFO)",
+        "category": "Outputs & Export",
         "x": 620,
         "y": 485,
         "config": {
@@ -754,6 +859,7 @@ NODE_BLUEPRINTS = {
     "draw_text": {
         "title": "Draw Text",
         "subtitle": "Gambarkan teks & variabel ke dalam frame gambar",
+        "category": "Annotations & Drawing",
         "x": 330,
         "y": 570,
         "config": {
@@ -770,6 +876,7 @@ NODE_BLUEPRINTS = {
     "draw_boxes": {
         "title": "Draw Boxes",
         "subtitle": "Gambarkan kotak deteksi dan label variabel ke dalam frame",
+        "category": "Annotations & Drawing",
         "x": 620,
         "y": 570,
         "config": {
@@ -785,6 +892,7 @@ NODE_BLUEPRINTS = {
     "overlay_annotate": {
         "title": "Overlay / Annotate",
         "subtitle": "Gambarkan seluruh anotasi (kotak, label, ikon, heatmap) di satu tempat",
+        "category": "Annotations & Drawing",
         "x": 620,
         "y": 570,
         "config": {"layers": default_overlay_layers()},
@@ -792,6 +900,7 @@ NODE_BLUEPRINTS = {
     "database_output": {
         "title": "Database Output",
         "subtitle": "Simpan hasil deteksi dan log event ke database lokal SQLite",
+        "category": "Outputs & Export",
         "x": 620,
         "y": 400,
         "config": {
@@ -812,6 +921,7 @@ NODE_BLUEPRINTS = {
     "webhook_output": {
         "title": "Webhook / HTTP Outbound",
         "subtitle": "Kirim data event ke REST API endpoint eksternal",
+        "category": "Outputs & Export",
         "x": 620,
         "y": 485,
         "config": {
@@ -829,6 +939,7 @@ NODE_BLUEPRINTS = {
     "resize": {
         "title": "Resize",
         "subtitle": "Ubah ukuran resolusi frame ke dimensi tetap",
+        "category": "Image Preprocessing",
         "x": 330,
         "y": 570,
         "config": {"width": 1280, "height": 720, "interpolation": "linear"},
@@ -836,6 +947,7 @@ NODE_BLUEPRINTS = {
     "frame_sampler": {
         "title": "Frame Sampler",
         "subtitle": "Batasi FPS pemrosesan per cabang",
+        "category": "Image Preprocessing",
         "x": 330,
         "y": 635,
         "config": {"targetFps": 10},
@@ -851,6 +963,7 @@ NODE_BLUEPRINTS = {
     "crop": {
         "title": "Crop / Region of Interest",
         "subtitle": "Pangkas dan pertahankan area persegi panjang tertentu",
+        "category": "Image Preprocessing",
         "x": 620,
         "y": 570,
         "config": {"x": 0, "y": 0, "width": 640, "height": 480},
@@ -858,6 +971,7 @@ NODE_BLUEPRINTS = {
     "rotate_flip": {
         "title": "Rotate / Flip",
         "subtitle": "Atur orientasi sudut putaran dan pembalikan frame gambar",
+        "category": "Image Preprocessing",
         "x": 910,
         "y": 570,
         "config": {"rotation": "0", "flip": "none"},
@@ -865,6 +979,7 @@ NODE_BLUEPRINTS = {
     "color_convert": {
         "title": "Color Conversion",
         "subtitle": "Konversi ruang warna gambar (Grayscale, HSV, dll)",
+        "category": "Image Preprocessing",
         "x": 330,
         "y": 700,
         "config": {"mode": "gray"},
@@ -872,6 +987,7 @@ NODE_BLUEPRINTS = {
     "brightness_contrast": {
         "title": "Brightness / Contrast",
         "subtitle": "Atur intensitas cahaya & penglihatan malam (Night Vision CLAHE)",
+        "category": "Image Preprocessing",
         "x": 620,
         "y": 700,
         "config": {
@@ -887,6 +1003,7 @@ NODE_BLUEPRINTS = {
     "blur_sharpen": {
         "title": "Blur / Sharpen",
         "subtitle": "Haluskan noise atau pertajam detail ketajaman gambar",
+        "category": "Image Preprocessing",
         "x": 910,
         "y": 700,
         "config": {"operation": "blur", "kernel": 5, "strength": 1.0},
@@ -894,6 +1011,7 @@ NODE_BLUEPRINTS = {
     "perspective": {
         "title": "Perspective Correction",
         "subtitle": "Luruskan area 4 titik sudut pandang miring",
+        "category": "Image Preprocessing",
         "x": 330,
         "y": 830,
         "config": {"points": "0,0; 100,0; 100,100; 0,100", "width": 0, "height": 0},
@@ -901,6 +1019,7 @@ NODE_BLUEPRINTS = {
     "undistort": {
         "title": "Camera Undistortion",
         "subtitle": "Terapkan kalibrasi lensa untuk koreksi distorsi cembung",
+        "category": "Image Preprocessing",
         "x": 620,
         "y": 830,
         "config": {"calibrationPath": "", "alpha": 0.0},
@@ -908,6 +1027,7 @@ NODE_BLUEPRINTS = {
     "background_subtract": {
         "title": "Background Subtraction",
         "subtitle": "Ekstrak objek bergerak dari latar belakang diam",
+        "category": "Image Preprocessing",
         "x": 910,
         "y": 830,
         "config": {
@@ -920,6 +1040,7 @@ NODE_BLUEPRINTS = {
     "blur_anonymizer": {
         "title": "Privacy Blur",
         "subtitle": "Sensor privasi wajah atau plat nomor dengan blur/pixelate",
+        "category": "Annotations & Drawing",
         "x": 910,
         "y": 895,
         "config": {
@@ -933,6 +1054,7 @@ NODE_BLUEPRINTS = {
     "if_else": {
         "title": "If / Else",
         "subtitle": "Percabangan alur: Loloskan data jika kondisi Benar (IF) atau Salah (ELSE)",
+        "category": "Logic & Flow Control",
         "x": 330,
         "y": 960,
         "config": {
@@ -946,6 +1068,7 @@ NODE_BLUEPRINTS = {
     "compare_value": {
         "title": "Compare Value",
         "subtitle": "Bandingkan jumlah objek, confidence, atau hitungan garis dengan ambang batas",
+        "category": "Logic & Flow Control",
         "x": 620,
         "y": 960,
         "config": {
@@ -958,6 +1081,7 @@ NODE_BLUEPRINTS = {
     "roi_filter": {
         "title": "ROI Filter",
         "subtitle": "Hanya teruskan deteksi di dalam / luar area zona tertentu",
+        "category": "Logic & Flow Control",
         "x": 910,
         "y": 960,
         "config": {
@@ -978,6 +1102,7 @@ NODE_BLUEPRINTS = {
     "object_count_condition": {
         "title": "Object Count Condition",
         "subtitle": "Loloskan data jika jumlah objek memenuhi kondisi syarat",
+        "category": "Logic & Flow Control",
         "x": 330,
         "y": 1090,
         "config": {"operator": "gte", "count": 1},
@@ -985,6 +1110,7 @@ NODE_BLUEPRINTS = {
     "class_detected_condition": {
         "title": "Class Detected Condition",
         "subtitle": "Loloskan data jika kelas target tertentu terdeteksi",
+        "category": "Logic & Flow Control",
         "x": 620,
         "y": 1090,
         "config": {"classes": "person", "match": "any"},
@@ -992,6 +1118,7 @@ NODE_BLUEPRINTS = {
     "confidence_threshold": {
         "title": "Confidence Threshold",
         "subtitle": "Loloskan data jika akurasi model memenuhi ambang batas minimal",
+        "category": "Logic & Flow Control",
         "x": 910,
         "y": 1090,
         "config": {"operator": "gte", "threshold": 0.55, "match": "any"},
@@ -999,6 +1126,7 @@ NODE_BLUEPRINTS = {
     "timer_delay": {
         "title": "Timer / Delay",
         "subtitle": "Tahan dan stabilkan sinyal selama durasi detik tertentu",
+        "category": "Logic & Flow Control",
         "x": 910,
         "y": 1090,
         "config": {"seconds": 1.0},
@@ -1006,6 +1134,7 @@ NODE_BLUEPRINTS = {
     "debounce": {
         "title": "Debounce",
         "subtitle": "Cegah pemicuan berulang dari deteksi yang berkedip",
+        "category": "Logic & Flow Control",
         "x": 330,
         "y": 1220,
         "config": {"seconds": 0.5},
@@ -1013,6 +1142,7 @@ NODE_BLUEPRINTS = {
     "rate_limiter": {
         "title": "Rate Limiter",
         "subtitle": "Batasi frekuensi event dengan jeda waktu pendingin (cooldown)",
+        "category": "Logic & Flow Control",
         "x": 620,
         "y": 1220,
         "config": {"seconds": 5.0},
@@ -1020,6 +1150,7 @@ NODE_BLUEPRINTS = {
     "and_or_logic": {
         "title": "AND / OR Logic",
         "subtitle": "Kombinasikan beberapa status sinyal logika alur pemrosesan",
+        "category": "Logic & Flow Control",
         "x": 910,
         "y": 1220,
         "config": {"operator": "and", "enabledValue": True},
@@ -1027,6 +1158,7 @@ NODE_BLUEPRINTS = {
     "trigger_once": {
         "title": "Trigger Once",
         "subtitle": "Hanya loloskan pemicu satu kali hingga kondisi kembali normal",
+        "category": "Logic & Flow Control",
         "x": 330,
         "y": 1350,
         "config": {"resetOnClear": True},

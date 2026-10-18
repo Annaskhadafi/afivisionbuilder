@@ -37,6 +37,7 @@ import main as engine
 from detector_process import DetectorProcessStopped, TensorRTDetectorProcess
 from visonode_database import DatabaseWriter
 from python_script_runtime import ScriptError, ScriptStopped, ScriptTimeout, PythonScriptRunner
+from project_nodes import process_project_node, validate_project_config
 
 
 _torch_thread_scope_lock = Lock()
@@ -722,6 +723,18 @@ def _process_track_event_nodes(
     dwell_events = _process_dwell_zones(workflow, frame, tracked, event_runtime, now)
     extra_results.extend(dwell_events)
 
+    for project_node in workflow.get("nodes", []):
+        if project_node.get("type") not in ("zone_activity_timer", "zone_exit_event") or not project_node.get("enabled", True):
+            continue
+        project_id = str(project_node.get("id") or "")
+        if not engine.has_active_path(workflow, engine.source_node_id(workflow), project_id):
+            continue
+        candidates = engine.results_for_node(workflow, project_id, detections, tracked)
+        candidates = engine.filter_project_inputs(workflow, project_id, candidates, (frame.shape[1], frame.shape[0]))
+        with logic_lock if logic_lock is not None else nullcontext():
+            candidates = engine.apply_logic_nodes(workflow, project_id, candidates, logic_runtime, now)
+        extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
+
     # Process Roboflow Barcode & QR Code Reader
     barcode_dets = _process_barcode_reading(workflow, frame, detections)
     extra_results.extend(barcode_dets)
@@ -1329,7 +1342,41 @@ def _apply_privacy_blur(workflow: dict, frame, detections: list[dict]) -> None:
                     frame[y1:y2, x1:x2] = cv2.GaussianBlur(roi, (k_size, k_size), 0)
 
 
+def _draw_project_zone_overlays(frame, workflow: dict, event_runtime: dict) -> None:
+    import cv2
+    import numpy as np
+    if frame is None or not hasattr(frame, "shape"):
+        return
+    h, w = frame.shape[:2]
+    for node in workflow.get("nodes", []):
+        if node.get("type") not in ("zone_activity_timer", "zone_exit_event") or not node.get("enabled", True):
+            continue
+        config = node.get("config", {})
+        if not config.get("showOverlay", True):
+            continue
+        snapshot = dict(event_runtime.get(str(node.get("id") or ""), {}).get("snapshot", {}))
+        if not snapshot:
+            continue
+        points = _parse_polygon(config.get("points", ""), w, h)
+        if len(points) < 3:
+            continue
+        poly = np.array(points, np.int32)
+        state = str(snapshot.get("state", ""))
+        color = (70, 190, 70) if state == "WORKING" else (0, 180, 255)
+        cv2.polylines(frame, [poly], True, color, 2, cv2.LINE_AA)
+        label = str(config.get("zoneName") or node.get("title") or node.get("type"))
+        if node.get("type") == "zone_activity_timer":
+            label += f" | {state} | work {float(snapshot.get('workingSeconds', 0)):.1f}s"
+            label += f" | tire {snapshot.get('requiredCount', 0)} person {snapshot.get('triggerCount', 0)}"
+        else:
+            label += " | OUT"
+        x = max(0, min(w - 1, int(poly[:, 0].min())))
+        y = max(18, min(h - 4, int(poly[:, 1].min()) - 6))
+        cv2.putText(frame, label, (x, y), cv2.FONT_HERSHEY_SIMPLEX, .45, color, 1, cv2.LINE_AA)
+
+
 def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict) -> None:
+    _draw_project_zone_overlays(frame, workflow, event_runtime)
     import cv2
     import math
     import time
@@ -2363,10 +2410,13 @@ class WorkflowRunner:
             return bool(self._status["running"])
 
     def start(self, workflow: dict, *, debug: bool = False) -> None:
-        self.stop()
         workflow = engine.prepare_runtime_workflow(engine.normalize_workflow(workflow))
+        for node in workflow.get("nodes", []):
+            if node.get("type") in ("zone_activity_timer", "zone_exit_event"):
+                validate_project_config(node)
         if not engine.active_input_node(workflow):
             raise ValueError("Input node is disabled.")
+        self.stop()
 
         self._stop_event = Event()
         self._debug_enabled = debug
@@ -2428,12 +2478,56 @@ class WorkflowRunner:
 
     def status(self) -> dict:
         with self._lock:
-            return dict(self._status)
+            status = dict(self._status)
+            runtime = getattr(self, "_event_runtime", {})
+            project_nodes = {
+                key: dict(value["snapshot"]) for key, value in list(runtime.items())
+                if isinstance(value, dict) and isinstance(value.get("snapshot"), dict)
+            }
+            workflow = getattr(self, "_active_workflow", {})
+            now = time.monotonic()
+            config_by_id = {
+                str(node.get("id")): node.get("config", {})
+                for node in workflow.get("nodes", [])
+                if isinstance(node, dict)
+            } if isinstance(workflow, dict) else {}
+            for node_id, snapshot in project_nodes.items():
+                if snapshot.get("kind") != "zone_activity":
+                    continue
+                if not snapshot.get("sessionId") or snapshot.get("state") == "COMPLETED":
+                    continue
+                # Read eligibility and timestamp from the copied published
+                # snapshot only. The frame writer can advance mutable runtime
+                # state between the snapshot copy and this projection.
+                last_frame = snapshot.get("monotonicTime")
+                if not isinstance(last_frame, (int, float)) or now < last_frame:
+                    continue
+                try:
+                    max_gap = float(config_by_id.get(node_id, {}).get("maxObservationGapSeconds", 5))
+                except (TypeError, ValueError, OverflowError):
+                    max_gap = 5.0
+                if max_gap <= 0 or not math.isfinite(max_gap):
+                    max_gap = 5.0
+                age = now - last_frame
+                snapshot["observationAgeSeconds"] = round(age, 6)
+                if age > max_gap:
+                    snapshot["state"] = "UNKNOWN"
+                    durations = dict(snapshot.get("durations") or {})
+                    unknown = float(durations.get("unknownSeconds", snapshot.get("unknownSeconds", 0)) or 0) + age
+                    durations["unknownSeconds"] = round(unknown, 6)
+                    snapshot["durations"] = durations
+                    snapshot["unknownSeconds"] = durations["unknownSeconds"]
+                    snapshot["monotonicTime"] = now
+            status["projectNodes"] = project_nodes
+            return status
 
     def update_workflow(self, workflow: dict) -> None:
         """Update node configurations dynamically on the running pipeline."""
         if not isinstance(workflow, dict):
             return
+        for node in workflow.get("nodes", []):
+            if node.get("type") in ("zone_activity_timer", "zone_exit_event"):
+                validate_project_config(node)
         if hasattr(self, "_active_workflow") and isinstance(self._active_workflow, dict):
             self._active_workflow["nodes"] = workflow.get("nodes", [])
             self._active_workflow["edges"] = workflow.get("edges", [])
@@ -2605,7 +2699,8 @@ class WorkflowRunner:
 
         try:
             input_node = engine.active_input_node(workflow)
-            input_source = engine.OpenCVInputSource(cv2, input_node.get("config", {}))
+            input_config = input_node.get("config", {})
+            input_source = engine.OpenCVInputSource(cv2, input_config)
             source_label, actual_width, actual_height = input_source.open()
             self._emit_log(f"Opened {source_label} ({actual_width}x{actual_height})")
             preview_nodes = _active_preview_nodes(workflow, source_id)
@@ -2912,7 +3007,7 @@ class WorkflowRunner:
                 inference_nodes = engine.active_inference_nodes(base_workflow)
                 frame_inference_plan = _frame_inference_plan(base_workflow, engine.active_frame_inference_nodes(base_workflow))
                 detection_crop_bindings = engine.active_pretracking_detection_crop_bindings(base_workflow)
-                if not inference_nodes:
+                if not inference_nodes and not engine.active_vlm_box_tracker_node(base_workflow) and not engine.active_ai_agent_nodes(base_workflow):
                     detection_queue.close()
                     return
                 first_inference_logged = False
@@ -2925,8 +3020,7 @@ class WorkflowRunner:
                     min(
                         frame_queue_size,
                         max(
-                            int(node.get("config", {}).get("batchSize", 1) or 1)
-                            for node in inference_nodes
+                            [int(node.get("config", {}).get("batchSize", 1) or 1) for node in inference_nodes] or [1]
                         ),
                     ),
                 )
@@ -3212,11 +3306,15 @@ class WorkflowRunner:
 
             def tracking_stage() -> None:
                 workflow = base_workflow
-                if not inference_nodes:
+                if not inference_nodes and not engine.active_vlm_box_tracker_node(base_workflow) and not engine.active_ai_agent_nodes(base_workflow):
                     tracking_queue.close()
                     return
                 tracker_runtime: engine.ObjectTracker | None = None
                 tracker_signature: str | None = None
+                vlm_tracker_runtime: Any | None = None
+                vlm_tracker_signature: str | None = None
+                ai_agent_runtimes: dict[str, Any] = {}
+                ai_agent_signatures: dict[str, str] = {}
                 while not self._stop_event.is_set():
                     tracker_node = engine.active_tracking_node(workflow)
                     tracker_batch_size = max(
@@ -3282,6 +3380,35 @@ class WorkflowRunner:
                                     duration_ms=(time.monotonic() - tracking_started_at) * 1000,
                                     sample={"tracked": _detection_sample(tracked)},
                                 )
+                        vlm_tracker_node = engine.active_vlm_box_tracker_node(workflow)
+                        if vlm_tracker_node:
+                            try:
+                                from vlm_box_tracker import VLMBoxTrackerRuntime
+                            except ImportError:
+                                from .vlm_box_tracker import VLMBoxTrackerRuntime
+                            vlm_config = vlm_tracker_node.get("config", {})
+                            vlm_sig = json.dumps(vlm_config, sort_keys=True)
+                            if vlm_tracker_runtime is None or vlm_tracker_signature != vlm_sig:
+                                if vlm_tracker_runtime is not None:
+                                    vlm_tracker_runtime.close()
+                                vlm_tracker_runtime = VLMBoxTrackerRuntime(
+                                    str(vlm_tracker_node.get("id") or "vlm_box_tracker"),
+                                    vlm_config,
+                                )
+                                vlm_tracker_signature = vlm_sig
+                                self._emit_log(
+                                    f"VLM Box Tracker enabled (provider={vlm_config.get('provider', 'openrouter')})"
+                                )
+                            vlm_results = vlm_tracker_runtime.update(
+                                packet.frame,
+                                timestamp=packet.timestamp,
+                            )
+                            tracked.extend(vlm_results)
+                            detections.extend(vlm_results)
+                        elif vlm_tracker_runtime is not None:
+                            vlm_tracker_runtime.close()
+                            vlm_tracker_runtime = None
+                            vlm_tracker_signature = None
                         # Keep tracker state warm while a sampler blocks this branch.
 
                         # Regular Detection Crop branches are materialized in
@@ -3305,8 +3432,37 @@ class WorkflowRunner:
                             logic_lock=logic_lock,
                         )
                         detections.extend(event_results)
-                        packet.crop_batches.update(event_crops)
+                        ai_agent_nodes = [n for n in workflow.get("nodes", []) if n.get("type") == "ai_agent" and n.get("enabled", True)]
+                        if ai_agent_nodes:
+                            for agent_node in ai_agent_nodes:
+                                agent_id = str(agent_node.get("id") or "ai_agent")
+                                agent_cfg = agent_node.get("config", {})
+                                agent_sig = json.dumps(agent_cfg, sort_keys=True)
+                                if agent_id not in ai_agent_runtimes or ai_agent_signatures.get(agent_id) != agent_sig:
+                                    if agent_id in ai_agent_runtimes:
+                                        ai_agent_runtimes[agent_id].stop()
+                                    try:
+                                        from ai_agent import AIAgentRuntime
+                                    except ImportError:
+                                        from .ai_agent import AIAgentRuntime
+                                    ai_agent_runtimes[agent_id] = AIAgentRuntime(
+                                        agent_id,
+                                        agent_cfg,
+                                        on_log=self._emit_log,
+                                    )
+                                    ai_agent_signatures[agent_id] = agent_sig
+                                agent_upstream_events = [ev for ev in event_results if engine.has_active_path(workflow, str(ev.get("sourceNodeId") or ""), agent_id)]
+                                ai_events = ai_agent_runtimes[agent_id].on_frame(
+                                    packet.frame,
+                                    detections,
+                                    agent_upstream_events,
+                                    now,
+                                )
+                                if ai_events:
+                                    event_results.extend(ai_events)
                         logic_runtime["_event_runtime"] = event_runtime
+                        self._deliver_project_events(cv2, workflow, packet.frame, event_results, logic_runtime, now, logic_lock=logic_lock)
+                        packet.crop_batches.update(event_crops)
 
                         filter_candidates = (
                             engine.results_for_node(workflow, "filter", detections, tracked)
@@ -3348,7 +3504,15 @@ class WorkflowRunner:
                             workflow=workflow,
                             script_frames=packet.script_frames,
                         ), self._stop_event):
+                            if vlm_tracker_runtime is not None:
+                                vlm_tracker_runtime.close()
+                            for runtime in ai_agent_runtimes.values():
+                                runtime.stop()
                             return
+                if vlm_tracker_runtime is not None:
+                    vlm_tracker_runtime.close()
+                for runtime in ai_agent_runtimes.values():
+                    runtime.stop()
                 tracking_queue.close()
 
             def preview_stage() -> None:
@@ -3368,7 +3532,7 @@ class WorkflowRunner:
                 recorded_loiter_tracks: set = set()
 
                 while not self._stop_event.is_set():
-                    if inference_nodes:
+                    if inference_nodes or engine.active_vlm_box_tracker_node(base_workflow) or engine.active_ai_agent_nodes(base_workflow):
                         # Live sources show the newest completed frame; older
                         # queued frames count as dropped (also skipped in any
                         # saved video, which is inherently variable-rate live).
@@ -3571,7 +3735,7 @@ class WorkflowRunner:
                         preview_counts.append(
                             len(crop_items)
                             if crop_items is not None
-                            else (roi_count if roi_count is not None else len(preview_detections))
+                            else (roi_count if roi_count is not None else engine._object_detection_count(preview_detections))
                         )
 
                     if display_frame_for_outputs is not None:
@@ -3616,6 +3780,7 @@ class WorkflowRunner:
                     if (
                         alert_node
                         and alert_detections
+                        and not engine.project_event_upstream_of(workflow, "alert")
                         and engine.has_active_path(workflow, source_id, "alert")
                     ):
                         cooldown = max(
@@ -3670,7 +3835,7 @@ class WorkflowRunner:
 
                     # Webhook output execution
                     for wh_node in workflow.get("nodes", []):
-                        if wh_node.get("type") == "webhook_output" and wh_node.get("enabled", True):
+                        if wh_node.get("type") == "webhook_output" and wh_node.get("enabled", True) and not engine.project_event_upstream_of(workflow, str(wh_node.get("id") or "")):
                             wh_id = str(wh_node.get("id") or "")
                             with logic_lock:
                                 wh_detections = engine.detections_for_node(
@@ -3735,6 +3900,7 @@ class WorkflowRunner:
                                 sample_due
                                 and database_config.get("saveDetections", True)
                                 and not event_objects_only
+                                and not engine.project_event_upstream_of(workflow, database_id)
                             ):
                                 database_writer.detections(
                                     frame_index=total_frame_index,
@@ -3986,6 +4152,8 @@ class WorkflowRunner:
         filtered: list[dict] = []
         tracker_runtime: engine.ObjectTracker | None = None
         tracker_signature: str | None = None
+        vlm_tracker_runtime: Any | None = None
+        vlm_tracker_signature: str | None = None
         processing_runtime: dict = {"__python_scripts": self._python_context}
         logic_runtime: dict = {}
         event_runtime: dict = {}
@@ -4002,7 +4170,8 @@ class WorkflowRunner:
         detector_processes: dict = {}
         try:
             input_node = engine.active_input_node(workflow)
-            input_source = engine.OpenCVInputSource(cv2, input_node.get("config", {}))
+            input_config = input_node.get("config", {})
+            input_source = engine.OpenCVInputSource(cv2, input_config)
             source_label, actual_width, actual_height = input_source.open()
             self._emit_log(f"Opened {source_label} ({actual_width}x{actual_height})")
             preview_nodes = _active_preview_nodes(workflow, source_id)
@@ -4157,6 +4326,8 @@ class WorkflowRunner:
             preview_mode = "native OpenCV preview" if native_preview else "GUI preview transport"
             self._emit_log(f"Workflow running ({preview_mode})")
             watchdog = CCTVStreamWatchdog(input_config, input_node, self._emit_log, self._emit_node_debug)
+            serial_ai_agent_runtimes: dict[str, Any] = {}
+            serial_ai_agent_signatures: dict[str, str] = {}
 
             while not self._stop_event.is_set():
                 read_started_at = time.monotonic()
@@ -4435,6 +4606,33 @@ class WorkflowRunner:
                         tracked = []
                         tracker_runtime = None
                         tracker_signature = None
+                    vlm_tracker_node = engine.active_vlm_box_tracker_node(workflow)
+                    if vlm_tracker_node:
+                        try:
+                            from vlm_box_tracker import VLMBoxTrackerRuntime
+                        except ImportError:
+                            from .vlm_box_tracker import VLMBoxTrackerRuntime
+                        vlm_config = vlm_tracker_node.get("config", {})
+                        vlm_sig = json.dumps(vlm_config, sort_keys=True)
+                        if vlm_tracker_runtime is None or vlm_tracker_signature != vlm_sig:
+                            if vlm_tracker_runtime is not None:
+                                vlm_tracker_runtime.close()
+                            vlm_tracker_runtime = VLMBoxTrackerRuntime(
+                                str(vlm_tracker_node.get("id") or "vlm_box_tracker"),
+                                vlm_config,
+                            )
+                            vlm_tracker_signature = vlm_sig
+                            self._emit_log(f"VLM Box Tracker enabled (provider={vlm_config.get('provider', 'openrouter')})")
+                        vlm_results = vlm_tracker_runtime.update(
+                            frame,
+                            timestamp=now,
+                        )
+                        tracked.extend(vlm_results)
+                        detections.extend(vlm_results)
+                    elif vlm_tracker_runtime is not None:
+                        vlm_tracker_runtime.close()
+                        vlm_tracker_runtime = None
+                        vlm_tracker_signature = None
                     event_results, frame_event_crops, frame_object_records, frame_count_records = _process_track_event_nodes(
                         cv2,
                         frame,
@@ -4446,7 +4644,36 @@ class WorkflowRunner:
                         now,
                     )
                     detections.extend(event_results)
+                    ai_agent_nodes = [n for n in workflow.get("nodes", []) if n.get("type") == "ai_agent" and n.get("enabled", True)]
+                    if ai_agent_nodes:
+                        for agent_node in ai_agent_nodes:
+                            agent_id = str(agent_node.get("id") or "ai_agent")
+                            agent_cfg = agent_node.get("config", {})
+                            agent_sig = json.dumps(agent_cfg, sort_keys=True)
+                            if agent_id not in serial_ai_agent_runtimes or serial_ai_agent_signatures.get(agent_id) != agent_sig:
+                                if agent_id in serial_ai_agent_runtimes:
+                                    serial_ai_agent_runtimes[agent_id].stop()
+                                try:
+                                    from ai_agent import AIAgentRuntime
+                                except ImportError:
+                                    from .ai_agent import AIAgentRuntime
+                                serial_ai_agent_runtimes[agent_id] = AIAgentRuntime(
+                                    agent_id,
+                                    agent_cfg,
+                                    on_log=self._emit_log,
+                                )
+                                serial_ai_agent_signatures[agent_id] = agent_sig
+                            agent_upstream_events = [ev for ev in event_results if engine.has_active_path(workflow, str(ev.get("sourceNodeId") or ""), agent_id)]
+                            ai_events = serial_ai_agent_runtimes[agent_id].on_frame(
+                                frame,
+                                detections,
+                                agent_upstream_events,
+                                now,
+                            )
+                            if ai_events:
+                                event_results.extend(ai_events)
                     logic_runtime["_event_runtime"] = event_runtime
+                    self._deliver_project_events(cv2, workflow, frame, event_results, logic_runtime, now)
                     filter_candidates = (
                         engine.results_for_node(workflow, "filter", detections, tracked)
                         if engine.active_filter_node(workflow)
@@ -4544,6 +4771,7 @@ class WorkflowRunner:
                             drawing_detections = [] if hold_crop_grid else engine.crop_grid_drawing_detections(crop_items)
                         else:
                             display_frame = preview_frame.copy()
+                            drawing_detections = preview_detections
                             _apply_privacy_blur(workflow, display_frame, preview_detections)
                             engine.draw_roi_overlays(display_frame, workflow, preview_id, logic_runtime)
                             counter_state = None
@@ -4590,7 +4818,7 @@ class WorkflowRunner:
                     preview_counts.append(
                         len(crop_items)
                         if crop_items is not None
-                        else (roi_count if roi_count is not None else len(preview_detections))
+                        else (roi_count if roi_count is not None else engine._object_detection_count(preview_detections))
                     )
 
                 if native_preview is not None and native_preview.poll_stop_requested():
@@ -4612,6 +4840,7 @@ class WorkflowRunner:
                 if (
                     alert_node
                     and alert_detections
+                    and not engine.project_event_upstream_of(workflow, "alert")
                     and engine.has_active_path(workflow, source_id, "alert")
                 ):
                     cooldown = max(
@@ -4689,6 +4918,7 @@ class WorkflowRunner:
                             sample_due
                             and database_config.get("saveDetections", True)
                             and not event_objects_only
+                            and not engine.project_event_upstream_of(workflow, database_id)
                         ):
                             database_writer.detections(
                                 frame_index=total_frame_index,
@@ -4740,6 +4970,10 @@ class WorkflowRunner:
             self._emit_event("Workflow error", error)
             self._emit_log(f"ERROR: {error}")
         finally:
+            if vlm_tracker_runtime is not None:
+                vlm_tracker_runtime.close()
+            for runtime in serial_ai_agent_runtimes.values():
+                runtime.stop()
             _close_detector_processes(detector_processes)
             self._close_python_scripts(self._python_context)
             for preview_id, video_output in video_outputs.items():
@@ -4795,6 +5029,43 @@ class WorkflowRunner:
             self._status.update(updates)
             snapshot = dict(self._status)
         self._on_status(snapshot)
+
+    def _deliver_project_events(self, cv2_module, workflow, frame, events, logic_runtime, now, *, logic_lock=None) -> None:
+        """Consume sparse events before the lossy live-preview queue.
+
+        # ponytail: existing webhook transport is in-memory; durable ERP delivery
+        # remains a separate task. Do not claim restart-safe external delivery.
+        """
+        sparse = [event for event in events if event.get("kind") in ("zone_activity_event", "zone_exit", "ai_agent_event")]
+        if not sparse:
+            return
+        for output in sorted(workflow.get("nodes", []), key=lambda node: node.get("type") != "image_output"):
+            output_id = str(output.get("id") or "")
+            output_type = output.get("type")
+            if output_type not in ("image_output", "alert", "webhook_output", "database_output") or not output.get("enabled", True):
+                continue
+            candidates = engine.results_for_node(workflow, output_id, sparse, [])
+            with logic_lock if logic_lock is not None else nullcontext():
+                candidates = engine.apply_logic_nodes(workflow, output_id, candidates, logic_runtime, now)
+            if not candidates:
+                continue
+            if output_type == "image_output":
+                for event in candidates:
+                    event["snapshotPath"] = _save_inspection_crop(cv2_module, {"frame": frame, "detection": {**event, "score": event.get("score") or 0}}, output)
+                    self._emit_log(f"Zone snapshot saved: {event['snapshotPath']}")
+            elif output_type == "webhook_output":
+                _dispatch_webhook_async(output.get("config", {}), copy.deepcopy(candidates), frame.copy())
+                self._emit_log(f"Zone webhook dispatched ({len(candidates)} event(s)); delivery is not yet durable")
+            elif output_type == "alert":
+                default_msg = "AI Agent Alert" if any(c.get("kind") == "ai_agent_event" for c in candidates) else "Zone event"
+                title = str(output.get("config", {}).get("message") or default_msg)
+                self._on_event(title, json.dumps(candidates, ensure_ascii=False))
+            else:
+                for database_node, writer in self._database_outputs:
+                    if str(database_node.get("id") or "") == output_id and output.get("config", {}).get("saveEvents", True):
+                        for event in candidates:
+                            writer.event(timestamp_ms=int(time.time() * 1000), title=event["kind"],
+                                         detail=json.dumps(event, ensure_ascii=False), node_id=str(event.get("sourceNodeId") or ""))
 
     def _emit_log(self, line: str) -> None:
         self._on_log(line)

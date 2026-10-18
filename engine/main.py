@@ -2001,6 +2001,27 @@ def active_tracking_node(workflow: dict) -> dict | None:
     return None
 
 
+def active_vlm_box_tracker_node(workflow: dict) -> dict | None:
+    input_id = source_node_id(workflow)
+    for node in workflow.get("nodes", []):
+        if node.get("type") == "vlm_box_tracker" and node.get("enabled", True):
+            node_id = str(node.get("id") or "vlm_box_tracker")
+            if has_active_path(workflow, input_id, node_id) or not workflow.get("edges"):
+                return node
+    return None
+
+
+def active_ai_agent_nodes(workflow: dict) -> list[dict]:
+    input_id = source_node_id(workflow)
+    nodes = []
+    for node in workflow.get("nodes", []):
+        if node.get("type") == "ai_agent" and node.get("enabled", True):
+            node_id = str(node.get("id") or "ai_agent")
+            if has_active_path(workflow, input_id, node_id) or not workflow.get("edges"):
+                nodes.append(node)
+    return nodes
+
+
 def active_track_snapshot_nodes(workflow: dict) -> list[dict]:
     """Return enabled Once Per Track nodes reached from the active tracker."""
     tracker = active_tracking_node(workflow)
@@ -2038,6 +2059,13 @@ def object_event_upstream_of(workflow: dict, target_id: str) -> bool:
         has_active_path(workflow, str(node.get("id") or ""), target_id)
         for node in (*active_track_snapshot_nodes(workflow), *active_object_counter_nodes(workflow))
     )
+
+
+def project_event_upstream_of(workflow: dict, target_id: str) -> bool:
+    return any(node.get("type") in ("zone_activity_timer", "zone_exit_event")
+               and node.get("enabled", True)
+               and has_active_path(workflow, str(node.get("id") or ""), target_id)
+               for node in workflow.get("nodes", []))
 
 
 def track_driven_detection_crop_nodes(workflow: dict) -> list[dict]:
@@ -2390,13 +2418,16 @@ def inference_results_for_node(workflow: dict, node_id: str, detections: list[di
 
 
 def tracking_results_for_node(workflow: dict, node_id: str, tracked: list[dict]) -> list[dict]:
-    tracker = active_tracking_node(workflow)
-    if not tracker or not has_active_path(workflow, tracker.get("id", "tracker"), node_id):
+    tracker = active_tracking_node(workflow) or active_vlm_box_tracker_node(workflow)
+    if not tracker:
+        return []
+    tracker_id = str(tracker.get("id") or tracker.get("type") or "tracker")
+    if not has_active_path(workflow, tracker_id, node_id):
         return []
     return [
         detection for detection in tracked
         if detection.get("trackId") is not None
-        and has_active_path(workflow, detection.get("sourceNodeId", "tracker"), node_id)
+        and has_active_path(workflow, detection.get("sourceNodeId", tracker_id), node_id)
     ]
 
 
@@ -2406,8 +2437,41 @@ def results_for_node(
     detections: list[dict],
     tracked: list[dict] | None = None,
 ) -> list[dict]:
-    tracker = active_tracking_node(workflow)
-    if tracker and tracked is not None and has_active_path(workflow, tracker.get("id", "tracker"), node_id):
+    # Project nodes emit sparse business events for action outputs. Never
+    # replace an empty event batch with the continuous detector/tracker stream.
+    target = enabled_node(workflow, node_id)
+    ai_agent_sources = {
+        str(node.get("id") or "") for node in workflow.get("nodes", [])
+        if node.get("type") == "ai_agent"
+        and node.get("enabled", True)
+        and str(node.get("id") or "") != node_id
+        and has_active_path(workflow, str(node.get("id") or ""), node_id)
+    }
+    if ai_agent_sources and target and target.get("type") in (
+        "alert", "webhook_output", "image_output", "database_output",
+    ):
+        events = [item for item in detections
+                  if item.get("kind") == "ai_agent_event"
+                  and str(item.get("sourceNodeId") or "") in ai_agent_sources]
+        return [item for item in events if item.get("passDownstream", True)]
+
+    project_sources = {
+        str(node.get("id") or "") for node in workflow.get("nodes", [])
+        if node.get("type") in ("zone_activity_timer", "zone_exit_event")
+        and node.get("enabled", True)
+        and str(node.get("id") or "") != node_id
+        and has_active_path(workflow, str(node.get("id") or ""), node_id)
+    }
+    if project_sources and target and target.get("type") in (
+        "alert", "webhook_output", "image_output", "database_output", "ai_agent",
+    ):
+        events = [item for item in detections
+                  if item.get("kind") in ("zone_activity_event", "zone_exit")
+                  and str(item.get("sourceNodeId") or "") in project_sources]
+        return filter_project_inputs(workflow, node_id, events, after_sources=project_sources)
+    tracker = active_tracking_node(workflow) or active_vlm_box_tracker_node(workflow)
+    tracker_id = str(tracker.get("id") or tracker.get("type") or "tracker") if tracker else "tracker"
+    if tracker and tracked is not None and has_active_path(workflow, tracker_id, node_id):
         blocked_ids = {
             str(node.get("id") or "")
             for node in workflow.get("nodes", [])
@@ -2416,7 +2480,6 @@ def results_for_node(
         blocked_ids.discard(str(node_id))
 
         def tracker_has_continuous_path() -> bool:
-            tracker_id = str(tracker.get("id") or "tracker")
             queue = [tracker_id]
             visited = set()
             while queue:
@@ -2448,7 +2511,7 @@ def results_for_node(
         # sparse event records in ``detections``.  Preserve those records for
         # downstream alerts/databases instead of replacing them with the
         # continuous tracker stream.
-        event_kinds = {"track_snapshot", "count_event", "line_crossing", "loitering_alert", "object_classification", "anomaly"}
+        event_kinds = {"track_snapshot", "count_event", "line_crossing", "loitering_alert", "object_classification", "anomaly", "zone_activity", "zone_activity_event", "zone_exit"}
         results.extend(
             item for item in detections
             if item.get("kind") in event_kinds
@@ -2480,7 +2543,12 @@ def detections_for_node(
     input_id = source_node_id(workflow)
     if not node or not has_active_path(workflow, input_id, node_id):
         return []
-    if active_filter_node(workflow) and has_active_path(workflow, "filter", node_id):
+    if active_filter_node(workflow) and has_active_path(workflow, "filter", node_id) and not any(
+        node.get("type") in ("zone_activity_timer", "zone_exit_event")
+        and node.get("enabled", True)
+        and has_active_path(workflow, str(node.get("id") or ""), node_id)
+        for node in workflow.get("nodes", [])
+    ):
         return filtered
     return results_for_node(workflow, node_id, detections, tracked)
 
@@ -2878,7 +2946,7 @@ def active_logic_nodes_for_target(workflow: dict, target_id: str) -> list[dict]:
     if input_id:
         sources.append(input_id)
     for n in workflow.get("nodes", []):
-        if n.get("type") in ("line_counter", "object_counter", "dwell_time", "barcode_reader", "crop", "roi_filter") and n.get("enabled", True):
+        if n.get("type") in ("line_counter", "object_counter", "dwell_time", "barcode_reader", "crop", "roi_filter", "zone_activity_timer", "zone_exit_event") and n.get("enabled", True):
             sources.append(str(n.get("id", "")))
 
     nodes = [
@@ -2912,7 +2980,7 @@ def active_logic_nodes_for_target(workflow: dict, target_id: str) -> list[dict]:
 
 
 def _object_detection_count(detections: list[dict]) -> int:
-    real_objects = [item for item in detections if item.get("kind") not in ("line_crossing", "count_event", "loitering_alert")]
+    real_objects = [item for item in detections if item.get("kind") not in ("line_crossing", "count_event", "loitering_alert", "zone_activity", "zone_activity_event", "zone_exit")]
     boxed = [item for item in real_objects if _detection_box_xywh(item) is not None]
     return len(_overlay_objects(boxed)) + len(real_objects) - len(boxed)
 
@@ -5170,8 +5238,40 @@ def run_sam3_frame(frame, inference_node: dict) -> list[dict]:
     return detections
 
 
-def filter_detections(workflow: dict, detections: list[dict], frame_size: tuple[int, int] | None = None) -> list[dict]:
-    filter_node = active_filter_node(workflow)
+def filter_project_inputs(workflow: dict, target_id: str, detections: list[dict], frame_size=None, *, after_sources=None) -> list[dict]:
+    """Apply geometry/class filters on a project-node branch, independent of IDs."""
+    if after_sources is not None:
+        from graphlib import TopologicalSorter
+        nodes = {str(node.get("id") or ""): node for node in workflow.get("nodes", []) if node.get("enabled", True)}
+        parents = {key: set() for key in nodes}
+        for left, right in workflow.get("edges", []):
+            if left in nodes and right in nodes:
+                parents[right].add(left)
+        order = tuple(TopologicalSorter(parents).static_order())
+        result = []
+        for source in after_sources:
+            batches = {source: [item for item in detections if str(item.get("sourceNodeId") or "") == source]}
+            for key in order:
+                if key == source:
+                    continue
+                # Merge by identity so one event reaching two routes is emitted once.
+                batch = list({id(item): item for parent in parents[key] for item in batches.get(parent, [])}.values())
+                if nodes[key].get("type") == "filter":
+                    batch = filter_detections(workflow, batch, frame_size, filter_node=nodes[key])
+                batches[key] = batch
+            result.extend(batches.get(target_id, []))
+        return result
+    result = detections
+    for node in workflow.get("nodes", []):
+        if node.get("type") == "filter" and node.get("enabled", True) and has_active_path(
+            workflow, str(node.get("id") or ""), target_id,
+        ):
+            result = filter_detections(workflow, result, frame_size, filter_node=node)
+    return result
+
+
+def filter_detections(workflow: dict, detections: list[dict], frame_size: tuple[int, int] | None = None, *, filter_node=None) -> list[dict]:
+    filter_node = filter_node or active_filter_node(workflow)
     if not filter_node:
         return detections
     config = filter_node.get("config", {})
@@ -5521,6 +5621,8 @@ def _overlay_objects(detections: list[dict]) -> list[dict]:
         "anomaly": 4,
     }
     for index, item in enumerate(detections):
+        if item.get("kind") in ("zone_activity", "zone_activity_event", "zone_exit"):
+            continue
         box = _detection_box_xywh(item)
         if box is None:
             continue
@@ -5875,7 +5977,7 @@ def _draw_object_count_overlay(
 
     if not display_counts:
         for d in detections:
-            if d.get("kind") in ("anomaly", "classification"):
+            if d.get("kind") in ("anomaly", "classification", "zone_activity", "zone_activity_event", "zone_exit"):
                 continue
             cls_name = str(d.get("class") or "object").strip()
             display_counts[cls_name] = display_counts.get(cls_name, 0) + 1
@@ -5985,7 +6087,7 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
     mask_opacity = min(0.85, max(0.05, float(config.get("maskOpacity", 0.35))))
     classification_y = 12
     for detection in detections:
-        if detection.get("kind") in ("count_event", "line_crossing", "loitering_alert"):
+        if detection.get("kind") in ("count_event", "line_crossing", "loitering_alert", "zone_activity", "zone_activity_event", "zone_exit"):
             continue
         if detection.get("kind") == "anomaly":
             from efficientad_runtime import draw_result
@@ -6163,6 +6265,8 @@ class WorkflowRunner:
         filtered: list[dict] = []
         tracker_runtime: ObjectTracker | None = None
         tracker_signature: str | None = None
+        vlm_tracker_runtime: Any | None = None
+        vlm_tracker_signature: str | None = None
         processing_runtime: dict = {}
         logic_runtime: dict = {}
         video_output_initialized = False
@@ -6388,6 +6492,33 @@ class WorkflowRunner:
                         tracked = []
                         tracker_runtime = None
                         tracker_signature = None
+                    vlm_tracker_node = active_vlm_box_tracker_node(workflow)
+                    if vlm_tracker_node:
+                        try:
+                            from vlm_box_tracker import VLMBoxTrackerRuntime
+                        except ImportError:
+                            from .vlm_box_tracker import VLMBoxTrackerRuntime
+                        vlm_config = vlm_tracker_node.get("config", {})
+                        vlm_sig = json.dumps(vlm_config, sort_keys=True)
+                        if vlm_tracker_runtime is None or vlm_tracker_signature != vlm_sig:
+                            if vlm_tracker_runtime is not None:
+                                vlm_tracker_runtime.close()
+                            vlm_tracker_runtime = VLMBoxTrackerRuntime(
+                                str(vlm_tracker_node.get("id") or "vlm_box_tracker"),
+                                vlm_config,
+                            )
+                            vlm_tracker_signature = vlm_sig
+                            self._add_terminal(f"VLM Box Tracker enabled (provider={vlm_config.get('provider', 'openrouter')})")
+                        vlm_results = vlm_tracker_runtime.update(
+                            frame,
+                            timestamp=now,
+                        )
+                        tracked.extend(vlm_results)
+                        detections.extend(vlm_results)
+                    elif vlm_tracker_runtime is not None:
+                        vlm_tracker_runtime.close()
+                        vlm_tracker_runtime = None
+                        vlm_tracker_signature = None
                     filter_candidates = (
                         results_for_node(workflow, "filter", detections, tracked)
                         if active_filter_node(workflow)
@@ -6508,6 +6639,8 @@ class WorkflowRunner:
             self._add_event("Workflow error", error)
             self._add_terminal(f"ERROR: {error}")
         finally:
+            if vlm_tracker_runtime is not None:
+                vlm_tracker_runtime.close()
             if video_output is not None:
                 video_output.release()
                 if video_output.opened and video_output.path is not None:

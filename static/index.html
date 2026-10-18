@@ -5,28 +5,69 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Afi Vision Builder - Computer Vision Studio</title>
   <link rel="icon" href="/static/logo.png">
-  <link rel="stylesheet" href="/static/style.css?v=2.8">
-  <script defer src="/static/app.js?v=3.1"></script>
+  <link rel="stylesheet" href="/static/style.css?v=3.6">
+  <script defer src="/static/app.js?v=3.6"></script>
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark" title="Afi Vision Builder">
+    <div class="brand" id="brandLogoHome" role="button" tabindex="0" title="Back to Projects Hub">
+      <span class="brand-mark" title="VisoNode">
         <svg class="icon-svg icon-md" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
       </span>
       <div>
-        <strong>Afi Vision <em>Builder</em></strong>
-        <small>COMPUTER VISION WORKFLOWS</small>
+        <strong>VisoNode</strong>
+        <small class="version-tag">v1.0.5-beta.127</small>
       </div>
     </div>
-    <div class="project-title">
+
+    <button class="button ghost project-nav-btn" id="projectSwitcherBtn" type="button" title="Back to Projects Hub">
+      <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span>Project ▾</span>
+    </button>
+
+    <div class="project-title" id="topbarProjectBreadcrumb">
       <span id="projectName">Loading project</span>
       <button class="rename-button" id="renameProject" title="Rename project" aria-label="Rename project">
         <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
       </button>
+      <span class="breadcrumb-sep">&gt;</span>
+      <span id="breadcrumbStatePill" class="status-indicator-pill">• Stopped</span>
       <span id="dirty" class="dirty" hidden>Unsaved</span>
     </div>
-    <div class="top-actions">
+
+    <nav class="main-nav-tabs" id="topbarNavTabs" aria-label="Main Navigation">
+      <button class="nav-tab active" id="tabStudio" type="button" title="Workflow Studio Canvas">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span>Workflow Studio</span>
+      </button>
+      <button class="nav-tab" id="tabLiveCameras" type="button" title="Monitoring Multi-Kamera (8 CCTV)">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        <span>Live Cameras</span>
+        <span class="nav-badge" id="liveCamerasOnlineBadge">8 Online</span>
+      </button>
+      <button class="nav-tab" id="tabSessions" type="button" title="Rekap Durasi Sesi Workshop (Bay 1-5)">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Workshop Sessions</span>
+      </button>
+      <button class="nav-tab" id="tabWarehouse" type="button" title="Log Kejadian Keluar Gerbang Warehouse">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Warehouse Events</span>
+      </button>
+    </nav>
+
+    <div class="top-actions" id="topbarProjectActions">
+      <button class="button run" id="runBtn" title="Run workflow pipeline">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+        <span>Run</span>
+      </button>
+      <button class="button stop" id="stopBtn" title="Stop running workflow">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>
+        <span>Stop</span>
+      </button>
+      <button class="button primary" id="saveBtn" title="Save changes to project">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
+        <span>Save</span>
+      </button>
       <button class="button ghost" id="uploadBtn" title="Upload image or video">
         <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <span>Upload Media</span>
@@ -47,26 +88,89 @@
         <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <span>Export</span>
       </button>
-      <button class="button primary" id="saveBtn" title="Save changes to project">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
-        <span>Save</span>
+    </div>
+
+    <!-- Hub Header Profile & Settings Actions -->
+    <div class="hub-header-actions" id="hubHeaderActions">
+      <button class="icon-button" id="hubBellBtn" title="Notifications" type="button">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
       </button>
-      <button class="button run" id="runBtn" title="Run workflow pipeline">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-        <span>Run</span>
+      <button class="button ghost hub-header-btn" id="hubSettingsBtn" title="Settings" type="button">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Settings</span>
       </button>
-      <button class="button stop" id="stopBtn" title="Stop running workflow">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>
-        <span>Stop</span>
+      <button class="button ghost hub-header-btn" id="hubHelpBtn" title="Help" type="button">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>Help</span>
       </button>
+      <div class="user-avatar-badge" title="User Profile: AN">AN</div>
     </div>
     <input id="fileInput" type="file" hidden>
     <input id="modelInput" type="file" accept=".pt,.pth,.ckpt,.onnx,.engine,.plan" hidden>
     <input id="importInput" type="file" accept="application/json" hidden>
   </header>
 
-  <main class="app-shell">
-    <aside class="sidebar panel">
+  <!-- View: Projects & Templates Hub (Screenshot 1) -->
+  <section class="hub-container" id="viewProjectsHub">
+    <div class="hub-hero">
+      <div class="hub-hero-header">
+        <h1>Projects</h1>
+        <p>Manage and create your computer vision workflows.</p>
+      </div>
+      <div class="hub-hero-actions">
+        <button class="button primary hub-action-btn" id="hubNewProjectBtn" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>New project</span>
+        </button>
+        <button class="button secondary hub-action-btn" id="hubImportBtn" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Import workflow</span>
+        </button>
+        <button class="button secondary hub-action-btn" id="hubBrowseTemplatesBtn" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+          <span>Browse templates</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Section 1: Recent Projects -->
+    <div class="hub-section">
+      <div class="hub-section-head">
+        <h2>Recent projects</h2>
+        <button class="text-link" id="hubViewAllProjectsBtn" type="button">View all projects &rarr;</button>
+      </div>
+      <div class="hub-projects-grid" id="hubRecentProjectsGrid"></div>
+    </div>
+
+    <!-- Section 2: Templates -->
+    <div class="hub-section">
+      <div class="hub-section-head">
+        <div>
+          <h2>Templates</h2>
+          <p class="hub-section-sub">Get started quickly with ready-made workflows for common use cases.</p>
+        </div>
+        <button class="text-link" id="hubViewAllTemplatesBtn" type="button">View all templates &rarr;</button>
+      </div>
+      <div class="hub-templates-grid" id="hubTemplatesGrid"></div>
+    </div>
+  </section>
+
+  <div class="project-studio-container" id="viewStudio" hidden>
+    <!-- Left Rail (Screenshot 2) -->
+    <nav class="project-left-rail" id="projectLeftRail" aria-label="Project Modules">
+      <button class="rail-tab active" id="railTabWorkflow" type="button" title="Workflow Studio Canvas">
+        <svg class="icon-svg icon-md" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <span>Workflow</span>
+      </button>
+      <button class="rail-tab" id="railTabModels" type="button" title="Models Registry">
+        <svg class="icon-svg icon-md" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <span>Models</span>
+      </button>
+    </nav>
+
+    <!-- Workflow Canvas Shell -->
+    <main class="app-shell" id="studioWorkflowArea">
+      <aside class="sidebar panel" id="studioSidebar">
       <div class="side-section">
         <div class="section-label">
           <span>PROJECTS</span>
@@ -231,6 +335,220 @@
     </aside>
   </main>
 
+  <!-- View: Models Registry Management (Screenshot 2) -->
+  <section class="models-manager-panel" id="viewModelManager" hidden>
+    <div class="models-panel-head">
+      <div class="models-panel-title">
+        <h2>Models</h2>
+        <p>Manage the models available in VisoNode. Download default models or import your own for your workflows.</p>
+      </div>
+      <div class="models-panel-actions">
+        <button class="button primary" id="modelsAddBtn" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Add model</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="table-card models-table-card">
+      <div class="table-scroll-wrap">
+        <table class="data-table models-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Version</th>
+              <th>Size</th>
+              <th>Status</th>
+              <th>Added</th>
+              <th>Engine</th>
+              <th>Format</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="modelsTableBody"></tbody>
+        </table>
+      </div>
+      <div class="models-empty-state" id="modelsEmptyState" hidden>
+        <p>No models imported yet. Add a model to use it in Detection, Segmentation, Visual Inspection, or Classification nodes.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+  <!-- View: Live Cameras Operational Grid (Fase F PRD) -->
+  <section class="dashboard-shell" id="viewLiveCameras" hidden>
+    <div class="dashboard-toolbar">
+      <div class="dashboard-toolbar-left">
+        <div>
+          <span class="eyebrow">MONITORING MULTI-KAMERA</span>
+          <h2>Live CCTV Matrix (8 Stream RTSP)</h2>
+        </div>
+        <div class="filter-pill-group">
+          <button class="filter-pill active" id="filterCamAll" type="button">Semua Kamera (8)</button>
+          <button class="filter-pill" id="filterCamWS" type="button">Workshop Bays (5)</button>
+          <button class="filter-pill" id="filterCamWH" type="button">Warehouse Gates (3)</button>
+        </div>
+      </div>
+      <div class="dashboard-toolbar-right">
+        <div class="grid-layout-selector" role="group" aria-label="Pilih Grid Tampilan">
+          <button class="icon-button" id="gridFocusBtn" title="1 Kamera Fokus" type="button">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
+          </button>
+          <button class="icon-button" id="grid4Btn" title="4 Grid (2x2)" type="button">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </button>
+          <button class="icon-button active" id="grid9Btn" title="9 Grid Matrix (3x3)" type="button">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect x="3" y="3" width="4" height="4"/><rect x="10" y="3" width="4" height="4"/><rect x="17" y="3" width="4" height="4"/><rect x="3" y="10" width="4" height="4"/><rect x="10" y="10" width="4" height="4"/><rect x="17" y="10" width="4" height="4"/><rect x="3" y="17" width="4" height="4"/><rect x="10" y="17" width="4" height="4"/><rect x="17" y="17" width="4" height="4"/></svg>
+          </button>
+        </div>
+        <button class="button secondary" id="refreshCamerasBtn" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          <span>Refresh Feeds</span>
+        </button>
+        <button class="button primary" id="btnAddNewCamera" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Tambah Kamera</span>
+        </button>
+      </div>
+    </div>
+    <div class="camera-grid grid-matrix-3x3" id="cameraGridContainer"></div>
+  </section>
+
+  <!-- View: Workshop Sessions Summary & Shift Timeline (Fase D & F PRD) -->
+  <section class="dashboard-shell" id="viewWorkshopSessions" hidden>
+    <div class="kpi-banner">
+      <div class="kpi-card">
+        <span class="kpi-label">TOTAL SESI HARI INI</span>
+        <strong class="kpi-value" id="kpiTotalSessions">0 Sesi</strong>
+        <small class="kpi-hint">Tercatat di 5 Workshop Bay</small>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">TOTAL DURASI KERJA AKTIF</span>
+        <strong class="kpi-value" id="kpiTotalWorkHours">0j 0m</strong>
+        <small class="kpi-hint">Waktu observasi ban + mekanik</small>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">RATA-RATA DURASI PER BAN</span>
+        <strong class="kpi-value" id="kpiAvgDuration">—</strong>
+        <small class="kpi-hint">Efisiensi mekanik rata-rata</small>
+      </div>
+      <div class="kpi-card highlight">
+        <span class="kpi-label">BAY PALING PRODUKTIF</span>
+        <strong class="kpi-value" id="kpiTopBay">—</strong>
+        <small class="kpi-hint">Berdasarkan sesi selesai</small>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <div class="select-wrapper">
+            <select id="shiftFilterSelect" aria-label="Filter Shift Kerja">
+              <option value="all">Semua Shift Kerja</option>
+              <option value="Pagi">Shift Pagi (07:00 - 15:00)</option>
+              <option value="Siang">Shift Siang (15:00 - 23:00)</option>
+              <option value="Malam">Shift Malam (23:00 - 07:00)</option>
+            </select>
+          </div>
+          <input type="text" id="sessionsSearchInput" placeholder="Cari ID Sesi atau Bay…" class="table-search-input">
+        </div>
+        <div class="table-toolbar-right">
+          <button class="button primary" id="exportSessionsBtn" type="button">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </div>
+      <div class="table-scroll-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID SESI</th>
+              <th>LOKASI / BAY</th>
+              <th>NAMA ZONA</th>
+              <th>WAKTU MULAI</th>
+              <th>WAKTU SELESAI</th>
+              <th>DURASI KERJA</th>
+              <th>BAN</th>
+              <th>MEKANIK</th>
+              <th>SHIFT</th>
+              <th>STATUS</th>
+              <th>AKSI</th>
+            </tr>
+          </thead>
+          <tbody id="sessionsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- View: Warehouse Gate Events & ERP Logistics (Fase G PRD) -->
+  <section class="dashboard-shell" id="viewWarehouseEvents" hidden>
+    <div class="kpi-banner">
+      <div class="kpi-card">
+        <span class="kpi-label">TOTAL EVENT KELUAR GERBANG</span>
+        <strong class="kpi-value" id="kpiWarehouseEvents">0 Event</strong>
+        <small class="kpi-hint">Teramati gerbang WH-01 s/d WH-03</small>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">TRUK LOGISTIK KELUAR</span>
+        <strong class="kpi-value" id="kpiWarehouseTrucks">0 Truk</strong>
+        <small class="kpi-hint">Tervalidasi observasi dalam-ke-luar</small>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">TOTAL BAN DIANGKUT</span>
+        <strong class="kpi-value" id="kpiWarehouseTires">0 Ban</strong>
+        <small class="kpi-hint">Estimasi muatan terekam</small>
+      </div>
+      <div class="kpi-card highlight">
+        <span class="kpi-label">STATUS INTEGRASI ERP</span>
+        <strong class="kpi-value" id="kpiErpDelivery">—</strong>
+        <small class="kpi-hint">Durable Queue Tahan Restart</small>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="table-toolbar-left">
+          <div class="select-wrapper">
+            <select id="gateFilterSelect" aria-label="Filter Gerbang Gudang">
+              <option value="all">Semua Gerbang Gudang</option>
+              <option value="WH-01">Gate 1 (Gerbang Utama)</option>
+              <option value="WH-02">Gate 2 (Gerbang Muatan Besar)</option>
+              <option value="WH-03">Gate 3 (Gerbang Pengiriman Cepat)</option>
+            </select>
+          </div>
+          <input type="text" id="warehouseSearchInput" placeholder="Cari ID Event atau Kelas…" class="table-search-input">
+        </div>
+        <div class="table-toolbar-right">
+          <button class="button primary" id="exportWarehouseBtn" type="button">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </div>
+      <div class="table-scroll-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID EVENT</th>
+              <th>GERBANG</th>
+              <th>WAKTU OBSERVASI</th>
+              <th>OBJEK TERDETEKSI</th>
+              <th>TRACK ID</th>
+              <th>ARAH</th>
+              <th>STATUS PENGIRIMAN ERP</th>
+              <th>KODE RESPON</th>
+              <th>BUKTI SNAPSHOT</th>
+            </tr>
+          </thead>
+          <tbody id="warehouseTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <!-- Templates Modal -->
   <dialog id="templatesModal" class="modal">
     <div class="modal-box">
@@ -244,6 +562,37 @@
         </button>
       </div>
       <div id="templatesList" class="templates-grid"></div>
+    </div>
+  </dialog>
+
+  <!-- Add Model Modal -->
+  <dialog id="addModelModal" class="modal">
+    <div class="modal-box modal-box-md">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">MODEL REGISTRY</span>
+          <h2>Add or Import AI Model</h2>
+        </div>
+        <button class="icon-button" id="closeAddModelModal" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="addModelForm" class="modal-form">
+        <div class="drop-zone" id="modelDropZone" tabindex="0" role="button">
+          <svg class="icon-svg icon-lg" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <p><strong>Click to browse</strong> or drag & drop model file</p>
+          <small>Supports .pt, .onnx, .engine, .plan, .tflite, .keras</small>
+          <div id="selectedModelFilename" class="selected-file-label" hidden></div>
+        </div>
+        <input type="file" id="modalModelFileInput" accept=".pt,.pth,.ckpt,.onnx,.engine,.plan,.tflite,.keras,.h5" hidden>
+
+        <div class="modal-actions-right">
+          <button class="button secondary" type="button" id="cancelAddModelBtn">Cancel</button>
+          <button class="button primary" type="submit" id="submitAddModelBtn" disabled>
+            <span>Upload and Register</span>
+          </button>
+        </div>
+      </form>
     </div>
   </dialog>
 
@@ -261,6 +610,112 @@
       </div>
       <div class="expanded-preview-wrap">
         <img id="modalPreviewImage" alt="Expanded preview">
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal: Pengaturan Kamera & Workflow Binding -->
+  <!-- Modal: Pengaturan Kamera & Workflow Binding -->
+  <dialog id="cameraSettingsModal" class="modal">
+    <div class="modal-box camera-settings-modal-box">
+      <div class="modal-head">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="camera-icon-badge">
+            <svg class="icon-svg icon-md" viewBox="0 0 24 24">
+              <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+          </div>
+          <div>
+            <h3 id="cameraSettingsModalTitle" style="margin:0;font-size:16px;font-weight:700;color:#0f172a;letter-spacing:-0.01em">Pengaturan Kamera</h3>
+            <span id="cameraSettingsModalSubtitle" style="font-size:12px;color:#64748b">Konfigurasi RTSP stream dan alur kerja (workflow)</span>
+          </div>
+        </div>
+        <button class="icon-button" id="closeCameraSettingsModal" type="button" aria-label="Tutup">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="camEditId" value="">
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="form-group">
+            <label class="form-label" for="camEditName">Nama Kamera</label>
+            <input type="text" id="camEditName" class="form-control" placeholder="Contoh: Workshop Bay 1" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="camEditType">Tipe Operasional</label>
+            <select id="camEditType" class="form-control">
+              <option value="workshop">Workshop Bay (Mekanik & Ban)</option>
+              <option value="warehouse">Warehouse Gate (Perlintasan Gudang)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="camEditStreamUrl">URL Stream RTSP / IP Camera</label>
+          <input type="text" id="camEditStreamUrl" class="form-control stream-url-input" placeholder="rtsp://192.168.1.101:554/live">
+          <small style="color:#64748b;font-size:11px;margin-top:3px;display:block">Dukung format rtsp://, http://, atau video stream OpenCV.</small>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label" for="camEditResolution">Resolusi</label>
+            <select id="camEditResolution" class="form-control">
+              <option value="1080p">Full HD 1080p</option>
+              <option value="720p">HD 720p</option>
+              <option value="4K">Ultra HD 4K</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="camEditFps">Target FPS</label>
+            <input type="number" id="camEditFps" class="form-control" min="1" max="60" step="0.1" value="25.0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="camEditZone">Nama Area Zona</label>
+            <input type="text" id="camEditZone" class="form-control" placeholder="Bay 1 Area">
+          </div>
+        </div>
+
+        <!-- Section: Workflow Integration -->
+        <div class="workflow-binding-card">
+          <div class="workflow-binding-header">
+            <label class="workflow-binding-title">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              Project Workflow Terhubung
+            </label>
+            <button class="btn-generate-template" id="camAutoGenerateWorkflowBtn" type="button">
+              <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Buat Otomatis dari Template</span>
+            </button>
+          </div>
+          <select id="camEditAssignedProject" class="form-control">
+            <option value="">-- Belum Ada Workflow (Gunakan Mode Monitor Bawaan) --</option>
+          </select>
+          <div class="workflow-status-row">
+            <span id="camWorkflowStatusHint" class="workflow-status-text">
+              Hubungkan kamera ini ke workflow visual untuk pemrosesan AI, deteksi objek, dan event log.
+            </span>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+              <button class="btn-draw-polygon" id="camDrawPolygonBtn" type="button" style="display:none" title="Buka Workflow Studio & langsung aktifkan editor poligon zona di video preview">
+                <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><polygon points="3 3 21 3 21 21 3 21"/></svg>
+                <span>Gambar Poligon Area</span>
+              </button>
+              <button class="btn-open-studio" id="camOpenInStudioBtn" type="button" style="display:none">
+                <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                <span>Buka di Studio</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="camera-modal-footer">
+        <button class="btn-delete-camera" id="camDeleteBtn" type="button" style="display:none">Hapus Kamera</button>
+        <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
+          <button class="btn-modal-cancel" id="cancelCameraSettingsBtn" type="button">Batal</button>
+          <button class="btn-modal-save" id="saveCameraSettingsBtn" type="button">Simpan Pengaturan</button>
+        </div>
       </div>
     </div>
   </dialog>

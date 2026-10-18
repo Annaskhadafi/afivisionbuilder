@@ -186,14 +186,55 @@ def test_missing_best_pt_fails_preflight():
             raise AssertionError("missing best.pt unexpectedly passed preflight")
 
 
-def test_upload_same_basename_replaces_file():
+def test_upload_same_basename_versions_content_without_overwrite():
     with tempfile.TemporaryDirectory() as tmpdir, patch.object(server, "_models", Path(tmpdir)):
         with TestClient(app, base_url="http://127.0.0.1:8765") as client:
             first = client.post("/api/models/upload", files={"file": ("same.onnx", b"one", "application/octet-stream")})
             second = client.post("/api/models/upload", files={"file": ("same.onnx", b"two-two", "application/octet-stream")})
         assert first.status_code == second.status_code == 200
-        assert first.json()["path"] == second.json()["path"]
+        assert first.json()["path"] != second.json()["path"]
+        assert first.json()["sha256"] != second.json()["sha256"]
+        assert Path(first.json()["path"]).read_bytes() == b"one"
         assert Path(second.json()["path"]).read_bytes() == b"two-two"
+
+
+def test_upload_identical_content_is_idempotent_and_listing_has_fingerprint():
+    with tempfile.TemporaryDirectory() as tmpdir, patch.object(server, "_models", Path(tmpdir)):
+        with TestClient(app, base_url="http://127.0.0.1:8765") as client:
+            first = client.post("/api/models/upload", files={"file": ("same.onnx", b"one", "application/octet-stream")})
+            second = client.post("/api/models/upload", files={"file": ("same.onnx", b"one", "application/octet-stream")})
+            listing = client.get("/api/models").json()["models"]
+        assert first.json()["path"] == second.json()["path"]
+        assert len(listing) == 1
+        assert listing[0]["sha256"] == first.json()["sha256"]
+        assert listing[0]["fingerprint"] == first.json()["sha256"][:8]
+        assert listing[0]["label"].startswith("same.onnx · ")
+
+
+def test_upload_preserves_legacy_model_and_inspect_reports_checksum():
+    with tempfile.TemporaryDirectory() as tmpdir, patch.object(server, "_models", Path(tmpdir)):
+        legacy = Path(tmpdir) / "legacy.onnx"
+        legacy.write_bytes(b"legacy")
+        with TestClient(app, base_url="http://127.0.0.1:8765") as client:
+            uploaded = client.post("/api/models/upload", files={"file": ("new.tflite", b"new", "application/octet-stream")})
+            inspected = client.get("/api/models/inspect", params={"path": uploaded.json()["path"]})
+            listing = client.get("/api/models").json()["models"]
+        assert legacy.read_bytes() == b"legacy"
+        assert inspected.status_code == 200
+        assert inspected.json()["sha256"] == uploaded.json()["sha256"]
+        assert any(item["path"] == str(legacy) and item["sha256"] is None and item["fingerprint"] is None for item in listing)
+
+
+def test_oversize_upload_cleans_staging_and_publish_files():
+    with tempfile.TemporaryDirectory() as tmpdir, patch.object(server, "_models", Path(tmpdir)), patch.object(server, "_MAX_MODEL_UPLOAD", 2):
+        legacy = Path(tmpdir) / "existing.pt"
+        legacy.write_bytes(b"keep")
+        with TestClient(app, base_url="http://127.0.0.1:8765") as client:
+            response = client.post("/api/models/upload", files={"file": ("too.pt", b"three", "application/octet-stream")})
+        assert response.status_code == 413
+        assert legacy.read_bytes() == b"keep"
+        assert not list(Path(tmpdir).rglob("*.tmp"))
+        assert not any(path.is_file() and path.name != "existing.pt" for path in Path(tmpdir).rglob("*"))
 
 
 def test_custom_runner_formatting():
