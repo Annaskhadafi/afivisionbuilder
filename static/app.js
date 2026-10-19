@@ -2333,6 +2333,7 @@
     switchMainView('studio');
     switchProjectRailTab('workflow');
   }
+  window.openProjectWorkflow = openProjectWorkflow;
 
   async function useTemplate(templateId) {
     const tpl = (state.templates || []).find(t => t.id === templateId);
@@ -2637,7 +2638,8 @@
     state.workflow.nodes.forEach(n => {
       const card = document.createElement('article');
       const cat = categoryFor(n.type);
-      card.className = `node-card${state.selected === n.id ? ' selected' : ''}`;
+      const isEnabled = n.enabled !== false;
+      card.className = `node-card${state.selected === n.id ? ' selected' : ''}${!isEnabled ? ' node-disabled' : ''}`;
       card.dataset.cat = cat;
       card.style.left = `${Number(n.x) || 0}px`;
       card.style.top = `${Number(n.y) || 0}px`;
@@ -2650,11 +2652,42 @@
       badge.innerHTML = getIcon(n.type, 'icon-sm');
       const strong = document.createElement('strong');
       strong.textContent = n.title || titleFor(n.type);
-      head.append(badge, strong);
+
+      const toggleLabel = document.createElement('label');
+      toggleLabel.className = 'node-toggle-switch';
+      toggleLabel.title = isEnabled ? 'Node Aktif (Klik untuk Bypass)' : 'Node Bypassed (Klik untuk Aktifkan)';
+      toggleLabel.onpointerdown = (e) => e.stopPropagation();
+      toggleLabel.onclick = (e) => e.stopPropagation();
+
+      const toggleCheck = document.createElement('input');
+      toggleCheck.type = 'checkbox';
+      toggleCheck.checked = isEnabled;
+      toggleCheck.onchange = (e) => {
+        e.stopPropagation();
+        n.enabled = e.target.checked;
+        markDirty();
+        renderCanvas();
+        if (state.selected === n.id) renderInspector();
+        liveUpdateWorkflow();
+      };
+
+      const toggleSlider = document.createElement('span');
+      toggleSlider.className = 'toggle-slider';
+      toggleSlider.onpointerdown = (e) => e.stopPropagation();
+      toggleLabel.append(toggleCheck, toggleSlider);
+
+      head.append(badge, strong, toggleLabel);
 
       const meta = document.createElement('div');
       meta.className = 'node-meta';
       meta.textContent = n.subtitle || state.catalog[n.type]?.subtitle || n.type;
+
+      if (!isEnabled) {
+        const bypassTag = document.createElement('span');
+        bypassTag.className = 'node-bypassed-badge';
+        bypassTag.textContent = 'BYPASSED';
+        meta.append(' ', bypassTag);
+      }
 
       if (n.type === 'if_else') {
         const isElse = String(n.config?.passWhen).toLowerCase() === 'false';
@@ -2690,7 +2723,12 @@
         }
       }
 
-      card.append(head, meta, input, output);
+      const statusBar = document.createElement('div');
+      statusBar.className = 'node-status-bar';
+      statusBar.dataset.nodeId = n.id;
+      renderNodeStatusBarContent(statusBar, n, state.status?.nodeTelemetry?.[n.id]);
+
+      card.append(head, meta, input, output, statusBar);
 
       card.onclick = (e) => {
         if (state.reconnectingEdge) {
@@ -3002,7 +3040,7 @@
   function enableDrag(card, node) {
     let start;
     card.onpointerdown = (e) => {
-      if (e.target.classList.contains('port')) return;
+      if (e.target.classList.contains('port') || e.target.closest('.node-toggle-switch')) return;
       start = { x: e.clientX, y: e.clientY, nx: node.x || 0, ny: node.y || 0 };
       card.setPointerCapture(e.pointerId);
     };
@@ -3448,6 +3486,209 @@
     card.querySelector('[data-stat="metrics"]').textContent = `Frames: ${stats.processedFrames ?? '—'} · Errors: ${stats.errorCount ?? '—'} · Last: ${stats.lastDurationMs ?? '—'} ms · ${stats.lastRunAt || 'Belum ada run'}`;
     const details = [stats.error, ...(Array.isArray(stats.logs) ? stats.logs : [])].filter(Boolean).map(String).slice(-30);
     card.querySelector('[data-stat="logs"]').textContent = details.join('\n');
+  }
+
+  function renderNodeStatusBarContent(el, node, telem) {
+    if (!el) return;
+    if (node.enabled === false) {
+      el.innerHTML = '<span class="status-dot bypassed"></span><span class="status-text bypassed">BYPASSED</span>';
+      return;
+    }
+    if (!telem || telem.status === 'idle') {
+      el.innerHTML = '<span class="status-dot idle"></span><span class="status-text idle">IDLE</span>';
+      return;
+    }
+    if (telem.status === 'bypassed') {
+      el.innerHTML = '<span class="status-dot bypassed"></span><span class="status-text bypassed">BYPASSED</span>';
+      return;
+    }
+    if (telem.status === 'error') {
+      el.innerHTML = '<span class="status-dot error"></span><span class="status-text error">✖ ERROR</span>';
+      return;
+    }
+    const ms = telem.latencyMs !== undefined ? `${telem.latencyMs}ms` : '0ms';
+    const items = telem.itemCount !== undefined ? `(${telem.itemCount})` : '';
+    el.innerHTML = `<span class="status-dot success"></span><span class="status-latency">⚡ ${ms}</span> <span class="status-count">${items}</span>`;
+  }
+
+  function updateAllNodeTelemetryUI(telemetryData = {}) {
+    state.workflow.nodes.forEach(node => {
+      const bar = document.querySelector(`.node-status-bar[data-node-id="${node.id}"]`);
+      if (bar) {
+        renderNodeStatusBarContent(bar, node, telemetryData[node.id]);
+      }
+    });
+    if (state.selected && state.inspectorTab === 'logs') {
+      const selNode = nodeFor(state.selected);
+      if (selNode) {
+        updateInspectorLogsLive(selNode, telemetryData[selNode.id]);
+      }
+    }
+  }
+
+  function renderInspectorTelemetryLogs(node, container) {
+    const telem = (state.status?.nodeTelemetry || {})[node.id] || {};
+    const isNodeEnabled = node.enabled !== false;
+    const isBypassed = !isNodeEnabled || telem.status === 'bypassed';
+    const statusText = !isNodeEnabled ? 'BYPASSED (OFF)' : (telem.status ? telem.status.toUpperCase() : 'IDLE');
+    const statusColor = !isNodeEnabled ? '#fbbf24' : (telem.status === 'success' ? '#10b981' : (telem.status === 'error' ? '#ef4444' : '#94a3b8'));
+
+    const hud = document.createElement('div');
+    hud.className = 'telemetry-hud';
+    hud.id = `telemetry-hud-${node.id}`;
+    hud.innerHTML = `
+      <div class="hud-stat-card">
+        <span class="hud-stat-label">Execution Status</span>
+        <span class="hud-stat-value" data-stat="status" style="color: ${statusColor}">
+          <span class="status-dot ${isBypassed ? 'bypassed' : (telem.status || 'idle')}" style="display:inline-block;margin-right:4px;"></span>
+          ${statusText}
+        </span>
+      </div>
+      <div class="hud-stat-card">
+        <span class="hud-stat-label">Latency (Per-Frame)</span>
+        <span class="hud-stat-value" data-stat="latency" style="color:#38bdf8">
+          ${isBypassed ? '0.00 ms (Skip)' : (telem.latencyMs !== undefined ? `${telem.latencyMs} ms` : '—')}
+        </span>
+      </div>
+      <div class="hud-stat-card">
+        <span class="hud-stat-label">Items / Detections</span>
+        <span class="hud-stat-value" data-stat="items">
+          ${telem.itemCount !== undefined ? `${telem.itemCount} items` : '—'}
+        </span>
+      </div>
+      <div class="hud-stat-card">
+        <span class="hud-stat-label">Last Timestamp</span>
+        <span class="hud-stat-value" data-stat="time" style="font-size:11px;color:#94a3b8">
+          ${telem.timestamp ? new Date(telem.timestamp * 1000).toLocaleTimeString() : 'Belum jalan'}
+        </span>
+      </div>
+    `;
+    container.append(hud);
+
+    // Action bar (Copy JSON, Refresh)
+    const actRow = document.createElement('div');
+    actRow.className = 'telemetry-action-row';
+    actRow.style.display = 'flex';
+    actRow.style.gap = '8px';
+    actRow.style.marginBottom = '12px';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'button secondary';
+    copyBtn.style.flex = '1';
+    copyBtn.style.fontSize = '11px';
+    copyBtn.style.padding = '6px 10px';
+    copyBtn.innerHTML = '📋 Copy Full JSON Payload';
+    copyBtn.onclick = () => {
+      const fullPayload = {
+        nodeId: node.id,
+        type: node.type,
+        enabled: isNodeEnabled,
+        telemetry: telem,
+      };
+      navigator.clipboard.writeText(JSON.stringify(fullPayload, null, 2));
+      toast('Payload telemetry berhasil disalin ke clipboard!');
+    };
+
+    const refreshBtn = document.createElement('button');
+    refreshBtn.type = 'button';
+    refreshBtn.className = 'button secondary';
+    refreshBtn.style.fontSize = '11px';
+    refreshBtn.style.padding = '6px 10px';
+    refreshBtn.innerHTML = '🔄 Refresh';
+    refreshBtn.onclick = async () => {
+      await pollStatus();
+      toast('Telemetry refreshed');
+    };
+
+    actRow.append(copyBtn, refreshBtn);
+    container.append(actRow);
+
+    // Error box if present
+    const errBox = document.createElement('div');
+    errBox.id = `telemetry-err-${node.id}`;
+    errBox.className = 'telemetry-err-box';
+    errBox.style.display = telem.error ? 'block' : 'none';
+    errBox.style.background = 'rgba(239, 68, 68, 0.15)';
+    errBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+    errBox.style.borderRadius = '6px';
+    errBox.style.padding = '8px';
+    errBox.style.marginBottom = '12px';
+    errBox.style.fontSize = '11px';
+    errBox.style.color = '#fca5a5';
+    errBox.innerHTML = `<strong>Error Log:</strong> <span class="err-msg">${escapeHtml(telem.error || '')}</span>`;
+    container.append(errBox);
+
+    // Input Payload Box
+    const inBox = document.createElement('div');
+    inBox.className = 'payload-box';
+    inBox.innerHTML = `
+      <div class="payload-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+        <span>📥 Input Payload / Metadata</span>
+        <span style="font-size:10px;opacity:0.7">▼ Collapse</span>
+      </div>
+      <pre class="payload-json" id="telemetry-input-${node.id}">${escapeHtml(JSON.stringify(telem.lastInput || {}, null, 2))}</pre>
+    `;
+    container.append(inBox);
+
+    // Output Payload Box
+    const outBox = document.createElement('div');
+    outBox.className = 'payload-box';
+    outBox.innerHTML = `
+      <div class="payload-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+        <span>📤 Output Payload / Results</span>
+        <span style="font-size:10px;opacity:0.7">▼ Collapse</span>
+      </div>
+      <pre class="payload-json" id="telemetry-output-${node.id}">${escapeHtml(JSON.stringify(telem.lastOutput || {}, null, 2))}</pre>
+    `;
+    container.append(outBox);
+  }
+
+  function updateInspectorLogsLive(node, telem = {}) {
+    const hud = document.getElementById(`telemetry-hud-${node.id}`);
+    if (!hud) return;
+    const isNodeEnabled = node.enabled !== false;
+    const isBypassed = !isNodeEnabled || telem.status === 'bypassed';
+    const statusText = !isNodeEnabled ? 'BYPASSED (OFF)' : (telem.status ? telem.status.toUpperCase() : 'IDLE');
+    const statusColor = !isNodeEnabled ? '#fbbf24' : (telem.status === 'success' ? '#10b981' : (telem.status === 'error' ? '#ef4444' : '#94a3b8'));
+
+    const statusEl = hud.querySelector('[data-stat="status"]');
+    if (statusEl) {
+      statusEl.style.color = statusColor;
+      statusEl.innerHTML = `<span class="status-dot ${isBypassed ? 'bypassed' : (telem.status || 'idle')}" style="display:inline-block;margin-right:4px;"></span> ${statusText}`;
+    }
+
+    const latEl = hud.querySelector('[data-stat="latency"]');
+    if (latEl) {
+      latEl.textContent = isBypassed ? '0.00 ms (Skip)' : (telem.latencyMs !== undefined ? `${telem.latencyMs} ms` : '—');
+    }
+
+    const itemEl = hud.querySelector('[data-stat="items"]');
+    if (itemEl) {
+      itemEl.textContent = telem.itemCount !== undefined ? `${telem.itemCount} items` : '—';
+    }
+
+    const timeEl = hud.querySelector('[data-stat="time"]');
+    if (timeEl && telem.timestamp) {
+      timeEl.textContent = new Date(telem.timestamp * 1000).toLocaleTimeString();
+    }
+
+    const inPre = document.getElementById(`telemetry-input-${node.id}`);
+    if (inPre && !inPre.classList.contains('collapsed')) {
+      inPre.textContent = JSON.stringify(telem.lastInput || {}, null, 2);
+    }
+
+    const outPre = document.getElementById(`telemetry-output-${node.id}`);
+    if (outPre && !outPre.classList.contains('collapsed')) {
+      outPre.textContent = JSON.stringify(telem.lastOutput || {}, null, 2);
+    }
+
+    const errBox = document.getElementById(`telemetry-err-${node.id}`);
+    if (errBox) {
+      errBox.style.display = telem.error ? 'block' : 'none';
+      const errMsg = errBox.querySelector('.err-msg');
+      if (errMsg) errMsg.textContent = telem.error || '';
+    }
   }
 
   const _expandedOverlayLayerIds = new Set();
@@ -4257,6 +4498,33 @@
     guideBtn.onclick = () => showNodeGuideModal(n);
     body.append(guideBtn);
 
+    const isNodeEnabled = n.enabled !== false;
+    const activeRow = document.createElement('div');
+    activeRow.className = 'inspector-active-row';
+    activeRow.innerHTML = `
+      <div class="active-row-label">
+        <strong style="color: ${isNodeEnabled ? '#10b981' : '#fbbf24'}">${isNodeEnabled ? '🟢 Node Aktif' : '⚪ Node Bypassed'}</strong>
+        <small style="color: #94a3b8">${isNodeEnabled ? 'Aktif memproses data' : 'Bypass / Pass-Through (Data diteruskan)'}</small>
+      </div>
+    `;
+    const activeSwitch = document.createElement('label');
+    activeSwitch.className = 'node-toggle-switch';
+    const activeCheck = document.createElement('input');
+    activeCheck.type = 'checkbox';
+    activeCheck.checked = isNodeEnabled;
+    activeCheck.onchange = (e) => {
+      n.enabled = e.target.checked;
+      markDirty();
+      renderCanvas();
+      renderInspector();
+      liveUpdateWorkflow();
+    };
+    const activeSlider = document.createElement('span');
+    activeSlider.className = 'toggle-slider';
+    activeSwitch.append(activeCheck, activeSlider);
+    activeRow.append(activeSwitch);
+    body.append(activeRow);
+
     // Tab buttons header
     const tabNav = document.createElement('div');
     tabNav.className = 'inspector-tabs';
@@ -4277,7 +4545,15 @@
       renderInspector();
     };
 
-    tabNav.append(basicTabBtn, advTabBtn);
+    const logsTabBtn = document.createElement('button');
+    logsTabBtn.className = `inspector-tab-btn ${state.inspectorTab === 'logs' ? 'active' : ''}`;
+    logsTabBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Data &amp; Logs';
+    logsTabBtn.onclick = () => {
+      state.inspectorTab = 'logs';
+      renderInspector();
+    };
+
+    tabNav.append(basicTabBtn, advTabBtn, logsTabBtn);
     body.append(tabNav);
 
     // Section container
@@ -4312,6 +4588,9 @@
       toggle.onchange = () => {
         n.enabled = toggle.checked;
         markDirty();
+        renderCanvas();
+        renderInspector();
+        liveUpdateWorkflow();
       };
       enabledWrap.append(toggle, document.createTextNode('Enable this node in execution graph'));
       section.append(enabledWrap);
@@ -4322,6 +4601,8 @@
           section.append(createSmartConfigField(n, key, value));
         }
       });
+    } else if (state.inspectorTab === 'logs') {
+      renderInspectorTelemetryLogs(n, section);
     } else {
       // Advanced / Performance tab
       const advEntries = Object.entries(n.config || {}).filter(([key]) => ADVANCED_KEYS.has(key));
@@ -9482,6 +9763,7 @@
         state.workflow.nodes.filter(node => node.type === 'python_script').forEach(node => {
           updatePythonScriptStatus(node.id, data);
         });
+        updateAllNodeTelemetryUI(data.nodeTelemetry || {});
       }
 
       // Status pill

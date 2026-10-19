@@ -333,7 +333,7 @@ def delete_project(project_id: str, request: Request) -> dict:
 @app.get("/api/status")
 def status() -> dict:
     with _lock:
-        current = _runner.status() if _runner else {"running": False, "state": "idle", "error": None}
+        current = _runner.status() if _runner else {"running": False, "state": "idle", "error": None, "nodeTelemetry": {}}
         return {**current, "projectId": _runner_project_id, "logs": list(_logs), "events": list(_events), "previews": list(_previews)}
 
 

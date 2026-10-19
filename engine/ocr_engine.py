@@ -26,24 +26,39 @@ except ImportError:
     HAS_ORT = False
 
 
+def _resolve_model_path(path_str: str) -> str:
+    if not path_str:
+        return path_str
+    if os.path.isabs(path_str) and os.path.exists(path_str):
+        return path_str
+    if os.path.exists(path_str):
+        return path_str
+    # Resolve relative to repo root
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidate = os.path.join(repo_root, path_str)
+    if os.path.exists(candidate):
+        return candidate
+    return path_str
+
+
 class OCREngine:
     """Manages ONNX inference sessions for text detection and text recognition."""
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config = config
-        self.rec_model_path = str(
+        self.rec_model_path = _resolve_model_path(str(
             config.get("recModelPath")
             or config.get("modelPath")
             or "data/models/ocr/ppocrv3_en_rec.onnx"
-        ).strip()
-        self.det_model_path = str(
+        ).strip())
+        self.det_model_path = _resolve_model_path(str(
             config.get("detModelPath")
             or "data/models/ocr/ppocrv3_det.onnx"
-        ).strip()
-        self.dict_path = str(
+        ).strip())
+        self.dict_path = _resolve_model_path(str(
             config.get("dictPath")
             or "data/models/ocr/en_dict.txt"
-        ).strip()
+        ).strip())
 
         self.det_session: Optional[Any] = None
         self.rec_session: Optional[Any] = None
@@ -100,25 +115,36 @@ class OCREngine:
         # 1. Use ONNX Detection Model if available
         if self.det_session is not None:
             try:
-                det_h = int(np.ceil(h / 32) * 32)
-                det_w = int(np.ceil(w / 32) * 32)
-                resized = cv2.resize(frame, (det_w, det_h))
-                mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-                std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+                # PaddleOCR standard dynamic scale
+                max_side_len = 960
+                min_side_len = 480
+                ratio = 1.0
+                if max(h, w) > max_side_len:
+                    ratio = float(max_side_len) / float(max(h, w))
+                elif min(h, w) < min_side_len:
+                    ratio = float(min_side_len) / float(min(h, w))
+
+                det_h = max(32, int(round((h * ratio) / 32) * 32))
+                det_w = max(32, int(round((w * ratio) / 32) * 32))
+
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) if len(frame.shape) == 3 and frame.shape[2] == 3 else frame
+                resized = cv2.resize(rgb, (det_w, det_h))
+                mean = np.array([0.485, 0.456, 0.406], dtype=np.float32).reshape((1, 1, 3))
+                std = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape((1, 1, 3))
                 norm = (resized.astype(np.float32) / 255.0 - mean) / std
                 blob = np.transpose(norm, (2, 0, 1))[np.newaxis, ...]
 
                 out = self.det_session.run(None, {"x": blob})[0]
                 pred_map = out[0, 0]
-                binary = (pred_map > 0.3).astype(np.uint8) * 255
+                binary = (pred_map > 0.25).astype(np.uint8) * 255
 
                 contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 for cnt in contours:
                     bx, by, bw, bh = cv2.boundingRect(cnt)
-                    if bw > 15 and bh > 5:
-                        # DBNet outputs the shrunk text core; expand vertically by ~0.65x height to cover ascenders/descenders
-                        pad_x = max(2, int(bw * 0.04))
-                        pad_y = max(4, int(bh * 0.65))
+                    if bw > 10 and bh > 5:
+                        # DBNet outputs the shrunk text core; expand vertically by ~0.4x height and horizontally by ~0.1x width
+                        pad_x = max(2, int(bw * 0.10))
+                        pad_y = max(3, int(bh * 0.40))
                         orig_x = max(0, int((bx - pad_x) * w / det_w))
                         orig_y = max(0, int((by - pad_y) * h / det_h))
                         orig_w = min(w - orig_x, int((bw + 2 * pad_x) * w / det_w))
@@ -162,9 +188,10 @@ class OCREngine:
 
         if self.rec_session is not None:
             try:
+                rgb_crop = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB) if len(crop.shape) == 3 and crop.shape[2] == 3 else crop
                 # Resize to target height 48 while preserving aspect ratio
                 target_w = max(16, min(960, int(round(cw * 48.0 / ch))))
-                resized = cv2.resize(crop, (target_w, 48))
+                resized = cv2.resize(rgb_crop, (target_w, 48))
                 norm = (resized.astype(np.float32) / 255.0 - 0.5) / 0.5
                 blob = np.transpose(norm, (2, 0, 1))[np.newaxis, ...]
 
@@ -206,7 +233,7 @@ class OCREngine:
         crop_from_detections = bool(self.config.get("cropFromDetections", False))
         filter_classes_raw = str(self.config.get("filterClasses") or "").lower()
         filter_classes = {c.strip() for c in filter_classes_raw.split(",") if c.strip()}
-        min_conf = float(self.config.get("minConfidence", 0.50) or 0.50)
+        min_conf = float(self.config.get("minConfidence", 0.35) or 0.35)
         whitelist = str(self.config.get("characterWhitelist") or "").strip()
         cooldown = max(0.1, float(self.config.get("cooldownSeconds", 1.0) or 1.0))
         emit_events = bool(self.config.get("emitEvents", True))
@@ -256,10 +283,12 @@ class OCREngine:
 
             det_obj = {
                 "class": "text",
+                "kind": "text_detected",
                 "text": text,
                 "confidence": conf,
                 "score": conf,
                 "box": [float(x), float(y), float(x + w), float(y + h)],
+                "bbox": [float(x), float(y), float(w), float(h)],
                 "x": float(x),
                 "y": float(y),
                 "width": float(w),
@@ -272,10 +301,12 @@ class OCREngine:
                 self._last_event_time = now
                 events.append({
                     "type": "ocr_text_read",
-                    "kind": "text_detected",
+                    "kind": "ocr_text_read",
                     "text": text,
                     "confidence": conf,
+                    "score": conf,
                     "box": det_obj["box"],
+                    "bbox": det_obj["bbox"],
                     "sourceNodeId": node_id,
                     "timestamp": now,
                 })

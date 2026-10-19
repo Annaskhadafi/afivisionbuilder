@@ -575,6 +575,7 @@ def _process_track_event_nodes(
     now: float,
     *,
     logic_lock=None,
+    telemetry_callback=None,
 ) -> tuple[list[dict], dict[str, list[dict]], list[dict], list[dict]]:
     """Run stateful per-track inspection and counting after tracking."""
     extra_results: list[dict] = []
@@ -730,12 +731,24 @@ def _process_track_event_nodes(
             "distance_measurement", "size_measurement", "camera_focus", "auto_rotate_edges",
             "overlap_analysis", "velocity_calculator", "path_deviation", "delta_filter",
             "detections_difference", "data_aggregator", "csv_formatter", "s3_sink",
-            "notification_dispatcher", "ptz_controller"
-        ) or not project_node.get("enabled", True):
+            "notification_dispatcher", "ptz_controller", "ocr_reader"
+        ):
             continue
         project_id = str(project_node.get("id") or "")
+        if not project_node.get("enabled", True):
+            if telemetry_callback and project_id:
+                telemetry_callback(
+                    project_id,
+                    status="bypassed",
+                    latency_ms=0.0,
+                    item_count=len(detections),
+                    last_input={"candidates": len(detections)},
+                    last_output={"bypassed": True},
+                )
+            continue
         if not engine.has_active_path(workflow, engine.source_node_id(workflow), project_id):
             continue
+        t0_proj = time.perf_counter()
         candidates = engine.results_for_node(workflow, project_id, detections, tracked)
         candidates = engine.filter_project_inputs(workflow, project_id, candidates, (frame.shape[1], frame.shape[0]))
         with logic_lock if logic_lock is not None else nullcontext():
@@ -822,19 +835,21 @@ def _process_track_event_nodes(
             detections.extend(ocr_dets)
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
+        if telemetry_callback and project_id:
+            dur_ms = (time.perf_counter() - t0_proj) * 1000
+            telemetry_callback(
+                project_id,
+                status="success",
+                latency_ms=dur_ms,
+                item_count=len(candidates),
+                last_input={"candidates": len(candidates)},
+                last_output={"processed": True},
+            )
 
     # Process Roboflow Barcode & QR Code Reader
     barcode_dets = _process_barcode_reading(workflow, frame, detections)
     extra_results.extend(barcode_dets)
     detections.extend(barcode_dets)
-
-    # Process Lightweight ONNX OCR Text Reader
-    has_ocr = any(n.get("type") == "ocr_reader" and n.get("enabled", True) for n in workflow.get("nodes", []))
-    if has_ocr and frame is not None and not any(p.get("type") == "ocr_reader" for p in project_nodes):
-        from ocr_engine import run_ocr_pipeline
-        ocr_dets, ocr_events = run_ocr_pipeline(frame, workflow, detections, event_runtime)
-        extra_results.extend(ocr_events)
-        detections.extend(ocr_dets)
 
     return extra_results, crop_batches, object_records, count_records
 
@@ -2630,7 +2645,8 @@ class WorkflowRunner:
         self._thread: Thread | None = None
         self._debug_enabled = False
         self._node_debug_last_emit: dict[str, float] = {}
-        self._database_outputs: list[tuple[dict, DatabaseWriter]] = []
+        self._node_telemetry: dict[str, dict] = {}
+        self._node_telemetry_lock = Lock()
         self._status = {
             "running": False,
             "state": "idle",
@@ -2650,7 +2666,33 @@ class WorkflowRunner:
             "error": None,
             "frameSamplers": {},
             "pythonScripts": {},
+            "nodeTelemetry": {},
         }
+
+    def record_node_telemetry(
+        self,
+        node_id: str,
+        *,
+        status: str = "success",
+        latency_ms: float = 0.0,
+        item_count: int = 0,
+        last_input: dict | None = None,
+        last_output: dict | None = None,
+        error: str | None = None,
+    ) -> None:
+        if not node_id:
+            return
+        with self._node_telemetry_lock:
+            self._node_telemetry[str(node_id)] = {
+                "nodeId": str(node_id),
+                "status": str(status),
+                "latencyMs": round(float(latency_ms), 2),
+                "itemCount": int(item_count),
+                "lastInput": copy.deepcopy(last_input) if isinstance(last_input, dict) else ({"summary": str(last_input)} if last_input else {}),
+                "lastOutput": copy.deepcopy(last_output) if isinstance(last_output, dict) else ({"summary": str(last_output)} if last_output else {}),
+                "error": str(error) if error else None,
+                "timestamp": time.time(),
+            }
 
     def _python_script_context(self, workflow: dict) -> dict:
         statuses = {}
@@ -2842,6 +2884,8 @@ class WorkflowRunner:
                     snapshot["unknownSeconds"] = durations["unknownSeconds"]
                     snapshot["monotonicTime"] = now
             status["projectNodes"] = project_nodes
+            with self._node_telemetry_lock:
+                status["nodeTelemetry"] = copy.deepcopy(self._node_telemetry)
             return status
 
     def update_workflow(self, workflow: dict) -> None:
@@ -3178,6 +3222,9 @@ class WorkflowRunner:
                     state="running", model=", ".join(loaded_models), device=device_status
                 )
                 self._refresh_inference_device_status(inference_nodes, device_labels)
+            elif engine.active_analysis_pipeline(workflow):
+                self._set_status(state="running", device="CPU")
+                self._emit_log("Vision analysis pipeline active (OCR/project nodes)")
             else:
                 self._set_status(state="running")
                 self._emit_log("No inference node is active; streaming input frames only")
@@ -3252,6 +3299,14 @@ class WorkflowRunner:
                         stats["captured"] += 1
                     if not raw_queue.put(packet, self._stop_event):
                         break
+                    self.record_node_telemetry(
+                        str((input_node or {}).get("id") or "input"),
+                        status="success",
+                        latency_ms=duration_ms,
+                        item_count=1,
+                        last_input={"kind": "source", "label": source_label},
+                        last_output={"frame": [frame.shape[1], frame.shape[0], 3], "frameId": frame_id},
+                    )
                     if self._debug_enabled:
                         frame_summary = _frame_summary(frame)
                         self._emit_node_debug(
@@ -3305,8 +3360,18 @@ class WorkflowRunner:
                         processing_runtime,
                         processing_nodes=engine.active_image_processing_nodes(packet_workflow),
                         script_frames=packet.script_frames,
-                        debug_callback=on_processing_debug if self._debug_enabled else None,
+                        debug_callback=on_processing_debug,
                     )
+                    for proc_node in packet_workflow.get("nodes", []):
+                        if proc_node.get("type") in engine.IMAGE_PROCESSING_NODE_TYPES and not proc_node.get("enabled", True):
+                            self.record_node_telemetry(
+                                str(proc_node.get("id") or ""),
+                                status="bypassed",
+                                latency_ms=0.0,
+                                item_count=1,
+                                last_input=_frame_summary(packet.frame),
+                                last_output={"bypassed": True},
+                            )
                     if not processed_queue.put(FramePacket(
                         frame_id=packet.frame_id,
                         frame=frame,
@@ -3330,7 +3395,7 @@ class WorkflowRunner:
                 inference_nodes = engine.active_inference_nodes(base_workflow)
                 frame_inference_plan = _frame_inference_plan(base_workflow, engine.active_frame_inference_nodes(base_workflow))
                 detection_crop_bindings = engine.active_pretracking_detection_crop_bindings(base_workflow)
-                if not inference_nodes and not engine.active_vlm_box_tracker_node(base_workflow) and not engine.active_ai_agent_nodes(base_workflow):
+                if not inference_nodes and not engine.active_analysis_pipeline(base_workflow):
                     detection_queue.close()
                     return
                 first_inference_logged = False
@@ -3379,6 +3444,9 @@ class WorkflowRunner:
                     tracking_detections_by_index: list[list[dict]] = [
                         [] for _ in batch
                     ]
+                    if not frame_inference_plan:
+                        with stats_lock:
+                            stats["detected"] += len(batch)
                     for inference_node, threshold, tracking_threshold, runtime_inference_node in frame_inference_plan:
                         config = inference_node.get("config", {})
                         node_id = str(inference_node.get("id") or inference_node.get("type") or "inference")
@@ -3501,6 +3569,26 @@ class WorkflowRunner:
                                 f"({len(eligible_indices)} frame(s))"
                             )
                         per_frame_ms = (inference_seconds * 1000) / max(1, len(eligible_indices))
+                        all_dets_count = sum(len(r) for r in node_results)
+                        sample_cls = [d.get("class") for r in node_results for d in r][:5]
+                        self.record_node_telemetry(
+                            node_id,
+                            status="success",
+                            latency_ms=per_frame_ms,
+                            item_count=all_dets_count,
+                            last_input={"batchSize": len(eligible_indices)},
+                            last_output={"detections": all_dets_count, "classes": sample_cls},
+                        )
+                        for inf_node in workflow.get("nodes", []):
+                            if inf_node.get("type") in ("detector", "segmenter", "classifier", "efficientad") and not inf_node.get("enabled", True):
+                                self.record_node_telemetry(
+                                    str(inf_node.get("id") or ""),
+                                    status="bypassed",
+                                    latency_ms=0.0,
+                                    item_count=0,
+                                    last_input={"batchSize": len(batch)},
+                                    last_output={"bypassed": True},
+                                )
                         inf_cfg = inference_node.get("config", {})
                         per_class_map = _parse_per_class_thresholds(inf_cfg.get("perClassThresholds", ""))
                         class_remap_map = _parse_class_remap(inf_cfg.get("classRemap", ""))
@@ -3629,7 +3717,7 @@ class WorkflowRunner:
 
             def tracking_stage() -> None:
                 workflow = base_workflow
-                if not inference_nodes and not engine.active_vlm_box_tracker_node(base_workflow) and not engine.active_ai_agent_nodes(base_workflow):
+                if not inference_nodes and not engine.active_analysis_pipeline(base_workflow):
                     tracking_queue.close()
                     return
                 tracker_runtime: engine.ObjectTracker | None = None
@@ -3703,6 +3791,16 @@ class WorkflowRunner:
                                     duration_ms=(time.monotonic() - tracking_started_at) * 1000,
                                     sample={"tracked": _detection_sample(tracked)},
                                 )
+                        for tr_node in workflow.get("nodes", []):
+                            if tr_node.get("type") in ("tracker", "byte_track", "norfair", "vlm_box_tracker") and not tr_node.get("enabled", True):
+                                self.record_node_telemetry(
+                                    str(tr_node.get("id") or ""),
+                                    status="bypassed",
+                                    latency_ms=0.0,
+                                    item_count=len(detections),
+                                    last_input=_detections_summary(detections),
+                                    last_output={"bypassed": True},
+                                )
                         vlm_tracker_node = engine.active_vlm_box_tracker_node(workflow)
                         if vlm_tracker_node:
                             try:
@@ -3753,6 +3851,7 @@ class WorkflowRunner:
                             event_runtime,
                             now,
                             logic_lock=logic_lock,
+                            telemetry_callback=self.record_node_telemetry,
                         )
                         detections.extend(event_results)
                         ai_agent_nodes = [n for n in workflow.get("nodes", []) if n.get("type") == "ai_agent" and n.get("enabled", True)]
@@ -3859,7 +3958,7 @@ class WorkflowRunner:
                 recorded_loiter_tracks: set = set()
 
                 while not self._stop_event.is_set():
-                    if inference_nodes or engine.active_vlm_box_tracker_node(base_workflow) or engine.active_ai_agent_nodes(base_workflow):
+                    if inference_nodes or engine.active_analysis_pipeline(base_workflow):
                         # Live sources show the newest completed frame; older
                         # queued frames count as dropped (also skipped in any
                         # saved video, which is inherently variable-rate live).
@@ -3922,6 +4021,16 @@ class WorkflowRunner:
                                 )
 
                     now = time.monotonic()
+                    for out_node in workflow.get("nodes", []):
+                        if out_node.get("type") in ("preview", "alert", "webhook_output", "database_output", "video_output") and not out_node.get("enabled", True):
+                            self.record_node_telemetry(
+                                str(out_node.get("id") or ""),
+                                status="bypassed",
+                                latency_ms=0.0,
+                                item_count=0,
+                                last_input={},
+                                last_output={"bypassed": True},
+                            )
                     display_frame_for_outputs = frame
                     preview_counts: list[int] = []
                     incident_detections: list[dict] = []
@@ -4969,6 +5078,7 @@ class WorkflowRunner:
                         logic_runtime,
                         event_runtime,
                         now,
+                        telemetry_callback=self.record_node_telemetry,
                     )
                     detections.extend(event_results)
                     ai_agent_nodes = [n for n in workflow.get("nodes", []) if n.get("type") == "ai_agent" and n.get("enabled", True)]
@@ -5367,7 +5477,7 @@ class WorkflowRunner:
         # ponytail: existing webhook transport is in-memory; durable ERP delivery
         # remains a separate task. Do not claim restart-safe external delivery.
         """
-        sparse = [event for event in events if event.get("kind") in ("zone_activity_event", "zone_exit", "ai_agent_event")]
+        sparse = [event for event in events if event.get("kind") in ("zone_activity_event", "zone_exit", "ai_agent_event", "ocr_text_read", "text_detected")]
         if not sparse:
             return
         for output in sorted(workflow.get("nodes", []), key=lambda node: node.get("type") != "image_output"):
@@ -5388,7 +5498,13 @@ class WorkflowRunner:
                 _dispatch_webhook_async(output.get("config", {}), copy.deepcopy(candidates), frame.copy())
                 self._emit_log(f"Zone webhook dispatched ({len(candidates)} event(s)); delivery is not yet durable")
             elif output_type == "alert":
-                default_msg = "AI Agent Alert" if any(c.get("kind") == "ai_agent_event" for c in candidates) else "Zone event"
+                if any(c.get("kind") in ("ocr_text_read", "text_detected") for c in candidates):
+                    first_txt = next((c.get("text") for c in candidates if c.get("text")), "")
+                    default_msg = f"OCR Text Detected: {first_txt}" if first_txt else "OCR Text Read"
+                elif any(c.get("kind") == "ai_agent_event" for c in candidates):
+                    default_msg = "AI Agent Alert"
+                else:
+                    default_msg = "Zone event"
                 title = str(output.get("config", {}).get("message") or default_msg)
                 self._on_event(title, json.dumps(candidates, ensure_ascii=False))
             else:
@@ -5467,6 +5583,25 @@ class WorkflowRunner:
         message: str = "",
         force: bool = False,
     ) -> None:
+        if node:
+            node_id_val = str(node.get("id") or node.get("type") or "")
+            if node_id_val:
+                items_cnt = 0
+                if isinstance(output_summary, list):
+                    items_cnt = len(output_summary)
+                elif isinstance(output_summary, dict) and "matches" in output_summary:
+                    items_cnt = output_summary["matches"]
+                elif output_summary:
+                    items_cnt = 1
+                self.record_node_telemetry(
+                    node_id_val,
+                    status=state,
+                    latency_ms=duration_ms or 0.0,
+                    item_count=items_cnt,
+                    last_input=input_summary,
+                    last_output=output_summary,
+                    error=message if state == "error" else None,
+                )
         if not self._debug_enabled or not node:
             return
         node_id = str(node.get("id") or node.get("type") or "")

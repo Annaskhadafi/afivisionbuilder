@@ -1830,8 +1830,11 @@ def has_active_path(workflow: dict, from_id: str, to_id: str) -> bool:
     # Key the cache by topology, not mutable workflow identity. Config edits do
     # not invalidate reachability; edge and enabled-state edits take effect now.
     enabled_ids = frozenset(node.get("id") for node in workflow.get("nodes", []) if node.get("enabled", True) or node.get("type") == FRAME_SAMPLER_NODE_TYPE)
+    if from_id not in enabled_ids or to_id not in enabled_ids:
+        return False
+    all_node_ids = frozenset(node.get("id") for node in workflow.get("nodes", []))
     edges = tuple((edge[0], edge[1]) for edge in workflow.get("edges", []))
-    return to_id in _reachable_node_ids(enabled_ids, edges, from_id)
+    return to_id in _reachable_node_ids(all_node_ids, edges, from_id)
 
 
 @lru_cache(maxsize=512)
@@ -2020,6 +2023,54 @@ def active_ai_agent_nodes(workflow: dict) -> list[dict]:
             if has_active_path(workflow, input_id, node_id) or not workflow.get("edges"):
                 nodes.append(node)
     return nodes
+
+
+def active_analysis_pipeline(workflow: dict) -> bool:
+    """Return True if workflow contains any active vision, inference, tracker, or analysis node."""
+    if active_inference_nodes(workflow):
+        return True
+    if active_vlm_box_tracker_node(workflow):
+        return True
+    if active_ai_agent_nodes(workflow):
+        return True
+    if active_tracking_node(workflow):
+        return True
+    input_id = source_node_id(workflow)
+    analysis_types = {
+        "ocr_reader",
+        "barcode_reader",
+        "zone_activity_timer",
+        "zone_exit_event",
+        "multi_zone_occupancy",
+        "distance_measurement",
+        "size_measurement",
+        "camera_focus",
+        "auto_rotate_edges",
+        "overlap_analysis",
+        "velocity_calculator",
+        "path_deviation",
+        "delta_filter",
+        "detections_difference",
+        "data_aggregator",
+        "csv_formatter",
+        "s3_sink",
+        "notification_dispatcher",
+        "ptz_controller",
+        "object_counter",
+        "line_counter",
+        "dwell_zone",
+        "track_snapshot",
+        "filter",
+        "detections_consensus",
+    }
+    for node in workflow.get("nodes", []):
+        if (
+            node.get("type") in analysis_types
+            and node.get("enabled", True)
+            and (has_active_path(workflow, input_id, str(node.get("id") or "")) or not workflow.get("edges"))
+        ):
+            return True
+    return False
 
 
 def active_track_snapshot_nodes(workflow: dict) -> list[dict]:
@@ -2457,7 +2508,7 @@ def results_for_node(
 
     project_sources = {
         str(node.get("id") or "") for node in workflow.get("nodes", [])
-        if node.get("type") in ("zone_activity_timer", "zone_exit_event", "multi_zone_occupancy")
+        if node.get("type") in ("zone_activity_timer", "zone_exit_event", "multi_zone_occupancy", "ocr_reader")
         and node.get("enabled", True)
         and str(node.get("id") or "") != node_id
         and has_active_path(workflow, str(node.get("id") or ""), node_id)
@@ -2466,7 +2517,7 @@ def results_for_node(
         "alert", "webhook_output", "image_output", "database_output", "ai_agent",
     ):
         events = [item for item in detections
-                  if item.get("kind") in ("zone_activity_event", "zone_exit", "zone_occupied", "zone_vacated", "zone_overstay")
+                  if item.get("kind") in ("zone_activity_event", "zone_exit", "zone_occupied", "zone_vacated", "zone_overstay", "ocr_text_read", "text_detected")
                   and str(item.get("sourceNodeId") or "") in project_sources]
         return filter_project_inputs(workflow, node_id, events, after_sources=project_sources)
     tracker = active_tracking_node(workflow) or active_vlm_box_tracker_node(workflow)
@@ -2497,7 +2548,7 @@ def results_for_node(
                         edge_from == current
                         and edge_to not in visited
                         and edge_to not in blocked_ids
-                        and enabled_node(workflow, edge_to)
+                        and (edge_to != node_id or enabled_node(workflow, edge_to))
                     ):
                         queue.append(edge_to)
             return False
@@ -6238,7 +6289,7 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
             classification_y = draw_result(frame, detection, show_labels=show_labels, y=classification_y,
                                            show_boxes=show_boxes, show_track_ids=show_track_ids)
             continue
-        label_text = detection.get("class", "object")
+        label_text = f"text: {detection['text']}" if ("text" in detection and detection["text"]) else detection.get("class", "object")
         track_id = detection.get("trackId")
         color_key = f"{label_text}:{track_id}" if track_id is not None else label_text
         color = detection_color(color_key)
@@ -6267,7 +6318,18 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
                 classification_y += text_size[1] + 18
             continue
 
-        x, y, width, height = [int(round(value)) for value in detection.get("bbox", [0, 0, 0, 0])]
+        bbox_val = detection.get("bbox") or detection.get("box")
+        if bbox_val and len(bbox_val) >= 4:
+            if "bbox" in detection:
+                x, y, width, height = [int(round(value)) for value in bbox_val[:4]]
+            else:
+                x1, y1, x2, y2 = [int(round(value)) for value in bbox_val[:4]]
+                x, y, width, height = x1, y1, max(1, x2 - x1), max(1, y2 - y1)
+        else:
+            x = int(round(float(detection.get("x", 0))))
+            y = int(round(float(detection.get("y", 0))))
+            width = int(round(float(detection.get("width", 0))))
+            height = int(round(float(detection.get("height", 0))))
         mask = detection.get("mask")
         if show_masks and mask:
             points = np.array(mask, dtype=np.int32).reshape((-1, 1, 2))

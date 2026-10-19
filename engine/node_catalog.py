@@ -706,7 +706,7 @@ NODE_BLUEPRINTS = {
             "dictPath": "data/models/ocr/en_dict.txt",
             "cropFromDetections": False,
             "filterClasses": "license_plate, container, box, label, text",
-            "minConfidence": 0.50,
+            "minConfidence": 0.35,
             "characterWhitelist": "",
             "emitEvents": True,
             "cooldownSeconds": 1.0,
