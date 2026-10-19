@@ -35,6 +35,10 @@ os.environ.setdefault("VISONODE_APP_DATA_DIR", str(ROOT / "data"))
 if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
+try:
+    import torch  # Warm up PyTorch runtime and C++ DLLs early to avoid virtual memory fragmentation
+except Exception:
+    pass
 import cv2  # noqa: E402
 import core  # noqa: E402
 import node_catalog  # noqa: E402
@@ -928,29 +932,29 @@ def _templates() -> list[dict]:
         "threshold": 0.25,
         "device": "auto",
     }
-    yolo_tests = [
-        ("01-detection", "Deteksi & Overlay", "YOLOv8: bounding box, label, dan preview.", ["overlay_annotate"]),
-        ("02-filter-count", "Filter Kelas & Hitung", "YOLOv8: filter person, occupancy counter, teks hitungan.", ["filter", "object_counter", "draw_text"]),
-        ("03-tracking-line", "Tracking & Garis IN/OUT", "YOLOv8: tracker, snapshot per track, line counter.", ["tracker", "track_snapshot", "line_counter"]),
-        ("04-dwell-privacy", "Durasi & Privasi", "YOLOv8: dwell time, blur privasi, gambar kotak.", ["tracker", "dwell_time", "blur_anonymizer", "draw_boxes"]),
-        ("05-segmentation", "Segmentasi YOLOv8", "YOLOv8n-seg: segmentasi objek dan overlay.", ["segmenter", "overlay_annotate"]),
-        ("06-crop-classify", "Crop & Klasifikasi", "YOLOv8: crop deteksi lalu klasifikasi YOLOv8n-cls dan simpan ke database.", ["detection_crop", "classifier", "database_output"]),
-        ("07-if-else", "Cabang If / Else & Alert", "YOLOv8: dua jalur komplementer berdasarkan jumlah objek.", ["if_else", "alert"]),
-        ("08-roi", "Zona ROI", "YOLOv8: filter deteksi berdasarkan area ROI.", ["roi_filter", "draw_boxes"]),
-        ("09-conditions", "Kondisi Kelas & Logika", "YOLOv8: class condition, compare, object count, confidence, AND/OR.", ["class_detected_condition", "object_count_condition", "compare_value", "confidence_threshold", "and_or_logic"]),
-        ("10-transform", "Transformasi Frame", "YOLOv8 dengan pengujian resize, crop, dan rotasi frame.", ["resize", "crop", "rotate_flip"]),
-        ("11-enhance", "Warna & Peningkatan Gambar", "YOLOv8 dengan pengujian konversi warna, brightness/contrast, blur/sharpen.", ["color_convert", "brightness_contrast", "blur_sharpen"]),
-        ("12-calibration", "Koreksi Perspektif & Lensa", "YOLOv8 dengan pengujian koreksi perspektif dan undistort.", ["perspective", "undistort"]),
-        ("13-motion", "Motion + YOLOv8", "Background subtraction dan deteksi YOLOv8.", ["background_subtract"]),
-        ("14-sampling-slicer", "Sampling & Small Object Slicer", "Batasi FPS lalu deteksi objek kecil dengan slicer YOLOv8.", ["frame_sampler", "slicer"]),
-        ("15-barcode", "QR / Barcode", "Baca barcode atau QR, lalu preview dan catat alert.", ["barcode_reader", "alert"]),
-        ("16-event-controls", "Timer & Kontrol Event", "Uji confidence threshold, timer, debounce, rate limiter, trigger once.", ["confidence_threshold", "timer_delay", "debounce", "rate_limiter", "trigger_once", "alert"]),
-        ("17-python-script", "Custom Python Script", "YOLOv8 dengan script default pass-through dan Draw Text.", ["python_script", "draw_text"]),
-        ("18-output", "Penyimpanan & Webhook", "YOLOv8: simpan gambar, hasil ke SQLite, dan HTTP webhook.", ["image_output", "database_output", "webhook_output"]),
-        ("19-ip-camera", "IP Camera + YOLOv8", "Streaming CCTV lalu deteksi; isi alamat dan kredensial kamera Anda.", ["ip_camera"]),
-        ("20-inspection", "Inspeksi Visual + YOLOv8", "Uji node anomali bersama YOLOv8; Visual Inspection memerlukan model EfficientAD.", ["efficientad", "draw_boxes"]),
+    industry_templates = [
+        ("01-detection", "AI Object Detection & Overlay Studio", "Deteksi keberadaan objek/manusia secara real-time dengan bounding box, label identitas, dan confidence score untuk monitoring CCTV.", ["overlay_annotate"], "AI Vision", ["Realtime", "YOLOv8", "Deteksi"], "Deteksi objek real-time dengan visual bounding box dan label akurat."),
+        ("02-filter-count", "People Counter & Class Filter", "Memfilter hanya kelas tertentu (misal: person/manusia) dan menghitung jumlah total orang di ruangan secara live untuk analitik kapasitas & footfall.", ["filter", "object_counter", "draw_text"], "Retail & Publik", ["Okupansi", "People Counter", "Retail"], "Menghitung jumlah orang dan analitik kepadatan ruangan secara otomatis."),
+        ("03-tracking-line", "Tripwire & Bi-Directional Line Counter", "Melacak pergerakan objek dan mendeteksi arah saat melintasi garis batas virtual untuk menghitung arus pengunjung masuk/keluar atau gerbang kendaraan.", ["tracker", "track_snapshot", "line_counter"], "Akses & Traffic", ["Line Crossing", "IN / OUT", "Gerbang"], "Menghitung arus lalu lintas orang atau kendaraan masuk dan keluar batas virtual."),
+        ("04-dwell-privacy", "Dwell Time & Privacy Blur Anonymizer", "Menghitung durasi objek berdiam di area tertentu (dwell time) sekaligus menerapkan efek blur privasi otomatis sesuai standar kepatuhan privasi (GDPR).", ["tracker", "dwell_time", "blur_anonymizer", "draw_boxes"], "Keamanan & Privasi", ["Dwell Time", "Sensor Privasi", "Kepatuhan"], "Mengukur lama waktu tunggu pengunjung sambil menyensor wajah untuk perlindungan privasi."),
+        ("05-segmentation", "Instance Segmentation & Pixel Masking", "Memisahkan batas kontur objek secara piksel (instance segmentation) untuk kebutuhan pengukuran bentuk presisi, robotika, dan agrikultur.", ["segmenter", "overlay_annotate"], "Segmentasi AI", ["YOLO-Seg", "Masking", "Presisi"], "Segmentasi batas kontur objek secara piksel untuk inspeksi bentuk dan robotik."),
+        ("06-crop-classify", "Automated Defect & Crop Classifier", "Melakukan crop otomatis pada setiap objek terdeteksi lalu mengklasifikasikan status OK / Defect dan mencatat riwayat inspeksi ke database SQLite.", ["detection_crop", "classifier", "database_output"], "Manufaktur & QC", ["Inspeksi Cacat", "SQLite", "Quality Control"], "Memotong objek terdeteksi lalu mengklasifikasi status cacat dan menyimpannya ke database."),
+        ("07-if-else", "Conditional Logic & Alert Dispatcher", "Mengarahkan alur data ke dua cabang komplementer: jika objek >= batas tertentu kirim sinyal Alarm/Alert, jika tidak teruskan ke monitor preview.", ["if_else", "alert"], "Otomatisasi Logika", ["If/Else", "Alarm Otomatis", "Trigger"], "Memicu alarm otomatis saat jumlah objek melebihi ambang batas aman."),
+        ("08-roi", "Restricted Area & ROI Polygon Filter", "Memfilter deteksi hanya pada zona batas khusus (Polygon ROI) dan mengabaikan area sekitar untuk proteksi zona bahaya atau mesin industri (K3).", ["roi_filter", "draw_boxes"], "Keselamatan Kerja (K3)", ["Zona ROI", "K3 Pabrik", "Restricted Area"], "Membatasi area pantauan pada zona terlarang untuk keselamatan kerja."),
+        ("09-conditions", "Multi-Condition Rules Engine", "Mengevaluasi logika gabungan (AND / OR) berdasarkan jumlah objek, kelas spesifik, dan ambang batas confidence sebelum aksi berikutnya dijalankan.", ["class_detected_condition", "object_count_condition", "compare_value", "confidence_threshold", "and_or_logic"], "Rules Engine", ["Logika AND/OR", "Kondisi", "Smart Rules"], "Membuat aturan kompleks berlapis untuk memfilter event sebelum memicu aksi."),
+        ("10-transform", "Image Geometry, Crop & Rotate Normalizer", "Menyesuaikan orientasi frame kamera (flip, rotasi 90°/180°, crop fokus) sebelum diproses oleh model AI deteksi.", ["resize", "crop", "rotate_flip"], "Preprocessing", ["Transform", "Normalisasi", "Orientasi"], "Menormalkan orientasi dan ukuran gambar sebelum diproses oleh model deteksi."),
+        ("11-enhance", "Low-Light CCTV Image Enhancement", "Meningkatkan kecerahan, kontras, dan ketajaman pada rekaman CCTV malam/remang agar objek lebih mudah dikenali oleh model AI.", ["color_convert", "brightness_contrast", "blur_sharpen"], "Visual Enhancement", ["Low Light", "Kontras", "Sharpen"], "Memperjelas rekaman CCTV gelap atau buram agar objek terlihat tajam."),
+        ("12-calibration", "Lens Undistortion & Perspective Calibration", "Menghilangkan efek cembung lensa fisheye (undistort) dan meluruskan sudut miring kamera (bird-eye view) untuk pengukuran akurat.", ["perspective", "undistort"], "Kalibrasi Lensa", ["Kalibrasi", "Undistort", "Perspektif"], "Mengoreksi distorsi lensa cembung dan mengubah sudut pandang menjadi tegak lurus."),
+        ("13-motion", "Perimeter Motion & Foreground Subtraction", "Mendeteksi gerakan asing di malam hari dengan algoritma background subtraction MOG2 untuk pengawasan perimeter tanpa beban GPU tinggi.", ["background_subtract"], "Keamanan Perimeter", ["Motion Detection", "MOG2", "Hemat Daya"], "Mendeteksi pergerakan asing di malam hari tanpa membutuhkan GPU berat."),
+        ("14-sampling-slicer", "SAHI Small Object Slicer & Frame Sampler", "Membagi frame resolusi tinggi (4K/HD) menjadi potongan kecil (slices) untuk mendeteksi objek super kecil (drone view, plat nomor jauh, kerikil).", ["frame_sampler", "slicer"], "High-Res Vision", ["SAHI Slicer", "Small Object", "Drone"], "Mendeteksi objek berukuran sangat kecil dari kamera resolusi tinggi atau drone."),
+        ("15-barcode", "Conveyor Barcode & QR Code Scanner", "Membaca kode QR dan Barcode pada paket conveyor atau kartu ID secara instan dan memicu alert integrasi logistik gudang.", ["barcode_reader", "alert"], "Gudang & Logistik", ["Barcode", "QR Code", "Conveyor"], "Memindai barcode/QR pada conveyor otomatis untuk pelacakan barang logistik."),
+        ("16-event-controls", "Event Rate Limiter & Debounce Controller", "Membatasi lonjakan notifikasi agar alarm tidak berbunyi berulang-ulang setiap frame (anti-spam) dan memastikan sinyal stabil.", ["confidence_threshold", "timer_delay", "debounce", "rate_limiter", "trigger_once", "alert"], "Event Handling", ["Rate Limiter", "Debounce", "Anti-Spam"], "Mencegah spam notifikasi dengan mengatur jeda minimum antar alarm."),
+        ("17-python-script", "Custom Python Script Pipeline", "Menyisipkan kode komputasi Python fleksibel di tengah visual pipeline untuk kalkulasi matematika, rumus bisnis, atau API pihak ketiga.", ["python_script", "draw_text"], "Developer Tools", ["Python Script", "Extensible", "Custom Code"], "Menjalankan script Python custom di dalam pipeline untuk logika khusus perusahaan."),
+        ("18-output", "Edge SQLite Storage & ERP Webhook", "Menyimpan snapshot foto kejadian, mencatat event ke database lokal SQLite, dan menembak data JSON via HTTP POST Webhook ke sistem ERP / Cloud.", ["image_output", "database_output", "webhook_output"], "Integrasi Cloud & ERP", ["Webhook ERP", "SQLite", "Export Foto"], "Menyimpan data kejadian ke SQLite lokal dan mengirimkan notifikasi JSON ke server ERP."),
+        ("19-ip-camera", "IP Camera RTSP Stream Gateway", "Menghubungkan streaming CCTV IP Camera (RTSP / H.264) dengan auto-reconnect untuk analitik pengawasan 24/7 non-stop.", ["ip_camera"], "CCTV Gateway", ["IP Camera", "RTSP Stream", "24/7 Monitor"], "Menghubungkan kamera CCTV RTSP langsung ke pipeline AI untuk pemantauan 24/7."),
+        ("20-inspection", "Zero-Defect Surface Anomaly Inspection", "Mendeteksi goresan, cacat fisik, dan anomali permukaan pada lini produksi pabrik dengan deep learning unsupervised tanpa perlu ribuan sampel cacat.", ["efficientad", "draw_boxes"], "Manufaktur & Zero Defect", ["EfficientAD", "Anomali", "Zero Defect"], "Mendeteksi cacat permukaan dan anomali produk secara mandiri tanpa sampel cacat."),
     ]
-    for index, (template_id, name, description, steps) in enumerate(yolo_tests):
+    for index, (template_id, name, description, steps, badge, tags, purpose) in enumerate(industry_templates):
         source = "ip_camera" if "ip_camera" in steps else "input"
         nodes = [store.make_node(source, id=source, x=60, y=180)]
         inference = yolo_detector.copy()
@@ -968,9 +972,13 @@ def _templates() -> list[dict]:
             no_text = store.make_node("draw_text", id="text_under_two", x=820, y=280, config={"textTemplate": "Objek < 2: {detection.count}"})
             nodes.extend([yes, no, yes_text, no_text, store.make_node("preview", id="preview", x=1080, y=180)])
             templates.append({
-                "id": f"yolov8-test-{template_id}",
-                "name": f"YOLOv8 Test {index + 1:02d} — {name}",
+                "id": f"workflow-{template_id}",
+                "name": name,
                 "description": description,
+                "badge": badge,
+                "tags": tags,
+                "purpose": purpose,
+                "modelSize": "YOLOv8n · CPU Friendly · 6.2 MB",
                 "workflow": {
                     "nodes": nodes,
                     "edges": [[source, "detector"], ["detector", yes["id"]], ["detector", no["id"]], [yes["id"], yes_text["id"]], [no["id"], no_text["id"]], [yes_text["id"], "preview"], [no_text["id"], "preview"]],
@@ -1002,16 +1010,24 @@ def _templates() -> list[dict]:
         nodes.append(store.make_node("preview", id=preview_id, x=300 + len(chain) * 230, y=180))
         chain.append(preview_id)
         templates.append({
-            "id": f"yolov8-test-{template_id}",
-            "name": f"YOLOv8 Test {index + 1:02d} — {name}",
+            "id": f"workflow-{template_id}",
+            "name": name,
             "description": description,
+            "badge": badge,
+            "tags": tags,
+            "purpose": purpose,
+            "modelSize": "YOLOv8n · CPU Friendly · 6.2 MB",
             "workflow": {"nodes": nodes, "edges": [[a, b] for a, b in zip(chain, chain[1:])]},
         })
-    for template_id, title, node_type, description in (
+    for template_id, title, node_type, description, badge, tags, purpose in (
         ("custom-workshop-zone", "Workshop — Zone Activity Timer", "zone_activity_timer",
-         "Pilih model custom yang benar-benar mengenali tire dan person, gambar zona, lalu uji durasi. Belum merupakan dashboard multi-kamera."),
+         "Otomatisasi pemantauan waktu aktivitas montir/pekerja di Bay Workshop: menghitung durasi pengerjaan ban atau servis kendaraan secara presisi.",
+         "Workshop Otomotif", ["Workshop", "Timer Sesi", "Produktivitas"],
+         "Menghitung waktu pengerjaan servis mekanik di area bay secara otomatis."),
         ("custom-warehouse-exit", "Warehouse — Zone Exit Event", "zone_exit_event",
-         "Pilih model dengan kelas truck/tire, gambar zona, lalu uji transisi OUT. Hubungkan Webhook sesudah memeriksa endpoint ERP."),
+         "Mendeteksi truk atau barang yang keluar dari gerbang gudang dan memicu event keluar (IN to OUT) untuk sinkronisasi surat jalan / ERP.",
+         "Gudang & Logistik", ["Gudang", "Gate Keluar", "Event ERP"],
+         "Mendeteksi armada truk atau muatan barang yang keluar melintasi batas gerbang gudang."),
     ):
         nodes = [
             store.make_node("input", id="input", x=60, y=180),
@@ -1022,11 +1038,17 @@ def _templates() -> list[dict]:
             store.make_node("preview", id="preview", x=1020, y=180),
         ]
         templates.append({"id": template_id, "name": title, "description": description,
+                          "badge": badge, "tags": tags, "purpose": purpose,
+                          "modelSize": "YOLOv8n / Custom · 6.2 MB",
                           "workflow": {"nodes": nodes, "edges": [["input", "detector"], ["detector", "tracker"], ["tracker", "zone"], ["zone", "preview"]]}})
     templates.append({
         "id": "ai-agent-safety-auditor",
         "name": "AI Agent — Visual Safety & Incident Auditor",
         "description": "Inspeksi visual multimodal mirip n8n AI Agent. Menggunakan OpenAI (gpt-4o-mini) untuk menganalisis pelanggaran keselamatan dan memfilter alarm sebelum diteruskan ke Alert/ERP.",
+        "badge": "GenAI Agent",
+        "tags": ["AI Agent", "LLM Vision", "Safety K3", "n8n Style"],
+        "purpose": "Auditor visual mandiri yang memvalidasi pelanggaran keselamatan kerja dengan penalaran AI sebelum alarm dibunyikan.",
+        "modelSize": "Multimodal VLM · Cloud Inference",
         "workflow": {
             "nodes": [
                 store.make_node("input", id="input", x=60, y=180),
@@ -1373,6 +1395,10 @@ def detect_cameras(force: bool = False) -> dict:
     now = time.time()
     if not force and _cached_cameras is not None and now - _cached_cameras_time < 60.0:
         return {"cameras": _cached_cameras}
+    if _runner is not None and _runner.is_running():
+        if _cached_cameras is not None:
+            return {"cameras": _cached_cameras}
+        return {"cameras": [{"index": 0, "label": "Camera 0 (Active)"}]}
     cameras = []
     for idx in range(3):
         try:
@@ -1383,8 +1409,13 @@ def detect_cameras(force: bool = False) -> dict:
                 h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
                 cameras.append({"index": idx, "label": f"Camera {idx} ({w}x{h})" if w > 0 else f"Camera {idx}"})
                 cap.release()
+            else:
+                cap.release()
+                break
         except Exception:
-            pass
+            break
+    if cameras:
+        time.sleep(0.05)
     if not cameras:
         cameras = [{"index": 0, "label": "Camera 0 (Default)"}]
     _cached_cameras = cameras
@@ -1937,5 +1968,12 @@ def shutdown() -> None:
 app.on_event("shutdown")(shutdown)
 
 if __name__ == "__main__":
+    import asyncio
+    if os.name == "nt":
+        # Prevent WinError 10054 ConnectionResetError crashes when browser tab is reloaded/closed
+        try:
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        except Exception:
+            pass
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=int(os.getenv("VISONODE_WEB_PORT", "8765")))
+    uvicorn.run(app, host="127.0.0.1", port=int(os.getenv("VISONODE_WEB_PORT", "8765")), loop="asyncio")

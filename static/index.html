@@ -23,10 +23,38 @@
 
       <div class="header-divider-v"></div>
 
-      <button class="button ghost project-nav-btn" id="projectSwitcherBtn" type="button" title="Back to Projects Hub">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        <span>Project ▾</span>
-      </button>
+      <div class="project-switcher-wrap" id="projectSwitcherWrap">
+        <button class="button ghost project-nav-btn" id="projectSwitcherBtn" type="button" title="Ganti atau pilih proyek" aria-haspopup="true" aria-expanded="false">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Project ▾</span>
+        </button>
+
+        <div class="project-switcher-dropdown" id="projectSwitcherDropdown" hidden>
+          <div class="project-switcher-header">
+            <div class="project-switcher-title-row">
+              <span class="project-switcher-heading">Pilih Proyek</span>
+              <span class="project-switcher-count" id="projectSwitcherCount">0 proyek</span>
+            </div>
+            <div class="project-switcher-search-box">
+              <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="projectSwitcherSearch" placeholder="Cari proyek..." autocomplete="off">
+            </div>
+          </div>
+          <div class="project-switcher-list" id="projectSwitcherList">
+            <!-- Project items rendered dynamically -->
+          </div>
+          <div class="project-switcher-footer">
+            <button class="project-switcher-footer-btn new-proj" id="projectSwitcherNewBtn" type="button">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>+ Proyek Baru</span>
+            </button>
+            <button class="project-switcher-footer-btn hub-view" id="projectSwitcherHubBtn" type="button">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              <span>Semua Proyek</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div class="project-title topbar-project-pill" id="topbarProjectBreadcrumb">
         <span id="projectName" class="project-name-label">Loading project</span>
@@ -132,45 +160,99 @@
 
   <!-- View: Projects & Templates Hub (Screenshot 1) -->
   <section class="hub-container" id="viewProjectsHub">
-    <div class="hub-hero">
-      <div class="hub-hero-header">
-        <h1>Projects</h1>
-        <p>Manage and create your computer vision workflows.</p>
+    <!-- Modern Hero Banner & Quick Overview -->
+    <div class="hub-hero-banner">
+      <div class="hub-hero-main">
+        <div class="hub-hero-badge">
+          <span class="hub-pulse-dot"></span>
+          <span>Computer Vision Studio Engine · v1.0.5</span>
+        </div>
+        <h1 class="hub-hero-title">Computer Vision Workflows</h1>
+        <p class="hub-hero-desc">Platform otomasi visual modular — rancang pipeline AI, hubungkan kamera industri, dan bangun analitik video cerdas dalam satu antarmuka visual.</p>
+        <div class="hub-hero-actions">
+          <button class="button primary hub-action-btn" id="hubNewProjectBtn" type="button">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>+ Buat Proyek Baru</span>
+          </button>
+          <button class="button secondary hub-action-btn" id="hubImportBtn" type="button">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Impor Workflow JSON</span>
+          </button>
+          <button class="button ghost hub-action-btn" id="hubBrowseTemplatesBtn" type="button">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+            <span>Telusuri Template</span>
+          </button>
+        </div>
       </div>
-      <div class="hub-hero-actions">
-        <button class="button primary hub-action-btn" id="hubNewProjectBtn" type="button">
-          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span>New project</span>
-        </button>
-        <button class="button secondary hub-action-btn" id="hubImportBtn" type="button">
-          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          <span>Import workflow</span>
-        </button>
-        <button class="button secondary hub-action-btn" id="hubBrowseTemplatesBtn" type="button">
-          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
-          <span>Browse templates</span>
-        </button>
+
+      <!-- Quick Stats Metrics -->
+      <div class="hub-stats-strip">
+        <div class="hub-stat-item">
+          <div class="hub-stat-val" id="hubStatProjectsCount">0</div>
+          <div class="hub-stat-lbl">Proyek Anda</div>
+        </div>
+        <div class="hub-stat-divider"></div>
+        <div class="hub-stat-item">
+          <div class="hub-stat-val" id="hubStatTemplatesCount">24+</div>
+          <div class="hub-stat-lbl">Template Industri</div>
+        </div>
+        <div class="hub-stat-divider"></div>
+        <div class="hub-stat-item">
+          <div class="hub-stat-val" id="hubStatCamerasCount">8</div>
+          <div class="hub-stat-lbl">Kamera / RTSP Online</div>
+        </div>
+        <div class="hub-stat-divider"></div>
+        <div class="hub-stat-item">
+          <div class="hub-stat-val" id="hubStatNodesCount">27+</div>
+          <div class="hub-stat-lbl">Visual AI Nodes</div>
+        </div>
       </div>
     </div>
 
     <!-- Section 1: Recent Projects -->
     <div class="hub-section">
       <div class="hub-section-head">
-        <h2>Recent projects</h2>
-        <button class="text-link" id="hubViewAllProjectsBtn" type="button">View all projects &rarr;</button>
+        <div>
+          <h2>Proyek Tersimpan</h2>
+          <p class="hub-section-sub">Daftar alur kerja visi komputer yang sedang aktif dikembangkan.</p>
+        </div>
+        <div class="hub-section-controls">
+          <div class="hub-search-input-wrap">
+            <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="hubProjectFilterInput" placeholder="Filter proyek Anda..." autocomplete="off">
+          </div>
+          <button class="text-link" id="hubViewAllProjectsBtn" type="button">Lihat semua &rarr;</button>
+        </div>
       </div>
       <div class="hub-projects-grid" id="hubRecentProjectsGrid"></div>
     </div>
 
-    <!-- Section 2: Templates -->
-    <div class="hub-section">
-      <div class="hub-section-head">
+    <!-- Section 2: Industry Solution Templates -->
+    <div class="hub-section" id="hubTemplatesSection">
+      <div class="hub-section-head flex-col-sm">
         <div>
-          <h2>Templates</h2>
-          <p class="hub-section-sub">Get started quickly with ready-made workflows for common use cases.</p>
+          <h2>Template Solusi Industri</h2>
+          <p class="hub-section-sub">Pilih workflow siap pakai yang dirancang untuk kebutuhan nyata — tanpa perlu merakit dari nol.</p>
         </div>
-        <button class="text-link" id="hubViewAllTemplatesBtn" type="button">View all templates &rarr;</button>
+        <div class="hub-section-controls">
+          <div class="hub-search-input-wrap wide">
+            <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="hubTemplateSearchInput" placeholder="Cari fungsi template (mis: counter, barcode, privasi, inspeksi)..." autocomplete="off">
+          </div>
+          <button class="text-link" id="hubViewAllTemplatesBtn" type="button">Buka katalog modal &rarr;</button>
+        </div>
       </div>
+
+      <!-- Category Filter Pills -->
+      <div class="hub-category-pills" id="hubCategoryPills">
+        <button class="hub-cat-pill active" data-category="all" id="hubCatPillAll" type="button">Semua Solusi</button>
+        <button class="hub-cat-pill" data-category="manufaktur" id="hubCatPillManufaktur" type="button">🏭 Manufaktur & QC</button>
+        <button class="hub-cat-pill" data-category="retail" id="hubCatPillRetail" type="button">🍽️ Retail & Restoran</button>
+        <button class="hub-cat-pill" data-category="gudang" id="hubCatPillGudang" type="button">📦 Gudang & Logistik</button>
+        <button class="hub-cat-pill" data-category="keamanan" id="hubCatPillKeamanan" type="button">🛡️ Keamanan & Akses</button>
+        <button class="hub-cat-pill" data-category="vision" id="hubCatPillVision" type="button">🤖 AI Vision & VLM</button>
+      </div>
+
       <div class="hub-templates-grid" id="hubTemplatesGrid"></div>
     </div>
   </section>

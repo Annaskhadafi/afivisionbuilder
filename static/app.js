@@ -2201,23 +2201,198 @@
       }
       renderProjects();
       renderProjectsHub();
+      renderProjectSwitcherList($('#projectSwitcherSearch')?.value || '');
     } catch (e) {
       toast('Failed to load projects: ' + e.message, true);
     }
   }
 
+  function renderProjectSwitcherList(filterText = '') {
+    const listEl = $('#projectSwitcherList');
+    const countEl = $('#projectSwitcherCount');
+    if (!listEl) return;
+
+    listEl.replaceChildren();
+    const query = (filterText || '').trim().toLowerCase();
+    const projects = (state.projects || []).filter(p => {
+      if (!query) return true;
+      return (p.name || '').toLowerCase().includes(query) || (p.id || '').toLowerCase().includes(query);
+    });
+
+    if (countEl) {
+      countEl.textContent = `${projects.length} proyek`;
+    }
+
+    if (!projects.length) {
+      const empty = document.createElement('div');
+      empty.className = 'project-switcher-empty';
+      empty.textContent = query ? 'Tidak ada proyek yang cocok' : 'Belum ada proyek';
+      listEl.appendChild(empty);
+      return;
+    }
+
+    projects.forEach(p => {
+      const isCurrent = (state.project && state.project.id === p.id);
+      const item = document.createElement('div');
+      item.className = 'project-switcher-item' + (isCurrent ? ' is-active' : '');
+      item.setAttribute('role', 'button');
+      item.setAttribute('tabindex', '0');
+      item.dataset.projectId = p.id;
+
+      const mtime = p.modified_at ? new Date(p.modified_at).toLocaleDateString('id-ID', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Tersimpan';
+
+      item.innerHTML = `
+        <div class="project-switcher-item-icon">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="project-switcher-item-info">
+          <div class="project-switcher-item-name" title="${escapeHtml(p.name || 'Untitled')}">${escapeHtml(p.name || 'Untitled')}</div>
+          <div class="project-switcher-item-meta">Diperbarui ${mtime}</div>
+        </div>
+        ${isCurrent ? '<span class="project-switcher-item-badge">Aktif</span>' : ''}
+      `;
+
+      item.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        closeProjectSwitcherDropdown();
+        if (isCurrent) {
+          switchMainView('studio');
+          return;
+        }
+        await openProjectWorkflow(p.id);
+        toast(`Berpindah ke proyek: ${p.name || 'Untitled'}`);
+      });
+
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          item.click();
+        }
+      });
+
+      listEl.appendChild(item);
+    });
+  }
+
+  function toggleProjectSwitcherDropdown(forceOpen) {
+    const dropdown = $('#projectSwitcherDropdown');
+    const btn = $('#projectSwitcherBtn');
+    if (!dropdown || !btn) return;
+
+    const willOpen = (typeof forceOpen === 'boolean') ? forceOpen : dropdown.hidden;
+    dropdown.hidden = !willOpen;
+    btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+
+    if (willOpen) {
+      const searchInput = $('#projectSwitcherSearch');
+      if (searchInput) {
+        searchInput.value = '';
+        setTimeout(() => searchInput.focus(), 60);
+      }
+      renderProjectSwitcherList('');
+    }
+  }
+
+  function closeProjectSwitcherDropdown() {
+    toggleProjectSwitcherDropdown(false);
+  }
+
+  function initProjectSwitcher() {
+    const btn = $('#projectSwitcherBtn');
+    const dropdown = $('#projectSwitcherDropdown');
+    const searchInput = $('#projectSwitcherSearch');
+    const newBtn = $('#projectSwitcherNewBtn');
+    const hubBtn = $('#projectSwitcherHubBtn');
+
+    if (btn) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleProjectSwitcherDropdown();
+      });
+    }
+
+    if (dropdown) {
+      dropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        renderProjectSwitcherList(e.target.value);
+      });
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeProjectSwitcherDropdown();
+        }
+      });
+    }
+
+    if (newBtn) {
+      newBtn.addEventListener('click', () => {
+        closeProjectSwitcherDropdown();
+        newProject();
+      });
+    }
+
+    if (hubBtn) {
+      hubBtn.addEventListener('click', () => {
+        closeProjectSwitcherDropdown();
+        switchMainView('projectsHub');
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      const wrap = $('#projectSwitcherWrap');
+      if (wrap && !wrap.contains(e.target)) {
+        closeProjectSwitcherDropdown();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeProjectSwitcherDropdown();
+      }
+    });
+  }
+
   function renderProjectsHub() {
-    const grid = $('#hubRecentProjectsGrid');
-    if (grid) {
-      grid.replaceChildren();
-      if (!state.projects || state.projects.length === 0) {
-        grid.innerHTML = '<div class="empty-hint" style="grid-column: 1 / -1; padding: 30px; text-align: center; color: #94a3b8;">No recent projects. Create one above to get started!</div>';
+    // 1. Update Quick Overview Stats
+    const statProjects = $('#hubStatProjectsCount');
+    const statTemplates = $('#hubStatTemplatesCount');
+    const statCameras = $('#hubStatCamerasCount');
+    const statNodes = $('#hubStatNodesCount');
+
+    if (statProjects) statProjects.textContent = (state.projects || []).length;
+    if (statTemplates) statTemplates.textContent = (state.templates || []).length ? `${state.templates.length}+` : '24+';
+    if (statCameras) statCameras.textContent = '8';
+    if (statNodes) statNodes.textContent = '27+';
+
+    // 2. Render Projects Grid with Filter
+    const projGrid = $('#hubRecentProjectsGrid');
+    if (projGrid) {
+      projGrid.replaceChildren();
+      const projQuery = ($('#hubProjectFilterInput')?.value || '').trim().toLowerCase();
+      const allProjects = state.projects || [];
+      const filteredProjects = allProjects.filter(p => {
+        if (!projQuery) return true;
+        return (p.name || '').toLowerCase().includes(projQuery) || (p.id || '').toLowerCase().includes(projQuery);
+      });
+
+      if (!filteredProjects.length) {
+        projGrid.innerHTML = `
+          <div class="empty-hint" style="grid-column: 1 / -1; padding: 36px 20px; text-align: center; color: #64748b; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 12px;">
+            <svg class="icon-svg icon-lg" style="margin-bottom: 8px; color: #94a3b8;" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <div style="font-weight: 600; color: #1e293b; font-size: 14px;">${projQuery ? 'Tidak ada proyek yang sesuai pencarian' : 'Belum ada proyek tersimpan'}</div>
+            <div style="font-size: 12px; margin-top: 4px;">${projQuery ? 'Coba gunakan kata kunci nama proyek lain.' : 'Buat proyek baru atau pilih salah satu template di bawah untuk memulai!'}</div>
+          </div>
+        `;
       } else {
-        state.projects.forEach(p => {
+        filteredProjects.forEach(p => {
           const card = document.createElement('div');
           card.className = 'hub-project-card';
 
-          const mtime = p.modified_at ? new Date(p.modified_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently edited';
+          const mtime = p.modified_at ? new Date(p.modified_at).toLocaleString('id-ID', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Baru disimpan';
 
           card.innerHTML = `
             <div class="hub-project-top">
@@ -2226,15 +2401,15 @@
               </div>
               <div class="hub-project-info">
                 <h3 class="hub-project-title" title="${escapeHtml(p.name)}">${escapeHtml(p.name || 'Untitled project')}</h3>
-                <div class="hub-project-meta">Last edited ${mtime}</div>
+                <div class="hub-project-meta">Diperbarui: ${mtime}</div>
               </div>
-              <button class="hub-card-menu-btn" title="Project options" type="button">
+              <button class="hub-card-menu-btn" title="Opsi Proyek" type="button">
                 <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
               </button>
             </div>
             <div class="hub-project-foot">
               <button class="hub-open-workflow-btn" type="button">
-                <span>Open workflow &rarr;</span>
+                <span>Buka Workflow &rarr;</span>
               </button>
             </div>
           `;
@@ -2246,25 +2421,77 @@
             showProjectContextMenu(e.currentTarget, p);
           };
 
-          grid.append(card);
+          projGrid.append(card);
         });
       }
     }
 
+    // 3. Render Templates Grid with Category & Search Filters
     const tplGrid = $('#hubTemplatesGrid');
     if (tplGrid) {
       tplGrid.replaceChildren();
-      const templates = state.templates || [];
-      if (!templates.length) {
-        tplGrid.innerHTML = '<div class="empty-hint" style="grid-column: 1 / -1; padding: 30px; text-align: center; color: #94a3b8;">No templates available.</div>';
+      const allTemplates = state.templates || [];
+      const activeCat = state.activeTemplateCategory || 'all';
+      document.querySelectorAll('.hub-cat-pill').forEach(p => {
+        p.classList.toggle('active', (p.dataset.category || 'all') === activeCat);
+      });
+      const tplQuery = ($('#hubTemplateSearchInput')?.value || '').trim().toLowerCase();
+
+      const filteredTemplates = allTemplates.filter(t => {
+        // Category check
+        if (activeCat !== 'all') {
+          const badgeStr = (t.badge || '').toLowerCase();
+          const tagsStr = (t.tags || []).join(' ').toLowerCase();
+          const catLower = activeCat.toLowerCase();
+          const matchCat = badgeStr.includes(catLower) || tagsStr.includes(catLower);
+          if (!matchCat) return false;
+        }
+
+        // Search text check
+        if (tplQuery) {
+          const combined = `${t.name} ${t.description} ${t.purpose || ''} ${(t.tags || []).join(' ')} ${t.badge || ''}`.toLowerCase();
+          if (!combined.includes(tplQuery)) return false;
+        }
+
+        return true;
+      });
+
+      if (!filteredTemplates.length) {
+        tplGrid.innerHTML = `
+          <div class="empty-hint" style="grid-column: 1 / -1; padding: 40px 20px; text-align: center; color: #64748b; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 12px;">
+            <svg class="icon-svg icon-lg" style="margin-bottom: 8px; color: #94a3b8;" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <div style="font-weight: 600; color: #1e293b; font-size: 14.5px;">Tidak ada template yang cocok</div>
+            <div style="font-size: 12.5px; margin-top: 4px;">Coba pilih kategori lain di atas atau bersihkan kata kunci pencarian.</div>
+            <button class="button secondary" style="margin-top: 14px;" type="button" id="resetTemplateFilterBtn">Tampilkan Semua Solusi</button>
+          </div>
+        `;
+        $('#resetTemplateFilterBtn')?.addEventListener('click', () => {
+          state.activeTemplateCategory = 'all';
+          const pills = document.querySelectorAll('.hub-cat-pill');
+          pills.forEach(p => p.classList.toggle('active', p.dataset.category === 'all'));
+          const searchInp = $('#hubTemplateSearchInput');
+          if (searchInp) searchInp.value = '';
+          renderProjectsHub();
+        });
       } else {
-        templates.slice(0, 6).forEach(t => {
+        filteredTemplates.forEach(t => {
           const card = document.createElement('div');
           card.className = 'hub-template-card';
 
-          const tagsHtml = (t.tags || [t.badge || 'Computer Vision']).map(tg => `<span class="hub-tag-badge blue">${escapeHtml(tg)}</span>`).join(' ');
+          const badgeText = t.badge || 'AI Vision';
+          const tagsHtml = (t.tags || [badgeText]).map(tg => `<span class="hub-tag-badge">${escapeHtml(tg)}</span>`).join(' ');
           const modelMeta = t.modelSize || 'Includes pre-trained weights';
+          const purposeText = t.purpose || t.description || 'Solusi computer vision siap pakai untuk analitik video otomatis.';
 
+          // Color accents based on badge
+          let badgeThemeClass = 'badge-blue';
+          if (badgeText.includes('Manufaktur') || badgeText.includes('QC') || badgeText.includes('Zero')) badgeThemeClass = 'badge-amber';
+          else if (badgeText.includes('Retail') || badgeText.includes('Publik') || badgeText.includes('Restoran')) badgeThemeClass = 'badge-emerald';
+          else if (badgeText.includes('Keamanan') || badgeText.includes('Privasi') || badgeText.includes('Akses')) badgeThemeClass = 'badge-indigo';
+          else if (badgeText.includes('Gudang') || badgeText.includes('Logistik')) badgeThemeClass = 'badge-cyan';
+          else if (badgeText.includes('Agent') || badgeText.includes('VLM')) badgeThemeClass = 'badge-purple';
+
+          // Decorative SVG graphics per template
           let bannerGraphic = `
             <g stroke="#38bdf8" stroke-width="1.5" fill="none" opacity="0.6">
               <rect x="30" y="25" width="60" height="90" rx="6" stroke-dasharray="4 2"/>
@@ -2277,9 +2504,10 @@
               <line x1="300" y1="20" x2="300" y2="120" stroke="#22c55e" stroke-width="2"/>
             </g>
           `;
+
           if (t.id === 'restaurant_table_occupancy') {
             bannerGraphic = `
-              <g opacity="0.92">
+              <g opacity="0.95">
                 <rect x="35" y="20" width="130" height="42" rx="7" stroke="#10b981" stroke-width="2" fill="#10b98126"/>
                 <circle cx="50" cy="41" r="4.5" fill="#10b981"/>
                 <text x="62" y="45" fill="#6ee7b7" font-size="11" font-weight="700" font-family="system-ui, sans-serif">MEJA 01 • 34m</text>
@@ -2297,27 +2525,59 @@
                 <text x="222" y="103" fill="#cbd5e1" font-size="11" font-weight="600" font-family="system-ui, sans-serif">MEJA 04 • KOSONG</text>
               </g>
             `;
+          } else if (t.id.includes('barcode')) {
+            bannerGraphic = `
+              <g opacity="0.9">
+                <rect x="40" y="30" width="280" height="80" rx="8" fill="#0f172a44" stroke="#0284c7" stroke-width="1.5"/>
+                <line x1="60" y1="45" x2="60" y2="95" stroke="#38bdf8" stroke-width="3"/>
+                <line x1="72" y1="45" x2="72" y2="95" stroke="#38bdf8" stroke-width="5"/>
+                <line x1="88" y1="45" x2="88" y2="95" stroke="#38bdf8" stroke-width="2"/>
+                <line x1="100" y1="45" x2="100" y2="95" stroke="#38bdf8" stroke-width="6"/>
+                <line x1="120" y1="45" x2="120" y2="95" stroke="#38bdf8" stroke-width="3"/>
+                <line x1="135" y1="45" x2="135" y2="95" stroke="#38bdf8" stroke-width="7"/>
+                <line x1="30" y1="70" x2="330" y2="70" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3"/>
+                <rect x="230" y="45" width="50" height="50" rx="4" fill="#0284c722" stroke="#38bdf8" stroke-width="2"/>
+                <text x="240" y="75" fill="#38bdf8" font-size="16" font-weight="bold">QR</text>
+              </g>
+            `;
           }
 
           card.innerHTML = `
             <div class="hub-template-banner">
-              <svg width="100%" height="100%" viewBox="0 0 360 140" preserveAspectRatio="none" style="opacity: 0.85;">
+              <svg width="100%" height="100%" viewBox="0 0 360 140" preserveAspectRatio="none" style="opacity: 0.9;">
                 <defs>
                   <linearGradient id="grad-${t.id}" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#0284c7" stop-opacity="0.25"/>
-                    <stop offset="100%" stop-color="#0f172a" stop-opacity="0.9"/>
+                    <stop offset="0%" stop-color="#0f172a" stop-opacity="0.95"/>
+                    <stop offset="100%" stop-color="#1e293b" stop-opacity="0.95"/>
                   </linearGradient>
                 </defs>
                 <rect width="360" height="140" fill="url(#grad-${t.id})"/>
                 ${bannerGraphic}
               </svg>
+              <span class="hub-template-category-badge ${badgeThemeClass}">${escapeHtml(badgeText)}</span>
             </div>
             <div class="hub-template-body">
-              <h3 class="hub-template-title">${escapeHtml(t.name)}</h3>
+              <h3 class="hub-template-title" title="${escapeHtml(t.name)}">${escapeHtml(t.name)}</h3>
               <div class="hub-template-tags">${tagsHtml}</div>
+              <!-- Purpose & Function Box -->
+              <div class="hub-template-purpose-box">
+                <div class="purpose-header">
+                  <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                  <span>Fungsi & Kegunaan:</span>
+                </div>
+                <div class="purpose-text">${escapeHtml(purposeText)}</div>
+              </div>
+
               <p class="hub-template-desc">${escapeHtml(t.description || '')}</p>
-              <div class="hub-template-meta">${escapeHtml(modelMeta)}</div>
-              <button class="hub-template-btn" type="button">Use template &rarr;</button>
+              <div class="hub-template-foot-meta">
+                <span class="meta-tag">
+                  <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  ${escapeHtml(modelMeta)}
+                </span>
+              </div>
+              <button class="hub-template-btn" type="button">
+                <span>Gunakan Template &rarr;</span>
+              </button>
             </div>
           `;
 
@@ -2326,6 +2586,37 @@
         });
       }
     }
+  }
+
+  function initHubEvents() {
+    // Category pills filter
+    const pillContainer = $('#hubCategoryPills');
+    if (pillContainer) {
+      pillContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.hub-cat-pill');
+        if (!btn) return;
+        pillContainer.querySelectorAll('.hub-cat-pill').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        state.activeTemplateCategory = btn.dataset.category || 'all';
+        renderProjectsHub();
+      });
+    }
+
+    // Projects search input
+    $('#hubProjectFilterInput')?.addEventListener('input', () => {
+      renderProjectsHub();
+    });
+
+    // Templates search input
+    $('#hubTemplateSearchInput')?.addEventListener('input', () => {
+      renderProjectsHub();
+    });
+
+    // Scroll to templates section
+    $('#hubBrowseTemplatesBtn')?.addEventListener('click', () => {
+      const section = $('#hubTemplatesSection');
+      if (section) section.scrollIntoView({ behavior: 'smooth' });
+    });
   }
 
   async function openProjectWorkflow(id) {
@@ -2488,6 +2779,7 @@
       renderCanvas();
       renderInspector();
       updatePreviewSelect();
+      renderProjectSwitcherList($('#projectSwitcherSearch')?.value || '');
     } catch (e) {
       toast('Failed to load project: ' + e.message, true);
     }
@@ -9566,6 +9858,7 @@
       const data = await api('/api/templates');
       state.templates = data.templates || [];
       renderTemplatesModal();
+      renderProjectsHub();
     } catch (e) {
       console.warn('Templates endpoint:', e.message);
     }
@@ -9580,13 +9873,27 @@
       const card = document.createElement('div');
       card.className = 'template-card';
 
-      const h = document.createElement('h3');
-      h.textContent = t.name;
+      const badgeText = t.badge || 'AI Vision';
+      const purposeText = t.purpose || t.description || 'Alur kerja visi komputer siap pakai.';
 
-      const p = document.createElement('p');
-      p.textContent = t.description;
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+          <h3 style="margin:0; font-size:15px; font-weight:700; color:#0f172a;">${escapeHtml(t.name)}</h3>
+          <span class="hub-tag-badge" style="background:#e0f2fe; color:#0369a1; flex-shrink:0;">${escapeHtml(badgeText)}</span>
+        </div>
+        <div class="hub-template-purpose-box" style="margin:8px 0; padding:8px 10px; background:#f8fafc; border-left:3px solid #10b981; border-radius:6px;">
+          <div style="font-size:11px; font-weight:700; color:#065f46; display:flex; align-items:center; gap:4px;">
+            <span>🎯 Fungsi Utama:</span>
+          </div>
+          <div style="font-size:12px; color:#334155; margin-top:2px; line-height:1.4;">${escapeHtml(purposeText)}</div>
+        </div>
+        <p style="margin:0 0 8px; font-size:12px; color:#64748b; line-height:1.4;">${escapeHtml(t.description || '')}</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#94a3b8; border-top:1px solid #f1f5f9; padding-top:8px;">
+          <span>${escapeHtml(t.modelSize || 'Includes model')}</span>
+          <span style="color:#0284c7; font-weight:600;">Gunakan Template &rarr;</span>
+        </div>
+      `;
 
-      card.append(h, p);
       card.onclick = () => loadTemplate(t);
       list.append(card);
     });
@@ -10081,14 +10388,17 @@
     const hubActions = $('#hubHeaderActions');
     const projectBreadcrumb = $('#topbarProjectBreadcrumb');
     const projectActions = $('#topbarProjectActions');
+    const projectSwitcherWrap = $('#projectSwitcherWrap');
     const projectSwitcherBtn = $('#projectSwitcherBtn');
     const topbarNavTabs = $('#topbarNavTabs');
 
     if (hubActions) hubActions.hidden = false;
     if (projectBreadcrumb) projectBreadcrumb.hidden = isHub;
     if (projectActions) projectActions.hidden = isHub;
+    if (projectSwitcherWrap) projectSwitcherWrap.hidden = isHub;
     if (projectSwitcherBtn) projectSwitcherBtn.hidden = isHub;
     if (topbarNavTabs) topbarNavTabs.hidden = (viewName === 'studio');
+    if (isHub) closeProjectSwitcherDropdown();
 
     if (viewName === 'projectsHub') {
       renderProjectsHub();
@@ -10891,13 +11201,10 @@
 
     // Hub and Left Rail Navigation
     $('#brandLogoHome')?.addEventListener('click', () => switchMainView('projectsHub'));
-    $('#projectSwitcherBtn')?.addEventListener('click', () => switchMainView('projectsHub'));
+    initProjectSwitcher();
+    initHubEvents();
     $('#hubNewProjectBtn')?.addEventListener('click', newProject);
     $('#hubImportBtn')?.addEventListener('click', () => $('#importInput')?.click());
-    $('#hubBrowseTemplatesBtn')?.addEventListener('click', () => {
-      const tplSection = $('#hubTemplatesGrid');
-      if (tplSection) tplSection.scrollIntoView({ behavior: 'smooth' });
-    });
     $('#hubViewAllTemplatesBtn')?.addEventListener('click', () => {
       $('#templatesModal')?.showModal();
     });

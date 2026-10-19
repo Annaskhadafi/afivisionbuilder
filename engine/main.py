@@ -3685,25 +3685,37 @@ class OpenCVInputSource:
         self.capture.set(self.cv2.CAP_PROP_BUFFERSIZE, 1)
         width = int(self.config.get("width", 0) or 0)
         height = int(self.config.get("height", 0) or 0)
+        if width > 0:
+            self.capture.set(self.cv2.CAP_PROP_FRAME_WIDTH, width)
+        if height > 0:
+            self.capture.set(self.cv2.CAP_PROP_FRAME_HEIGHT, height)
         if os.name == "nt" and backend_name == "DirectShow":
             fourcc_requested = str(self.config.get("fourcc") or "").strip()
             if fourcc_requested:
                 self.capture.set(self.cv2.CAP_PROP_FOURCC, self.cv2.VideoWriter_fourcc(*fourcc_requested[:4]))
             else:
                 self.capture.set(self.cv2.CAP_PROP_FOURCC, self.cv2.VideoWriter_fourcc(*"MJPG"))
-        if width > 0:
-            self.capture.set(self.cv2.CAP_PROP_FRAME_WIDTH, width)
-        if height > 0:
-            self.capture.set(self.cv2.CAP_PROP_FRAME_HEIGHT, height)
-        # Verify camera can read a frame; if DirectShow with MJPG fails to read, fallback to native backend
-        ok, _ = self.capture.read()
-        if not ok and os.name == "nt" and backend_name == "DirectShow":
-            self.capture.release()
-            self.capture = self.cv2.VideoCapture(source)
-            if width > 0:
-                self.capture.set(self.cv2.CAP_PROP_FRAME_WIDTH, width)
-            if height > 0:
-                self.capture.set(self.cv2.CAP_PROP_FRAME_HEIGHT, height)
+            # Verify camera can read a frame; if DirectShow with MJPG fails to read, fallback to DirectShow default format
+            ok, _ = self.capture.read()
+            if not ok:
+                self.capture.release()
+                directshow = getattr(self.cv2, "CAP_DSHOW", None)
+                if directshow is not None:
+                    self.capture = self.cv2.VideoCapture(source, directshow)
+                    if width > 0:
+                        self.capture.set(self.cv2.CAP_PROP_FRAME_WIDTH, width)
+                    if height > 0:
+                        self.capture.set(self.cv2.CAP_PROP_FRAME_HEIGHT, height)
+                    ok, _ = self.capture.read()
+                if not ok:
+                    self.capture.release()
+                    self.capture = self.cv2.VideoCapture(source)
+                    backend_name = "OpenCV default"
+                    self.label = f"{source!r} via {backend_name}"
+                    if width > 0:
+                        self.capture.set(self.cv2.CAP_PROP_FRAME_WIDTH, width)
+                    if height > 0:
+                        self.capture.set(self.cv2.CAP_PROP_FRAME_HEIGHT, height)
         if not self.capture.isOpened():
             raise RuntimeError(f"Unable to open camera source {source!r}.")
         return f"camera source {self.label}", self.width, self.height
@@ -3769,6 +3781,15 @@ class OpenCVInputSource:
         ok, frame = self.capture.read()
         if ok:
             return True, frame
+
+        # If it's a live camera (not finite video/image/streamUrl), retry briefly for transient frame drop / driver sync
+        if not self._finite_video and self.image is None and not stream_url:
+            for _ in range(3):
+                time.sleep(0.015)
+                ok, frame = self.capture.read()
+                if ok:
+                    return True, frame
+            return False, None
         
         # If it's an IP Camera stream (streamUrl) with autoReconnect enabled, attempt reconnect
         stream_url = str(self.config.get("streamUrl") or "").strip()
@@ -6569,13 +6590,21 @@ class WorkflowRunner:
             self._add_event("Workflow running", "Python is loading, processing, and displaying frames with OpenCV.")
             self._add_terminal("Workflow running")
 
+            consecutive_failures = 0
+            max_consecutive_failures = 30
             while not self._stop_event.is_set():
                 ok, frame = input_source.read()
                 if not ok:
                     if input_source.is_exhausted:
                         self._add_terminal("Finite video input completed")
                         break
+                    if not input_source.is_static and not getattr(input_source, "_finite_video", False):
+                        consecutive_failures += 1
+                        if consecutive_failures < max_consecutive_failures:
+                            time.sleep(0.03)
+                            continue
                     raise RuntimeError("Input frame could not be read.")
+                consecutive_failures = 0
                 if not first_frame_logged:
                     first_frame_logged = True
                     self._add_terminal(f"Read first input frame ({frame.shape[1]}x{frame.shape[0]})")

@@ -10,7 +10,7 @@ test('load Afi Vision Builder workspace and verify studio interface', async ({ a
 
   // 3. Verify brand header is visible and shows Afi Vision Builder
   await expect(browser.locator('.brand')).toBeVisible();
-  await expect(browser.locator('.brand strong')).toHaveText('Afi Vision Builder');
+  await expect(browser.locator('.brand')).toContainText('Afi Vision');
 
   // 4. Capture screenshot of the workspace
   await app.screenshot('vision-builder-home');

@@ -114,7 +114,13 @@ def _torch_thread_scope(workflow):
         requested = min(4, max(1, (os.cpu_count() or 4) // 2))
     if not 1 <= requested <= 64:
         raise ValueError("Torch CPU threads must be between 0 (automatic) and 64")
-    import torch
+    try:
+        import torch
+    except Exception:
+        torch = None
+    if torch is None:
+        yield
+        return
 
     # Torch's setting belongs to the process. Serialize explicit scopes so an
     # older runner cannot restore its value over a newly started runner's value.
@@ -3270,6 +3276,8 @@ class WorkflowRunner:
                 frame_id = 0
                 first_frame_logged = False
                 watchdog = CCTVStreamWatchdog(input_config, input_node, self._emit_log, self._emit_node_debug)
+                consecutive_failures = 0
+                max_consecutive_failures = 30
                 while not self._stop_event.is_set():
                     read_started_at = time.monotonic()
                     ok, frame = input_source.read()
@@ -3278,6 +3286,11 @@ class WorkflowRunner:
                         if input_source.is_exhausted:
                             self._emit_log("Finite video input completed")
                             break
+                        if not input_source.is_static and not getattr(input_source, "_finite_video", False):
+                            consecutive_failures += 1
+                            if consecutive_failures < max_consecutive_failures:
+                                time.sleep(0.03)
+                                continue
                         self._emit_node_debug(
                             input_node,
                             state="error",
@@ -3286,6 +3299,7 @@ class WorkflowRunner:
                             force=True,
                         )
                         raise RuntimeError("Input frame could not be read.")
+                    consecutive_failures = 0
                     watchdog.check(frame)
                     frame_id += 1
                     packet = FramePacket(
@@ -4765,6 +4779,8 @@ class WorkflowRunner:
             serial_ai_agent_runtimes: dict[str, Any] = {}
             serial_ai_agent_signatures: dict[str, str] = {}
 
+            consecutive_failures = 0
+            max_consecutive_failures = 30
             while not self._stop_event.is_set():
                 read_started_at = time.monotonic()
                 ok, frame = input_source.read()
@@ -4772,6 +4788,11 @@ class WorkflowRunner:
                     if input_source.is_exhausted:
                         self._emit_log("Finite video input completed")
                         break
+                    if not input_source.is_static and not getattr(input_source, "_finite_video", False):
+                        consecutive_failures += 1
+                        if consecutive_failures < max_consecutive_failures:
+                            time.sleep(0.03)
+                            continue
                     self._emit_node_debug(
                         input_node,
                         state="error",
@@ -4780,6 +4801,7 @@ class WorkflowRunner:
                         force=True,
                     )
                     raise RuntimeError("Input frame could not be read.")
+                consecutive_failures = 0
                 watchdog.check(frame)
                 if self._debug_enabled:
                     frame_summary = _frame_summary(frame)

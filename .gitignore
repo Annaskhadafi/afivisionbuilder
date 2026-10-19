@@ -27,6 +27,8 @@ data/uploads/*
 *.db-wal
 *.db-journal
 .cache/
+debug_*.png
+ChatGPT Image*
 
 # OS specific files
 .DS_Store
