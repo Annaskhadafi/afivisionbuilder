@@ -50,6 +50,7 @@
     s3_sink: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="m12 12 3 3m-3-3-3 3m3-3v7"/></svg>',
     notification_dispatcher: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
     ptz_controller: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>',
+    ocr_reader: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><rect width="20" height="16" x="2" y="4" rx="2" stroke-dasharray="2 2"/></svg>',
 
     // Preprocessing
     slicer: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
@@ -208,7 +209,7 @@
   // --- Category Mapping ---
   function categoryFor(type) {
     if (type === 'input' || type === 'ip_camera') return 'Sources';
-    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ai_agent', 'model_comparison'].includes(type)) return 'AI Vision Models';
+    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison'].includes(type)) return 'AI Vision Models';
     if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller'].includes(type)) return 'Tracking & Analysis';
     if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer', 'camera_focus', 'auto_rotate_edges', 'delta_filter'].includes(type)) return 'Image Preprocessing';
     if (['overlay_annotate', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
@@ -547,6 +548,31 @@
     tiltSpeed: {
       text: 'Faktor kecepatan kemiringan vertikal kamera PTZ (0.0 s/d 1.0).',
       guide: 'Nilai lebih tinggi mempercepat penyesuaian sudut pandang kamera ke atas/bawah.'
+    },
+    // OCR Text Reader (ONNX)
+    recModelPath: {
+      text: 'Lokasi path model ONNX pengenal karakter teks (Text Recognition).',
+      guide: 'Default: data/models/ocr/ppocrv3_en_rec.onnx (~7.8 MB). Model ultra-ringan PP-OCRv3/v4 berkecepatan tinggi.'
+    },
+    detModelPath: {
+      text: 'Lokasi path model ONNX pendeteksi kotak teks (Text Detection).',
+      guide: 'Default: data/models/ocr/ppocrv3_det.onnx (~2.4 MB). Mendeteksi area teks baris secara presisi.'
+    },
+    dictPath: {
+      text: 'Lokasi berkas kamus daftar karakter decoding CTC.',
+      guide: 'Default: data/models/ocr/en_dict.txt. Memetakan index kelas model ke huruf dan angka.'
+    },
+    cropFromDetections: {
+      text: 'Ekstraksi teks hanya dari dalam kotak deteksi objek upstream (misal plat nomor / label).',
+      guide: 'True: Hanya membaca teks di dalam deteksi (menghemat komputasi). False: Memindai teks di seluruh frame gambar.'
+    },
+    characterWhitelist: {
+      text: 'Filter karakter yang diizinkan untuk dibaca (Whitelist).',
+      guide: 'Contoh: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ untuk nomor plat kendaraan atau nomor resi container.'
+    },
+    emitEvents: {
+      text: 'Kirim event ocr_text_read ke pipeline downstream saat teks berhasil terbaca.',
+      guide: 'Dapat diteruskan ke node Alert, Webhook, atau Database SQLite untuk pencatatan otomatis.'
     },
     // Sumber Input (Sources)
     sourceType: {
@@ -1652,6 +1678,12 @@
   };
 
   const INDO_FIELD_LABELS = {
+    recModelPath: 'Path Model Pengenal Teks (Rec ONNX)',
+    detModelPath: 'Path Model Pendeteksi Teks (Det ONNX)',
+    dictPath: 'Path Berkas Kamus Karakter CTC',
+    cropFromDetections: 'Ekstraksi dari Kotak Deteksi',
+    characterWhitelist: 'Filter Karakter (Whitelist)',
+    emitEvents: 'Kirim Event Deteksi Teks',
     windowMinutes: 'Jendela Waktu Agregasi (Menit)',
     metricTypes: 'Jenis Metrik Analisis',
     columns: 'Kolom Data CSV',
@@ -8737,6 +8769,25 @@
       { "key": "tiltSpeed", "label": "Kecepatan Tilt", "desc": "Faktor pengali kecepatan kemiringan vertikal kamera (0.0 - 1.0)." }
     ],
     "tips": "Deadzone 15% (0.15) sangat ideal untuk menjaga kestabilan video rekaman tanpa hentakan motor kamera yang kasar."
+  },
+  "ocr_reader": {
+    "concept": "Node OCR Text Reader memanfaatkan model ultra-ringan ONNX (PaddleOCR PP-OCR Mobile v3/v4) berukuran hanya ~2.4 MB (detection) dan ~7.8 MB (recognition) untuk membaca teks, nomor plat kendaraan, kode barcode/resi, dan label industri secara instan tanpa GPU.",
+    "diagram": "[ Source / Detection Crop ] ──▶ [ OCR Text Reader (ONNX) ] ──▶ [ Alert / Webhook / Database ]",
+    "steps": [
+      "Letakkan node setelah Input atau Crop Region / Detector.",
+      "Pilih mode: Full-frame (pemindaian seluruh area) atau Crop from Detections (hanya memindai di dalam kotak objek seperti plat nomor atau kemasan).",
+      "Isi Character Whitelist jika ingin mengunci karakter tertentu (misal huruf kapital & angka: 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ).",
+      "Hasil teks dan skor keyakinan langsung diekspor sebagai bounding box berlabel dan event ocr_text_read."
+    ],
+    "params": [
+      { "key": "recModelPath", "label": "Model Recognition ONNX", "desc": "Path model pengenal teks PP-OCR mobile (default ppocrv3_en_rec.onnx)." },
+      { "key": "detModelPath", "label": "Model Detection ONNX", "desc": "Path model pendeteksi teks DBNet (default ppocrv3_det.onnx)." },
+      { "key": "cropFromDetections", "label": "Ekstraksi dari Bounding Box", "desc": "Hanya baca teks di dalam kotak deteksi upstream untuk performa maksimal." },
+      { "key": "characterWhitelist", "label": "Filter Karakter (Whitelist)", "desc": "Hanya loloskan karakter yang sesuai pola (misal nomor plat/serial)." },
+      { "key": "minConfidence", "label": "Ambang Batas Akurasi", "desc": "Skor keyakinan minimum (0.0 - 1.0) agar teks dicatat." },
+      { "key": "emitEvents", "label": "Kirim Event Teks", "desc": "Picu event ocr_text_read ke alert dan database." }
+    ],
+    "tips": "Model PP-OCR ONNX mobile bekerja sangat cepat (~10ms pada CPU standar) dan sangat ideal untuk ANPR (Automatic Number Plate Recognition) serta logistik pergudangan."
   }
 };
 

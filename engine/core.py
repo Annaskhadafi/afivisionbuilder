@@ -810,6 +810,16 @@ def _process_track_event_nodes(
             state = event_runtime.setdefault(project_id, {})
             f_size = (frame.shape[1], frame.shape[0]) if hasattr(frame, "shape") else (1920, 1080)
             ptz_cmd = calculate_ptz_velocity(tracked or candidates, f_size, project_node.get("config", {}), state)
+        elif p_type == "ocr_reader":
+            from ocr_engine import OCREngine
+            state = event_runtime.setdefault(project_id, {})
+            ocr_eng = state.get("_ocr_engine")
+            if ocr_eng is None:
+                ocr_eng = OCREngine(project_node.get("config", {}))
+                state["_ocr_engine"] = ocr_eng
+            ocr_dets, ocr_events = ocr_eng.process_frame(frame, candidates, project_id)
+            extra_results.extend(ocr_events)
+            detections.extend(ocr_dets)
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
 
@@ -817,6 +827,14 @@ def _process_track_event_nodes(
     barcode_dets = _process_barcode_reading(workflow, frame, detections)
     extra_results.extend(barcode_dets)
     detections.extend(barcode_dets)
+
+    # Process Lightweight ONNX OCR Text Reader
+    has_ocr = any(n.get("type") == "ocr_reader" and n.get("enabled", True) for n in workflow.get("nodes", []))
+    if has_ocr and frame is not None and not any(p.get("type") == "ocr_reader" for p in project_nodes):
+        from ocr_engine import run_ocr_pipeline
+        ocr_dets, ocr_events = run_ocr_pipeline(frame, workflow, detections, event_runtime)
+        extra_results.extend(ocr_events)
+        detections.extend(ocr_dets)
 
     return extra_results, crop_batches, object_records, count_records
 
