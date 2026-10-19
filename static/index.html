@@ -126,29 +126,35 @@
             <div class="header-more-dropdown" id="topbarMoreDropdown" hidden>
               <button class="dropdown-item" id="importBtn" title="Import workflow JSON" type="button">
                 <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                <span>Import Workflow</span>
+                <span class="dropdown-item-label">Import Workflow</span>
+                <span class="dropdown-item-hint">.json</span>
               </button>
               <button class="dropdown-item" id="exportBtn" title="Export workflow JSON" type="button">
                 <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <span>Export Workflow</span>
+                <span class="dropdown-item-label">Export Workflow</span>
+                <span class="dropdown-item-hint">Download</span>
               </button>
               <button class="dropdown-item" id="copyWorkflowJsonBtn" title="Salin JSON alur kerja ke clipboard" type="button">
                 <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                <span>Salin JSON Workflow</span>
+                <span class="dropdown-item-label">Salin JSON Workflow</span>
+                <span class="dropdown-item-hint">Salin</span>
               </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="fitCanvasMoreBtn" title="Pusatkan dan sesuaikan zoom kanvas" type="button">
                 <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                <span>Pusatkan Kanvas (Fit)</span>
+                <span class="dropdown-item-label">Pusatkan Kanvas (Fit)</span>
+                <span class="dropdown-item-hint">Reset</span>
               </button>
               <button class="dropdown-item text-danger" id="clearCanvasMoreBtn" title="Kosongkan node dan kabel di kanvas" type="button">
                 <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                <span>Kosongkan Kanvas</span>
+                <span class="dropdown-item-label">Kosongkan Kanvas</span>
+                <span class="dropdown-item-hint danger-hint">Hapus</span>
               </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="docsSwaggerMoreBtn" title="Buka dokumentasi Swagger API" type="button">
                 <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                <span>Dokumentasi API (/docs)</span>
+                <span class="dropdown-item-label">Dokumentasi API (/docs)</span>
+                <svg class="icon-svg icon-xs dropdown-item-external" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
               </button>
             </div>
           </div>
@@ -219,38 +225,47 @@
             </div>
 
             <div class="user-dropdown-workspace-badge">
-              <span class="badge-status-dot">●</span>
-              <span>AFI Vision Enterprise • 127.0.0.1:8765</span>
+              <div class="workspace-badge-status">
+                <span class="badge-status-dot">●</span>
+                <span>AFI Vision Enterprise</span>
+              </div>
+              <span class="workspace-badge-host">127.0.0.1:8765</span>
             </div>
 
             <div class="dropdown-divider"></div>
 
             <button class="dropdown-item" id="userMenuSettingsBtn" type="button">
               <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              <span>Pengaturan Studio (Settings)</span>
+              <span class="dropdown-item-label">Pengaturan Studio</span>
+              <span class="dropdown-item-hint">Config</span>
             </button>
             <button class="dropdown-item" id="userMenuQuantizeBtn" type="button">
               <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              <span>Model Quantizer & Optimizer</span>
+              <span class="dropdown-item-label">Model Quantizer & Optimizer</span>
+              <span class="dropdown-item-hint badge-accent">FP16/INT8</span>
             </button>
             <button class="dropdown-item" id="userMenuHelpBtn" type="button">
               <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span>Pusat Bantuan & Panduan</span>
+              <span class="dropdown-item-label">Pusat Bantuan & Panduan</span>
+              <span class="dropdown-item-hint">F1</span>
             </button>
             <button class="dropdown-item" id="userMenuDocsBtn" type="button">
               <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-              <span>Backend API Docs (Swagger)</span>
+              <span class="dropdown-item-label">Backend API Docs (Swagger)</span>
+              <svg class="icon-svg icon-xs dropdown-item-external" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </button>
 
             <div class="dropdown-divider"></div>
 
             <button class="dropdown-item" id="userMenuSyncBtn" type="button">
               <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-              <span>Sinkronkan Status Sistem</span>
+              <span class="dropdown-item-label">Sinkronkan Status Sistem</span>
+              <span class="dropdown-item-hint">Sync</span>
             </button>
             <button class="dropdown-item text-danger" id="userMenuLockBtn" type="button">
               <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              <span>Kunci Sesi / Keluar</span>
+              <span class="dropdown-item-label">Kunci Sesi / Keluar</span>
+              <span class="dropdown-item-hint danger-hint">Lock</span>
             </button>
           </div>
         </div>
@@ -377,16 +392,6 @@
     <!-- Workflow Canvas Shell -->
     <main class="app-shell" id="studioWorkflowArea">
       <aside class="sidebar panel" id="studioSidebar">
-      <div class="side-section">
-        <div class="section-label">
-          <span>PROJECTS</span>
-          <button class="icon-button" id="newProject" title="New project" aria-label="New project">
-            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-        </div>
-        <div id="projects" class="project-list"></div>
-      </div>
-
       <div class="side-section library">
         <div class="section-label"><span>NODE LIBRARY</span><small id="nodeCount" class="library-count">0 nodes</small></div>
         <label class="search">
@@ -808,62 +813,71 @@
 
   <!-- Model Quantizer & Optimizer Modal -->
   <dialog id="quantizeModelModal" class="modal">
-    <div class="modal-box" style="max-width: 580px; max-height: 85vh; overflow-y: auto;">
+    <div class="modal-box quantize-modal-box">
       <div class="modal-head">
         <div>
-          <span class="eyebrow" style="color: var(--teal); font-weight: 700;">MODEL OPTIMIZATION</span>
+          <span class="eyebrow modal-eyebrow">MODEL OPTIMIZATION</span>
           <h2>⚡ Model Quantizer & Optimizer</h2>
         </div>
-        <button class="icon-button" id="closeQuantizeModelModal" type="button">
+        <button class="icon-button" id="closeQuantizeModelModal" type="button" title="Tutup modal">
           <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
 
       <div class="modal-body" style="padding: 0;">
-        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+        <p class="quantize-intro-text">
           Kuantisasi model deep learning ke presisi 8-bit (INT8) atau 16-bit (FP16) untuk memangkas ukuran memori hingga 75% dan mempercepat inferensi di CPU/Edge Device.
         </p>
 
         <form id="quantizeModelForm">
-          <div class="field" style="margin-bottom: 14px;">
-            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Pilih Model Sumber (.pt / .onnx / .keras)</label>
-            <select id="quantizeSourceSelect" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); font-size: 13px;" required>
+          <div class="field">
+            <label class="field-title" for="quantizeSourceSelect">Pilih Model Sumber (.pt / .onnx / .keras)</label>
+            <select id="quantizeSourceSelect" class="quantize-select" required>
               <option value="">-- Pilih model dari Model Registry --</option>
             </select>
           </div>
 
-          <div class="field" style="margin-bottom: 14px;">
-            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Target Presisi Kuantisasi</label>
-            <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
-              <label class="quantize-option-card" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--bg-card);">
-                <input type="radio" name="quantizeTargetFormat" value="tflite_int8" checked style="margin-top: 3px;">
-                <div>
-                  <div style="font-weight: 600; font-size: 13px;">TFLite INT8 (Post-Training Quantization) <span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">Tercepat & Terhemat</span></div>
-                  <div style="font-size: 12px; color: var(--text-muted);">Pangkas ukuran hingga ~75%, komputasi integer ultra-ringan pada CPU/NPU edge.</div>
+          <div class="field">
+            <label class="field-title">Target Presisi Kuantisasi</label>
+            <div class="quantize-options-grid">
+              <label class="quantize-option-card">
+                <input type="radio" name="quantizeTargetFormat" value="tflite_int8" checked>
+                <div class="quantize-card-content">
+                  <div class="quantize-card-title-row">
+                    <span>TFLite INT8 (Post-Training Quantization)</span>
+                    <span class="quantize-badge green">Tercepat & Terhemat</span>
+                  </div>
+                  <div class="quantize-card-desc">Pangkas ukuran hingga ~75%, komputasi integer ultra-ringan pada CPU/NPU edge.</div>
                 </div>
               </label>
 
-              <label class="quantize-option-card" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--bg-card);">
-                <input type="radio" name="quantizeTargetFormat" value="tflite_fp16" style="margin-top: 3px;">
-                <div>
-                  <div style="font-weight: 600; font-size: 13px;">TFLite FP16 (Half Precision 16-Bit) <span class="badge" style="background: rgba(59,130,246,0.15); color: #3b82f6; font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">Akurasi Presisi Tinggi</span></div>
-                  <div style="font-size: 12px; color: var(--text-muted);">Pangkas ukuran ~50% tanpa penurunan akurasi (akurasi 99.9% identik FP32).</div>
+              <label class="quantize-option-card">
+                <input type="radio" name="quantizeTargetFormat" value="tflite_fp16">
+                <div class="quantize-card-content">
+                  <div class="quantize-card-title-row">
+                    <span>TFLite FP16 (Half Precision 16-Bit)</span>
+                    <span class="quantize-badge blue">Akurasi Presisi Tinggi</span>
+                  </div>
+                  <div class="quantize-card-desc">Pangkas ukuran ~50% tanpa penurunan akurasi (akurasi 99.9% identik FP32).</div>
                 </div>
               </label>
 
-              <label class="quantize-option-card" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--bg-card);">
-                <input type="radio" name="quantizeTargetFormat" value="onnx_int8" style="margin-top: 3px;">
-                <div>
-                  <div style="font-weight: 600; font-size: 13px;">ONNX Dynamic INT8 Quantization</div>
-                  <div style="font-size: 12px; color: var(--text-muted);">Kuantisasi dinamis ONNX Runtime untuk server dan workstation x86/ARM.</div>
+              <label class="quantize-option-card">
+                <input type="radio" name="quantizeTargetFormat" value="onnx_int8">
+                <div class="quantize-card-content">
+                  <div class="quantize-card-title-row">
+                    <span>ONNX Dynamic INT8 Quantization</span>
+                    <span class="quantize-badge purple">Server / Workstation</span>
+                  </div>
+                  <div class="quantize-card-desc">Kuantisasi dinamis ONNX Runtime untuk server dan workstation x86/ARM.</div>
                 </div>
               </label>
             </div>
           </div>
 
-          <div class="field" style="margin-bottom: 16px;">
-            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Resolusi Input Citra (Image Size)</label>
-            <select id="quantizeImageSize" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); font-size: 13px;">
+          <div class="field">
+            <label class="field-title" for="quantizeImageSize">Resolusi Input Citra (Image Size)</label>
+            <select id="quantizeImageSize" class="quantize-select">
               <option value="640" selected>640 x 640 (Standar Industri)</option>
               <option value="480">480 x 480 (Cepat)</option>
               <option value="320">320 x 320 (Mobile / Ultra-Ringan)</option>
@@ -871,20 +885,20 @@
           </div>
 
           <!-- Progress / Loading Status -->
-          <div id="quantizeLoadingState" style="display: none; padding: 14px; text-align: center; background: rgba(59,130,246,0.08); border-radius: 8px; border: 1px solid rgba(59,130,246,0.2); margin-bottom: 16px;">
-            <div class="spinner" style="display: inline-block; width: 22px; height: 22px; border: 3px solid rgba(59,130,246,0.3); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-            <div style="font-weight: 600; font-size: 13px; margin-top: 8px; color: #2563eb;">Sedang Mengkuantisasi & Mengoptimasi Model...</div>
-            <small style="color: var(--text-muted);">Menghitung bobot kalibrasi integer dan menghasilkan file terkompresi.</small>
+          <div id="quantizeLoadingState" class="quantize-loading-state" style="display: none;">
+            <div class="spinner quantize-spinner"></div>
+            <div class="quantize-loading-title">Sedang Mengkuantisasi & Mengoptimasi Model...</div>
+            <small class="quantize-loading-sub">Menghitung bobot kalibrasi integer dan menghasilkan file terkompresi.</small>
           </div>
 
           <!-- Result Card -->
-          <div id="quantizeResultCard" style="display: none; padding: 14px; background: rgba(16,185,129,0.08); border-radius: 8px; border: 1px solid rgba(16,185,129,0.3); margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-              <span style="font-weight: 700; color: #059669; font-size: 13px;">✔ Kuantisasi Berhasil!</span>
-              <span id="quantizeSavedBadge" class="badge" style="background: #10b981; color: #fff; font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 11px;">-75% Ukuran</span>
+          <div id="quantizeResultCard" class="quantize-result-card" style="display: none;">
+            <div class="quantize-result-header">
+              <span class="quantize-result-title">✔ Kuantisasi Berhasil!</span>
+              <span id="quantizeSavedBadge" class="quantize-badge green">-75% Ukuran</span>
             </div>
-            <div id="quantizeResultDetails" style="font-size: 12px; color: var(--text); line-height: 1.6;"></div>
-            <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <div id="quantizeResultDetails" class="quantize-result-details"></div>
+            <div class="quantize-result-actions">
               <button type="button" class="button primary" id="applyQuantizedModelBtn" style="flex: 1; font-size: 12px; padding: 6px 10px;">
                 🎯 Terapkan ke Node Aktif
               </button>
@@ -897,7 +911,8 @@
           <div class="modal-actions-right">
             <button class="button secondary" type="button" id="cancelQuantizeBtn">Tutup</button>
             <button class="button primary" type="submit" id="startQuantizeBtn">
-              <span>⚡ Mulai Kuantisasi</span>
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <span>Mulai Kuantisasi</span>
             </button>
           </div>
         </form>

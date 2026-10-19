@@ -11511,7 +11511,7 @@
     $('#closeQuantizeModelModal')?.addEventListener('click', () => $('#quantizeModelModal')?.close());
     $('#cancelQuantizeBtn')?.addEventListener('click', () => $('#quantizeModelModal')?.close());
 
-    function openQuantizeModal() {
+    window.openQuantizeModal = function openQuantizeModal() {
       const modal = $('#quantizeModelModal');
       const select = $('#quantizeSourceSelect');
       if (!modal || !select) return;
@@ -11841,6 +11841,13 @@
           moreDropdown.hidden = false;
         }
       };
+
+      $('#importBtn')?.addEventListener('click', () => {
+        if (moreDropdown) moreDropdown.hidden = true;
+      });
+      $('#exportBtn')?.addEventListener('click', () => {
+        if (moreDropdown) moreDropdown.hidden = true;
+      });
     }
 
     $('#copyWorkflowJsonBtn')?.addEventListener('click', () => {
@@ -12011,8 +12018,10 @@
 
       $('#userMenuQuantizeBtn')?.addEventListener('click', () => {
         userDropdown.hidden = true;
-        if (typeof openQuantizeModal === 'function') {
-          openQuantizeModal();
+        if (typeof window.openQuantizeModal === 'function') {
+          window.openQuantizeModal();
+        } else {
+          $('#quantizeModelModal')?.showModal();
         }
       });
 

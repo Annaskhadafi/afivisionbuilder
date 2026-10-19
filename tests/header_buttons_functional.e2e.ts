@@ -35,7 +35,13 @@ test('verify all 5 header buttons: More options (...), Notifications (Bell), Set
 
   await app.screenshot('01-topbar-more-dropdown-open');
 
+  // Test copy workflow JSON
+  await browser.locator('#copyWorkflowJsonBtn').click();
+  await expect(moreDropdown).toBeHidden();
+
   // Test fit canvas button inside more options
+  await moreBtn.click();
+  await expect(moreDropdown).toBeVisible();
   await browser.locator('#fitCanvasMoreBtn').click();
   await expect(moreDropdown).toBeHidden();
 
@@ -156,19 +162,42 @@ test('verify all 5 header buttons: More options (...), Notifications (Bell), Set
   const userDropdown = browser.locator('#hubUserDropdown');
   await expect(userDropdown).toBeVisible();
   await expect(browser.locator('.user-dropdown-name')).toContainText('Anas Khadafi');
-  await expect(browser.locator('.user-dropdown-role')).toContainText('Lead Vision Engineer');
+  await expect(browser.locator('.user-dropdown-role')).toContainText(/lead vision engineer/i);
   await expect(browser.locator('#userMenuSettingsBtn')).toBeVisible();
   await expect(browser.locator('#userMenuQuantizeBtn')).toBeVisible();
   await expect(browser.locator('#userMenuHelpBtn')).toBeVisible();
   await expect(browser.locator('#userMenuDocsBtn')).toBeVisible();
   await expect(browser.locator('#userMenuSyncBtn')).toBeVisible();
+  await expect(browser.locator('#userMenuLockBtn')).toBeVisible();
 
   await app.screenshot('05-user-avatar-dropdown-open');
 
-  // Test clicking Help from user menu opens help modal
+  // Test 1: clicking Help from user menu opens help modal
   await browser.locator('#userMenuHelpBtn').click();
   await expect(userDropdown).toBeHidden();
   await expect(helpModal).toBeVisible();
   await browser.locator('#closeSystemHelpModal').click();
   await expect(helpModal).toBeHidden();
+
+  // Test 2: clicking Quantizer from user menu opens quantize modal
+  await userAvatarBtn.click();
+  await expect(userDropdown).toBeVisible();
+  await browser.locator('#userMenuQuantizeBtn').click();
+  await expect(userDropdown).toBeHidden();
+  const quantizeModal = browser.locator('#quantizeModelModal');
+  await expect(quantizeModal).toBeVisible();
+  await browser.locator('#closeQuantizeModelModal').click();
+  await expect(quantizeModal).toBeHidden();
+
+  // Test 3: clicking Sync Status from user menu triggers sync
+  await userAvatarBtn.click();
+  await expect(userDropdown).toBeVisible();
+  await browser.locator('#userMenuSyncBtn').click();
+  await expect(userDropdown).toBeHidden();
+
+  // Test 4: clicking Lock / Logout from user menu
+  await userAvatarBtn.click();
+  await expect(userDropdown).toBeVisible();
+  await browser.locator('#userMenuLockBtn').click();
+  await expect(userDropdown).toBeHidden();
 });
