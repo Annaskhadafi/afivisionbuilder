@@ -2562,7 +2562,11 @@ def results_for_node(
         # sparse event records in ``detections``.  Preserve those records for
         # downstream alerts/databases instead of replacing them with the
         # continuous tracker stream.
-        event_kinds = {"track_snapshot", "count_event", "line_crossing", "loitering_alert", "object_classification", "anomaly", "zone_activity", "zone_activity_event", "zone_exit"}
+        event_kinds = {
+            "track_snapshot", "count_event", "line_crossing", "loitering_alert",
+            "object_classification", "anomaly", "zone_activity", "zone_activity_event",
+            "zone_exit", "ocr_text_read", "text_detected", "barcode_read"
+        }
         results.extend(
             item for item in detections
             if item.get("kind") in event_kinds
@@ -6282,14 +6286,14 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
     mask_opacity = min(0.85, max(0.05, float(config.get("maskOpacity", 0.35))))
     classification_y = 12
     for detection in detections:
-        if detection.get("kind") in ("count_event", "line_crossing", "loitering_alert", "zone_activity", "zone_activity_event", "zone_exit"):
+        if detection.get("kind") in ("count_event", "line_crossing", "loitering_alert", "zone_activity", "zone_activity_event", "zone_exit", "ocr_text_read"):
             continue
         if detection.get("kind") == "anomaly":
             from efficientad_runtime import draw_result
             classification_y = draw_result(frame, detection, show_labels=show_labels, y=classification_y,
                                            show_boxes=show_boxes, show_track_ids=show_track_ids)
             continue
-        label_text = f"text: {detection['text']}" if ("text" in detection and detection["text"]) else detection.get("class", "object")
+        label_text = f"OCR: {detection['text']}" if ("text" in detection and detection["text"]) else detection.get("class", "object")
         track_id = detection.get("trackId")
         color_key = f"{label_text}:{track_id}" if track_id is not None else label_text
         color = detection_color(color_key)
@@ -6386,6 +6390,15 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
             cv2.rectangle(frame, (x, label_y - bg_h), (x + 3, label_y), color, -1)
             cv2.rectangle(frame, (x, label_y - bg_h), (x + bg_w, label_y), (50, 65, 85), 1)
             cv2.putText(frame, label, (x + 7, label_y - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.46, (255, 255, 255), 1, cv2.LINE_AA)
+            if "text" in detection and detection["text"]:
+                tag = f"OCR: {detection['text']}"
+                tag_size, _ = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.52, 2)
+                bw = tag_size[0] + 16
+                bh = tag_size[1] + 12
+                by = min(frame.shape[0] - bh - 4, y + height + 4)
+                cv2.rectangle(frame, (x, by), (x + bw, by + bh), (15, 23, 42), -1)
+                cv2.rectangle(frame, (x, by), (x + bw, by + bh), (16, 185, 129), 2)
+                cv2.putText(frame, tag, (x + 8, by + bh - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (52, 211, 153), 2, cv2.LINE_AA)
 
     if show_counts:
         _draw_object_count_overlay(frame, detections, counter_state=counter_state)

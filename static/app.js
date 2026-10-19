@@ -3546,7 +3546,9 @@
     const isNodeEnabled = node.enabled !== false;
     const isBypassed = !isNodeEnabled || telem.status === 'bypassed';
     const statusText = !isNodeEnabled ? 'BYPASSED (OFF)' : (telem.status ? telem.status.toUpperCase() : 'IDLE');
-    const statusColor = !isNodeEnabled ? '#fbbf24' : (telem.status === 'success' ? '#10b981' : (telem.status === 'error' ? '#ef4444' : '#94a3b8'));
+    const statusColor = isBypassed ? '#92400e' : (telem.status === 'success' ? '#065f46' : (telem.status === 'error' ? '#991b1b' : '#334155'));
+    const statusBg = isBypassed ? '#fef3c7' : (telem.status === 'success' ? '#d1fae5' : (telem.status === 'error' ? '#fee2e2' : '#f1f5f9'));
+    const statusBorder = isBypassed ? '#fcd34d' : (telem.status === 'success' ? '#6ee7b7' : (telem.status === 'error' ? '#fca5a5' : '#cbd5e1'));
 
     const hud = document.createElement('div');
     hud.className = 'telemetry-hud';
@@ -3554,26 +3556,28 @@
     hud.innerHTML = `
       <div class="hud-stat-card">
         <span class="hud-stat-label">Execution Status</span>
-        <span class="hud-stat-value" data-stat="status" style="color: ${statusColor}">
-          <span class="status-dot ${isBypassed ? 'bypassed' : (telem.status || 'idle')}" style="display:inline-block;margin-right:4px;"></span>
-          ${statusText}
+        <span class="hud-stat-value" data-stat="status">
+          <span class="status-pill-badge" style="background:${statusBg}; color:${statusColor}; border:1px solid ${statusBorder};">
+            <span class="status-dot ${isBypassed ? 'bypassed' : (telem.status || 'idle')}"></span>
+            ${statusText}
+          </span>
         </span>
       </div>
       <div class="hud-stat-card">
         <span class="hud-stat-label">Latency (Per-Frame)</span>
-        <span class="hud-stat-value" data-stat="latency" style="color:#38bdf8">
+        <span class="hud-stat-value" data-stat="latency" style="color:#0284c7; font-weight:800;">
           ${isBypassed ? '0.00 ms (Skip)' : (telem.latencyMs !== undefined ? `${telem.latencyMs} ms` : '—')}
         </span>
       </div>
       <div class="hud-stat-card">
         <span class="hud-stat-label">Items / Detections</span>
-        <span class="hud-stat-value" data-stat="items">
+        <span class="hud-stat-value" data-stat="items" style="color:#7c3aed; font-weight:800;">
           ${telem.itemCount !== undefined ? `${telem.itemCount} items` : '—'}
         </span>
       </div>
       <div class="hud-stat-card">
         <span class="hud-stat-label">Last Timestamp</span>
-        <span class="hud-stat-value" data-stat="time" style="font-size:11px;color:#94a3b8">
+        <span class="hud-stat-value" data-stat="time" style="font-size:11px; color:#0f172a; font-weight:700;">
           ${telem.timestamp ? new Date(telem.timestamp * 1000).toLocaleTimeString() : 'Belum jalan'}
         </span>
       </div>
@@ -3583,16 +3587,10 @@
     // Action bar (Copy JSON, Refresh)
     const actRow = document.createElement('div');
     actRow.className = 'telemetry-action-row';
-    actRow.style.display = 'flex';
-    actRow.style.gap = '8px';
-    actRow.style.marginBottom = '12px';
 
     const copyBtn = document.createElement('button');
     copyBtn.type = 'button';
-    copyBtn.className = 'button secondary';
-    copyBtn.style.flex = '1';
-    copyBtn.style.fontSize = '11px';
-    copyBtn.style.padding = '6px 10px';
+    copyBtn.className = 'telemetry-btn-copy';
     copyBtn.innerHTML = '📋 Copy Full JSON Payload';
     copyBtn.onclick = () => {
       const fullPayload = {
@@ -3607,9 +3605,7 @@
 
     const refreshBtn = document.createElement('button');
     refreshBtn.type = 'button';
-    refreshBtn.className = 'button secondary';
-    refreshBtn.style.fontSize = '11px';
-    refreshBtn.style.padding = '6px 10px';
+    refreshBtn.className = 'telemetry-btn-refresh';
     refreshBtn.innerHTML = '🔄 Refresh';
     refreshBtn.onclick = async () => {
       await pollStatus();
@@ -3630,7 +3626,7 @@
     errBox.style.padding = '8px';
     errBox.style.marginBottom = '12px';
     errBox.style.fontSize = '11px';
-    errBox.style.color = '#fca5a5';
+    errBox.style.color = '#b91c1c';
     errBox.innerHTML = `<strong>Error Log:</strong> <span class="err-msg">${escapeHtml(telem.error || '')}</span>`;
     container.append(errBox);
 
@@ -3819,19 +3815,7 @@
     // Guide button
     const guideBtn = document.createElement('button');
     guideBtn.type = 'button';
-    guideBtn.className = 'button secondary';
-    guideBtn.style.width = '100%';
-    guideBtn.style.display = 'flex';
-    guideBtn.style.alignItems = 'center';
-    guideBtn.style.justifyContent = 'center';
-    guideBtn.style.gap = '8px';
-    guideBtn.style.fontSize = '12px';
-    guideBtn.style.fontWeight = '600';
-    guideBtn.style.padding = '8px 12px';
-    guideBtn.style.marginBottom = '14px';
-    guideBtn.style.background = 'rgba(56, 189, 248, 0.1)';
-    guideBtn.style.border = '1px solid rgba(56, 189, 248, 0.35)';
-    guideBtn.style.color = '#38bdf8';
+    guideBtn.className = 'inspector-guide-btn';
     guideBtn.innerHTML = `
       <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
       <span>📘 Panduan &amp; Cara Penggunaan Node</span>
@@ -4309,19 +4293,7 @@
     // Guide button
     const guideBtn = document.createElement('button');
     guideBtn.type = 'button';
-    guideBtn.className = 'button secondary';
-    guideBtn.style.width = '100%';
-    guideBtn.style.display = 'flex';
-    guideBtn.style.alignItems = 'center';
-    guideBtn.style.justifyContent = 'center';
-    guideBtn.style.gap = '8px';
-    guideBtn.style.fontSize = '12px';
-    guideBtn.style.fontWeight = '600';
-    guideBtn.style.padding = '8px 12px';
-    guideBtn.style.marginBottom = '14px';
-    guideBtn.style.background = 'rgba(56, 189, 248, 0.1)';
-    guideBtn.style.border = '1px solid rgba(56, 189, 248, 0.35)';
-    guideBtn.style.color = '#38bdf8';
+    guideBtn.className = 'inspector-guide-btn';
     guideBtn.innerHTML = `
       <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
       <span>📖 Panduan &amp; Cara Penggunaan Node</span>
@@ -4496,16 +4468,7 @@
     guideBtn.className = 'button secondary';
     guideBtn.style.width = '100%';
     guideBtn.style.display = 'flex';
-    guideBtn.style.alignItems = 'center';
-    guideBtn.style.justifyContent = 'center';
-    guideBtn.style.gap = '8px';
-    guideBtn.style.fontSize = '12px';
-    guideBtn.style.fontWeight = '600';
-    guideBtn.style.padding = '8px 12px';
-    guideBtn.style.marginBottom = '12px';
-    guideBtn.style.background = 'rgba(56, 189, 248, 0.1)';
-    guideBtn.style.border = '1px solid rgba(56, 189, 248, 0.35)';
-    guideBtn.style.color = '#38bdf8';
+    guideBtn.className = 'inspector-guide-btn';
     guideBtn.innerHTML = `
       <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
       <span>📘 Panduan &amp; Cara Penggunaan Node</span>
@@ -4515,11 +4478,11 @@
 
     const isNodeEnabled = n.enabled !== false;
     const activeRow = document.createElement('div');
-    activeRow.className = 'inspector-active-row';
+    activeRow.className = `inspector-active-row ${isNodeEnabled ? 'is-active' : 'is-bypassed'}`;
     activeRow.innerHTML = `
       <div class="active-row-label">
-        <strong style="color: ${isNodeEnabled ? '#10b981' : '#fbbf24'}">${isNodeEnabled ? '🟢 Node Aktif' : '⚪ Node Bypassed'}</strong>
-        <small style="color: #94a3b8">${isNodeEnabled ? 'Aktif memproses data' : 'Bypass / Pass-Through (Data diteruskan)'}</small>
+        <strong style="color: ${isNodeEnabled ? '#065f46' : '#b45309'}; font-weight:800; font-size:13.5px;">${isNodeEnabled ? '🟢 Node Aktif' : '🟠 Node Bypassed'}</strong>
+        <small style="color: ${isNodeEnabled ? '#047857' : '#92400e'}; font-weight:600; font-size:11px;">${isNodeEnabled ? 'Aktif memproses data' : 'Bypass / Pass-Through (Data diteruskan)'}</small>
       </div>
     `;
     const activeSwitch = document.createElement('label');
