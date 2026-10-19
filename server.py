@@ -20,7 +20,7 @@ from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -696,6 +696,48 @@ async def upload_model(request: Request, file: UploadFile = File(...)) -> dict:
             Path(temporary_name).unlink(missing_ok=True)
         raise
     return {"path": str(target), "name": clean_name, "format": suffix.lstrip("."), "sizeBytes": size, "sha256": sha256, "contentId": sha256}
+
+
+@app.post("/api/models/quantize")
+def quantize_model_endpoint(payload: dict = Body(...)) -> dict:
+    source_path = payload.get("modelPath")
+    target_format = payload.get("targetFormat", "tflite_int8")
+    image_size = int(payload.get("imageSize", 640) or 640)
+
+    if not source_path:
+        raise HTTPException(400, "Missing required parameter 'modelPath'")
+
+    try:
+        from engine.model_quantizer import quantize_model
+    except ImportError:
+        import model_quantizer
+        quantize_model = model_quantizer.quantize_model
+
+    try:
+        res = quantize_model(
+            source_model_path=source_path,
+            target_format=target_format,
+            image_size=image_size,
+        )
+        return res
+    except Exception as exc:
+        logger.exception("Model quantization failed: %s", exc)
+        raise HTTPException(500, f"Quantization failed: {exc}") from exc
+
+
+@app.get("/api/models/download")
+def download_model_endpoint(path: str):
+    try:
+        import custom_model_runtime
+    except ImportError:
+        from engine import custom_model_runtime
+    target = custom_model_runtime.resolve_model_file(path.strip().strip('"'))
+    if not target.is_file():
+        raise HTTPException(404, f"Model file not found: {path}")
+    from fastapi.responses import FileResponse
+    return FileResponse(path=str(target), filename=target.name, media_type="application/octet-stream")
+
+
 
 
 def _templates() -> list[dict]:

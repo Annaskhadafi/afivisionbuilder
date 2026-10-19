@@ -13,7 +13,9 @@ pillow>=10.0.0
 torch>=2.0.0
 torchvision>=0.15.0
 ultralytics>=8.0.0
+onnx>=1.15.0
 onnxruntime>=1.17.0
+tensorflow>=2.15.0
 timm>=0.9.0
 
 # Tracking & Multi-Object Analytics

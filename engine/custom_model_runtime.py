@@ -708,6 +708,15 @@ class CustomModelRunner:
             input_dtype = input_details[0]["dtype"]
             if input_dtype == np.uint8:
                 input_data = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)[np.newaxis, ...]
+            elif input_dtype == np.int8:
+                scale, zero_point = input_details[0].get("quantization", (0.0, 0))
+                if scale > 0:
+                    norm = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+                    input_data = np.clip(norm / scale + zero_point, -128, 127).astype(np.int8)[np.newaxis, ...]
+                else:
+                    input_data = (cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) - 128.0).astype(np.int8)[np.newaxis, ...]
+            elif input_dtype == np.float16:
+                input_data = (cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float16) / 255.0)[np.newaxis, ...]
             else:
                 input_data = (cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0)[np.newaxis, ...]
 
@@ -741,7 +750,48 @@ class CustomModelRunner:
                 return detections
 
             # Generic single output TFLite (YOLO or classifier)
-            out = np.squeeze(interpreter.get_tensor(output_details[0]["index"]))
+            out_tensor = np.squeeze(interpreter.get_tensor(output_details[0]["index"]))
+            out_dtype = output_details[0]["dtype"]
+            if out_dtype in (np.int8, np.uint8):
+                quant_params = output_details[0].get("quantization_parameters") or {}
+                scales = quant_params.get("scales", [])
+                zero_points = quant_params.get("zero_points", [])
+                scale = float(scales[0]) if len(scales) > 0 else output_details[0].get("quantization", (0.0, 0))[0]
+                zp = int(zero_points[0]) if len(zero_points) > 0 else output_details[0].get("quantization", (0.0, 0))[1]
+                if scale > 0:
+                    out = (out_tensor.astype(np.float32) - zp) * scale
+                else:
+                    out = out_tensor.astype(np.float32)
+            else:
+                out = out_tensor.astype(np.float32)
+
+            # If 2D output (e.g. YOLOv8 TFLite output (84, 8400) or (8400, 84))
+            if out.ndim == 2:
+                if out.shape[0] < out.shape[1]:
+                    out = out.T  # Transpose to (N_boxes, 4 + classes)
+                scale_x = frame.shape[1] / in_w
+                scale_y = frame.shape[0] / in_h
+                configured_classes = [c.strip().casefold() for c in str(config.get("classes") or "").split(",") if c.strip()]
+                for row in out:
+                    cls_scores = row[4:]
+                    cls_id = int(np.argmax(cls_scores))
+                    score = float(cls_scores[cls_id])
+                    if score >= threshold:
+                        cx, cy, w, h = row[:4]
+                        x = (cx - w / 2) * scale_x
+                        y = (cy - h / 2) * scale_y
+                        cls_name = labels[cls_id] if cls_id < len(labels) else f"class_{cls_id}"
+                        if configured_classes and cls_name.casefold() not in configured_classes:
+                            continue
+                        detections.append({
+                            "class": str(cls_name),
+                            "score": score,
+                            "bbox": [float(x), float(y), float(w * scale_x), float(h * scale_y)],
+                            "sourceNodeId": node_id,
+                            "kind": "detection",
+                        })
+                return detections
+
             if out.ndim == 1:
                 top_k = int(config.get("topK", 1))
                 top_indices = out.argsort()[-top_k:][::-1]

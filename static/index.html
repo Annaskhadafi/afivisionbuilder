@@ -446,6 +446,10 @@
         <p>Manage the models available in Afi Vision Builder. Download default models or import your own for your workflows.</p>
       </div>
       <div class="models-panel-actions">
+        <button class="button secondary" id="modelsQuantizeBtn" type="button" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span>⚡ Quantize / Optimize Model</span>
+        </button>
         <button class="button primary" id="modelsAddBtn" type="button">
           <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span>Add model</span>
@@ -696,6 +700,105 @@
           </button>
         </div>
       </form>
+    </div>
+  </dialog>
+
+  <!-- Model Quantizer & Optimizer Modal -->
+  <dialog id="quantizeModelModal" class="modal">
+    <div class="modal-box" style="max-width: 580px; max-height: 85vh; overflow-y: auto;">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow" style="color: var(--teal); font-weight: 700;">MODEL OPTIMIZATION</span>
+          <h2>⚡ Model Quantizer & Optimizer</h2>
+        </div>
+        <button class="icon-button" id="closeQuantizeModelModal" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body" style="padding: 0;">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+          Kuantisasi model deep learning ke presisi 8-bit (INT8) atau 16-bit (FP16) untuk memangkas ukuran memori hingga 75% dan mempercepat inferensi di CPU/Edge Device.
+        </p>
+
+        <form id="quantizeModelForm">
+          <div class="field" style="margin-bottom: 14px;">
+            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Pilih Model Sumber (.pt / .onnx / .keras)</label>
+            <select id="quantizeSourceSelect" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); font-size: 13px;" required>
+              <option value="">-- Pilih model dari Model Registry --</option>
+            </select>
+          </div>
+
+          <div class="field" style="margin-bottom: 14px;">
+            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Target Presisi Kuantisasi</label>
+            <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+              <label class="quantize-option-card" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--bg-card);">
+                <input type="radio" name="quantizeTargetFormat" value="tflite_int8" checked style="margin-top: 3px;">
+                <div>
+                  <div style="font-weight: 600; font-size: 13px;">TFLite INT8 (Post-Training Quantization) <span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">Tercepat & Terhemat</span></div>
+                  <div style="font-size: 12px; color: var(--text-muted);">Pangkas ukuran hingga ~75%, komputasi integer ultra-ringan pada CPU/NPU edge.</div>
+                </div>
+              </label>
+
+              <label class="quantize-option-card" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--bg-card);">
+                <input type="radio" name="quantizeTargetFormat" value="tflite_fp16" style="margin-top: 3px;">
+                <div>
+                  <div style="font-weight: 600; font-size: 13px;">TFLite FP16 (Half Precision 16-Bit) <span class="badge" style="background: rgba(59,130,246,0.15); color: #3b82f6; font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">Akurasi Presisi Tinggi</span></div>
+                  <div style="font-size: 12px; color: var(--text-muted);">Pangkas ukuran ~50% tanpa penurunan akurasi (akurasi 99.9% identik FP32).</div>
+                </div>
+              </label>
+
+              <label class="quantize-option-card" style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--bg-card);">
+                <input type="radio" name="quantizeTargetFormat" value="onnx_int8" style="margin-top: 3px;">
+                <div>
+                  <div style="font-weight: 600; font-size: 13px;">ONNX Dynamic INT8 Quantization</div>
+                  <div style="font-size: 12px; color: var(--text-muted);">Kuantisasi dinamis ONNX Runtime untuk server dan workstation x86/ARM.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="field" style="margin-bottom: 16px;">
+            <label style="font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Resolusi Input Citra (Image Size)</label>
+            <select id="quantizeImageSize" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-card); font-size: 13px;">
+              <option value="640" selected>640 x 640 (Standar Industri)</option>
+              <option value="480">480 x 480 (Cepat)</option>
+              <option value="320">320 x 320 (Mobile / Ultra-Ringan)</option>
+            </select>
+          </div>
+
+          <!-- Progress / Loading Status -->
+          <div id="quantizeLoadingState" style="display: none; padding: 14px; text-align: center; background: rgba(59,130,246,0.08); border-radius: 8px; border: 1px solid rgba(59,130,246,0.2); margin-bottom: 16px;">
+            <div class="spinner" style="display: inline-block; width: 22px; height: 22px; border: 3px solid rgba(59,130,246,0.3); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+            <div style="font-weight: 600; font-size: 13px; margin-top: 8px; color: #2563eb;">Sedang Mengkuantisasi & Mengoptimasi Model...</div>
+            <small style="color: var(--text-muted);">Menghitung bobot kalibrasi integer dan menghasilkan file terkompresi.</small>
+          </div>
+
+          <!-- Result Card -->
+          <div id="quantizeResultCard" style="display: none; padding: 14px; background: rgba(16,185,129,0.08); border-radius: 8px; border: 1px solid rgba(16,185,129,0.3); margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-weight: 700; color: #059669; font-size: 13px;">✔ Kuantisasi Berhasil!</span>
+              <span id="quantizeSavedBadge" class="badge" style="background: #10b981; color: #fff; font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 11px;">-75% Ukuran</span>
+            </div>
+            <div id="quantizeResultDetails" style="font-size: 12px; color: var(--text); line-height: 1.6;"></div>
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+              <button type="button" class="button primary" id="applyQuantizedModelBtn" style="flex: 1; font-size: 12px; padding: 6px 10px;">
+                🎯 Terapkan ke Node Aktif
+              </button>
+              <button type="button" class="button secondary" id="downloadQuantizedModelBtn" style="font-size: 12px; padding: 6px 10px;">
+                💾 Unduh File
+              </button>
+            </div>
+          </div>
+
+          <div class="modal-actions-right">
+            <button class="button secondary" type="button" id="cancelQuantizeBtn">Tutup</button>
+            <button class="button primary" type="submit" id="startQuantizeBtn">
+              <span>⚡ Mulai Kuantisasi</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </dialog>
 

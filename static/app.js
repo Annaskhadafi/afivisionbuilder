@@ -11477,6 +11477,125 @@
       });
     }
 
+    // Quantize & Optimize Model Manager
+    let _latestQuantizeResult = null;
+
+    $('#modelsQuantizeBtn')?.addEventListener('click', () => {
+      openQuantizeModal();
+    });
+    $('#closeQuantizeModelModal')?.addEventListener('click', () => $('#quantizeModelModal')?.close());
+    $('#cancelQuantizeBtn')?.addEventListener('click', () => $('#quantizeModelModal')?.close());
+
+    function openQuantizeModal() {
+      const modal = $('#quantizeModelModal');
+      const select = $('#quantizeSourceSelect');
+      if (!modal || !select) return;
+
+      select.innerHTML = '<option value="">-- Pilih model dari Model Registry --</option>';
+      const eligibleModels = (state.models || []).filter(m => {
+        const ext = (m.path || m.name || '').toLowerCase();
+        return ext.endsWith('.pt') || ext.endsWith('.pth') || ext.endsWith('.onnx') || ext.endsWith('.keras') || ext.endsWith('.h5');
+      });
+
+      const listToRender = eligibleModels.length > 0 ? eligibleModels : (state.models || []);
+      listToRender.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.name || m.path;
+        opt.textContent = `${m.name} (${m.engine || m.format} · ${m.sizeFormatted || ''})`;
+        select.append(opt);
+      });
+
+      const loading = $('#quantizeLoadingState');
+      const resultCard = $('#quantizeResultCard');
+      const startBtn = $('#startQuantizeBtn');
+      if (loading) loading.style.display = 'none';
+      if (resultCard) resultCard.style.display = 'none';
+      if (startBtn) startBtn.disabled = false;
+      modal.showModal();
+    }
+
+    $('#quantizeModelForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const modelPath = $('#quantizeSourceSelect')?.value;
+      if (!modelPath) {
+        toast('Pilih model sumber terlebih dahulu.', true);
+        return;
+      }
+      const targetFormatRadio = document.querySelector('input[name="quantizeTargetFormat"]:checked');
+      const targetFormat = targetFormatRadio ? targetFormatRadio.value : 'tflite_int8';
+      const imageSize = parseInt($('#quantizeImageSize')?.value || '640', 10);
+
+      const loading = $('#quantizeLoadingState');
+      const resultCard = $('#quantizeResultCard');
+      const startBtn = $('#startQuantizeBtn');
+
+      if (loading) loading.style.display = 'block';
+      if (resultCard) resultCard.style.display = 'none';
+      if (startBtn) startBtn.disabled = true;
+
+      try {
+        const res = await api('/api/models/quantize', {
+          method: 'POST',
+          body: JSON.stringify({ modelPath, targetFormat, imageSize })
+        });
+        _latestQuantizeResult = res;
+
+        if (loading) loading.style.display = 'none';
+        if (resultCard) {
+          resultCard.style.display = 'block';
+          $('#quantizeSavedBadge').textContent = `-${res.savedPercent}% Ukuran`;
+          $('#quantizeResultDetails').innerHTML = `
+            <div><strong>Model Hasil:</strong> ${res.targetName}</div>
+            <div><strong>Format & Presisi:</strong> ${res.targetFormat.toUpperCase()}</div>
+            <div><strong>Ukuran:</strong> ${res.originalSizeFormatted} ➔ <span style="color:#059669; font-weight:700;">${res.quantizedSizeFormatted}</span> (${res.compressionRatio} lebih ringan)</div>
+          `;
+        }
+
+        toast(`Model ${res.targetName} berhasil dikuantisasi! Hemat ${res.savedPercent}%`);
+        await refreshModels();
+        renderModelsManager();
+        renderInspector();
+      } catch (err) {
+        if (loading) loading.style.display = 'none';
+        toast('Gagal kuantisasi: ' + err.message, true);
+      } finally {
+        if (startBtn) startBtn.disabled = false;
+      }
+    });
+
+    $('#applyQuantizedModelBtn')?.addEventListener('click', () => {
+      if (!_latestQuantizeResult) return;
+      const targetPath = _latestQuantizeResult.targetName || _latestQuantizeResult.targetPath;
+      const targetEngine = _latestQuantizeResult.engine || 'tflite';
+
+      let targetNode = null;
+      if (state.selected) {
+        const n = nodeFor(state.selected);
+        if (n && ['detector', 'segmenter', 'classifier'].includes(n.type)) targetNode = n;
+      }
+      if (!targetNode) {
+        targetNode = (state.workflow.nodes || []).find(n => ['detector', 'segmenter', 'classifier'].includes(n.type));
+      }
+
+      if (targetNode) {
+        targetNode.config.engine = targetEngine;
+        targetNode.config.modelPath = targetPath;
+        targetNode.config.customModelPath = targetPath;
+        markDirty();
+        renderInspector();
+        toast(`Model ${targetPath} diterapkan ke node ${targetNode.title || targetNode.id}!`);
+        $('#quantizeModelModal')?.close();
+      } else {
+        toast(`Model ${targetPath} disimpan di registry. Tambahkan node Deteksi untuk menggunakannya.`);
+      }
+    });
+
+    $('#downloadQuantizedModelBtn')?.addEventListener('click', () => {
+      if (!_latestQuantizeResult) return;
+      const path = _latestQuantizeResult.targetPath || _latestQuantizeResult.targetName;
+      window.open(`/api/models/download?path=${encodeURIComponent(path)}`, '_blank');
+    });
+
     setupCanvasPan();
   }
 
