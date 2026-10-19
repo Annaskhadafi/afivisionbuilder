@@ -45,6 +45,11 @@
     switch_case: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>',
     model_comparison: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/><path d="m8 9-2 3 2 3"/><path d="m16 9 2 3-2 3"/></svg>',
     detections_difference: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/><path d="M12 7.5v9"/></svg>',
+    data_aggregator: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>',
+    csv_formatter: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>',
+    s3_sink: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="m12 12 3 3m-3-3-3 3m3-3v7"/></svg>',
+    notification_dispatcher: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+    ptz_controller: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>',
 
     // Preprocessing
     slicer: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
@@ -204,7 +209,7 @@
   function categoryFor(type) {
     if (type === 'input' || type === 'ip_camera') return 'Sources';
     if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ai_agent', 'model_comparison'].includes(type)) return 'AI Vision Models';
-    if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter'].includes(type)) return 'Tracking & Analysis';
+    if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller'].includes(type)) return 'Tracking & Analysis';
     if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer', 'camera_focus', 'auto_rotate_edges', 'delta_filter'].includes(type)) return 'Image Preprocessing';
     if (['overlay_annotate', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
     if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once', 'switch_case'].includes(type)) return 'Logic & Flow Control';
@@ -457,6 +462,91 @@
     glow: {
       text: 'Efek pencahayaan lembut (halo glow) di sekeliling kotak deteksi.',
       guide: 'Menambahkan bayangan berpendar semi-transparan untuk meningkatkan estetika visual.'
+    },
+    // Fase 5: Agregasi Data, Cloud Sinks & Notifikasi, PTZ
+    windowMinutes: {
+      text: 'Durasi jendela waktu (menit) untuk akumulasi metrik analitik sesi.',
+      guide: 'Default: 60 menit (1 jam). Data di-rollup secara berkala untuk laporan shift operasional.'
+    },
+    metricTypes: {
+      text: 'Daftar jenis kalkulasi metrik ringkasan yang dihasilkan.',
+      guide: 'Pilihan: count (total kemunculan), sum_duration (total detik kerja), avg_duration (rata-rata durasi), max_occupancy (kapasitas puncak).'
+    },
+    columns: {
+      text: 'Daftar nama kolom data yang diekspor ke dalam baris file CSV.',
+      guide: 'Dipisahkan koma. Contoh: timestamp,zone_name,type,working_seconds,item_count'
+    },
+    delimiter: {
+      text: 'Karakter pemisah antar kolom dalam file CSV.',
+      guide: 'Gunakan koma (,) untuk format standar internasional atau titik koma (;) untuk kompatibilitas Excel regional.'
+    },
+    outputFilePath: {
+      text: 'Path lokasi penyimpanan file CSV pada server lokal.',
+      guide: 'Contoh: data/exports/shift_report.csv. Jika dikosongkan, baris CSV tetap disalurkan lewat payload downstream.'
+    },
+    endpointUrl: {
+      text: 'URL endpoint layanan S3 atau MinIO Object Storage.',
+      guide: 'Gunakan https://s3.amazonaws.com untuk AWS S3, atau http://localhost:9000 untuk MinIO lokal.'
+    },
+    bucketName: {
+      text: 'Nama bucket tempat penyimpanan berkas foto snapshot / crop event.',
+      guide: 'Contoh: afi-vision-records. Pastikan bucket telah dibuat di server storage Anda.'
+    },
+    objectPrefix: {
+      text: 'Folder awalan (prefix) path objek di dalam bucket.',
+      guide: 'Contoh: events/ atau cctv-alerts/2026/. Memudahkan pengelompokan file berdasarkan kategori.'
+    },
+    credentialsSecretRef: {
+      text: 'Nama variabel environment penyimpan kredensial akses S3.',
+      guide: 'Default: AWS_ACCESS_KEY_ID (sistem otomatis membaca Secret Key pasangannya).'
+    },
+    imageQuality: {
+      text: 'Kualitas kompresi gambar JPEG yang diunggah ke cloud (0-100).',
+      guide: 'Default: 85. Keseimbangan sempurna antara ketajaman visual dan efisiensi kuota bandwidth.'
+    },
+    channel: {
+      text: 'Saluran perpesanan instan tujuan pengiriman peringatan.',
+      guide: 'Pilihan: telegram, slack, whatsapp, atau generic_webhook.'
+    },
+    destinationId: {
+      text: 'ID Chat, Channel, atau nomor penerima pesan notifikasi.',
+      guide: 'Untuk Telegram: Chat ID (misal: -100123456). Untuk Slack: Channel Name. Untuk WhatsApp: Nomor telepon dengan kode negara.'
+    },
+    botToken: {
+      text: 'Token autentikasi Bot API untuk pengiriman pesan otomatis.',
+      guide: 'Contoh: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11 untuk Telegram BotFather.'
+    },
+    messageTemplate: {
+      text: 'Format template teks pesan peringatan dengan placeholder dinamis.',
+      guide: 'Gunakan tag seperti {event.type}, {event.zoneName}, {timestamp} untuk menyisipkan data secara realtime.'
+    },
+    attachImage: {
+      text: 'Kirimkan tangkapan layar frame kejadian sebagai lampiran foto notifikasi.',
+      guide: 'Foto kejadian membantu operator memverifikasi alarm langsung dari smartphone.'
+    },
+    cameraIp: {
+      text: 'Alamat IP kamera fisik PTZ di jaringan lokal.',
+      guide: 'Contoh: 192.168.1.100. Pastikan kamera mendukung profil ONVIF PTZ.'
+    },
+    onvifPort: {
+      text: 'Port layanan protokol ONVIF kamera pengawas.',
+      guide: 'Default port standar: 80, 8080, atau 5000 tergantung merek kamera (Hikvision/Dahua/Axis).'
+    },
+    targetTrackId: {
+      text: 'Kunci pelacakan pada satu Track ID spesifik secara permanen.',
+      guide: 'Kosongkan jika ingin auto-follow objek pertama dari targetClass yang terdeteksi.'
+    },
+    deadzonePercent: {
+      text: 'Radius batas toleransi tengah frame tanpa pergerakan motor kamera.',
+      guide: 'Default: 0.15 (15%). Mencegah motor kamera jitter bergetar saat objek hanya bergeser tipis di tengah.'
+    },
+    panSpeed: {
+      text: 'Faktor kecepatan perputaran horizontal kamera PTZ (0.0 s/d 1.0).',
+      guide: 'Nilai lebih tinggi membuat kamera bergerak lebih agresif mengejar objek yang melintas cepat.'
+    },
+    tiltSpeed: {
+      text: 'Faktor kecepatan kemiringan vertikal kamera PTZ (0.0 s/d 1.0).',
+      guide: 'Nilai lebih tinggi mempercepat penyesuaian sudut pandang kamera ke atas/bawah.'
     },
     // Sumber Input (Sources)
     sourceType: {
@@ -1562,6 +1652,27 @@
   };
 
   const INDO_FIELD_LABELS = {
+    windowMinutes: 'Jendela Waktu Agregasi (Menit)',
+    metricTypes: 'Jenis Metrik Analisis',
+    columns: 'Kolom Data CSV',
+    delimiter: 'Karakter Pemisah CSV',
+    outputFilePath: 'Lokasi Simpan Berkas CSV',
+    endpointUrl: 'Endpoint URL S3 / MinIO',
+    bucketName: 'Nama Bucket S3 Cloud',
+    objectPrefix: 'Prefix Folder Penyimpanan',
+    credentialsSecretRef: 'Referensi Kredensial Akses',
+    imageQuality: 'Kualitas Kompresi Foto (0-100)',
+    channel: 'Saluran Notifikasi Peringatan',
+    destinationId: 'ID / Alamat Tujuan Pengiriman',
+    botToken: 'Token Autentikasi Bot',
+    messageTemplate: 'Format Template Pesan',
+    attachImage: 'Sertakan Foto Tangkapan Layar',
+    cameraIp: 'Alamat IP Kamera PTZ',
+    onvifPort: 'Port Layanan ONVIF PTZ',
+    targetTrackId: 'Target Kunci Track ID Tertentu',
+    deadzonePercent: 'Toleransi Area Tengah (Deadzone %)',
+    panSpeed: 'Kecepatan Gerak Pan Horizontal',
+    tiltSpeed: 'Kecepatan Gerak Tilt Vertikal',
     modelAName: 'Nama Model AI A',
     modelBName: 'Nama Model AI B',
     renderMode: 'Mode Visualisasi Evaluasi',
@@ -8538,6 +8649,94 @@
       }
     ],
     "tips": "Sangat efektif untuk sirene atau lampu indikator pabrik agar tidak terus berbunyi saat objek masih berada di zona pantau."
+  },
+  "data_aggregator": {
+    "concept": "Node agregasi statistik bergulir (Sliding Window Rollup) yang menghitung akumulasi total event, durasi kerja, rata-rata durasi, dan puncak okupansi per jendela waktu operasional (misal per jam atau per shift).",
+    "diagram": "[ Zone Activity / Counter / Alert ] ──▶ [ Data Aggregator ] ──▶ [ Dashboard / CSV Formatter / DB ]",
+    "steps": [
+      "Sambungkan output event dari Zone Activity Timer, Line Counter, atau Multi-Zone Occupancy.",
+      "Tentukan rentang jendela waktu (Window Minutes), misalnya 60 menit untuk laporan per jam.",
+      "Pilih metrik yang ingin dihitung: count, sum_duration, avg_duration, atau max_occupancy.",
+      "Data agregasi siap dialirkan ke CSV Formatter atau dashboard pemantauan berkala."
+    ],
+    "params": [
+      { "key": "windowMinutes", "label": "Jendela Waktu (Menit)", "desc": "Panjang rentang sliding window akumulasi data." },
+      { "key": "metricTypes", "label": "Jenis Metrik Analisis", "desc": "Daftar kalkulasi statistik (count, sum_duration, avg_duration, max_occupancy)." }
+    ],
+    "tips": "Ideal untuk pembuatan rekap produktivitas operator workshop per shift kerja tanpa membebani database utama."
+  },
+  "csv_formatter": {
+    "concept": "Node pemformat data tabular CSV yang mengubah riwayat event, tracking, dan okupansi menjadi baris-baris teks berstruktur CSV siap ekspor ke file atau spreadsheet Excel.",
+    "diagram": "[ Event Stream / Aggregator ] ──▶ [ CSV Formatter ] ──▶ [ File / Webhook / ERP ]",
+    "steps": [
+      "Sambungkan data event masuk ke port input node CSV Formatter.",
+      "Tentukan daftar kolom yang diinginkan (contoh: timestamp, zone_name, type, working_seconds, item_count).",
+      "Pilih karakter delimiter (koma ',' atau titik koma ';').",
+      "Tentukan path file output (misal: data/exports/shift_log.csv) untuk penyimpanan otomatis di server lokal."
+    ],
+    "params": [
+      { "key": "columns", "label": "Kolom Data CSV", "desc": "Daftar nama kolom CSV yang dipisahkan tanda koma." },
+      { "key": "delimiter", "label": "Karakter Pemisah", "desc": "Pemisah kolom (default koma ',')." },
+      { "key": "outputFilePath", "label": "Lokasi File Simpan", "desc": "Path berkas CSV lokal untuk pencatatan otomatis." }
+    ],
+    "tips": "File CSV dapat langsung diimpor ke sistem ERP perusahaan atau divisualisasikan dengan Microsoft Excel / PowerBI."
+  },
+  "s3_sink": {
+    "concept": "Node pengunggah penyimpanan objek awan (S3 Object Storage Sink) yang mengirimkan foto snapshot kejadian, frame resolusi penuh, atau crop bukti deteksi ke AWS S3, MinIO, atau Ceph secara aman.",
+    "diagram": "[ Filter / Alarm / Crop ] ──▶ [ S3 Cloud Sink ] ──▶ [ Cloud URL / ERP Attachment ]",
+    "steps": [
+      "Masukkan URL endpoint penyimpanan (default AWS S3 atau MinIO on-premise).",
+      "Isi nama bucket tujuan dan prefix direktori (misal: events/ atau cctv/2026/).",
+      "Konfigurasikan environment variable credentials (AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY).",
+      "Atur kualitas kompresi foto JPEG untuk mengoptimalkan kuota dan kecepatan upload."
+    ],
+    "params": [
+      { "key": "endpointUrl", "label": "Endpoint URL", "desc": "Alamat URL API S3 kompatibel (AWS / MinIO / Ceph)." },
+      { "key": "bucketName", "label": "Nama Bucket S3", "desc": "Nama wadah penyimpanan di cloud storage." },
+      { "key": "objectPrefix", "label": "Prefix Folder", "desc": "Subfolder penyimpanan di dalam bucket." },
+      { "key": "imageQuality", "label": "Kualitas Kompresi", "desc": "Kualitas kompresi foto JPEG (10-100, default 85)." }
+    ],
+    "tips": "Output node menghasilkan URL publik/presigned aman yang dapat langsung disematkan pada pesan notifikasi atau database ERP."
+  },
+  "notification_dispatcher": {
+    "concept": "Node pengiriman notifikasi multi-kanal instan yang menyebarkan pesan peringatan dan foto bukti kejadian ke Telegram Bot, Slack Channel, WhatsApp Business API, atau Webhook dengan jeda pendingin (cooldown throttling).",
+    "diagram": "[ Alarm / Security Event ] ──▶ [ Notification Dispatcher ] ──▶ [ Telegram / Slack / WA ]",
+    "steps": [
+      "Pilih saluran notifikasi utama (Telegram, Slack, WhatsApp, atau Webhook).",
+      "Masukkan kredensial Bot Token dan ID Tujuan (Chat ID / Channel / Nomor WhatsApp).",
+      "Sesuaikan template pesan dengan placeholder variabel dinamis seperti {event.type} atau {timestamp}.",
+      "Aktifkan lampiran foto (Attach Image) agar penerima menerima gambar frame kejadian secara visual.",
+      "Atur jeda cooldown untuk mencegah spamming saat kejadian berlangsung terus menerus."
+    ],
+    "params": [
+      { "key": "channel", "label": "Saluran Notifikasi", "desc": "Media perpesanan instan (telegram, slack, whatsapp, webhook)." },
+      { "key": "destinationId", "label": "ID Tujuan / Chat ID", "desc": "Target penerima pesan (Chat ID / Channel / Nomor HP)." },
+      { "key": "botToken", "label": "Token Bot API", "desc": "Kunci otentikasi bot pengirim pesan." },
+      { "key": "messageTemplate", "label": "Format Pesan", "desc": "Template teks pesan dengan tag dinamis." },
+      { "key": "attachImage", "label": "Sertakan Foto", "desc": "Kirimkan tangkapan layar frame kejadian sebagai lampiran." },
+      { "key": "cooldownSeconds", "label": "Jeda Cooldown (Detik)", "desc": "Durasi jeda antar notifikasi untuk mencegah banjir pesan." }
+    ],
+    "tips": "Gunakan template pesan yang ringkas dan jelas sehingga petugas patroli lapangan dapat langsung bertindak cepat saat alarm berbunyi."
+  },
+  "ptz_controller": {
+    "concept": "Node pengendali motor kamera fisik PTZ (Pan-Tilt-Zoom) melalui protokol standar ONVIF Continuous Move untuk melacak objek bergerak (Auto-Following) dan menjaganya tetap berada di titik tengah frame inspeksi.",
+    "diagram": "[ Object Tracker ] ──▶ [ PTZ Controller (ONVIF) ] ──▶ [ Hardware PTZ Camera ]",
+    "steps": [
+      "Hubungkan input dari node Object Tracker agar koordinat pergerakan objek terdeteksi stabil.",
+      "Masukkan alamat IP kamera fisik PTZ serta nomor port protokol ONVIF.",
+      "Tentukan targetClass yang ingin diikuti kamera secara otomatis (misal: person atau forklift).",
+      "Atur Deadzone Percent sebagai batas toleransi agar motor kamera tidak bergetar saat target hampir di tengah.",
+      "Sesuaikan kecepatan Pan (horizontal) dan Tilt (vertikal) sesuai kelincahan pergerakan objek di lapangan."
+    ],
+    "params": [
+      { "key": "cameraIp", "label": "Alamat IP Kamera PTZ", "desc": "IP Address kamera pengawas di jaringan LAN." },
+      { "key": "onvifPort", "label": "Port Layanan ONVIF", "desc": "Port ONVIF kamera (default 80)." },
+      { "key": "targetClass", "label": "Target Kelas Objek", "desc": "Kelas objek yang akan diikuti arah geraknya." },
+      { "key": "deadzonePercent", "label": "Toleransi Deadzone (%)", "desc": "Ambang batas toleransi tengah frame sebelum kamera berputar." },
+      { "key": "panSpeed", "label": "Kecepatan Pan", "desc": "Faktor pengali kecepatan rotasi horizontal kamera (0.0 - 1.0)." },
+      { "key": "tiltSpeed", "label": "Kecepatan Tilt", "desc": "Faktor pengali kecepatan kemiringan vertikal kamera (0.0 - 1.0)." }
+    ],
+    "tips": "Deadzone 15% (0.15) sangat ideal untuk menjaga kestabilan video rekaman tanpa hentakan motor kamera yang kasar."
   }
 };
 

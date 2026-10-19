@@ -729,7 +729,8 @@ def _process_track_event_nodes(
             "zone_activity_timer", "zone_exit_event", "multi_zone_occupancy",
             "distance_measurement", "size_measurement", "camera_focus", "auto_rotate_edges",
             "overlap_analysis", "velocity_calculator", "path_deviation", "delta_filter",
-            "detections_difference"
+            "detections_difference", "data_aggregator", "csv_formatter", "s3_sink",
+            "notification_dispatcher", "ptz_controller"
         ) or not project_node.get("enabled", True):
             continue
         project_id = str(project_node.get("id") or "")
@@ -787,6 +788,28 @@ def _process_track_event_nodes(
             diff_result, diff_event = compare_detections_difference(candidates, None, project_node.get("config", {}), state)
             if diff_event:
                 extra_results.append(diff_event)
+        elif p_type == "data_aggregator":
+            from data_aggregation import aggregate_events
+            state = event_runtime.setdefault(project_id, {})
+            summary = aggregate_events(extra_results, project_node.get("config", {}), state, now)
+        elif p_type == "csv_formatter":
+            from data_aggregation import format_events_as_csv
+            if extra_results:
+                csv_line, out_path = format_events_as_csv(extra_results, project_node.get("config", {}))
+        elif p_type == "s3_sink":
+            from cloud_sinks import upload_to_s3
+            if extra_results and project_node.get("config", {}).get("endpointUrl"):
+                upload_res = upload_to_s3(frame, None, {"events": extra_results}, project_node.get("config", {}))
+        elif p_type == "notification_dispatcher":
+            from cloud_sinks import dispatch_notification
+            state = event_runtime.setdefault(project_id, {})
+            for ev in extra_results:
+                dispatch_res = dispatch_notification(ev, frame, project_node.get("config", {}), state)
+        elif p_type == "ptz_controller":
+            from ptz_controller import calculate_ptz_velocity
+            state = event_runtime.setdefault(project_id, {})
+            f_size = (frame.shape[1], frame.shape[0]) if hasattr(frame, "shape") else (1920, 1080)
+            ptz_cmd = calculate_ptz_velocity(tracked or candidates, f_size, project_node.get("config", {}), state)
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
 
