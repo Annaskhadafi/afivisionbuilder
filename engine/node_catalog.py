@@ -392,6 +392,11 @@ TRACKER_CONFIG_DEFAULTS = {
     "ocSortMinHits": 1,
     "ocSortDeltaT": 3,
     "ocSortInertia": 0.2,
+    # Track stabilization & class consistency
+    "enableClassLock": True,
+    "classLockWindow": 10,
+    "enableSmoothing": True,
+    "smoothingAlpha": 0.7,
     # Settings shared by every tracker.
     "batchSize": 1,
     "classAgnostic": False,
@@ -424,6 +429,14 @@ def migrate_tracker_config(config: dict) -> None:
         }.items():
             if config.get(key) == old_default:
                 config[key] = TRACKER_CONFIG_DEFAULTS[key]
+    if "enableClassLock" not in config:
+        config["enableClassLock"] = TRACKER_CONFIG_DEFAULTS["enableClassLock"]
+    if "classLockWindow" not in config:
+        config["classLockWindow"] = TRACKER_CONFIG_DEFAULTS["classLockWindow"]
+    if "enableSmoothing" not in config:
+        config["enableSmoothing"] = TRACKER_CONFIG_DEFAULTS["enableSmoothing"]
+    if "smoothingAlpha" not in config:
+        config["smoothingAlpha"] = TRACKER_CONFIG_DEFAULTS["smoothingAlpha"]
     for key in OBSOLETE_TRACKER_CONFIG_KEYS:
         config.pop(key, None)
     config["trackerConfigVersion"] = TRACKER_CONFIG_VERSION

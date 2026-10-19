@@ -10,100 +10,120 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand" id="brandLogoHome" role="button" tabindex="0" title="Back to Projects Hub">
-      <span class="brand-mark" title="Afi Vision Builder">
-        <svg class="icon-svg icon-md" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
-      </span>
-      <div>
-        <strong>Afi Vision Builder</strong>
-        <small class="version-tag">v1.0.5-beta.127</small>
+    <div class="topbar-left">
+      <div class="brand" id="brandLogoHome" role="button" tabindex="0" title="Back to Projects Hub">
+        <span class="brand-mark" title="Afi Vision Builder">
+          <svg class="icon-svg icon-md" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+        </span>
+        <div class="brand-text-wrap">
+          <strong class="brand-name">Afi Vision</strong>
+          <span class="version-tag">v1.0.5</span>
+        </div>
+      </div>
+
+      <div class="header-divider-v"></div>
+
+      <button class="button ghost project-nav-btn" id="projectSwitcherBtn" type="button" title="Back to Projects Hub">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span>Project ▾</span>
+      </button>
+
+      <div class="project-title topbar-project-pill" id="topbarProjectBreadcrumb">
+        <span id="projectName" class="project-name-label">Loading project</span>
+        <button class="rename-button" id="renameProject" title="Rename project" aria-label="Rename project">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+        </button>
+        <span class="breadcrumb-sep">•</span>
+        <span id="breadcrumbStatePill" class="status-indicator-pill">• Stopped</span>
+        <span id="dirty" class="dirty" hidden>Unsaved</span>
       </div>
     </div>
 
-    <button class="button ghost project-nav-btn" id="projectSwitcherBtn" type="button" title="Back to Projects Hub">
-      <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-      <span>Project ▾</span>
-    </button>
-
-    <div class="project-title" id="topbarProjectBreadcrumb">
-      <span id="projectName">Loading project</span>
-      <button class="rename-button" id="renameProject" title="Rename project" aria-label="Rename project">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-      </button>
-      <span class="breadcrumb-sep">&gt;</span>
-      <span id="breadcrumbStatePill" class="status-indicator-pill">• Stopped</span>
-      <span id="dirty" class="dirty" hidden>Unsaved</span>
+    <div class="topbar-center">
+      <nav class="main-nav-tabs" id="topbarNavTabs" aria-label="Main Navigation">
+        <button class="nav-tab active" id="tabStudio" type="button" title="Workflow Studio Canvas">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          <span>Studio</span>
+        </button>
+        <button class="nav-tab" id="tabLiveCameras" type="button" title="Monitoring Multi-Kamera (8 CCTV)">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          <span>Live Cameras</span>
+          <span class="nav-badge" id="liveCamerasOnlineBadge">8 Online</span>
+        </button>
+        <button class="nav-tab" id="tabSessions" type="button" title="Rekap Durasi Sesi Workshop (Bay 1-5)">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Sessions</span>
+        </button>
+        <button class="nav-tab" id="tabWarehouse" type="button" title="Log Kejadian Keluar Gerbang Warehouse">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span>Warehouse</span>
+        </button>
+      </nav>
     </div>
 
-    <nav class="main-nav-tabs" id="topbarNavTabs" aria-label="Main Navigation">
-      <button class="nav-tab active" id="tabStudio" type="button" title="Workflow Studio Canvas">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-        <span>Workflow Studio</span>
-      </button>
-      <button class="nav-tab" id="tabLiveCameras" type="button" title="Monitoring Multi-Kamera (8 CCTV)">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-        <span>Live Cameras</span>
-        <span class="nav-badge" id="liveCamerasOnlineBadge">8 Online</span>
-      </button>
-      <button class="nav-tab" id="tabSessions" type="button" title="Rekap Durasi Sesi Workshop (Bay 1-5)">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        <span>Workshop Sessions</span>
-      </button>
-      <button class="nav-tab" id="tabWarehouse" type="button" title="Log Kejadian Keluar Gerbang Warehouse">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        <span>Warehouse Events</span>
-      </button>
-    </nav>
+    <div class="topbar-right">
+      <div class="top-actions" id="topbarProjectActions">
+        <div class="primary-flow-btns">
+          <button class="button run" id="runBtn" title="Run workflow pipeline">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+            <span>Run</span>
+          </button>
+          <button class="button stop" id="stopBtn" title="Stop running workflow">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>
+            <span>Stop</span>
+          </button>
+          <button class="button primary" id="saveBtn" title="Save changes to project">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
+            <span>Save</span>
+          </button>
+        </div>
 
-    <div class="top-actions" id="topbarProjectActions">
-      <button class="button run" id="runBtn" title="Run workflow pipeline">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-        <span>Run</span>
-      </button>
-      <button class="button stop" id="stopBtn" title="Stop running workflow">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2"/></svg>
-        <span>Stop</span>
-      </button>
-      <button class="button primary" id="saveBtn" title="Save changes to project">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
-        <span>Save</span>
-      </button>
-      <button class="button ghost" id="uploadBtn" title="Upload image or video">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <span>Upload Media</span>
-      </button>
-      <button class="button ghost" id="uploadModelBtn" title="Upload AI model (.pt, .onnx, etc.)">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
-        <span>Upload Model</span>
-      </button>
-      <button class="button ghost" id="templatesBtn" title="Choose from workflow templates">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/></svg>
-        <span>Templates</span>
-      </button>
-      <button class="button ghost" id="importBtn" title="Import workflow JSON">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span>Import</span>
-      </button>
-      <button class="button ghost" id="exportBtn" title="Export workflow JSON">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <span>Export</span>
-      </button>
-    </div>
+        <div class="secondary-flow-btns">
+          <button class="button ghost header-action-btn" id="uploadBtn" title="Upload image or video">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Media</span>
+          </button>
+          <button class="button ghost header-action-btn" id="uploadModelBtn" title="Upload AI model (.pt, .onnx, etc.)">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+            <span>Model</span>
+          </button>
+          <button class="button ghost header-action-btn" id="templatesBtn" title="Choose from workflow templates">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/></svg>
+            <span>Templates</span>
+          </button>
+          <div class="header-more-wrap">
+            <button class="button ghost header-action-btn header-more-btn" id="topbarMoreBtn" title="More options" type="button">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+            </button>
+            <div class="header-more-dropdown" id="topbarMoreDropdown" hidden>
+              <button class="dropdown-item" id="importBtn" title="Import workflow JSON" type="button">
+                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Import Workflow</span>
+              </button>
+              <button class="dropdown-item" id="exportBtn" title="Export workflow JSON" type="button">
+                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>Export Workflow</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-    <!-- Hub Header Profile & Settings Actions -->
-    <div class="hub-header-actions" id="hubHeaderActions">
-      <button class="icon-button" id="hubBellBtn" title="Notifications" type="button">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-      </button>
-      <button class="button ghost hub-header-btn" id="hubSettingsBtn" title="Settings" type="button">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        <span>Settings</span>
-      </button>
-      <button class="button ghost hub-header-btn" id="hubHelpBtn" title="Help" type="button">
-        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <span>Help</span>
-      </button>
-      <div class="user-avatar-badge" title="User Profile: AN">AN</div>
+      <!-- Universal Header Actions & Profile (Always Visible) -->
+      <div class="hub-header-actions" id="hubHeaderActions">
+        <button class="icon-button header-util-btn" id="hubBellBtn" title="Notifications" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        </button>
+        <button class="button ghost hub-header-btn header-util-btn" id="hubSettingsBtn" title="Settings" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Settings</span>
+        </button>
+        <button class="button ghost hub-header-btn header-util-btn" id="hubHelpBtn" title="Help" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Help</span>
+        </button>
+        <div class="user-avatar-badge" title="User Profile: AN">AN</div>
+      </div>
     </div>
     <input id="fileInput" type="file" hidden>
     <input id="modelInput" type="file" accept=".pt,.pth,.ckpt,.onnx,.engine,.plan" hidden>
@@ -716,6 +736,158 @@
           <button class="btn-modal-cancel" id="cancelCameraSettingsBtn" type="button">Batal</button>
           <button class="btn-modal-save" id="saveCameraSettingsBtn" type="button">Simpan Pengaturan</button>
         </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- System & Studio Settings Modal -->
+  <dialog id="systemSettingsModal" class="modal">
+    <div class="modal-box modal-box-md settings-modal-box">
+      <div class="modal-head">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="settings-icon-badge">
+            <svg class="icon-svg icon-md" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </div>
+          <div>
+            <h3 style="margin:0;font-size:16px;font-weight:700;color:#0f172a;letter-spacing:-0.01em">Studio & Pipeline Settings</h3>
+            <span style="font-size:12px;color:#64748b">Konfigurasi hardware runtime AI, API keys VLM, dan integrasi output</span>
+          </div>
+        </div>
+        <button class="icon-button" id="closeSystemSettingsModal" type="button" aria-label="Tutup">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="settings-modal-tabs">
+        <button class="settings-nav-tab active" data-tab="general" type="button">General & Engine</button>
+        <button class="settings-nav-tab" data-tab="vlm" type="button">AI & VLM Keys</button>
+        <button class="settings-nav-tab" data-tab="storage" type="button">Storage & ERP</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Tab 1: General & Engine -->
+        <div class="settings-tab-panel" id="settingsPanelGeneral">
+          <div class="field">
+            <label for="settingDevice">Inference Acceleration Device</label>
+            <select id="settingDevice">
+              <option value="auto">Auto (CUDA if available, else CPU)</option>
+              <option value="cpu">CPU Only (Server / Intel / AMD)</option>
+              <option value="cuda">NVIDIA GPU (CUDA TensorRT / FP16)</option>
+            </select>
+            <small style="color:#64748b;font-size:11px">Akselerasi hardware untuk deteksi objek YOLO, RF-DETR, dan segmentasi SAM3.</small>
+          </div>
+
+          <div class="field">
+            <label for="settingMaxFps">Target Execution Frame Rate (Max FPS)</label>
+            <input type="number" id="settingMaxFps" value="30" min="1" max="120">
+            <small style="color:#64748b;font-size:11px">Throttle FPS kamera untuk menyeimbangkan beban multi-stream pada CPU 32GB RAM.</small>
+          </div>
+
+          <div class="field-check" style="margin-top:14px">
+            <input type="checkbox" id="settingAutoSave" checked>
+            <label for="settingAutoSave">Auto-Save Workflow Studio secara berkala</label>
+          </div>
+        </div>
+
+        <!-- Tab 2: AI & VLM Keys -->
+        <div class="settings-tab-panel" id="settingsPanelVlm" hidden>
+          <div class="field">
+            <label for="settingVlmProvider">VLM Inference Provider</label>
+            <select id="settingVlmProvider">
+              <option value="9router">9router (Standard CX GPT-5.6 / Qwen)</option>
+              <option value="openai">OpenAI Official (GPT-4o Vision)</option>
+              <option value="ollama">Local Ollama / Self-Hosted</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="settingApiKey">Router / OpenAI API Key</label>
+            <input type="password" id="settingApiKey" placeholder="sk-...">
+            <small style="color:#64748b;font-size:11px">Tersimpan aman di local browser runtime (fallback ke .env server).</small>
+          </div>
+
+          <div class="field">
+            <label for="settingBaseUrl">Router Base URL</label>
+            <input type="text" id="settingBaseUrl" placeholder="https://9router.chitraparatama.com/v1">
+          </div>
+
+          <div class="field">
+            <label for="settingOllamaUrl">Local Ollama Endpoint</label>
+            <input type="text" id="settingOllamaUrl" placeholder="http://127.0.0.1:11434">
+          </div>
+        </div>
+
+        <!-- Tab 3: Storage & ERP -->
+        <div class="settings-tab-panel" id="settingsPanelStorage" hidden>
+          <div class="field">
+            <label for="settingOutputsDir">Snapshot & Event Media Directory</label>
+            <input type="text" id="settingOutputsDir" value="data/outputs" readonly>
+            <small style="color:#64748b;font-size:11px">Direktori penyimpanan lokal untuk bukti crop gambar & video clip insiden.</small>
+          </div>
+
+          <div class="field">
+            <label for="settingErpWebhook">Default ERP / Webhook Integration Endpoint</label>
+            <input type="text" id="settingErpWebhook" placeholder="http://127.0.0.1:8765/api/mock/erp/receive">
+            <small style="color:#64748b;font-size:11px">Alamat webhook default untuk pengiriman sparse event keluar-masuk & sesi timer.</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions-right" style="padding:16px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;border-radius:0 0 12px 12px">
+        <button class="button secondary" id="cancelSystemSettingsBtn" type="button">Batal</button>
+        <button class="button primary" id="saveSystemSettingsBtn" type="button">
+          <span>Simpan Pengaturan</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Project Rename Modal (Replaces window.prompt) -->
+  <dialog id="projectRenameModal" class="modal">
+    <div class="modal-box modal-box-sm">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">PROJECT ACTION</span>
+          <h2>Ubah Nama Proyek</h2>
+        </div>
+        <button class="icon-button" id="closeProjectRenameModal" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="projectRenameForm" class="modal-form" style="padding:16px 20px">
+        <input type="hidden" id="renameProjectId" value="">
+        <div class="field">
+          <label for="renameProjectInput">Nama Proyek Baru</label>
+          <input type="text" id="renameProjectInput" required autocomplete="off">
+        </div>
+        <div class="modal-actions-right" style="margin-top:16px">
+          <button class="button secondary" type="button" id="cancelProjectRenameBtn">Batal</button>
+          <button class="button primary" type="submit" id="submitProjectRenameBtn">Simpan Nama</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Project Delete Modal (Replaces window.confirm) -->
+  <dialog id="projectDeleteModal" class="modal">
+    <div class="modal-box modal-box-sm">
+      <div class="modal-head" style="border-bottom:1px solid #fee2e2;background:#fff5f5">
+        <div>
+          <span class="eyebrow" style="color:#ef4444">PERINGATAN</span>
+          <h2 style="color:#b91c1c">Hapus Proyek?</h2>
+        </div>
+        <button class="icon-button" id="closeProjectDeleteModal" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="padding:20px;color:#334155;font-size:13.5px;line-height:1.5">
+        <p>Apakah Anda yakin ingin menghapus proyek <strong id="deleteProjectNameTarget"></strong>?</p>
+        <p style="color:#64748b;font-size:12px;margin-top:8px">Tindakan ini permanen dan seluruh alur kerja grafis di dalamnya tidak dapat dikembalikan.</p>
+        <input type="hidden" id="deleteProjectIdTarget" value="">
+      </div>
+      <div class="modal-actions-right" style="padding:14px 20px;border-top:1px solid #f1f5f9;background:#f8fafc">
+        <button class="button secondary" type="button" id="cancelProjectDeleteBtn">Batal</button>
+        <button class="button stop" type="button" id="confirmProjectDeleteBtn" style="background:#ef4444;color:#fff;border-color:#dc2626">Hapus Permanen</button>
       </div>
     </div>
   </dialog>

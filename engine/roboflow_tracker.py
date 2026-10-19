@@ -10,6 +10,7 @@ import importlib.metadata
 import inspect
 import math
 import warnings
+from collections import Counter
 from pathlib import Path
 from typing import Hashable
 
@@ -107,6 +108,13 @@ class RoboflowTracker:
         self.show_lost_tracks = bool(self.config.get("showLostTracks", False))
         self.frame_rate = self._positive_float(self.config.get("trackerFrameRate", 30), 30)
         self.track_buffer = self._positive_int(self.config.get("trackBuffer", 90), 90)
+        self.enable_class_lock = bool(self.config.get("enableClassLock", True))
+        self.class_lock_window = self._positive_int(self.config.get("classLockWindow", 10), 10)
+        self.enable_smoothing = bool(self.config.get("enableSmoothing", True))
+        try:
+            self.smoothing_alpha = float(self.config.get("smoothingAlpha", 0.7))
+        except (TypeError, ValueError):
+            self.smoothing_alpha = 0.7
         self._runtimes: dict[Hashable, object] = {}
         self._global_ids: dict[tuple[Hashable, int], int] = {}
         self._track_state: dict[int, dict] = {}
@@ -393,16 +401,17 @@ class RoboflowTracker:
                 None,
             )
             library_age = max(1, int(getattr(tracklet, "age", 0)) + 1)
-            self._update_track_state(
+            smoothed_box = self._update_track_state(
                 global_id,
                 detection,
                 box,
                 score,
                 library_age=library_age,
             )
+            effective_box = smoothed_box if self.enable_smoothing else box
             outputs.append((
                 source_index,
-                self._decorate_detection(global_id, detection, box, score, 0),
+                self._decorate_detection(global_id, detection, effective_box, score, 0),
             ))
             matches.add((scope, local_id))
         return outputs, matches
@@ -437,12 +446,13 @@ class RoboflowTracker:
                 lost = max(1, int(getattr(tracklet, "time_since_update", 1)))
                 detection = dict(state["detection"])
                 box = [float(value) for value in predicted.xyxy[row]]
+                effective_box = state.get("smoothed_box", box) if self.enable_smoothing else box
                 outputs.append((
                     len(self._track_state) + lost_order,
                     self._decorate_detection(
                         global_id,
                         detection,
-                        box,
+                        effective_box,
                         float(state["score"]),
                         lost,
                     ),
@@ -460,6 +470,15 @@ class RoboflowTracker:
     ) -> dict:
         state = self._track_state[global_id]
         result = dict(detection)
+
+        # Track Class Lock: majority voting across rolling history
+        if self.enable_class_lock and state.get("class_history"):
+            history = state["class_history"]
+            if history:
+                locked_class = Counter(history).most_common(1)[0][0]
+                result["rawClass"] = result.get("class", "")
+                result["class"] = locked_class
+
         result["bbox"] = [
             box[0],
             box[1],
@@ -501,17 +520,53 @@ class RoboflowTracker:
         score: float,
         *,
         library_age: int,
-    ) -> None:
-        center = [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2]
+    ) -> list[float]:
+        is_new = global_id not in self._track_state
         state = self._track_state.setdefault(
             global_id,
-            {"hits": 0, "trail": [], "detection": {}, "score": score},
+            {
+                "hits": 0,
+                "trail": [],
+                "detection": {},
+                "score": score,
+                "class_history": [],
+                "smoothed_box": list(box),
+            },
         )
         state["hits"] = max(int(state["hits"]) + 1, library_age)
         state["detection"] = dict(detection)
         state["score"] = score
+
+        # Class History and Locking
+        raw_class = str(detection.get("class", ""))
+        if raw_class:
+            history = state.setdefault("class_history", [])
+            history.append(raw_class)
+            window = max(1, self.class_lock_window)
+            if len(history) > window:
+                del history[:-window]
+
+        # Bounding Box Stabilizer (EMA)
+        if self.enable_smoothing:
+            if is_new or "smoothed_box" not in state:
+                smoothed_box = list(box)
+            else:
+                prev_box = state["smoothed_box"]
+                alpha = max(0.01, min(1.0, self.smoothing_alpha))
+                smoothed_box = [
+                    float(alpha * cur + (1.0 - alpha) * prev)
+                    for cur, prev in zip(box, prev_box)
+                ]
+        else:
+            smoothed_box = list(box)
+
+        state["smoothed_box"] = smoothed_box
+
+        center = [(smoothed_box[0] + smoothed_box[2]) / 2, (smoothed_box[1] + smoothed_box[3]) / 2]
         state["trail"].append(center)
         del state["trail"][:-32]
+
+        return smoothed_box
 
     def _global_id(self, scope: Hashable, local_id: int) -> int:
         key = (scope, local_id)
@@ -521,7 +576,7 @@ class RoboflowTracker:
         return self._global_ids[key]
 
     def _scope_for(self, detection: dict) -> Hashable:
-        if self.class_agnostic:
+        if self.class_agnostic or self.enable_class_lock:
             return "__all__"
         return str(detection.get("class", "object"))
 

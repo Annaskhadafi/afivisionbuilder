@@ -1291,11 +1291,31 @@
     trackerConfigVersion: {
       text: 'Versi internal konfigurasi modul pelacakan (tracker).',
       guide: 'Digunakan untuk migrasi otomatis skema parameter pelacak.'
+    },
+    enableClassLock: {
+      text: 'Mencegah kedipan deteksi kelas (flickering) dengan mengunci kelas mayoritas sepanjang track ID.',
+      guide: 'Sangat disarankan aktif terutama saat objek mengalami oklusi sebagian.'
+    },
+    classLockWindow: {
+      text: 'Jumlah frame riwayat kelas untuk voting mayoritas label objek.',
+      guide: 'Nilai default 10 frame memberikan stabilitas tinggi tanpa mengorbankan adaptabilitas.'
+    },
+    enableSmoothing: {
+      text: 'Stabilisasi getaran bounding box objek menggunakan Exponential Moving Average (EMA).',
+      guide: 'Menghaluskan kalkulasi koordinat, dwell time, dan pergerakan objek.'
+    },
+    smoothingAlpha: {
+      text: 'Faktor kehalusan filter EMA (0.01 - 1.0).',
+      guide: 'Nilai 0.7 memberikan respons cepat dengan getaran minimal. Nilai lebih rendah lebih halus namun ada lag.'
     }
   };
 
   const INDO_FIELD_LABELS = {
     trackerConfigVersion: 'Versi Konfigurasi Tracker',
+    enableClassLock: 'Kunci Kelas Objek (Class Lock)',
+    classLockWindow: 'Jendela Voting Kelas (Frames)',
+    enableSmoothing: 'Stabilisasi Kotak Objek (EMA)',
+    smoothingAlpha: 'Faktor Kehalusan EMA',
     absenceGraceSeconds: 'Toleransi Hilang Sebelum Event Keluar (Detik)',
     aggregateHourly: 'Agregasi Rekap per Jam (Hourly)',
     alertOnCapacityExceeded: 'Beri Peringatan Jika Melebihi Kapasitas',
@@ -1590,40 +1610,113 @@
     });
   }
 
+  function openProjectRenameModal(projectId, currentName) {
+    const modal = $('#projectRenameModal');
+    if (!modal) return;
+    $('#renameProjectId').value = projectId;
+    const input = $('#renameProjectInput');
+    input.value = currentName || '';
+    modal.showModal();
+    setTimeout(() => { input.focus(); input.select(); }, 50);
+  }
+
+  function closeProjectRenameModal() {
+    const modal = $('#projectRenameModal');
+    if (modal) modal.close();
+  }
+
+  function openProjectDeleteModal(projectId, currentName) {
+    const modal = $('#projectDeleteModal');
+    if (!modal) return;
+    $('#deleteProjectIdTarget').value = projectId;
+    $('#deleteProjectNameTarget').textContent = `"${currentName || 'Untitled'}"`;
+    modal.showModal();
+  }
+
+  function closeProjectDeleteModal() {
+    const modal = $('#projectDeleteModal');
+    if (modal) modal.close();
+  }
+
   async function renameProject() {
     if (!state.project) return;
-    const currentName = state.project.name || 'Vision Workflow';
-    const newName = prompt('Enter new project name:', currentName);
-    if (!newName || !newName.trim() || newName.trim() === currentName) return;
-
-    try {
-      const data = await api(`/api/projects/${encodeURIComponent(state.project.id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName.trim(), workflow: state.workflow })
-      });
-      state.project = data.project;
-      $('#projectName').textContent = state.project.name;
-      await loadProjects();
-      toast('Project renamed');
-    } catch (e) {
-      toast(e.message, true);
-    }
+    openProjectRenameModal(state.project.id, state.project.name);
   }
 
   async function deleteProject(id, name) {
-    if (!confirm(`Are you sure you want to delete project "${name}"? This cannot be undone.`)) return;
-    try {
-      await api(`/api/projects/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      toast('Project deleted');
-      if (state.project?.id === id) {
-        state.project = null;
-        state.workflow = { nodes: [], edges: [] };
-      }
-      await loadProjects();
-    } catch (e) {
-      toast(e.message, true);
+    openProjectDeleteModal(id, name);
+  }
+
+  function showProjectContextMenu(anchorBtn, project) {
+    document.querySelectorAll('.hub-project-dropdown-menu').forEach(el => el.remove());
+
+    const menu = document.createElement('div');
+    menu.className = 'hub-project-dropdown-menu';
+    menu.innerHTML = `
+      <button class="hub-dropdown-item open-opt" type="button">
+        <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        <span>Buka alur kerja (Open)</span>
+      </button>
+      <button class="hub-dropdown-item rename-opt" type="button">
+        <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+        <span>Ubah nama (Edit)</span>
+      </button>
+      <div class="hub-dropdown-divider"></div>
+      <button class="hub-dropdown-item delete-opt danger" type="button">
+        <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+        <span>Hapus proyek (Delete)</span>
+      </button>
+    `;
+
+    menu.querySelector('.open-opt').onclick = (e) => {
+      e.stopPropagation();
+      menu.remove();
+      openProjectWorkflow(project.id);
+    };
+
+    menu.querySelector('.rename-opt').onclick = (e) => {
+      e.stopPropagation();
+      menu.remove();
+      openProjectRenameModal(project.id, project.name);
+    };
+
+    menu.querySelector('.delete-opt').onclick = (e) => {
+      e.stopPropagation();
+      menu.remove();
+      openProjectDeleteModal(project.id, project.name);
+    };
+
+    document.body.appendChild(menu);
+
+    const rect = anchorBtn.getBoundingClientRect();
+    const menuWidth = 190;
+    let left = rect.right - menuWidth;
+    if (left < 10) left = rect.left;
+    let top = rect.bottom + 6;
+    if (top + 130 > window.innerHeight) {
+      top = Math.max(10, rect.top - 130);
     }
+    menu.style.left = `${left + window.scrollX}px`;
+    menu.style.top = `${top + window.scrollY}px`;
+
+    const closeHandler = (evt) => {
+      if (!menu.contains(evt.target) && evt.target !== anchorBtn) {
+        menu.remove();
+        document.removeEventListener('click', closeHandler);
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    const escHandler = (evt) => {
+      if (evt.key === 'Escape') {
+        menu.remove();
+        document.removeEventListener('click', closeHandler);
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener('click', closeHandler);
+      document.addEventListener('keydown', escHandler);
+    }, 10);
   }
 
   function escapeHtml(str) {
@@ -1695,19 +1788,7 @@
           card.querySelector('.hub-project-title').onclick = () => openProjectWorkflow(p.id);
           card.querySelector('.hub-card-menu-btn').onclick = (e) => {
             e.stopPropagation();
-            const action = prompt(`Project "${p.name}":\nType "rename" to change name, or "delete" to remove:`, 'rename');
-            if (action === 'rename') {
-              const newName = prompt('New project name:', p.name);
-              if (newName && newName.trim()) {
-                api(`/api/projects/${encodeURIComponent(p.id)}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ name: newName.trim() })
-                }).then(() => loadProjects());
-              }
-            } else if (action === 'delete') {
-              deleteProject(p.id, p.name);
-            }
+            showProjectContextMenu(e.currentTarget, p);
           };
 
           grid.append(card);
@@ -4366,6 +4447,8 @@
     trackBuffer: { min: 1, max: 180, step: 1, isSlider: true, unit: 'frame' },
     minimumConsecutiveFrames: { min: 1, max: 10, step: 1, isSlider: true, unit: 'frame' },
     trackerFrameRate: { min: 1, max: 60, step: 1, isSlider: true, unit: 'fps' },
+    classLockWindow: { min: 2, max: 30, step: 1, isSlider: true, unit: 'frame' },
+    smoothingAlpha: { min: 0.05, max: 1.0, step: 0.05, isSlider: true, unit: '' },
     topK: { min: 1, max: 10, step: 1, isSlider: true, unit: '' },
     detectEveryNFrames: { min: 1, max: 30, step: 1, isSlider: true, unit: 'frame' },
     batchSize: { min: 1, max: 32, step: 1, isSlider: true, unit: '' },
@@ -8965,11 +9048,11 @@
     const projectSwitcherBtn = $('#projectSwitcherBtn');
     const topbarNavTabs = $('#topbarNavTabs');
 
-    if (hubActions) hubActions.hidden = !isHub;
+    if (hubActions) hubActions.hidden = false;
     if (projectBreadcrumb) projectBreadcrumb.hidden = isHub;
     if (projectActions) projectActions.hidden = isHub;
     if (projectSwitcherBtn) projectSwitcherBtn.hidden = isHub;
-    if (topbarNavTabs) topbarNavTabs.hidden = false;
+    if (topbarNavTabs) topbarNavTabs.hidden = (viewName === 'studio');
 
     if (viewName === 'projectsHub') {
       renderProjectsHub();
@@ -9871,10 +9954,131 @@
     setupCanvasPan();
   }
 
+  function initSystemSettings() {
+    const modal = $('#systemSettingsModal');
+    if (!modal) return;
+
+    // Load initial settings
+    const device = localStorage.getItem('visonode_setting_device') || 'auto';
+    const maxFps = localStorage.getItem('visonode_setting_max_fps') || '30';
+    const autoSave = localStorage.getItem('visonode_setting_auto_save') !== 'false';
+    const vlmProvider = localStorage.getItem('visonode_setting_vlm_provider') || '9router';
+    const apiKey = localStorage.getItem('visonode_setting_api_key') || '';
+    const baseUrl = localStorage.getItem('visonode_setting_base_url') || '';
+    const ollamaUrl = localStorage.getItem('visonode_setting_ollama_url') || 'http://127.0.0.1:11434';
+    const erpWebhook = localStorage.getItem('visonode_setting_erp_webhook') || '';
+
+    if ($('#settingDevice')) $('#settingDevice').value = device;
+    if ($('#settingMaxFps')) $('#settingMaxFps').value = maxFps;
+    if ($('#settingAutoSave')) $('#settingAutoSave').checked = autoSave;
+    if ($('#settingVlmProvider')) $('#settingVlmProvider').value = vlmProvider;
+    if ($('#settingApiKey')) $('#settingApiKey').value = apiKey;
+    if ($('#settingBaseUrl')) $('#settingBaseUrl').value = baseUrl;
+    if ($('#settingOllamaUrl')) $('#settingOllamaUrl').value = ollamaUrl;
+    if ($('#settingErpWebhook')) $('#settingErpWebhook').value = erpWebhook;
+
+    // Wire up all settings buttons
+    document.querySelectorAll('#hubSettingsBtn, .header-settings-btn').forEach(btn => {
+      btn.onclick = () => modal.showModal();
+    });
+
+    $('#closeSystemSettingsModal')?.addEventListener('click', () => modal.close());
+    $('#cancelSystemSettingsBtn')?.addEventListener('click', () => modal.close());
+
+    // Settings tabs
+    modal.querySelectorAll('.settings-nav-tab').forEach(tabBtn => {
+      tabBtn.onclick = () => {
+        modal.querySelectorAll('.settings-nav-tab').forEach(t => t.classList.remove('active'));
+        tabBtn.classList.add('active');
+        const tab = tabBtn.dataset.tab;
+        if ($('#settingsPanelGeneral')) $('#settingsPanelGeneral').hidden = (tab !== 'general');
+        if ($('#settingsPanelVlm')) $('#settingsPanelVlm').hidden = (tab !== 'vlm');
+        if ($('#settingsPanelStorage')) $('#settingsPanelStorage').hidden = (tab !== 'storage');
+      };
+    });
+
+    // Save button
+    $('#saveSystemSettingsBtn')?.addEventListener('click', () => {
+      localStorage.setItem('visonode_setting_device', $('#settingDevice')?.value || 'auto');
+      localStorage.setItem('visonode_setting_max_fps', $('#settingMaxFps')?.value || '30');
+      localStorage.setItem('visonode_setting_auto_save', $('#settingAutoSave')?.checked ? 'true' : 'false');
+      localStorage.setItem('visonode_setting_vlm_provider', $('#settingVlmProvider')?.value || '9router');
+      localStorage.setItem('visonode_setting_api_key', $('#settingApiKey')?.value || '');
+      localStorage.setItem('visonode_setting_base_url', $('#settingBaseUrl')?.value || '');
+      localStorage.setItem('visonode_setting_ollama_url', $('#settingOllamaUrl')?.value || 'http://127.0.0.1:11434');
+      localStorage.setItem('visonode_setting_erp_webhook', $('#settingErpWebhook')?.value || '');
+
+      modal.close();
+      toast('Studio & Pipeline Settings saved successfully');
+    });
+
+    // More dropdown toggle in header
+    const moreBtn = $('#topbarMoreBtn');
+    const moreDropdown = $('#topbarMoreDropdown');
+    if (moreBtn && moreDropdown) {
+      moreBtn.onclick = (e) => {
+        e.stopPropagation();
+        moreDropdown.hidden = !moreDropdown.hidden;
+      };
+      document.addEventListener('click', (e) => {
+        if (!moreBtn.contains(e.target) && !moreDropdown.contains(e.target)) {
+          moreDropdown.hidden = true;
+        }
+      });
+    }
+
+    // Project rename form
+    $('#closeProjectRenameModal')?.addEventListener('click', closeProjectRenameModal);
+    $('#cancelProjectRenameBtn')?.addEventListener('click', closeProjectRenameModal);
+    $('#projectRenameForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pId = $('#renameProjectId')?.value;
+      const newName = $('#renameProjectInput')?.value?.trim();
+      if (!pId || !newName) return;
+      try {
+        await api(`/api/projects/${encodeURIComponent(pId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName })
+        });
+        closeProjectRenameModal();
+        if (state.project?.id === pId) {
+          state.project.name = newName;
+          $('#projectName').textContent = newName;
+        }
+        await loadProjects();
+        toast('Project renamed successfully');
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+
+    // Project delete modal
+    $('#closeProjectDeleteModal')?.addEventListener('click', closeProjectDeleteModal);
+    $('#cancelProjectDeleteBtn')?.addEventListener('click', closeProjectDeleteModal);
+    $('#confirmProjectDeleteBtn')?.addEventListener('click', async () => {
+      const pId = $('#deleteProjectIdTarget')?.value;
+      if (!pId) return;
+      try {
+        await api(`/api/projects/${encodeURIComponent(pId)}`, { method: 'DELETE' });
+        closeProjectDeleteModal();
+        if (state.project?.id === pId) {
+          state.project = null;
+          state.workflow = { nodes: [], edges: [] };
+        }
+        await loadProjects();
+        toast('Project deleted');
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+  }
+
   // --- Bootstrap ---
   (async () => {
     try {
       wireEvents();
+      initSystemSettings();
       switchMainView('projectsHub');
 
       const catalog = await api('/api/catalog');

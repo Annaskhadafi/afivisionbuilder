@@ -1,0 +1,184 @@
+{
+  "nodes": [
+    {
+      "id": "input",
+      "type": "input",
+      "title": "Input",
+      "subtitle": "Camera capture",
+      "x": 80,
+      "y": 180,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "sourceType": "camera",
+        "source": 0,
+        "width": 0,
+        "height": 0,
+        "dahengOpenMode": "index",
+        "dahengIdentifier": "1",
+        "dahengTimeoutMs": 1000,
+        "dahengFrameRate": 0,
+        "dahengExposureUs": 0,
+        "dahengGain": 0,
+        "filePath": "",
+        "loop": true,
+        "frameQueueSize": 8,
+        "torchCpuThreads": 0,
+        "asyncPreview": false,
+        "dropFrames": true
+      }
+    },
+    {
+      "id": "detector",
+      "type": "detector",
+      "title": "Object Detection",
+      "subtitle": "Deteksi objek dengan model RF-DETR PyTorch, TensorRT, atau YOLO",
+      "x": 320,
+      "y": 180,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "engine": "ultralytics_yolo",
+        "threshold": 0.55,
+        "rfdetrModel": "rfdetr-nano",
+        "rfdetrCheckpoint": "",
+        "rfdetrImageSize": 0,
+        "rfdetrHalfPrecision": true,
+        "rfdetrTensorRTEngine": "",
+        "rfdetrTensorRTClasses": "",
+        "rfdetrTensorRTCudaGraph": false,
+        "rfdetrTensorRTProcess": false,
+        "rfdetrOnnxModel": "",
+        "rfdetrOnnxClasses": "",
+        "detectEveryNFrames": 1,
+        "maxDetectionFps": 0,
+        "batchSize": 1,
+        "iouThreshold": 0.45,
+        "device": "auto",
+        "customModelPath": "D:\\[01] PROJECT\\REA\\webapp\\yolov8s.pt",
+        "customClasses": "person",
+        "perClassThresholds": "",
+        "classRemap": "",
+        "modelPath": "D:\\[01] PROJECT\\REA\\webapp\\yolov8s.pt",
+        "classes": ""
+      }
+    },
+    {
+      "id": "preview",
+      "type": "preview",
+      "title": "Live Preview",
+      "subtitle": "Jendela tampilan streaming video hasil pemrosesan",
+      "x": 977,
+      "y": 98,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "showBoxes": true,
+        "showLabels": true,
+        "showMasks": true,
+        "showTrackIds": true,
+        "showTrails": true,
+        "showCounts": true,
+        "maskOpacity": 0.35,
+        "cropGridMaxItems": 16,
+        "cropGridColumns": 0,
+        "cropGridGap": 8,
+        "holdLastEvent": true,
+        "maxPreviewFps": 0,
+        "saveVideo": false,
+        "outputPath": "",
+        "outputFps": 0
+      }
+    },
+    {
+      "id": "tracker",
+      "type": "tracker",
+      "title": "Object Tracking",
+      "subtitle": "Pelacakan ID dengan ByteTrack, BoT-SORT, OC-SORT, atau C-BIoU",
+      "x": 603,
+      "y": 161,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "trackerConfigVersion": 3,
+        "algorithm": "bytetrack",
+        "trackHighThreshold": 0.45,
+        "trackLowThreshold": 0.1,
+        "newTrackThreshold": 0.5,
+        "matchThreshold": 0.1,
+        "trackBuffer": 90,
+        "minimumConsecutiveFrames": 1,
+        "trackerFrameRate": 30,
+        "botSortFirstIouThreshold": 0.2,
+        "botSortSecondIouThreshold": 0.5,
+        "botSortUnconfirmedIouThreshold": 0.3,
+        "botSortGmc": true,
+        "botSortCmcMethod": "sparseOptFlow",
+        "botSortCmcDownscale": 2,
+        "ocSortDetectionThreshold": 0.45,
+        "ocSortIouThreshold": 0.3,
+        "ocSortMaxAge": 90,
+        "ocSortMinHits": 1,
+        "ocSortDeltaT": 3,
+        "ocSortInertia": 0.2,
+        "batchSize": 1,
+        "classAgnostic": false,
+        "showLostTracks": false
+      }
+    },
+    {
+      "id": "line_counter",
+      "type": "line_counter",
+      "title": "Line Counter",
+      "subtitle": "Hitung objek melintasi garis (IN / OUT, Multi-Line)",
+      "x": 820,
+      "y": 216,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "lines": [
+          {
+            "id": "line_1",
+            "name": "Line 1",
+            "startPoint": "0.301,0.007",
+            "endPoint": "0.277,1.000",
+            "invertDirection": false,
+            "countMode": "both",
+            "lineColor": "#22c55e",
+            "inLabel": "IN",
+            "outLabel": "OUT"
+          }
+        ],
+        "startPoint": "0.301,0.007",
+        "endPoint": "0.277,1.000",
+        "triggerAnchor": "center",
+        "classes": "person",
+        "showOverlay": true,
+        "lineColor": "#22c55e",
+        "lineWidth": 2,
+        "inLabel": "IN",
+        "outLabel": "OUT",
+        "invertDirection": false,
+        "countMode": "both"
+      }
+    }
+  ],
+  "edges": [
+    [
+      "input",
+      "detector"
+    ],
+    [
+      "detector",
+      "tracker"
+    ],
+    [
+      "tracker",
+      "line_counter"
+    ],
+    [
+      "line_counter",
+      "preview"
+    ]
+  ]
+}

@@ -305,6 +305,7 @@ Dependensi: rilis awal stabil; detail perangkat/API tersedia. Output: pilot terp
 | 2026-10-18 | Audit Keamanan API Key & Sanitasi e2e.config.ts | PASS audit & E2E (`example.e2e.ts`) | `e2e.config.ts`, `.gitignore`, `docs/TASK_LIST.md`, `.e2e/report.json` | Audit menyeluruh terhadap seluruh file dan riwayat git untuk memastikan tidak ada API key atau kredensial rahasia yang ter-push: (1) Menghapus fallback string token API key 9router dari `e2e.config.ts`; (2) Menerapkan loader `.env` lokal otomatis yang aman di `e2e.config.ts` sehingga rahasia tetap berada di file `.env` lokal yang di-git ignore; (3) Memverifikasi tidak ada token `sk-` atau kredensial rahasia pada seluruh berkas yang dilacak git; (4) Pengujian otomatis E2E `example.e2e.ts` lulus 100% (PASS, 8.00s) dengan model 9router terhubung aman via environment variable. |
 | 2026-10-18 | Relokasi 19 Unit Test ke Folder 'tests/unit/' | PASS unit (115/115) & E2E (`example.e2e.ts`) | `tests/unit/`, `docs/TASK_LIST.md` | Memindahkan seluruh 19 berkas unit test Python (`test_*.py`) dari root workspace ke folder khusus `tests/unit/` agar root repository GitHub bersih dan rapi; menambahkan `tests/unit/conftest.py` dan menyesuaikan resolusi import workspace root; seluruh 115 unit test berhasil lulus 100% (PASS dalam 26.55s). |
 | 2026-10-18 | Gitignore Dokumen Internal PRD | PASS audit & E2E (`example.e2e.ts`) | `.gitignore`, `docs/TASK_LIST.md` | Menambahkan `docs/PRD.md` dan `PRD.md` ke dalam `.gitignore` serta menghapus pelacakannya dari Git (`git rm --cached docs/PRD.md`) sehingga dokumen spesifikasi internal tetap aman di laptop lokal dan tidak dipublikasikan ke GitHub. |
+| 2026-10-19 | Redesign Header, Settings Modal, Project 3-Dots Action & Track Class Lock / EMA Stabilizer | PASS backend, UI, unit (115/115) & E2E | `static/index.html`, `static/style.css`, `static/app.js`, `engine/roboflow_tracker.py`, `engine/node_catalog.py`, `tests/unit/test_tracking.py`, `task 2.md` | (1) Redesign Topbar Header menjadi 3 bagian teratur (`.topbar-left`, `.topbar-center`, `.topbar-right`) dan hilangkan horizontal scrollbar; (2) Fungsikan tombol Settings membuka `#systemSettingsModal` (Engine/Device, Max FPS throttle, API keys 9router/OpenAI/Ollama, ERP webhook endpoint); (3) Ganti browser prompt/confirm pada titik 3 (`...`) kartu project menjadi popup menu kustom (Buka Proyek, Ganti Nama / Rename modal, Hapus Proyek / Delete modal); (4) Implementasi Task 1.1 Blueprint `task 2.md`: Track Class Lock (majority voting label class sepanjang track ID) & Bounding Box Stabilizer (EMA smoothing faktor $\alpha=0.7$) pada `roboflow_tracker.py`; 115 unit test pytest lulus 100%. |
 
 ### Checks yang dapat dijalankan sesi berikutnya
 
@@ -323,6 +324,6 @@ node -c "static/app.js"
 git diff --check
 ```
 
-Hasil terbaru 18 Oktober: Dokumen internal `docs/PRD.md` telah dikeluarkan dari pelacakan Git dan ditambahkan ke `.gitignore`. File tetap aman tersimpan di komputer lokal.
+Hasil terbaru 19 Oktober: Header redesigned, Settings modal fungsional, menu titik 3 kartu proyek interaktif, dan Task 1.1 (Track Class Lock & Bounding Box Stabilizer EMA) telah diimplementasi dan lulus seluruh unit test.
 
 

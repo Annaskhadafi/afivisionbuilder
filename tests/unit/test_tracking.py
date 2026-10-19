@@ -79,6 +79,41 @@ def main():
     first = tracked(runtime.update([detection(10)], frame_id=1))[0]["trackId"]
     second = tracked(runtime.update([detection(30)], frame_id=2))[0]["trackId"]
     assert second == first
+
+    # Test Track Class Lock (majority voting against jitter)
+    class_locked_tracker = RoboflowTracker({
+        "algorithm": "bytetrack",
+        "minimumConsecutiveFrames": 1,
+        "enableClassLock": True,
+        "classLockWindow": 5,
+    })
+    d1 = class_locked_tracker.update([{"bbox": [10, 10, 20, 20], "score": 0.9, "class": "car"}], frame_id=1)
+    d2 = class_locked_tracker.update([{"bbox": [11, 10, 20, 20], "score": 0.9, "class": "car"}], frame_id=2)
+    # 3rd frame has label jitter to "truck"
+    d3 = class_locked_tracker.update([{"bbox": [12, 10, 20, 20], "score": 0.9, "class": "truck"}], frame_id=3)
+    tracked_d3 = tracked(d3)[0]
+    assert tracked_d3["class"] == "car", f"Expected locked class 'car', got {tracked_d3['class']}"
+    assert tracked_d3["rawClass"] == "truck", f"Expected rawClass 'truck', got {tracked_d3.get('rawClass')}"
+
+    # Test Bounding Box Stabilizer (EMA Smoothing)
+    smoothed_tracker = RoboflowTracker({
+        "algorithm": "bytetrack",
+        "minimumConsecutiveFrames": 1,
+        "enableSmoothing": True,
+        "smoothingAlpha": 0.5,
+    })
+    # Frame 1: tracklet initiated
+    smoothed_tracker.update([{"bbox": [10, 10, 20, 20], "score": 0.9, "class": "box"}], frame_id=1)
+    # Frame 2: track confirmed at x=10
+    s2 = tracked(smoothed_tracker.update([{"bbox": [10, 10, 20, 20], "score": 0.9, "class": "box"}], frame_id=2))
+    assert s2, "Expected track to be confirmed at frame 2"
+    assert abs(s2[0]["bbox"][0] - 10.0) < 0.1
+    # Frame 3: bbox jumps from x=10 to x=20
+    s3 = tracked(smoothed_tracker.update([{"bbox": [20, 10, 20, 20], "score": 0.9, "class": "box"}], frame_id=3))
+    assert s3, "Expected track to continue at frame 3"
+    # EMA with alpha=0.5: 0.5 * 20 + 0.5 * 10 = 15.0
+    assert abs(s3[0]["bbox"][0] - 15.0) < 0.1, f"Expected smoothed bbox x around 15.0, got {s3[0]['bbox'][0]}"
+
     print("tracking checks passed")
 
 
