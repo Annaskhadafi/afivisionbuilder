@@ -1,19 +1,29 @@
+# Core Framework & Web Server
 fastapi>=0.110.0
 uvicorn[standard]>=0.28.0
 python-multipart>=0.0.9
+pydantic>=2.0.0
+requests>=2.31.0
+pyyaml>=6.0
+
+# Computer Vision, Deep Learning & Media
 opencv-python>=4.8.0
 numpy>=1.24.0
 pillow>=10.0.0
-requests>=2.31.0
 torch>=2.0.0
 torchvision>=0.15.0
 ultralytics>=8.0.0
 onnxruntime>=1.17.0
 timm>=0.9.0
-pyyaml>=6.0
-pydantic>=2.0.0
+
+# Tracking & Multi-Object Analytics
 supervision>=0.25.0,<=0.30.9
 trackers==2.5.0.post0
+
+# YouTube Streaming & Multimodal NLP / Zero-Shot
 yt-dlp>=2024.0.0
 ftfy>=6.0.0
 clip @ git+https://github.com/ultralytics/CLIP.git
+
+# Testing & Verification
+pytest>=8.0.0
