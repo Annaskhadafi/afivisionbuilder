@@ -2940,14 +2940,29 @@
         g.classList.add('reconnecting');
       }
 
-      // 1. Visible path (Thin, crisp, elegant 1.8px line)
+      // 1. Visible path (Vibrant, high-contrast colorful cable)
+      const catA = categoryFor(a.type);
+      const EDGE_COLORS = {
+        'Sources': '#059669',
+        'AI Vision Models': '#4f46e5',
+        'Tracking & Analysis': '#0284c7',
+        'Image Preprocessing': '#d97706',
+        'Annotations & Drawing': '#e11d48',
+        'Logic & Flow Control': '#7c3aed',
+        'Outputs & Export': '#0d9488'
+      };
+      const isEdgeSelected = state.selectedEdge === index;
+      const edgeStroke = isEdgeSelected ? '#f59e0b' : (EDGE_COLORS[catA] || '#2563eb');
+      const edgeWidth = isEdgeSelected ? '4.5px' : '2.6px';
+      const edgeFilter = isEdgeSelected ? 'drop-shadow(0 0 10px rgba(245, 158, 11, 0.75))' : 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.16))';
+
       const visiblePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       visiblePath.setAttribute('d', d);
       visiblePath.setAttribute('class', 'edge-visible-path');
       visiblePath.setAttribute('fill', 'none');
-      visiblePath.setAttribute('stroke', '#64748b');
-      visiblePath.setAttribute('stroke-width', '1.8');
-      visiblePath.style.cssText = 'fill: none !important; stroke-width: 1.8px !important; pointer-events: none !important;';
+      visiblePath.setAttribute('stroke', edgeStroke);
+      visiblePath.setAttribute('stroke-width', isEdgeSelected ? '4.5' : '2.6');
+      visiblePath.style.cssText = `fill: none !important; stroke: ${edgeStroke} !important; stroke-width: ${edgeWidth} !important; pointer-events: none !important; filter: ${edgeFilter} !important;`;
 
       // 2. Invisible hit area (strictly transparent, 18px click target)
       const hitPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');

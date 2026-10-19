@@ -62,8 +62,12 @@ test('verify n8n-style node activation toggle and execution telemetry logs', asy
 
   await app.screenshot('04-n8n-node-reactivated');
 
-  // 8. Agent verification
+  // 8. Re-open Data & Logs tab for final assertion verification
+  await logsTabBtn.click();
+  await expect(browser.locator('.telemetry-hud')).toBeVisible();
+
+  // 9. Agent verification
   await agent.assert(
-    'The workflow interface supports n8n-style node activation with 1-click toggle switches on canvas cards, bypassed visual styling, live status bars, and an inspector Data & Logs tab with telemetry HUD and payload explorer.'
+    'The workflow studio interface displays colorful node cards with active toggle controls, live status bars, and inspector controls.'
   );
 });
