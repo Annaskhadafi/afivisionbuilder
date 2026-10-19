@@ -43,6 +43,8 @@
     path_deviation: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M4 5h16"/><line x1="6" y1="12" x2="18" y2="12" stroke-dasharray="2 2"/><circle cx="12" cy="8" r="2"/></svg>',
     delta_filter: '<svg class="icon-svg" viewBox="0 0 24 24"><polygon points="11 19 2 12 11 5 11 19"/><polygon points="22 19 13 12 22 5 22 19"/></svg>',
     switch_case: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>',
+    model_comparison: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/><path d="m8 9-2 3 2 3"/><path d="m16 9 2 3-2 3"/></svg>',
+    detections_difference: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/><path d="M12 7.5v9"/></svg>',
 
     // Preprocessing
     slicer: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
@@ -201,8 +203,8 @@
   // --- Category Mapping ---
   function categoryFor(type) {
     if (type === 'input' || type === 'ip_camera') return 'Sources';
-    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ai_agent'].includes(type)) return 'AI Vision Models';
-    if (['tracker', 'detections_consensus', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter'].includes(type)) return 'Tracking & Analysis';
+    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ai_agent', 'model_comparison'].includes(type)) return 'AI Vision Models';
+    if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter'].includes(type)) return 'Tracking & Analysis';
     if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer', 'camera_focus', 'auto_rotate_edges', 'delta_filter'].includes(type)) return 'Image Preprocessing';
     if (['overlay_annotate', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
     if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once', 'switch_case'].includes(type)) return 'Logic & Flow Control';
@@ -410,6 +412,51 @@
     borderMode: {
       text: 'Perlakuan piksel pada area kosong hasil rotasi gambar.',
       guide: 'black_constant (isi area kosong dengan warna hitam pekat) atau replicate (duplikasi piksel tepi).'
+    },
+    // Model Comparison & Detections Difference (Fase 4)
+    modelAName: {
+      text: 'Nama identitas model AI pertama untuk komparasi (Model A).',
+      guide: 'Contoh: Model A (YOLOv11). Deteksi model ini diberi warna Cyan.'
+    },
+    modelBName: {
+      text: 'Nama identitas model AI kedua untuk komparasi (Model B).',
+      guide: 'Contoh: Model B (RF-DETR). Deteksi model ini diberi warna Magenta.'
+    },
+    renderMode: {
+      text: 'Mode visualisasi perbandingan dua model.',
+      guide: 'Pilihan: side_by_side (tampilan 2 layar kiri-kanan) atau diff_overlay (satu layar dengan warna diff hijau/cyan/magenta).'
+    },
+    showStatsHeader: {
+      text: 'Tampilkan kartu statistik perbandingan dan rasio kesepakatan (Agreement Ratio) di bagian atas frame.',
+      guide: 'Menampilkan jumlah deteksi model A, model B, konsensus, dan persentase kesepakatan.'
+    },
+    matchIoU: {
+      text: 'Ambang batas IoU untuk mencocokkan deteksi saat ini dengan baseline.',
+      guide: 'Default: 0.50. Jika IoU >= nilai ini dan kelas sama, objek dianggap tidak berubah.'
+    },
+    triggerSnapshot: {
+      text: 'Ambil snapshot baseline baru dari frame saat ini.',
+      guide: 'Aktifkan untuk memperbarui kondisi acuan awal (baseline).'
+    },
+    alarmOnDifference: {
+      text: 'Picu alarm peringatan jika terdeteksi ada objek baru muncul atau hilang.',
+      guide: 'Event detections_diff akan dikirimkan ke downstream jika ada perbedaan.'
+    },
+    historyLen: {
+      text: 'Panjang riwayat titik koordinat ekor lintasan objek bergerak.',
+      guide: 'Default: 20 frame. Menentukan seberapa panjang jejak pergerakan yang digambar.'
+    },
+    fadeAlpha: {
+      text: 'Efek transparansi memudar (fading) dari titik ekor lama ke posisi objek terbaru.',
+      guide: 'Membuat tampilan garis lintasan terlihat profesional dan elegan.'
+    },
+    bracketLength: {
+      text: 'Panjang garis siku pada setiap sudut kotak bounding box (piksel).',
+      guide: 'Default: 16 piksel. Memberikan gaya corner-bracket modern ala antarmuka sci-fi/Roboflow.'
+    },
+    glow: {
+      text: 'Efek pencahayaan lembut (halo glow) di sekeliling kotak deteksi.',
+      guide: 'Menambahkan bayangan berpendar semi-transparan untuk meningkatkan estetika visual.'
     },
     // Sumber Input (Sources)
     sourceType: {
@@ -1515,6 +1562,19 @@
   };
 
   const INDO_FIELD_LABELS = {
+    modelAName: 'Nama Model AI A',
+    modelBName: 'Nama Model AI B',
+    renderMode: 'Mode Visualisasi Evaluasi',
+    iouThreshold: 'Ambang Batas Kesamaan IoU',
+    showStatsHeader: 'Tampilkan Header Statistik',
+    matchIoU: 'Ambang Batas Pencocokan IoU',
+    filterClasses: 'Filter Kelas Tertentu',
+    triggerSnapshot: 'Ambil Snapshot Baseline Baru',
+    alarmOnDifference: 'Picu Alarm Saat Ada Perubahan',
+    historyLen: 'Panjang Jejak Ekor (Frames)',
+    fadeAlpha: 'Efek Transparansi Gradasi',
+    bracketLength: 'Panjang Siku Sudut (Piksel)',
+    glow: 'Efek Pijar Halo Modern',
     parentClass: 'Kelas Induk (Parent Class)',
     childClass: 'Kelas Anak (Child Class)',
     minOverlapRatio: 'Rasio Minimal Tumpang Tindih',
@@ -7617,6 +7677,40 @@
       { "key": "defaultPort", "label": "Port Keluaran Default", "desc": "Port tujuan fallback jika tidak ada kasus yang cocok." }
     ],
     "tips": "Gunakan untuk memisahkan alur penanganan orang (masuk ke timer kerja) dan kendaraan (masuk ke logistik) dalam satu pipeline tunggal."
+  },
+  "model_comparison": {
+    "concept": "Node perbandingan dua model AI (Side-by-side & Diff Overlay) untuk evaluasi QA, benchmarking akurasi, dan deteksi disparitas antar arsitektur model secara langsung.",
+    "diagram": "[ Model A ] ──┐\n              ├──▶ [ Model Comparison Diff ] ──▶ [ Live Preview ]\n[ Model B ] ──┘",
+    "steps": [
+      "Sambungkan hasil deteksi dari Model A (misal: YOLOv8) dan Model B (misal: RF-DETR).",
+      "Pilih Render Mode: 'side_by_side' untuk tampilan 2 layar berdampingan atau 'diff_overlay' untuk penumpukan satu layar berwarna.",
+      "Tentukan ambang batas kesamaan (IoU Threshold) untuk mendefinisikan kesepakatan.",
+      "Aktifkan Show Stats Header untuk melihat rasio persetujuan (Agreement Ratio)."
+    ],
+    "params": [
+      { "key": "modelAName", "label": "Nama Model AI A", "desc": "Label identitas model pertama (Cyan)." },
+      { "key": "modelBName", "label": "Nama Model AI B", "desc": "Label identitas model kedua (Magenta)." },
+      { "key": "renderMode", "label": "Mode Visualisasi", "desc": "side_by_side atau diff_overlay." },
+      { "key": "iouThreshold", "label": "Ambang Batas IoU", "desc": "Ambang minimal IoU untuk menganggap objek sama." }
+    ],
+    "tips": "Dalam mode diff_overlay, kotak hijau menandakan kedua model sepakat, sedangkan kotak cyan/magenta menandakan deteksi unik dari masing-masing model."
+  },
+  "detections_difference": {
+    "concept": "Node perbandingan status deteksi sebelum vs sesudah (State Difference Comparator) untuk mendeteksi kemunculan objek baru atau hilangnya barang dari baseline acuan.",
+    "diagram": "[ Object Detector ] ──▶ [ Detections Difference ] ──▶ [ Alarm / Log Event ]",
+    "steps": [
+      "Ambil snapshot acuan pertama kali (Baseline) saat area dalam kondisi normal.",
+      "Tentukan batas ambang IoU pencocokan objek antar frame.",
+      "Tentukan filter kelas jika hanya ingin memantau aset tertentu (misal: pallet, box).",
+      "Aktifkan Alarm on Difference untuk memicu event darurat saat ada barang hilang/ditambahkan."
+    ],
+    "params": [
+      { "key": "matchIoU", "label": "Ambang Pencocokan IoU", "desc": "Toleransi pergeseran objek agar tetap dianggap objek yang sama." },
+      { "key": "filterClasses", "label": "Filter Kelas Objek", "desc": "Hanya bandingkan kelas tertentu (kosong = semua kelas)." },
+      { "key": "triggerSnapshot", "label": "Perbarui Baseline", "desc": "Simpan kondisi frame saat ini sebagai acuan normal baru." },
+      { "key": "alarmOnDifference", "label": "Picu Alarm", "desc": "Kirim event saat terdeteksi selisih objek." }
+    ],
+    "tips": "Sangat efektif untuk mendeteksi pencurian barang gudang atau mendeteksi barang tertinggal di area steril."
   },
   "preview": {
     "concept": "Node penampil streaming video langsung (Live Preview) untuk memantau jalankan pipeline secara visual realtime lengkap dengan anotasi, kotak, label, dan statistik.",

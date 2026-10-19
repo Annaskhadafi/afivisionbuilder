@@ -114,6 +114,24 @@ OVERLAY_LAYER_DEFAULTS = {
         "thickness": 2,
         "scale": 1.5,
     },
+    "motion_trace": {
+        "type": "motion_trace",
+        "enabled": False,
+        "color": "#a855f7",
+        "thickness": 2,
+        "historyLen": 20,
+        "fadeAlpha": True,
+        "classes": "",
+    },
+    "corner_bracket": {
+        "type": "corner_bracket",
+        "enabled": False,
+        "color": "#22c55e",
+        "thickness": 2,
+        "bracketLength": 16,
+        "glow": True,
+        "classes": "",
+    },
 }
 
 OVERLAY_LAYER_OPTIONS = (
@@ -123,6 +141,8 @@ OVERLAY_LAYER_OPTIONS = (
     ("result_icons", "Status badge"),
     ("heatmap", "Traffic Heatmap"),
     ("vector_arrow", "Direction Arrow Vector"),
+    ("motion_trace", "Motion Trace / Tail"),
+    ("corner_bracket", "Corner Bracket / Halo Glow"),
     ("custom_text", "Custom text"),
 )
 
@@ -1359,6 +1379,34 @@ NODE_BLUEPRINTS = {
             "evaluationField": "class",
             "cases": "person:port_1, forklift:port_2",
             "defaultPort": "default",
+        },
+    },
+    "model_comparison": {
+        "title": "Model Comparison Diff",
+        "subtitle": "Bandingkan hasil dua model AI secara side-by-side atau diff overlay",
+        "category": "AI Vision Models",
+        "x": 620,
+        "y": 640,
+        "config": {
+            "modelAName": "Model A (YOLO)",
+            "modelBName": "Model B (RF-DETR)",
+            "renderMode": "side_by_side",
+            "iouThreshold": 0.50,
+            "showStatsHeader": True,
+        },
+    },
+    "detections_difference": {
+        "title": "Detections Difference",
+        "subtitle": "Deteksi objek baru yang muncul atau hilang dibandingkan baseline",
+        "category": "Spatial & Advanced Logic",
+        "x": 620,
+        "y": 720,
+        "config": {
+            "matchIoU": 0.50,
+            "filterClasses": "",
+            "triggerSnapshot": False,
+            "cooldownSeconds": 3.0,
+            "alarmOnDifference": True,
         },
     },
 }

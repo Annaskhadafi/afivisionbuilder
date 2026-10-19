@@ -70,11 +70,36 @@ class AIAgentClient:
         prompt = prompt.replace("{{event}}", event_text)
         prompt = prompt.replace("{{timestamp}}", timestamp_text)
 
-        # Append explicit format instruction if in decision or structured_json mode
+        # Append explicit format instruction if in decision, structured_json, detector, or strict_classifier mode
         if self.task_mode == "decision":
             prompt += (
                 "\n\nRespond strictly with a JSON object in the following schema:\n"
                 '{\n  "decision": true or false,\n  "reason": "explanation of decision",\n  "severity": "low" | "medium" | "high" | "critical"\n}'
+            )
+        elif self.task_mode == "detector":
+            prompt += (
+                "\n\nDetect all relevant objects in the image. Respond strictly with a JSON object in this schema:\n"
+                '{\n'
+                '  "detections": [\n'
+                '    {\n'
+                '      "box_2d": [ymin, xmin, ymax, xmax],\n'
+                '      "label": "class_name",\n'
+                '      "confidence": 0.95\n'
+                '    }\n'
+                '  ]\n'
+                '}\n'
+                'Note: box_2d coordinates must be normalized (0 to 1000 or 0.0 to 1.0).'
+            )
+        elif self.task_mode == "strict_classifier":
+            prompt += (
+                "\n\nClassify the visual scene or item strictly according to inspection criteria. "
+                "Respond strictly with a JSON object in this schema:\n"
+                '{\n'
+                '  "class": "label_name",\n'
+                '  "confidence": 0.95,\n'
+                '  "is_compliant": true or false,\n'
+                '  "reason": "concise explanation"\n'
+                '}'
             )
         elif self.task_mode == "structured_json":
             prompt += "\n\nRespond strictly with a valid JSON object matching the requested information."
@@ -215,6 +240,32 @@ class AIAgentClient:
                     result["decision"] = bool(dec_val)
                 result["reason"] = str(parsed.get("reason", parsed.get("explanation", raw_text)))
                 result["severity"] = str(parsed.get("severity", "medium"))
+            elif self.task_mode == "detector":
+                raw_dets = parsed.get("detections", [])
+                converted_dets = []
+                for item in raw_dets:
+                    label = str(item.get("label", item.get("class", "object")))
+                    conf = float(item.get("confidence", item.get("score", 0.90)))
+                    box = item.get("box_2d", item.get("box", item.get("bbox")))
+                    if box and len(box) >= 4:
+                        y1, x1, y2, x2 = [float(v) for v in box[:4]]
+                        if max(y1, x1, y2, x2) > 1.0:
+                            y1, x1, y2, x2 = y1 / 1000.0, x1 / 1000.0, y2 / 1000.0, x2 / 1000.0
+                        converted_dets.append({
+                            "class": label,
+                            "confidence": conf,
+                            "normalized_box": [x1, y1, x2, y2],
+                            "source": "vlm_detector",
+                        })
+                result["detections"] = converted_dets
+                result["decision"] = len(converted_dets) > 0
+                result["reason"] = f"VLM detected {len(converted_dets)} objects"
+            elif self.task_mode == "strict_classifier":
+                result["class"] = str(parsed.get("class", "unknown"))
+                result["confidence"] = float(parsed.get("confidence", 0.90))
+                result["is_compliant"] = bool(parsed.get("is_compliant", True))
+                result["decision"] = result["is_compliant"]
+                result["reason"] = str(parsed.get("reason", raw_text))
             elif self.task_mode == "structured_json":
                 result["reason"] = json.dumps(parsed, ensure_ascii=False)
         else:
@@ -305,6 +356,10 @@ class AIAgentRuntime:
                     "passDownstream": pass_downstream,
                     "event": event,
                     "detectionCount": len(detections),
+                    "detections": res.get("detections"),
+                    "classifierClass": res.get("class"),
+                    "classifierConfidence": res.get("confidence"),
+                    "isCompliant": res.get("is_compliant"),
                 }
 
                 with self._results_lock:

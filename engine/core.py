@@ -728,7 +728,8 @@ def _process_track_event_nodes(
         if p_type not in (
             "zone_activity_timer", "zone_exit_event", "multi_zone_occupancy",
             "distance_measurement", "size_measurement", "camera_focus", "auto_rotate_edges",
-            "overlap_analysis", "velocity_calculator", "path_deviation", "delta_filter"
+            "overlap_analysis", "velocity_calculator", "path_deviation", "delta_filter",
+            "detections_difference"
         ) or not project_node.get("enabled", True):
             continue
         project_id = str(project_node.get("id") or "")
@@ -780,6 +781,12 @@ def _process_track_event_nodes(
             from advanced_logic import evaluate_delta_filter
             state = event_runtime.setdefault(project_id, {})
             continue_branch, motion_score = evaluate_delta_filter(frame, project_node.get("config", {}), state, now)
+        elif p_type == "detections_difference":
+            from detections_difference import compare_detections_difference
+            state = event_runtime.setdefault(project_id, {})
+            diff_result, diff_event = compare_detections_difference(candidates, None, project_node.get("config", {}), state)
+            if diff_event:
+                extra_results.append(diff_event)
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
 
@@ -1639,6 +1646,25 @@ def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict)
     if frame is None or not hasattr(frame, "shape"):
         return
     h, w = frame.shape[:2]
+
+    # Model Comparison Diff renderer
+    comp_node = next((n for n in workflow.get("nodes", []) if n.get("type") == "model_comparison" and n.get("enabled", True)), None)
+    if comp_node:
+        try:
+            from model_comparison import compare_model_detections
+            cached_dets = event_runtime.get("_last_detections", [])
+            dets_a = [d for d in cached_dets if str(d.get("source", "")).lower() != "model_b"]
+            dets_b = [d for d in cached_dets if str(d.get("source", "")).lower() == "model_b"]
+            if not dets_b and len(dets_a) > 1:
+                half = len(dets_a) // 2
+                dets_a, dets_b = dets_a[:half], dets_a[half:]
+            comp_frame, _ = compare_model_detections(frame, dets_a, dets_b, comp_node.get("config", {}))
+            if comp_frame.shape == frame.shape:
+                frame[:] = comp_frame
+            elif comp_frame.shape[0] == h and comp_frame.shape[1] == w * 2:
+                frame[:] = cv2.resize(comp_frame, (w, h), interpolation=cv2.INTER_LINEAR)
+        except Exception:
+            pass
 
     # 1. Draw Line Counters (Multi-Line support)
     for node in workflow.get("nodes", []):

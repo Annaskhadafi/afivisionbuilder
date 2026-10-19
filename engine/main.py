@@ -4282,6 +4282,16 @@ def _detection_box_xywh(detection: dict) -> tuple[float, float, float, float] | 
             return None
         if x2 > x1 and y2 > y1:
             return x1, y1, x2 - x1, y2 - y1
+    if "x" in detection and "y" in detection and "width" in detection and "height" in detection:
+        try:
+            x = float(detection["x"])
+            y = float(detection["y"])
+            width = float(detection["width"])
+            height = float(detection["height"])
+            if width > 0 and height > 0:
+                return x, y, width, height
+        except (TypeError, ValueError):
+            return None
     return None
 
 
@@ -5920,6 +5930,71 @@ def _apply_overlay_node(output, node: dict, detections: list[dict]) -> None:
                 mask_3ch = np.dstack([mask, mask, mask])
                 blended = cv2.addWeighted(output, 1.0 - opacity, colored_heat, opacity, 0)
                 output[:] = np.where(mask_3ch > 0.05, blended, output)
+        elif layer_type == "motion_trace":
+            color = _drawing_color(layer.get("color"), (168, 85, 247))
+            thickness = max(1, int(layer.get("thickness", 2) or 2))
+            history_len = max(2, int(layer.get("historyLen", 20) or 20))
+            fade_alpha = bool(layer.get("fadeAlpha", True))
+            track_histories = node.setdefault("_track_histories", {})
+
+            for item in matching:
+                track_id = item.get("track_id", item.get("id"))
+                box = _detection_box_xywh(item)
+                if box:
+                    cx = int(round(box[0] + box[2] / 2.0))
+                    cy = int(round(box[1] + box[3] / 2.0))
+                    pt = (cx, cy)
+                    if track_id is not None:
+                        hist = track_histories.setdefault(str(track_id), [])
+                        hist.append(pt)
+                        if len(hist) > history_len:
+                            del hist[:-history_len]
+                        pts = hist
+                    else:
+                        trail = item.get("trail", [])
+                        pts = [(int(round(p[0])), int(round(p[1]))) for p in trail] if trail else [pt]
+
+                    if len(pts) >= 2:
+                        for i in range(1, len(pts)):
+                            pt_prev = pts[i - 1]
+                            pt_curr = pts[i]
+                            if fade_alpha:
+                                alpha = float(i) / float(len(pts))
+                                seg_thick = max(1, int(round(thickness * alpha)))
+                                cv2.line(output, pt_prev, pt_curr, color, seg_thick, cv2.LINE_AA)
+                            else:
+                                cv2.line(output, pt_prev, pt_curr, color, thickness, cv2.LINE_AA)
+        elif layer_type == "corner_bracket":
+            color = _drawing_color(layer.get("color"), (34, 197, 94))
+            thickness = max(1, int(layer.get("thickness", 2) or 2))
+            bracket_len_cfg = max(4, int(layer.get("bracketLength", 16) or 16))
+            glow = bool(layer.get("glow", True))
+
+            for item in matching:
+                box = _detection_box_xywh(item)
+                if not box:
+                    continue
+                x, y, w, h = [int(round(v)) for v in box]
+                L = min(w // 2, h // 2, bracket_len_cfg)
+
+                if glow:
+                    glow_overlay = output.copy()
+                    cv2.rectangle(glow_overlay, (max(0, x - 2), max(0, y - 2)), (min(output.shape[1] - 1, x + w + 2), min(output.shape[0] - 1, y + h + 2)), color, thickness + 2)
+                    cv2.addWeighted(glow_overlay, 0.35, output, 0.65, 0, output)
+
+                # 4 Corner brackets
+                # Top-Left
+                cv2.line(output, (x, y), (x + L, y), color, thickness, cv2.LINE_AA)
+                cv2.line(output, (x, y), (x, y + L), color, thickness, cv2.LINE_AA)
+                # Top-Right
+                cv2.line(output, (x + w, y), (x + w - L, y), color, thickness, cv2.LINE_AA)
+                cv2.line(output, (x + w, y), (x + w, y + L), color, thickness, cv2.LINE_AA)
+                # Bottom-Left
+                cv2.line(output, (x, y + h), (x + L, y + h), color, thickness, cv2.LINE_AA)
+                cv2.line(output, (x, y + h), (x, y + h - L), color, thickness, cv2.LINE_AA)
+                # Bottom-Right
+                cv2.line(output, (x + w, y + h), (x + w - L, y + h), color, thickness, cv2.LINE_AA)
+                cv2.line(output, (x + w, y + h), (x + w, y + h - L), color, thickness, cv2.LINE_AA)
 
 
 def apply_drawing_nodes(frame, workflow: dict, target_id: str, detections: list[dict], runtime: dict | None = None, *, copy_frame: bool = True):

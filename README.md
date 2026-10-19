@@ -10,16 +10,16 @@
   <img src="https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch" />
   <img src="https://img.shields.io/badge/OpenCV-4.8+-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white" alt="OpenCV" />
   <img src="https://img.shields.io/badge/Ultralytics-YOLOv8%20%2F%20v11-00FFFF?style=for-the-badge&logo=yolo&logoColor=black" alt="YOLO" />
-  <img src="https://img.shields.io/badge/Nodes%20Catalog-59%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
-  <img src="https://img.shields.io/badge/Unit%20Tests-134%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
-  <img src="https://img.shields.io/badge/E2E%20Tests-17%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
+  <img src="https://img.shields.io/badge/Nodes%20Catalog-61%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
+  <img src="https://img.shields.io/badge/Unit%20Tests-141%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
+  <img src="https://img.shields.io/badge/E2E%20Tests-18%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
 </p>
 
 <p align="center">
   <a href="#-fitur-unggulan-terbaru">Fitur Unggulan</a> •
   <a href="#-tur-antarmuka--showcase-visual">Tur Antarmuka</a> •
   <a href="#-instalasi--eksekusi-1-click">Instalasi Cepat</a> •
-  <a href="#-katalog-59-node-lengkap">Katalog 59+ Node</a> •
+  <a href="#-katalog-61-node-lengkap">Katalog 61+ Node</a> •
   <a href="#-arsitektur-sistem">Arsitektur</a> •
   <a href="#-pengujian-kualitas-unit--e2e">Pengujian Kualitas</a> •
   <a href="#-lisensi--pengembang">Lisensi</a>
@@ -102,6 +102,14 @@
 - **Delta Frame Filter (Compute Throttler)**: Penghematan beban CPU/GPU hingga **70%+** pada pemantauan area statis dengan memblokir pemrosesan saat tidak ada pergerakan signifikan dan fallback heartbeat otomatis.
 - **Switch-Case Dynamic Router**: Percabangan alur kerja multi-jalur berdasarkan kelas objek atau atribut untuk arsitektur pipeline kompleks.
 - **Dynamic Zone Tracking**: Poligon zona ROI otomatis bergeser mengikuti pergerakan unit anchor (misal: bak truk atau forklift yang berpindah posisi).
+
+### 🔍 14. Dual-Model Evaluation & State Difference Comparator
+- **Model Comparison Diff**: Membandingkan hasil inferensi 2 model AI sekaligus dalam mode **Side-by-Side** (2 layar berdampingan) atau **Diff Overlay** (1 layar dengan pewarnaan diferensial: hijau = konsensus/sepakat, cyan = Model A, magenta = Model B) lengkap dengan skor Agreement Ratio.
+- **Detections Difference (State Comparator)**: Membandingkan kondisi objek saat ini terhadap snapshot baseline acuan untuk mendeteksi barang yang hilang (*removed/theft*), barang baru ditambahkan (*added/unauthorized*), atau aset tetap (*unchanged*) lengkap dengan alarm selisih otomatis.
+
+### 🎨 15. Motion Trail & Sci-Fi Halo Glow Corner Brackets
+- **Motion Trace (Track Tail)**: Menggambar ekor lintasan pergerakan objek selama $N$ frame terakhir dengan efek *fade alpha* gradasi elegan.
+- **Corner Brackets & Halo Glow**: Gaya visual kotak pembatas modern ala Roboflow dengan siku sudut presisi dan bayangan berpendar semi-transparan (*halo glow*).
 
 ---
 
@@ -207,16 +215,16 @@ AFI Vision Builder dirancang portabel dengan skrip launcher otomatis:
 
 ---
 
-## 🧩 Katalog 59+ Node Lengkap
+## 🧩 Katalog 61+ Node Lengkap
 
 Seluruh node dikelompokkan ke dalam 5 kategori fungsional dengan parameter berlabel Bahasa Indonesia dan panduan interaktif:
 
 | Kategori | Node Siap Pakai | Fungsi & Deskripsi Utama |
 | :--- | :--- | :--- |
 | 📹 **Sources (Input)** | `Web Camera`, `IP Camera (RTSP)`, `Daheng Industrial Camera`, `Video File`, `Static Image` | Akuisisi citra/streaming frame dari berbagai tipe kamera dan berkas multimedia. |
-| 🧠 **AI Vision Models** | `Ultralytics YOLO`, `RF-DETR Object Detection`, `SAM 3 Segmentation`, `ConvNeXt Classifier`, `EfficientAD Anomaly`, `ONNX Model`, `TFLite Model`, `AI Agent (VLM Multimodal)`, `Detections Consensus (Multi-Model Voting)` | Deteksi objek real-time, segmentasi instan, klasifikasi citra, inspeksi anomali cacat visual, analisis multimodal VLM, serta penggabungan konsensus multi-model (IoU clustering). |
-| 🎯 **Tracking, Kinematics & Spatial** | `ByteTrack`, `BoT-SORT`, `OC-SORT`, `Multi-Zone Occupancy & Table Tracker`, `Zone Activity Timer`, `Zone Exit Event`, `Multi-Line Counter (A↔B)`, `Object Counter`, `Dwell Time Zone`, `ROI Filter (Polygon Area)`, `Distance Measurement`, `Size Measurement`, `Velocity Calculator`, `Path Deviation`, `Dynamic Zone Tracking` | Pelacakan ID konsisten objek bergerak, penghitungan keluar-masuk garis dua arah, timer durasi terisi meja restoran, verifikasi transisi gerbang, kalkulasi jarak fisik & ukuran objek dengan kalibrasi cm, perhitungan kecepatan km/h, dan koridor deviasi lintasan. |
-| 🎨 **Preprocessing, Classical CV & Drawing** | `Overlay / Annotate (Layers)`, `Resize Frame`, `Crop Region`, `Rotate & Flip`, `Color Convert`, `Brightness & Contrast (CLAHE)`, `Blur & Sharpen`, `Perspective Correction`, `Privacy Blur`, `Camera Focus Score`, `Auto Rotate Edges`, `Python Script Editor` | Manipulasi citra, night-vision CLAHE, sensor otomatis wajah/plat nomor, compositing anotasi gambar, penilaian ketajaman fokus lensa kamera (Laplacian variance), perataan sudut kemiringan kontur otomatis, dan script Python kustom. |
+| 🧠 **AI Vision Models** | `Ultralytics YOLO`, `RF-DETR Object Detection`, `SAM 3 Segmentation`, `ConvNeXt Classifier`, `EfficientAD Anomaly`, `ONNX Model`, `TFLite Model`, `AI Agent (VLM Multimodal)`, `Detections Consensus`, `Model Comparison Diff` | Deteksi objek real-time, segmentasi instan, klasifikasi citra, inspeksi anomali cacat visual, analisis multimodal VLM (detector & classifier), penggabungan konsensus multi-model, serta evaluasi komparatif dual-model side-by-side & diff overlay. |
+| 🎯 **Tracking, Kinematics & Spatial** | `ByteTrack`, `BoT-SORT`, `OC-SORT`, `Multi-Zone Occupancy & Table Tracker`, `Zone Activity Timer`, `Zone Exit Event`, `Multi-Line Counter (A↔B)`, `Object Counter`, `Dwell Time Zone`, `ROI Filter (Polygon Area)`, `Distance Measurement`, `Size Measurement`, `Velocity Calculator`, `Path Deviation`, `Detections Difference`, `Dynamic Zone Tracking` | Pelacakan ID konsisten objek bergerak, penghitungan keluar-masuk garis dua arah, timer durasi terisi meja restoran, verifikasi transisi gerbang, kalkulasi jarak fisik & ukuran objek dengan kalibrasi cm, perhitungan kecepatan km/h, koridor deviasi lintasan, dan komparator selisih status sebelum vs sesudah (baseline comparator). |
+| 🎨 **Preprocessing, Classical CV & Drawing** | `Overlay / Annotate (Layers)`, `Resize Frame`, `Crop Region`, `Rotate & Flip`, `Color Convert`, `Brightness & Contrast (CLAHE)`, `Blur & Sharpen`, `Perspective Correction`, `Privacy Blur`, `Camera Focus Score`, `Auto Rotate Edges`, `Python Script Editor` | Manipulasi citra, night-vision CLAHE, sensor otomatis wajah/plat nomor, compositing anotasi gambar (termasuk Motion Trail fading dan Halo Glow corner brackets), penilaian ketajaman fokus lensa kamera (Laplacian variance), perataan sudut kemiringan kontur otomatis, dan script Python kustom. |
 | 🔀 **Logic, Flow & Outputs** | `If / Else Branch`, `Compare Value`, `Confidence Threshold`, `Timer Delay`, `Debounce Filter`, `Rate Limiter`, `AND / OR Gate`, `Trigger Once`, `Overlap Analysis`, `Delta Frame Filter`, `Switch-Case Router`, `Live Preview`, `Event Alert Popup`, `Image / Crop Exporter`, `SQLite Database Logger`, `HTTP Webhook` | Percabangan logika alur kerja, gerbang pembanding angka, inspeksi kepatuhan APD (overlap parent-child), penghemat komputasi 70%+ via delta frame, router multi-jalur switch-case, penampil preview real-time, perekaman event ke SQLite database, dan webhook REST API ke sistem ERP eksternal. |
 
 ---
@@ -230,14 +238,17 @@ afivisionbuilder/
 │   ├── multi_zone_occupancy.py    # Multi-Zone table tracking, FSM states, & geometric centroid testing
 │   ├── project_nodes.py           # Specialized nodes (Zone Activity Timer, Zone Exit Event, Dynamic Zone)
 │   ├── detections_consensus.py    # Multi-model consensus voting & IoU bounding box clustering
+│   ├── model_comparison.py        # Dual-model side-by-side & diff overlay evaluation
+│   ├── detections_difference.py   # State difference comparator (added, removed, unchanged)
 │   ├── spatial_measurement.py     # Real-world distance measurement & physical object sizing
 │   ├── classical_cv.py            # Laplacian camera focus score & auto-rotate deskewing
 │   ├── video_kinematics.py        # Centroid velocity calculation & path corridor deviation
 │   ├── advanced_logic.py          # Overlap analysis, delta frame throttler, & switch-case router
 │   ├── roboflow_tracker.py        # Track Class Lock & EMA bounding box stabilizer
+│   ├── ai_agent.py                # VLM multimodal agent (Decision, Detector, Strict Classifier)
 │   ├── custom_model_runtime.py    # YOLO / PyTorch / CUDA Fallback Manager
 │   ├── vlm_box_tracker.py         # Multimodal Vision-Language Model interface
-│   ├── node_catalog.py            # Registry 59+ Node, metadata, & skema parameter
+│   ├── node_catalog.py            # Registry 61+ Node, metadata, & skema parameter
 │   ├── main.py                    # Algoritma image processing OpenCV & spatial filters
 │   └── camera_daheng.py           # Driver SDK kamera industri Daheng
 ├── 📁 static/                     # Frontend Single Page Application (SPA)
@@ -250,6 +261,7 @@ afivisionbuilder/
 │   ├── TASK_LIST.md               # Riwayat pengerjaan, handoff log, & roadmap
 │   └── screenshots/               # Koleksi 10 tangkapan layar antarmuka resolusi tinggi
 ├── 📁 tests/                      # Automated E2E Test Suites (@e2e-dev/web & Playwright)
+│   ├── vlm_and_visualization.e2e.ts      # Model comparison diff & state difference E2E
 │   ├── consensus_and_filter.e2e.ts       # Model consensus & confidence filter E2E
 │   ├── spatial_and_classical_cv.e2e.ts   # Spatial measurement & focus score E2E
 │   ├── advanced_logic_and_kinematics.e2e.ts # Kinematics, overlap, delta filter E2E
@@ -260,7 +272,8 @@ afivisionbuilder/
 │   ├── multi_zone_occupancy.e2e.ts       # Visual polygon editor & inspector verification
 │   ├── node_overlay_annotate.e2e.ts      # Overlay layers inspector verification
 │   ├── projects_and_models_hub.e2e.ts    # Hub landing page & Model registry
-│   └── unit/                             # Pytest Unit Test Suites (134/134 Passed)
+│   └── unit/                             # Pytest Unit Test Suites (141/141 Passed)
+│       ├── test_vlm_and_visualization.py
 │       ├── test_detections_consensus.py
 │       ├── test_spatial_and_classical_cv.py
 │       ├── test_video_kinematics_and_advanced_logic.py
@@ -284,8 +297,8 @@ afivisionbuilder/
 
 AFI Vision Builder menerapkan standar rekayasa perangkat lunak ketat dengan pengujian berlapis:
 
-- **134 Unit Tests (100% Passed)**: Pengujian unit menyeluruh via Pytest untuk menguji logika fungsional internal (FSM multi-zone, tracking, konsensus model, kalibrasi jarak, variansi Laplacian, kalkulator kecepatan, dan throttler delta).
-- **17 Automated E2E Test Suites**: Menguji seluruh fungsionalitas dari perspektif pengguna nyata menggunakan runner modern `e2e` dengan engine Playwright dan model AI `cx/gpt-5.6-luna`.
+- **141 Unit Tests (100% Passed)**: Pengujian unit menyeluruh via Pytest untuk menguji logika fungsional internal (FSM multi-zone, tracking, konsensus model, kalibrasi jarak, variansi Laplacian, kalkulator kecepatan, throttler delta, komparasi model dual-stream, dan difference state matching).
+- **18 Automated E2E Test Suites**: Menguji seluruh fungsionalitas dari perspektif pengguna nyata menggunakan runner modern `e2e` dengan engine Playwright dan model AI `cx/gpt-5.6-luna`.
 - **Verifikasi Real-Browser & Visual**: Memvalidasi kelayakan kanvas flow, video stream live, modal pengaturan kamera, editor poligon, filter shift, dan ekspor CSV.
 - **Tangkapan Layar Otomatis**: Setiap proses pengujian secara otomatis mendokumentasikan bukti screenshot visual ke folder `.e2e/artifacts/`.
 
@@ -300,7 +313,7 @@ npm run test:e2e
 ```
 Atau jalankan skenario spesifik:
 ```bash
-npx e2e run tests/spatial_and_classical_cv.e2e.ts
+npx e2e run tests/vlm_and_visualization.e2e.ts
 ```
 
 ---
