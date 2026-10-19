@@ -132,6 +132,24 @@
                 <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 <span>Export Workflow</span>
               </button>
+              <button class="dropdown-item" id="copyWorkflowJsonBtn" title="Salin JSON alur kerja ke clipboard" type="button">
+                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                <span>Salin JSON Workflow</span>
+              </button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" id="fitCanvasMoreBtn" title="Pusatkan dan sesuaikan zoom kanvas" type="button">
+                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                <span>Pusatkan Kanvas (Fit)</span>
+              </button>
+              <button class="dropdown-item text-danger" id="clearCanvasMoreBtn" title="Kosongkan node dan kabel di kanvas" type="button">
+                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                <span>Kosongkan Kanvas</span>
+              </button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" id="docsSwaggerMoreBtn" title="Buka dokumentasi Swagger API" type="button">
+                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <span>Dokumentasi API (/docs)</span>
+              </button>
             </div>
           </div>
         </div>
@@ -139,18 +157,103 @@
 
       <!-- Universal Header Actions & Profile (Always Visible) -->
       <div class="hub-header-actions" id="hubHeaderActions">
-        <button class="icon-button header-util-btn" id="hubBellBtn" title="Notifications" type="button">
-          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-        </button>
-        <button class="button ghost hub-header-btn header-util-btn" id="hubSettingsBtn" title="Settings" type="button">
+        <!-- Notifications Bell Wrap & Dropdown -->
+        <div class="header-bell-wrap" id="hubBellWrap">
+          <button class="icon-button header-util-btn header-bell-btn" id="hubBellBtn" title="Notifikasi Sistem" type="button">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          </button>
+          <span class="bell-badge-dot active" id="hubBellBadge"></span>
+
+          <div class="header-dropdown hub-bell-dropdown" id="hubBellDropdown" hidden>
+            <div class="bell-dropdown-head">
+              <div class="bell-title-wrap">
+                <span class="bell-head-title">Notifikasi Sistem</span>
+                <span class="bell-count-badge" id="hubBellCountBadge">3 Baru</span>
+              </div>
+              <div class="bell-head-actions">
+                <button type="button" class="bell-action-text-btn" id="hubBellMarkReadBtn">Tandai Dibaca</button>
+                <button type="button" class="bell-action-text-btn" id="hubBellClearBtn">Bersihkan</button>
+              </div>
+            </div>
+
+            <div class="bell-filter-pills">
+              <button class="bell-filter-pill active" data-filter="all" type="button">Semua</button>
+              <button class="bell-filter-pill" data-filter="alert" type="button">Alerts</button>
+              <button class="bell-filter-pill" data-filter="system" type="button">Sistem</button>
+            </div>
+
+            <div class="bell-notification-list" id="hubBellList">
+              <!-- Dynamically populated via renderNotifications() -->
+            </div>
+
+            <div class="bell-dropdown-footer">
+              <button type="button" class="bell-footer-link" id="hubBellOpenLogsBtn">Buka Console Logs Studio →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings Button -->
+        <button class="button ghost hub-header-btn header-util-btn" id="hubSettingsBtn" title="Pengaturan Studio & Pipeline" type="button">
           <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>Settings</span>
         </button>
-        <button class="button ghost hub-header-btn header-util-btn" id="hubHelpBtn" title="Help" type="button">
+
+        <!-- Help Button -->
+        <button class="button ghost hub-header-btn header-util-btn" id="hubHelpBtn" title="Pusat Bantuan & Pintasan Keyboard" type="button">
           <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span>Help</span>
         </button>
-        <div class="user-avatar-badge" title="User Profile: AN">AN</div>
+
+        <!-- User Profile Avatar & Dropdown -->
+        <div class="header-user-wrap" id="hubUserWrap">
+          <button class="user-avatar-badge" id="hubUserAvatarBtn" title="Profil Pengguna: Anas Khadafi" type="button">AN</button>
+
+          <div class="header-dropdown hub-user-dropdown" id="hubUserDropdown" hidden>
+            <div class="user-dropdown-profile">
+              <div class="user-dropdown-avatar">AN</div>
+              <div class="user-dropdown-info">
+                <span class="user-dropdown-name">Anas Khadafi</span>
+                <span class="user-dropdown-role">Lead Vision Engineer</span>
+                <span class="user-dropdown-email">anas@onechitra.id</span>
+              </div>
+            </div>
+
+            <div class="user-dropdown-workspace-badge">
+              <span class="badge-status-dot">●</span>
+              <span>AFI Vision Enterprise • 127.0.0.1:8765</span>
+            </div>
+
+            <div class="dropdown-divider"></div>
+
+            <button class="dropdown-item" id="userMenuSettingsBtn" type="button">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>Pengaturan Studio (Settings)</span>
+            </button>
+            <button class="dropdown-item" id="userMenuQuantizeBtn" type="button">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <span>Model Quantizer & Optimizer</span>
+            </button>
+            <button class="dropdown-item" id="userMenuHelpBtn" type="button">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>Pusat Bantuan & Panduan</span>
+            </button>
+            <button class="dropdown-item" id="userMenuDocsBtn" type="button">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <span>Backend API Docs (Swagger)</span>
+            </button>
+
+            <div class="dropdown-divider"></div>
+
+            <button class="dropdown-item" id="userMenuSyncBtn" type="button">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>Sinkronkan Status Sistem</span>
+            </button>
+            <button class="dropdown-item text-danger" id="userMenuLockBtn" type="button">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>Kunci Sesi / Keluar</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <input id="fileInput" type="file" hidden>
@@ -843,7 +946,7 @@
 
       <div class="modal-body">
         <input type="hidden" id="camEditId" value="">
-        
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
           <div class="form-group">
             <label class="form-label" for="camEditName">Nama Kamera</label>
@@ -1074,6 +1177,160 @@
       <div class="modal-actions-right" style="padding:14px 20px;border-top:1px solid #f1f5f9;background:#f8fafc">
         <button class="button secondary" type="button" id="cancelProjectDeleteBtn">Batal</button>
         <button class="button stop" type="button" id="confirmProjectDeleteBtn" style="background:#ef4444;color:#fff;border-color:#dc2626">Hapus Permanen</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- System Help & Keyboard Shortcuts Modal -->
+  <dialog id="systemHelpModal" class="modal">
+    <div class="modal-box" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;padding:0">
+      <div class="modal-head" style="border-bottom:1px solid #e2e8f0;padding:16px 20px">
+        <div>
+          <span class="eyebrow" style="color:#0284c7">BANTUAN & PANDUAN</span>
+          <h2 style="margin:0;font-size:18px;color:#0f172a">Pusat Bantuan AFI Vision Builder</h2>
+        </div>
+        <button class="icon-button" id="closeSystemHelpModal" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- Nav Tabs -->
+      <div class="settings-nav" id="helpNavTabs" style="display:flex;gap:6px;padding:10px 20px;border-bottom:1px solid #f1f5f9;background:#f8fafc">
+        <button class="settings-nav-tab active help-nav-tab" data-tab="shortcuts" type="button">⌨️ Pintasan Keyboard</button>
+        <button class="settings-nav-tab help-nav-tab" data-tab="quickstart" type="button">🚀 Panduan Cepat</button>
+        <button class="settings-nav-tab help-nav-tab" data-tab="catalog" type="button">🧩 Katalog Node</button>
+        <button class="settings-nav-tab help-nav-tab" data-tab="about" type="button">ℹ️ Info Sistem</button>
+      </div>
+
+      <div class="modal-body" style="padding:20px;overflow-y:auto;flex:1">
+        <!-- Panel 1: Keyboard Shortcuts -->
+        <div class="help-tab-panel" id="helpPanelShortcuts">
+          <div style="font-size:13px;color:#64748b;margin-bottom:14px">
+            Gunakan pintasan keyboard berikut untuk mempercepat navigasi dan pengeditan diagram alur kerja di kanvas:
+          </div>
+          <div class="shortcut-grid">
+            <div class="shortcut-card">
+              <div class="shortcut-keys"><kbd>Space</kbd> + <kbd>Drag</kbd></div>
+              <div class="shortcut-desc">Geser / Pan kanvas alur kerja tanpa batas</div>
+            </div>
+            <div class="shortcut-card">
+              <div class="shortcut-keys"><kbd>Scroll Wheel</kbd></div>
+              <div class="shortcut-desc">Perbesar / Perkecil tampilan kanvas (Zoom In / Out)</div>
+            </div>
+            <div class="shortcut-card">
+              <div class="shortcut-keys"><kbd>Delete</kbd> / <kbd>Backspace</kbd></div>
+              <div class="shortcut-desc">Hapus node atau kabel koneksi yang sedang dipilih</div>
+            </div>
+            <div class="shortcut-card">
+              <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>S</kbd></div>
+              <div class="shortcut-desc">Simpan alur kerja dan konfigurasi proyek ke server</div>
+            </div>
+            <div class="shortcut-card">
+              <div class="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Enter</kbd></div>
+              <div class="shortcut-desc">Mulai atau Hentikan eksekusi pipeline (Run / Stop)</div>
+            </div>
+            <div class="shortcut-card">
+              <div class="shortcut-keys"><kbd>Esc</kbd></div>
+              <div class="shortcut-desc">Batalkan penarikan kabel atau tutup jendela modal aktif</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 2: Quickstart -->
+        <div class="help-tab-panel" id="helpPanelQuickstart" hidden>
+          <div style="font-size:13px;color:#64748b;margin-bottom:14px">
+            Panduan 5 langkah mudah menyusun pipeline Computer Vision di AFI Vision Builder:
+          </div>
+          <ol class="quickstart-steps">
+            <li>
+              <strong>1. Pilih Sumber Input</strong>
+              <p>Tarik node <code>Input</code> ke kanvas. Pilih jenis input: Kamera Laptop/Webcam, CCTV RTSP/HTTP, Video MP4 Lokal, atau Streaming YouTube langsung via URL.</p>
+            </li>
+            <li>
+              <strong>2. Hubungkan Model Deteksi AI</strong>
+              <p>Sambungkan kabel dari port <code>frame</code> node Input ke port <code>frame</code> node <code>Detector</code> (YOLOv8, YOLO-World Zero-Shot, atau Roboflow Universe).</p>
+            </li>
+            <li>
+              <strong>3. Tambahkan Tracker Objek</strong>
+              <p>Hubungkan port <code>detections</code> dari detektor ke node <code>Tracker</code> (ByteTrack) untuk pelacakan identitas objek yang stabil di setiap frame.</p>
+            </li>
+            <li>
+              <strong>4. Tambahkan Analisis Spasial & Aturan</strong>
+              <p>Gunakan node analitik seperti <code>Zone Activity Timer</code> (meja/workshop), <code>Distance Measurement</code> (jarak fisik), <code>Overlap Analysis</code> (APD), atau <code>Velocity Calculator</code>.</p>
+            </li>
+            <li>
+              <strong>5. Tampilkan Visualisasi & Jalankan</strong>
+              <p>Sambungkan output ke node <code>Overlay Annotate</code> dan <code>Preview</code>. Tekan tombol <strong style="color:#16a34a">Run</strong> di bagian atas untuk mulai memproses secara real-time!</p>
+            </li>
+          </ol>
+        </div>
+
+        <!-- Panel 3: Catalog -->
+        <div class="help-tab-panel" id="helpPanelCatalog" hidden>
+          <div style="font-size:13px;color:#64748b;margin-bottom:14px">
+            Kategori node yang didukung oleh engine visual:
+          </div>
+          <div class="catalog-category-list">
+            <div class="catalog-cat-item">
+              <div class="cat-badge cat-input">📹 Input & Video</div>
+              <div class="cat-content">Input Video/RTSP/YouTube, Frame Sampler, Night Vision CLAHE, Auto Rotate Edges.</div>
+            </div>
+            <div class="catalog-cat-item">
+              <div class="cat-badge cat-detect">🎯 Deteksi & AI</div>
+              <div class="cat-content">YOLOv8, YOLOv11, YOLO-World Zero-Shot Text Prompt, Roboflow Universe Inference, RF-DETR, ONNX OCR.</div>
+            </div>
+            <div class="catalog-cat-item">
+              <div class="cat-badge cat-track">🏃 Pelacakan & Filter</div>
+              <div class="cat-content">ByteTrack, EMA Bbox Stabilizer, Track Class Lock, Per-Class Confidence, Detections Consensus.</div>
+            </div>
+            <div class="catalog-cat-item">
+              <div class="cat-badge cat-spatial">📐 Spasial & Aturan</div>
+              <div class="cat-content">Multi-Zone Occupancy, Zone Exit Event, Distance Measurement, Size Measurement, Velocity Calculator, Overlap Analysis.</div>
+            </div>
+            <div class="catalog-cat-item">
+              <div class="cat-badge cat-vlm">🤖 VLM & Visualisasi</div>
+              <div class="cat-content">Overlay Annotate, Corner Brackets, Motion Tail, Dual-Model Diff, AI Agent Vision-Language (GPT-4o/5).</div>
+            </div>
+            <div class="catalog-cat-item">
+              <div class="cat-badge cat-sinks">☁️ Sinks & Ekspor</div>
+              <div class="cat-content">Database Output, CSV Formatter, S3 Storage Sink, Multi-Channel Notification Dispatcher, PTZ Controller.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 4: About -->
+        <div class="help-tab-panel" id="helpPanelAbout" hidden>
+          <div class="about-hero-box">
+            <div class="about-logo-icon">🚀</div>
+            <div>
+              <h3 style="margin:0 0 4px 0;font-size:16px;color:#0f172a">AFI Vision Builder</h3>
+              <div style="font-size:12px;color:#0284c7;font-weight:600">Enterprise Visual AI Platform • Versi 1.0.6</div>
+            </div>
+          </div>
+          <div style="font-size:13px;color:#334155;line-height:1.6;margin-top:16px">
+            Platform visual tanpa coding (*zero-code*) terintegrasi untuk membangun, menguji, dan mendeploy pipeline Computer Vision, AI Multi-Kamera CCTV, serta Dashboard Operasional Industri secara real-time.
+          </div>
+          <div class="about-meta-grid" style="margin-top:16px">
+            <div class="meta-item"><span>Runtime Server:</span> <strong>FastAPI / Python 3.13</strong></div>
+            <div class="meta-item"><span>Engine Inferensi:</span> <strong>PyTorch, ONNX Runtime, TFLite</strong></div>
+            <div class="meta-item"><span>Vision Tools:</span> <strong>Ultralytics, OpenCV, Supervision</strong></div>
+            <div class="meta-item"><span>Local Endpoint:</span> <strong>http://127.0.0.1:8765</strong></div>
+          </div>
+          <div style="margin-top:20px;display:flex;gap:10px">
+            <a href="/docs" target="_blank" class="button secondary" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <span>Buka Swagger API Docs</span>
+            </a>
+            <a href="https://github.com/Annaskhadafi/afivisionbuilder" target="_blank" class="button secondary" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+              <span>GitHub Repository</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions-right" style="padding:14px 20px;border-top:1px solid #e2e8f0;background:#f8fafc">
+        <button class="button secondary" id="closeHelpFooterBtn" type="button">Tutup</button>
       </div>
     </div>
   </dialog>

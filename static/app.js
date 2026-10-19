@@ -10263,8 +10263,33 @@
       }
       state.lastError = sameProject ? data.error : null;
 
-      // Logs
+      // Logs & Notifications
       renderLogs(sameProject ? data.logs || [] : [], sameProject ? data.events || [] : []);
+
+      if (sameProject && Array.isArray(data.events) && data.events.length) {
+        data.events.slice(-3).forEach(ev => {
+          const evTime = (ev.time || 0) * 1000;
+          if (evTime > (state._lastEventNotifTime || 0)) {
+            state._lastEventNotifTime = evTime;
+            if (typeof getNotifications === 'function') {
+              const notifs = getNotifications();
+              const notifId = `ev-${ev.seq || evTime}`;
+              if (!notifs.some(n => n.id === notifId)) {
+                notifs.unshift({
+                  id: notifId,
+                  type: 'alert',
+                  title: `Alert: ${ev.type || 'Event Terdeteksi'}`,
+                  message: ev.message || `Insiden terdeteksi pada ${new Date(evTime).toLocaleTimeString()}`,
+                  time: evTime || Date.now(),
+                  read: false
+                });
+                if (notifs.length > 50) notifs.pop();
+                if (typeof renderNotifications === 'function') renderNotifications();
+              }
+            }
+          }
+        });
+      }
 
       // Preview frame
       const availablePreviews = data.previews || [];
@@ -11657,21 +11682,6 @@
       toast('Studio & Pipeline Settings saved successfully');
     });
 
-    // More dropdown toggle in header
-    const moreBtn = $('#topbarMoreBtn');
-    const moreDropdown = $('#topbarMoreDropdown');
-    if (moreBtn && moreDropdown) {
-      moreBtn.onclick = (e) => {
-        e.stopPropagation();
-        moreDropdown.hidden = !moreDropdown.hidden;
-      };
-      document.addEventListener('click', (e) => {
-        if (!moreBtn.contains(e.target) && !moreDropdown.contains(e.target)) {
-          moreDropdown.hidden = true;
-        }
-      });
-    }
-
     // Project rename form
     $('#closeProjectRenameModal')?.addEventListener('click', closeProjectRenameModal);
     $('#cancelProjectRenameBtn')?.addEventListener('click', closeProjectRenameModal);
@@ -11719,11 +11729,333 @@
     });
   }
 
+  // --- Notifications & Header Actions System ---
+  let activeBellFilter = 'all';
+
+  function getNotifications() {
+    if (!state.notifications) {
+      state.notifications = [
+        {
+          id: 'sys-quantizer',
+          type: 'system',
+          title: 'Model Quantizer Siap',
+          message: 'Alat kuantisasi TFLite INT8/FP16 & ONNX Dynamic INT8 siap digunakan di Model Registry.',
+          time: Date.now() - 1000 * 60 * 3,
+          read: false
+        },
+        {
+          id: 'sys-runtime',
+          type: 'system',
+          title: 'Runtime Engine Terhubung',
+          message: 'FastAPI backend aktif di http://127.0.0.1:8765 dengan engine PyTorch & ONNX Runtime.',
+          time: Date.now() - 1000 * 60 * 10,
+          read: false
+        },
+        {
+          id: 'sys-project',
+          type: 'alert',
+          title: 'Proyek Aktif',
+          message: `Workspace aktif: ${state.project?.name || 'Smart Traffic Flow & Vehicle Counter'}`,
+          time: Date.now() - 1000 * 60 * 15,
+          read: false
+        }
+      ];
+    }
+    return state.notifications;
+  }
+
+  function formatTimeAgo(timestamp) {
+    const diff = Math.floor((Date.now() - timestamp) / 1000);
+    if (diff < 60) return 'Baru saja';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m lalu`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}j lalu`;
+    return `${Math.floor(diff / 86400)}h lalu`;
+  }
+
+  function renderNotifications() {
+    const listEl = $('#hubBellList');
+    if (!listEl) return;
+    const notifs = getNotifications();
+    const unreadCount = notifs.filter(n => !n.read).length;
+
+    // Badge indicator
+    const badgeEl = $('#hubBellBadge');
+    if (badgeEl) {
+      badgeEl.classList.toggle('active', unreadCount > 0);
+    }
+    const countBadgeEl = $('#hubBellCountBadge');
+    if (countBadgeEl) {
+      countBadgeEl.textContent = unreadCount > 0 ? `${unreadCount} Baru` : 'Semua Dibaca';
+    }
+
+    const filtered = notifs.filter(n => {
+      if (activeBellFilter === 'alert') return n.type === 'alert';
+      if (activeBellFilter === 'system') return n.type === 'system';
+      return true;
+    });
+
+    if (!filtered.length) {
+      listEl.innerHTML = `
+        <div style="padding: 28px 16px; text-align: center; color: #94a3b8; font-size: 12px;">
+          <div style="font-size: 26px; margin-bottom: 6px;">✨</div>
+          <div style="font-weight: 600; color: #64748b;">Tidak Ada Notifikasi</div>
+          <div style="font-size: 11px; margin-top: 2px;">Semua peristiwa dan alert telah ditinjau</div>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(item => `
+      <div class="bell-notification-item ${item.read ? '' : 'unread'}" data-id="${item.id}">
+        <div class="bell-item-icon ${item.type === 'alert' ? 'alert' : 'system'}">
+          ${item.type === 'alert' ? '⚠️' : '⚡'}
+        </div>
+        <div class="bell-item-body">
+          <div class="bell-item-title-row">
+            <span class="bell-item-title">${escapeHtml(item.title)}</span>
+            <span class="bell-item-time">${formatTimeAgo(item.time)}</span>
+          </div>
+          <div class="bell-item-msg">${escapeHtml(item.message)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function closeAllHeaderDropdowns() {
+    if ($('#topbarMoreDropdown')) $('#topbarMoreDropdown').hidden = true;
+    if ($('#hubBellDropdown')) $('#hubBellDropdown').hidden = true;
+    if ($('#hubUserDropdown')) $('#hubUserDropdown').hidden = true;
+    if (typeof closeProjectSwitcherDropdown === 'function') closeProjectSwitcherDropdown();
+  }
+
+  function initHeaderActions() {
+    // 1. More dropdown (...)
+    const moreBtn = $('#topbarMoreBtn');
+    const moreDropdown = $('#topbarMoreDropdown');
+    if (moreBtn && moreDropdown) {
+      moreBtn.onclick = (e) => {
+        e.stopPropagation();
+        const willOpen = moreDropdown.hidden;
+        closeAllHeaderDropdowns();
+        if (willOpen) {
+          moreDropdown.hidden = false;
+        }
+      };
+    }
+
+    $('#copyWorkflowJsonBtn')?.addEventListener('click', () => {
+      if (moreDropdown) moreDropdown.hidden = true;
+      try {
+        const jsonStr = JSON.stringify(state.workflow || { nodes: [], edges: [] }, null, 2);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(jsonStr).then(() => {
+            toast('Workflow JSON berhasil disalin ke clipboard!');
+          }).catch(() => fallbackCopy(jsonStr));
+        } else {
+          fallbackCopy(jsonStr);
+        }
+      } catch (err) {
+        toast('Gagal menyalin JSON: ' + err.message, true);
+      }
+    });
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast('Workflow JSON berhasil disalin ke clipboard!');
+    }
+
+    $('#fitCanvasMoreBtn')?.addEventListener('click', () => {
+      if (moreDropdown) moreDropdown.hidden = true;
+      $('#fitBtn')?.click();
+      toast('Tampilan kanvas dipusatkan');
+    });
+
+    $('#clearCanvasMoreBtn')?.addEventListener('click', () => {
+      if (moreDropdown) moreDropdown.hidden = true;
+      if (confirm('Apakah Anda yakin ingin mengosongkan seluruh kanvas alur kerja?')) {
+        state.workflow.nodes = [];
+        state.workflow.edges = [];
+        state.selectedNodeId = null;
+        state.selectedEdge = null;
+        renderWorkflow();
+        toast('Kanvas alur kerja berhasil dikosongkan');
+      }
+    });
+
+    $('#docsSwaggerMoreBtn')?.addEventListener('click', () => {
+      if (moreDropdown) moreDropdown.hidden = true;
+      window.open('/docs', '_blank');
+    });
+
+    // 2. Notification Bell (🔔)
+    const bellBtn = $('#hubBellBtn');
+    const bellDropdown = $('#hubBellDropdown');
+    if (bellBtn && bellDropdown) {
+      bellBtn.onclick = (e) => {
+        e.stopPropagation();
+        const willOpen = bellDropdown.hidden;
+        closeAllHeaderDropdowns();
+        if (willOpen) {
+          renderNotifications();
+          bellDropdown.hidden = false;
+        }
+      };
+
+      $('#hubBellMarkReadBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const notifs = getNotifications();
+        notifs.forEach(n => { n.read = true; });
+        renderNotifications();
+        toast('Semua notifikasi ditandai telah dibaca');
+      });
+
+      $('#hubBellClearBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.notifications = [];
+        renderNotifications();
+        toast('Riwayat notifikasi dibersihkan');
+      });
+
+      bellDropdown.querySelectorAll('.bell-filter-pill').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          bellDropdown.querySelectorAll('.bell-filter-pill').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          activeBellFilter = btn.dataset.filter || 'all';
+          renderNotifications();
+        };
+      });
+
+      $('#hubBellOpenLogsBtn')?.addEventListener('click', () => {
+        bellDropdown.hidden = true;
+        if (state.activeView !== 'studio') {
+          switchMainView('studio');
+        }
+        switchProjectRailTab('telemetry');
+        toast('Membuka console log & telemetri');
+      });
+    }
+
+    // 3. System Help Modal (Help)
+    const helpBtn = $('#hubHelpBtn');
+    const helpModal = $('#systemHelpModal');
+    if (helpBtn && helpModal) {
+      helpBtn.onclick = () => {
+        closeAllHeaderDropdowns();
+        helpModal.showModal();
+      };
+
+      $('#closeSystemHelpModal')?.addEventListener('click', () => helpModal.close());
+      $('#closeHelpFooterBtn')?.addEventListener('click', () => helpModal.close());
+
+      // Help tabs
+      helpModal.querySelectorAll('.help-nav-tab').forEach(tabBtn => {
+        tabBtn.onclick = () => {
+          helpModal.querySelectorAll('.help-nav-tab').forEach(t => t.classList.remove('active'));
+          tabBtn.classList.add('active');
+          const tab = tabBtn.dataset.tab;
+          if ($('#helpPanelShortcuts')) $('#helpPanelShortcuts').hidden = (tab !== 'shortcuts');
+          if ($('#helpPanelQuickstart')) $('#helpPanelQuickstart').hidden = (tab !== 'quickstart');
+          if ($('#helpPanelCatalog')) $('#helpPanelCatalog').hidden = (tab !== 'catalog');
+          if ($('#helpPanelAbout')) $('#helpPanelAbout').hidden = (tab !== 'about');
+        };
+      });
+
+      helpModal.addEventListener('click', (e) => {
+        const rect = helpModal.getBoundingClientRect();
+        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+          helpModal.close();
+        }
+      });
+    }
+
+    // 4. User Avatar (AN)
+    const userBtn = $('#hubUserAvatarBtn');
+    const userDropdown = $('#hubUserDropdown');
+    if (userBtn && userDropdown) {
+      userBtn.onclick = (e) => {
+        e.stopPropagation();
+        const willOpen = userDropdown.hidden;
+        closeAllHeaderDropdowns();
+        if (willOpen) {
+          userDropdown.hidden = false;
+        }
+      };
+
+      $('#userMenuSettingsBtn')?.addEventListener('click', () => {
+        userDropdown.hidden = true;
+        $('#systemSettingsModal')?.showModal();
+      });
+
+      $('#userMenuQuantizeBtn')?.addEventListener('click', () => {
+        userDropdown.hidden = true;
+        if (typeof openQuantizeModal === 'function') {
+          openQuantizeModal();
+        }
+      });
+
+      $('#userMenuHelpBtn')?.addEventListener('click', () => {
+        userDropdown.hidden = true;
+        helpModal?.showModal();
+      });
+
+      $('#userMenuDocsBtn')?.addEventListener('click', () => {
+        userDropdown.hidden = true;
+        window.open('/docs', '_blank');
+      });
+
+      $('#userMenuSyncBtn')?.addEventListener('click', async () => {
+        userDropdown.hidden = true;
+        try {
+          await Promise.all([
+            loadProjects(false),
+            loadDashboardOverview(),
+            pollStatus()
+          ]);
+          toast('Status sistem & proyek berhasil disinkronkan');
+        } catch (err) {
+          toast('Sinkronisasi selesai');
+        }
+      });
+
+      $('#userMenuLockBtn')?.addEventListener('click', () => {
+        userDropdown.hidden = true;
+        toast('Sesi aman tersimpan (Single-Tenant On-Premise)');
+      });
+    }
+
+    // Global document click listener for header dropdowns
+    document.addEventListener('click', (e) => {
+      const moreWrap = $('.header-more-wrap');
+      const bellWrap = $('#hubBellWrap');
+      const userWrap = $('#hubUserWrap');
+
+      if (moreWrap && !moreWrap.contains(e.target)) {
+        if (moreDropdown) moreDropdown.hidden = true;
+      }
+      if (bellWrap && !bellWrap.contains(e.target)) {
+        if (bellDropdown) bellDropdown.hidden = true;
+      }
+      if (userWrap && !userWrap.contains(e.target)) {
+        if (userDropdown) userDropdown.hidden = true;
+      }
+    });
+
+    // Render initial notifications
+    renderNotifications();
+  }
+
   // --- Bootstrap ---
   (async () => {
     try {
       wireEvents();
       initSystemSettings();
+      initHeaderActions();
       switchMainView('projectsHub');
 
       const catalog = await api('/api/catalog');

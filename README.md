@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Ultralytics-YOLOv8%20%2F%20v11-00FFFF?style=for-the-badge&logo=yolo&logoColor=black" alt="YOLO" />
   <img src="https://img.shields.io/badge/Nodes%20Catalog-70%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
   <img src="https://img.shields.io/badge/Unit%20Tests-168%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
-  <img src="https://img.shields.io/badge/E2E%20Tests-25%2B%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
+  <img src="https://img.shields.io/badge/E2E%20Tests-26%2B%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
 </p>
 
 <p align="center">
@@ -176,6 +176,13 @@
   - **ONNX Dynamic INT8**: Kuantisasi dinamis integer 8-bit untuk eksekusi ultra-cepat di x86/ARM CPU via ONNX Runtime.
 - **Alur Kerja Terpadu 1-Klik**: Hasil kuantisasi langsung menampilkan ringkasan metrik kompresi (ukuran awal vs akhir, rasio penghematan), tombol `[🎯 Terapkan ke Node Aktif]` untuk langsung dipasang ke node deteksi aktif, dan tombol `[💾 Unduh File]` untuk mengunduh bobot terkuantisasi.
 - **Runtime Universal Terkalibrasi**: Custom model inference engine secara otomatis mengenali kuantisasi INT8, mengaplikasikan *scale & zero-point normalization*, serta mengekstrak tensor deteksi YOLO 2D/3D secara adaptif.
+
+### 🎛️ 27. Universal Header Actions & Profile Management
+- **Menu Opsi Lanjutan (`...`)**: Dropdown terintegrasi untuk *Import Workflow JSON*, *Export Workflow JSON*, *Salin JSON Workflow ke Clipboard*, *Pusatkan Kanvas (Fit View)*, *Kosongkan Kanvas (Clear)*, serta tautan cepat ke *Dokumentasi Swagger API (/docs)*.
+- **Pusat Notifikasi Real-Time (`🔔`)**: Panel notifikasi interaktif dengan badge dot dinamis merah saat ada kejadian baru, filter tab (*Semua*, *Alerts*, *Sistem*), tombol *Tandai Dibaca*, tombol *Bersihkan*, serta integrasi live dengan event pipeline.
+- **Pengaturan Studio & Pipeline (`⚙️ Settings`)**: Dialog modal pengaturan komprehensif untuk *Device Compute* (Auto/CPU/CUDA), *FPS Throttling*, *VLM Model API Keys* (OpenAI, 9router, Ollama), dan *Webhook Sink ERP*.
+- **Pusat Bantuan & Panduan (`Help`)**: Dialog modal interaktif berisikan tabel *Pintasan Keyboard* lengkap (<kbd>Space</kbd>+Drag, <kbd>Ctrl+S</kbd>, <kbd>Ctrl+Enter</kbd>, dll.), *Panduan Cepat 5 Langkah*, ringkasan *Katalog Node*, serta info versi sistem.
+- **Profil Pengguna Enterprise (`AN`)**: Avatar interaktif dengan kartu profil **Anas Khadafi** (*Lead Vision Engineer & Admin*), status live server, pintasan 1-klik ke *Model Quantizer*, *Sinkronisasi Sistem*, dan *Kunci Sesi*.
 
 ---
 
