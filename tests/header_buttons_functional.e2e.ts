@@ -39,6 +39,27 @@ test('verify all 5 header buttons: More options (...), Notifications (Bell), Set
   await browser.locator('#fitCanvasMoreBtn').click();
   await expect(moreDropdown).toBeHidden();
 
+  // Test clear canvas button and modal
+  await moreBtn.click();
+  await expect(moreDropdown).toBeVisible();
+  const clearBtn = browser.locator('#clearCanvasMoreBtn');
+  await expect(clearBtn).toBeVisible();
+  await clearBtn.click();
+
+  const clearModal = browser.locator('#clearCanvasModal');
+  await expect(clearModal).toBeVisible();
+  await expect(browser.locator('#clearCanvasModal h2')).toContainText('Kosongkan Kanvas Alur Kerja?');
+  await app.screenshot('01b-clear-canvas-modal-open');
+
+  // Confirm clear canvas
+  await browser.locator('#confirmClearCanvasBtn').click();
+  await expect(clearModal).toBeHidden();
+
+  // Verify canvas is now completely empty
+  const emptyCanvas = browser.locator('#emptyCanvas');
+  await expect(emptyCanvas).toBeVisible();
+  await app.screenshot('01c-empty-canvas-verified');
+
   // ==========================================
   // BUTTON 2: Notification Bell (🔔) #hubBellBtn
   // ==========================================

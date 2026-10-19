@@ -1181,6 +1181,29 @@
     </div>
   </dialog>
 
+  <!-- Clear Canvas Confirmation Modal -->
+  <dialog id="clearCanvasModal" class="modal">
+    <div class="modal-box modal-box-sm">
+      <div class="modal-head" style="border-bottom:1px solid #fee2e2;background:#fff5f5">
+        <div>
+          <span class="eyebrow" style="color:#ef4444">PERINGATAN</span>
+          <h2 style="color:#b91c1c;margin:0;font-size:16px">Kosongkan Kanvas Alur Kerja?</h2>
+        </div>
+        <button class="icon-button" id="closeClearCanvasModal" type="button">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="padding:18px 20px;color:#334155;font-size:13px;line-height:1.5">
+        <p>Apakah Anda yakin ingin menghapus seluruh node dan sambungan kabel di kanvas saat ini?</p>
+        <p style="color:#64748b;font-size:11.5px;margin-top:6px">Tindakan ini akan mengosongkan diagram alur kerja di kanvas studio.</p>
+      </div>
+      <div class="modal-actions-right" style="padding:12px 20px;border-top:1px solid #f1f5f9;background:#f8fafc">
+        <button class="button secondary" type="button" id="cancelClearCanvasBtn">Batal</button>
+        <button class="button stop" type="button" id="confirmClearCanvasBtn" style="background:#ef4444;color:#fff;border-color:#dc2626">Kosongkan Sekarang</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- System Help & Keyboard Shortcuts Modal -->
   <dialog id="systemHelpModal" class="modal">
     <div class="modal-box" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;padding:0">

@@ -11875,16 +11875,33 @@
       toast('Tampilan kanvas dipusatkan');
     });
 
+    const clearCanvasModal = $('#clearCanvasModal');
+    function doClearCanvas() {
+      state.workflow.nodes = [];
+      state.workflow.edges = [];
+      state.selected = null;
+      state.selectedEdge = null;
+      state.dirty = true;
+      if ($('#dirty')) $('#dirty').hidden = false;
+      renderCanvas();
+      renderInspector();
+      toast('Kanvas alur kerja berhasil dikosongkan');
+    }
+
     $('#clearCanvasMoreBtn')?.addEventListener('click', () => {
       if (moreDropdown) moreDropdown.hidden = true;
-      if (confirm('Apakah Anda yakin ingin mengosongkan seluruh kanvas alur kerja?')) {
-        state.workflow.nodes = [];
-        state.workflow.edges = [];
-        state.selectedNodeId = null;
-        state.selectedEdge = null;
-        renderWorkflow();
-        toast('Kanvas alur kerja berhasil dikosongkan');
+      if (clearCanvasModal) {
+        clearCanvasModal.showModal();
+      } else {
+        doClearCanvas();
       }
+    });
+
+    $('#closeClearCanvasModal')?.addEventListener('click', () => clearCanvasModal?.close());
+    $('#cancelClearCanvasBtn')?.addEventListener('click', () => clearCanvasModal?.close());
+    $('#confirmClearCanvasBtn')?.addEventListener('click', () => {
+      clearCanvasModal?.close();
+      doClearCanvas();
     });
 
     $('#docsSwaggerMoreBtn')?.addEventListener('click', () => {
