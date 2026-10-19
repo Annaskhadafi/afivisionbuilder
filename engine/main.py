@@ -675,8 +675,8 @@ def inference_model_name(inference_node: dict) -> str:
         if checkpoint_path:
             return f"ConvNeXt ({checkpoint_path})"
         return str(config.get("convnextModel") or CONVNEXT_MODELS[0])
-    if engine in ("ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
-        return str(config.get("customModelPath") or config.get("modelPath") or config.get("rfdetrCheckpoint") or "yolov8n.pt")
+    if engine in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+        return str(config.get("customModelPath") or config.get("modelPath") or config.get("rfdetrCheckpoint") or ("yolov8s-worldv2.pt" if engine == "yolo_world" else "yolov8n.pt"))
     model_name = config.get("rfdetrModel") or default_rfdetr_model(inference_node.get("type", "detector"))
     checkpoint_path = rfdetr_checkpoint_path(config)
     return f"{model_name} ({checkpoint_path})" if checkpoint_path else model_name
@@ -1191,7 +1191,7 @@ def normalize_workflow(workflow: dict) -> dict:
                 raise ValueError("Python script onError must be 'stop' or 'pass'")
         if node.get("type") == "detector":
             config = node.setdefault("config", {})
-            if config.get("engine") not in ("rfdetr", "rfdetr_tensorrt", "rfdetr_onnx", "ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+            if config.get("engine") not in ("rfdetr", "rfdetr_tensorrt", "rfdetr_onnx", "ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                 config["engine"] = "rfdetr"
             config.pop("yoloModel", None)
             config.pop("end2end", None)
@@ -1209,7 +1209,7 @@ def normalize_workflow(workflow: dict) -> dict:
             config.setdefault("batchSize", 1)
         if node.get("type") == "segmenter":
             config = node.setdefault("config", {})
-            if config.get("engine") not in ("sam3", "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx", "ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+            if config.get("engine") not in ("sam3", "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx", "ultralytics_yolo", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                 config["engine"] = "rfdetr"
             config.pop("yoloModel", None)
             config.pop("end2end", None)
@@ -1232,7 +1232,7 @@ def normalize_workflow(workflow: dict) -> dict:
             normalize_efficientad_config(node.setdefault("config", {}))
         if node.get("type") == "classifier":
             config = node.setdefault("config", {})
-            if config.get("engine") not in ("convnext", "ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+            if config.get("engine") not in ("convnext", "ultralytics_yolo", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                 config["engine"] = "convnext"
             config.setdefault("threshold", 0.0)
             config.setdefault("convnextModel", "convnext_tiny.fb_in22k_ft_in1k")

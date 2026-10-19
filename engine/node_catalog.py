@@ -298,7 +298,7 @@ def available_output_labels(workflow: dict, target_id: str) -> list[tuple[str, s
                 labels = _configured_output_labels(config.get("rfdetrOnnxClasses", ""))
             elif engine == "rfdetr_tensorrt":
                 labels = _configured_output_labels(config.get("rfdetrTensorRTClasses", ""))
-            elif engine in ("ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+            elif engine in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                 labels = _configured_output_labels(config.get("classes", config.get("customClasses", "")))
         elif node_type == "filter":
             labels = _configured_output_labels(config.get("classes", ""))

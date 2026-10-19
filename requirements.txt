@@ -15,3 +15,5 @@ pydantic>=2.0.0
 supervision>=0.25.0,<=0.30.9
 trackers==2.5.0.post0
 yt-dlp>=2024.0.0
+ftfy>=6.0.0
+clip @ git+https://github.com/ultralytics/CLIP.git

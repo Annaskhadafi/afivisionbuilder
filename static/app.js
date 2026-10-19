@@ -670,8 +670,12 @@
       guide: 'Contoh: "person, car, motorcycle". Kosongkan jika ingin mendeteksi SEMUA 80 kelas COCO bawaan.'
     },
     customClasses: {
-      text: 'Daftar nama label kelas khusus untuk model kustom (dipisah koma).',
-      guide: 'Urutkan sesuai index class 0, 1, 2 pada model (misal: "cacat_goresan, cacat_retak, normal").'
+      text: 'Daftar nama label kelas khusus atau teks prompt deteksi open-vocabulary (dipisah koma).',
+      guide: 'Untuk model kustom: urutkan sesuai index class. Untuk YOLO-World: ketik prompt objek yang dicari (misal: "forklift, safety vest, person, helmet").'
+    },
+    roboflowApiKey: {
+      text: 'Roboflow API Private Key untuk autentikasi hosted inference Roboflow Universe.',
+      guide: 'Dapatkan dari dashboard Roboflow Workspace Anda (Settings > API Keys).'
     },
     batchSize: {
       text: 'Jumlah frame yang diproses secara paralel dalam satu batch inferensi GPU.',
@@ -1817,6 +1821,7 @@
     customClasses: 'Daftar Kelas Model Kustom',
     customHeaders: 'Header HTTP Tambahan (JSON/Header)',
     customModelPath: 'Path File Model Kustom (.pt / .onnx)',
+    roboflowApiKey: 'Roboflow API Key (Private)',
     dahengExposureUs: 'Waktu Eksposur Daheng (µs)',
     dahengFrameRate: 'Target Frame Rate Daheng (FPS)',
     dahengGain: 'Penguatan Sinyal Daheng (Gain dB)',
@@ -3280,6 +3285,32 @@
     toast(`Koneksi berhasil dialihkan ke ${targetTitle}`);
   }
 
+  function getNodePortPos(nodeId, type = 'output') {
+    const n = nodeFor(nodeId);
+    const nx = Number(n?.x) || 0;
+    const ny = Number(n?.y) || 0;
+    const card = document.querySelector(`.node-card[data-id="${nodeId}"]`);
+    if (card) {
+      const port = card.querySelector(`.port.${type}`);
+      if (port) {
+        const cRect = card.getBoundingClientRect();
+        const pRect = port.getBoundingClientRect();
+        if (cRect.width > 0 && pRect.width > 0) {
+          const z = state.zoom || 1;
+          const cx = (pRect.left + pRect.width / 2 - cRect.left) / z;
+          const cy = (pRect.top + pRect.height / 2 - cRect.top) / z;
+          return { x: nx + cx, y: ny + cy };
+        }
+      }
+    }
+    // High-precision fallback matching .node-card & .port CSS geometry
+    // (card: 214px wide, border-left: 2px, border-right: 2px, border-top: 4px; port: 18x18, top: 42px, translateY(-50%))
+    return {
+      x: type === 'output' ? nx + 212 : nx + 2,
+      y: ny + 46
+    };
+  }
+
   function drawEdges() {
     const svg = $('#edges');
     if (!svg) return;
@@ -3290,10 +3321,12 @@
       const b = nodeFor(edge[1]);
       if (!a || !b) return;
 
-      const x1 = (a.x || 0) + 214;
-      const y1 = (a.y || 0) + 42;
-      const x2 = (b.x || 0);
-      const y2 = (b.y || 0) + 42;
+      const p1 = getNodePortPos(edge[0], 'output');
+      const p2 = getNodePortPos(edge[1], 'input');
+      const x1 = p1.x;
+      const y1 = p1.y;
+      const x2 = p2.x;
+      const y2 = p2.y;
       const bend = Math.max(45, Math.abs(x2 - x1) * 0.45);
       const d = `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
 
@@ -3399,10 +3432,19 @@
     if (state.connecting) {
       const fromNode = nodeFor(state.connecting.from);
       if (fromNode) {
-        const x1 = (fromNode.x || 0) + 214;
-        const y1 = (fromNode.y || 0) + 42;
-        const x2 = state.connecting.mouseX !== undefined ? state.connecting.mouseX : x1 + 80;
-        const y2 = state.connecting.mouseY !== undefined ? state.connecting.mouseY : y1;
+        const p1 = getNodePortPos(state.connecting.from, 'output');
+        const x1 = p1.x;
+        const y1 = p1.y;
+        let x2 = state.connecting.mouseX !== undefined ? state.connecting.mouseX : x1 + 80;
+        let y2 = state.connecting.mouseY !== undefined ? state.connecting.mouseY : y1;
+
+        // Snap seamlessly to target input port if cursor is hovering over another node card or input port
+        if (state.connecting.targetHoverId && state.connecting.targetHoverId !== state.connecting.from) {
+          const p2 = getNodePortPos(state.connecting.targetHoverId, 'input');
+          x2 = p2.x;
+          y2 = p2.y;
+        }
+
         const bend = Math.max(45, Math.abs(x2 - x1) * 0.45);
         const previewD = `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
 
@@ -3447,10 +3489,12 @@
 
   function connectFrom(id) {
     const fromNode = nodeFor(id);
+    const p1 = getNodePortPos(id, 'output');
     state.connecting = {
       from: id,
-      mouseX: (fromNode?.x || 0) + 214,
-      mouseY: (fromNode?.y || 0) + 42
+      mouseX: p1.x,
+      mouseY: p1.y,
+      targetHoverId: null
     };
     $('#canvasHint').innerHTML = `⚡ <b>Sedang menarik garis dari "${fromNode?.title || id}":</b> Klik kartu node tujuan untuk menghubungkan cabang (atau tekan Esc untuk batal)`;
     renderCanvas();
@@ -4908,10 +4952,11 @@
     if (['detector', 'segmenter', 'classifier'].includes(n.type)) {
       if (!n.config) n.config = {};
       const eng = n.config.engine || (n.type === 'classifier' ? 'convnext' : 'rfdetr');
-      if (['ultralytics_yolo', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(eng)) {
+      if (['ultralytics_yolo', 'yolo_world', 'roboflow_universe', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(eng)) {
         if (n.config.modelPath === undefined) n.config.modelPath = n.config.customModelPath || (eng === 'onnx_custom' ? n.config.rfdetrOnnxModel : n.config.rfdetrCheckpoint) || n.config.convnextCheckpoint || '';
         if (n.config.customModelPath === undefined) n.config.customModelPath = '';
         if (n.config.customClasses === undefined) n.config.customClasses = '';
+        if (eng === 'roboflow_universe' && n.config.roboflowApiKey === undefined) n.config.roboflowApiKey = '';
       }
     }
 
@@ -5381,8 +5426,14 @@
       if (eng === 'convnext') {
         return !['rfdetrModel', 'rfdetrCheckpoint', 'rfdetrHalfPrecision', 'rfdetrOnnxModel', 'rfdetrOnnxClasses', 'rfdetrTensorRTEngine', 'rfdetrTensorRTClasses', 'rfdetrTensorRTCudaGraph', 'rfdetrTensorRTProcess', 'customModelPath', 'modelPath', 'customClasses', 'samCheckpoint', 'concepts'].includes(key);
       }
+      if (eng === 'yolo_world') {
+        return ['engine', 'customClasses', 'threshold', 'iouThreshold', 'device', 'modelPath', 'detectEveryNFrames', 'batchSize'].includes(key);
+      }
+      if (eng === 'roboflow_universe') {
+        return ['engine', 'modelPath', 'roboflowApiKey', 'classes', 'threshold', 'iouThreshold', 'detectEveryNFrames', 'batchSize'].includes(key);
+      }
       if (['ultralytics_yolo', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(eng)) {
-        return !['rfdetrModel', 'rfdetrCheckpoint', 'rfdetrHalfPrecision', 'rfdetrOnnxModel', 'rfdetrOnnxClasses', 'rfdetrTensorRTEngine', 'rfdetrTensorRTClasses', 'rfdetrTensorRTCudaGraph', 'rfdetrTensorRTProcess', 'convnextModel', 'convnextCheckpoint', 'convnextClasses', 'convnextImageSize', 'convnextHalfPrecision', 'samCheckpoint', 'concepts', 'customModelPath'].includes(key);
+        return !['rfdetrModel', 'rfdetrCheckpoint', 'rfdetrHalfPrecision', 'rfdetrOnnxModel', 'rfdetrOnnxClasses', 'rfdetrTensorRTEngine', 'rfdetrTensorRTClasses', 'rfdetrTensorRTCudaGraph', 'rfdetrTensorRTProcess', 'convnextModel', 'convnextCheckpoint', 'convnextClasses', 'convnextImageSize', 'convnextHalfPrecision', 'samCheckpoint', 'concepts', 'customModelPath', 'roboflowApiKey'].includes(key);
       }
     }
 
@@ -5440,6 +5491,8 @@
 
   async function inspectAndApplyModel(node, modelPath) {
     if (!node || !modelPath || !['detector', 'segmenter', 'classifier'].includes(node.type)) return;
+    if (node.config && (node.config.engine === 'roboflow_universe' || node.config.engine === 'yolo_world')) return;
+    if (typeof modelPath === 'string' && modelPath.includes('/') && !modelPath.includes('\\') && !modelPath.endsWith('.pt') && !modelPath.endsWith('.onnx')) return;
     try {
       const data = await api(`/api/models/inspect?path=${encodeURIComponent(modelPath)}`);
       if (data && data.engine) {
@@ -5564,8 +5617,15 @@
     
     const labelText = document.createElement('span');
     labelText.className = 'field-label-text';
-    // Labels resolved from outer INDO_FIELD_LABELS
-    labelText.textContent = INDO_FIELD_LABELS[key] || key.replace(/([A-Z])/g, ' $1').replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+    let resolvedLabel = INDO_FIELD_LABELS[key] || key.replace(/([A-Z])/g, ' $1').replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+    if (key === 'modelPath' || key === 'customModelPath') {
+      if (node.config && node.config.engine === 'roboflow_universe') {
+        resolvedLabel = 'Roboflow Universe Model ID';
+      } else if (node.config && node.config.engine === 'yolo_world') {
+        resolvedLabel = 'Checkpoint YOLO-World (Opsional)';
+      }
+    }
+    labelText.textContent = resolvedLabel;
     label.append(labelText);
 
     const helpInfo = node.type === 'zone_exit_event' && key === 'classes'
@@ -5667,6 +5727,8 @@
         ['rfdetr_onnx', 'RF-DETR ONNX Runtime'],
         ['rfdetr_tensorrt', 'RF-DETR TensorRT (CUDA Accelerated)'],
         ['ultralytics_yolo', 'Ultralytics YOLO (best.pt / yolov8)'],
+        ['yolo_world', 'YOLO-World (Zero-Shot Text Prompt)'],
+        ['roboflow_universe', 'Roboflow Universe (Model ID)'],
         ['onnx_custom', 'Custom ONNX Runtime (.onnx)'],
         ['tflite', 'TensorFlow Lite (.tflite)'],
         ['tensorflow_keras', 'TensorFlow / Keras (.keras / .h5)'],
@@ -5863,6 +5925,8 @@
             ['rfdetr_onnx', 'RF-DETR ONNX Runtime'],
             ['rfdetr_tensorrt', 'RF-DETR TensorRT (CUDA Accelerated)'],
             ['ultralytics_yolo', 'Ultralytics YOLO (best.pt / yolov8)'],
+            ['yolo_world', 'YOLO-World (Zero-Shot Text Prompt)'],
+            ['roboflow_universe', 'Roboflow Universe (Model ID)'],
             ['onnx_custom', 'Custom ONNX Runtime (.onnx)'],
             ['tflite', 'TensorFlow Lite (.tflite)'],
             ['tensorflow_keras', 'TensorFlow / Keras (.keras / .h5)']
@@ -5874,6 +5938,7 @@
             ['rfdetr_onnx', 'RF-DETR Segmenter ONNX'],
             ['rfdetr_tensorrt', 'RF-DETR Segmenter TensorRT'],
             ['ultralytics_yolo', 'Ultralytics YOLO Segment (.pt)'],
+            ['roboflow_universe', 'Roboflow Universe (Model ID)'],
             ['onnx_custom', 'Custom ONNX Segmenter (.onnx)'],
             ['tflite', 'TensorFlow Lite Segmenter (.tflite)']
           ];
@@ -5881,6 +5946,7 @@
           options = [
             ['convnext', 'ConvNeXt Classifier (Default)'],
             ['ultralytics_yolo', 'Ultralytics YOLO Classify (.pt)'],
+            ['roboflow_universe', 'Roboflow Universe (Model ID)'],
             ['onnx_custom', 'Custom ONNX Classifier (.onnx)'],
             ['tflite', 'TensorFlow Lite Classifier (.tflite)'],
             ['tensorflow_keras', 'TensorFlow / Keras (.keras / .h5)']
@@ -5898,9 +5964,10 @@
       select.value = String(value);
       select.onchange = () => {
         node.config[key] = select.value;
-        if (key === 'engine' && ['ultralytics_yolo', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(select.value)) {
+        if (key === 'engine' && ['ultralytics_yolo', 'yolo_world', 'roboflow_universe', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(select.value)) {
           if (node.config.customModelPath === undefined) node.config.customModelPath = '';
           if (node.config.customClasses === undefined) node.config.customClasses = '';
+          if (select.value === 'roboflow_universe' && node.config.roboflowApiKey === undefined) node.config.roboflowApiKey = '';
         }
         markDirty();
         renderInspector(); // Re-render for conditional visibility
@@ -6098,35 +6165,55 @@
 
     // 3. Model checkpoint files with Model Picker & Upload
     if (['rfdetrCheckpoint', 'rfdetrOnnxModel', 'rfdetrTensorRTEngine', 'samCheckpoint', 'convnextCheckpoint', 'efficientadModel', 'customModelPath', 'modelPath'].includes(key)) {
+      const isRoboflow = node.config && node.config.engine === 'roboflow_universe';
+      const isYoloWorld = node.config && node.config.engine === 'yolo_world';
+
       const row = document.createElement('div');
       row.className = 'field-row';
       const input = document.createElement('input');
       input.type = 'text';
       input.value = value ?? '';
-      input.placeholder = 'Blank = default model, or custom file';
+      input.placeholder = isRoboflow 
+        ? 'Contoh: warehouse-safety/3 atau workspace/project/1'
+        : (isYoloWorld ? 'Blank = yolov8s-worldv2.pt (default resmi otomatis unduh)' : 'Blank = default model, or custom file');
       input.onchange = async () => {
         node.config[key] = input.value;
         markDirty();
-        if (input.value) await inspectAndApplyModel(node, input.value);
+        if (input.value && !isRoboflow && !isYoloWorld) {
+          await inspectAndApplyModel(node, input.value);
+        }
       };
 
-      const modelBtn = document.createElement('button');
-      modelBtn.type = 'button';
-      modelBtn.className = 'button ghost';
-      modelBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Upload';
-      modelBtn.onclick = () => $('#modelInput').click();
-
-      row.append(input, modelBtn);
+      if (!isRoboflow) {
+        const modelBtn = document.createElement('button');
+        modelBtn.type = 'button';
+        modelBtn.className = 'button ghost';
+        modelBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Upload';
+        modelBtn.onclick = () => $('#modelInput').click();
+        row.append(input, modelBtn);
+      } else {
+        row.append(input);
+      }
       wrap.append(row);
 
-      if (['detector', 'segmenter'].includes(node.type) && ['customModelPath', 'modelPath', 'rfdetrCheckpoint', 'rfdetrOnnxModel', 'rfdetrTensorRTEngine', 'samCheckpoint'].includes(key)) {
+      if (isRoboflow) {
+        const roboflowHelp = document.createElement('small');
+        roboflowHelp.className = 'model-upload-help';
+        roboflowHelp.textContent = 'Masukkan Model ID Roboflow Universe (format: project/version). Dieksekusi otomatis via Roboflow Hosted Inference API menggunakan API Key.';
+        wrap.append(roboflowHelp);
+      } else if (isYoloWorld) {
+        const yoloWorldHelp = document.createElement('small');
+        yoloWorldHelp.className = 'model-upload-help';
+        yoloWorldHelp.textContent = 'YOLO-World adalah model zero-shot open-vocabulary. Kosongkan untuk mengunduh yolov8s-worldv2.pt resmi, atau arahkan ke checkpoint lokal.';
+        wrap.append(yoloWorldHelp);
+      } else if (['detector', 'segmenter'].includes(node.type) && ['customModelPath', 'modelPath', 'rfdetrCheckpoint', 'rfdetrOnnxModel', 'rfdetrTensorRTEngine', 'samCheckpoint'].includes(key)) {
         const uploadHelp = document.createElement('small');
         uploadHelp.className = 'model-upload-help';
         uploadHelp.textContent = 'Unggah model custom lewat tombol Upload di samping kolom ini atau Upload Model di toolbar atas. File masuk ke data/models dan diterapkan ke node ini. Untuk segmentasi, gunakan bobot model segmentasi yang sesuai dengan engine (.pt atau .onnx).';
         wrap.append(uploadHelp);
       }
 
-      if (state.models && state.models.length > 0) {
+      if (!isRoboflow && state.models && state.models.length > 0) {
         const picker = document.createElement('select');
         picker.style.marginTop = '6px';
         picker.style.fontWeight = '500';
@@ -7839,7 +7926,7 @@
       {
         "key": "engine",
         "label": "Mesin Model AI",
-        "desc": "Pilihan engine AI: rfdetr, ultralytics_yolo, onnx_custom, tflite."
+        "desc": "Pilihan engine AI: rfdetr, ultralytics_yolo, yolo_world (zero-shot prompt), roboflow_universe, onnx_custom, tflite."
       },
       {
         "key": "threshold",
@@ -10406,6 +10493,10 @@
         const point = canvasPoint(e);
         state.connecting.mouseX = point.x;
         state.connecting.mouseY = point.y;
+        const hoveredCard = document.elementFromPoint(e.clientX, e.clientY)?.closest('.node-card');
+        state.connecting.targetHoverId = (hoveredCard && hoveredCard.dataset.id !== state.connecting.from)
+          ? hoveredCard.dataset.id
+          : null;
         drawEdges();
       }
       if (!state.isPanning) return;
@@ -10425,6 +10516,10 @@
         const point = canvasPoint(e);
         state.connecting.mouseX = point.x;
         state.connecting.mouseY = point.y;
+        const hoveredCard = document.elementFromPoint(e.clientX, e.clientY)?.closest('.node-card');
+        state.connecting.targetHoverId = (hoveredCard && hoveredCard.dataset.id !== state.connecting.from)
+          ? hoveredCard.dataset.id
+          : null;
         drawEdges();
       }
     });

@@ -228,7 +228,7 @@ def normalize_workflow(workflow: dict) -> dict:
             config = node.setdefault("config", {})
             valid_detector_engines = (
                 "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx",
-                "ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"
+                "ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"
             )
             if config.get("engine") not in valid_detector_engines:
                 config["engine"] = "rfdetr"
@@ -250,7 +250,7 @@ def normalize_workflow(workflow: dict) -> dict:
             config = node.setdefault("config", {})
             valid_segmenter_engines = (
                 "sam3", "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx",
-                "ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"
+                "ultralytics_yolo", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"
             )
             if config.get("engine") not in valid_segmenter_engines:
                 config["engine"] = "rfdetr"
@@ -277,7 +277,7 @@ def normalize_workflow(workflow: dict) -> dict:
             config = node.setdefault("config", {})
             valid_classifier_engines = (
                 "convnext",
-                "ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"
+                "ultralytics_yolo", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"
             )
             if config.get("engine") not in valid_classifier_engines:
                 config["engine"] = "convnext"

@@ -3101,7 +3101,7 @@ class WorkflowRunner:
                 for inference_node in inference_nodes:
                     config = inference_node.get("config", {})
                     eng = config.get("engine", "rfdetr")
-                    if eng not in ("sam3", "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx", "convnext", "efficientad", "ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+                    if eng not in ("sam3", "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx", "convnext", "efficientad", "ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                         raise RuntimeError(
                             f"Backend runtime does not support inference engine '{eng}'."
                         )
@@ -3137,6 +3137,10 @@ class WorkflowRunner:
                         task_label = f"RF-DETR TensorRT {task_label}"
                     elif eng == "convnext":
                         task_label = f"ConvNeXt {task_label}"
+                    elif eng == "yolo_world":
+                        task_label = f"YOLO-World Zero-Shot {task_label}"
+                    elif eng == "roboflow_universe":
+                        task_label = f"Roboflow Universe {task_label}"
                     elif eng in ("ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                         task_label = f"Custom Model ({eng}) {task_label}"
                     self._emit_log(f"Loading {task_label} model {model_name}")
@@ -3184,7 +3188,7 @@ class WorkflowRunner:
                         )
                     elif eng == "efficientad":
                         engine.load_efficientad_model(config, device)
-                    elif eng in ("ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+                    elif eng in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                         try:
                             from .custom_model_runtime import CustomModelRunner
                         except ImportError:
@@ -3532,7 +3536,7 @@ class WorkflowRunner:
                                 inference_frames,
                                 runtime_inference_node,
                             )
-                        elif eng in ("ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+                        elif eng in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                             try:
                                 from .custom_model_runtime import run_custom_model_frame
                             except ImportError:
@@ -3547,7 +3551,7 @@ class WorkflowRunner:
                             )
 
                         slicer_nodes = [n for n in workflow.get("nodes", []) if n.get("type") == "slicer" and n.get("enabled", True)]
-                        if slicer_nodes and inference_node.get("type") in ("detector", "segmenter") and eng in ("ultralytics_yolo", "onnx_custom", "custom_auto"):
+                        if slicer_nodes and inference_node.get("type") in ("detector", "segmenter") and eng in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "custom_auto"):
                             slicer = slicer_nodes[0]
                             iou_th = float(slicer.get("config", {}).get("iouThreshold", 0.45) or 0.45)
                             for r_idx, b_idx in enumerate(eligible_indices):
@@ -4638,7 +4642,7 @@ class WorkflowRunner:
                 for inference_node in inference_nodes:
                     config = inference_node.get("config", {})
                     eng = config.get("engine", "rfdetr")
-                    if eng not in ("sam3", "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx", "convnext", "efficientad", "ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+                    if eng not in ("sam3", "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx", "convnext", "efficientad", "ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                         raise RuntimeError(
                             f"Backend runtime does not support inference engine '{eng}'."
                         )
@@ -4674,6 +4678,10 @@ class WorkflowRunner:
                         task_label = f"RF-DETR TensorRT {task_label}"
                     elif eng == "convnext":
                         task_label = f"ConvNeXt {task_label}"
+                    elif eng == "yolo_world":
+                        task_label = f"YOLO-World Zero-Shot {task_label}"
+                    elif eng == "roboflow_universe":
+                        task_label = f"Roboflow Universe {task_label}"
                     elif eng in ("ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                         task_label = f"Custom Model ({eng}) {task_label}"
                     self._emit_log(f"Loading {task_label} model {model_name}")
@@ -4721,7 +4729,7 @@ class WorkflowRunner:
                         )
                     elif eng == "efficientad":
                         engine.load_efficientad_model(config, device)
-                    elif eng in ("ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+                    elif eng in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                         try:
                             from .custom_model_runtime import CustomModelRunner
                         except ImportError:
@@ -4937,7 +4945,7 @@ class WorkflowRunner:
                                 inference_frame,
                                 runtime_inference_node,
                             )
-                        elif eng in ("ultralytics_yolo", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
+                        elif eng in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                             inference_started_at = time.monotonic()
                             try:
                                 from .custom_model_runtime import run_custom_model_frame

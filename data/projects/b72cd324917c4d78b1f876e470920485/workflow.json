@@ -1,0 +1,255 @@
+{
+  "nodes": [
+    {
+      "id": "input",
+      "type": "input",
+      "title": "Input",
+      "subtitle": "Sumber kamera USB/webcam, Daheng, YouTube stream, gambar, atau file video",
+      "x": 60,
+      "y": 140,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "sourceType": "youtube",
+        "source": 0,
+        "youtubeUrl": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "youtubeQuality": "720p",
+        "autoReconnect": true,
+        "width": 0,
+        "height": 0,
+        "dahengOpenMode": "index",
+        "dahengIdentifier": "1",
+        "dahengTimeoutMs": 1000,
+        "dahengFrameRate": 0,
+        "dahengExposureUs": 0,
+        "dahengGain": 0,
+        "filePath": "",
+        "loop": true,
+        "frameQueueSize": 8,
+        "torchCpuThreads": 0,
+        "asyncPreview": false,
+        "dropFrames": true
+      }
+    },
+    {
+      "id": "detector",
+      "type": "detector",
+      "title": "Object Detection",
+      "subtitle": "Deteksi objek dengan model RF-DETR PyTorch, TensorRT, atau YOLO",
+      "x": 280,
+      "y": 140,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "engine": "rfdetr",
+        "threshold": 0.35,
+        "rfdetrModel": "rfdetr-nano",
+        "rfdetrCheckpoint": "",
+        "rfdetrImageSize": 0,
+        "rfdetrHalfPrecision": true,
+        "rfdetrTensorRTEngine": "",
+        "rfdetrTensorRTClasses": "",
+        "rfdetrTensorRTCudaGraph": false,
+        "rfdetrTensorRTProcess": false,
+        "rfdetrOnnxModel": "",
+        "rfdetrOnnxClasses": "",
+        "detectEveryNFrames": 1,
+        "maxDetectionFps": 0,
+        "batchSize": 1,
+        "iouThreshold": 0.45,
+        "device": "auto",
+        "customModelPath": "",
+        "customClasses": "",
+        "perClassThresholds": "",
+        "classRemap": "",
+        "modelPath": "yolov8n.pt",
+        "classes": "car,motorcycle,bus,truck"
+      }
+    },
+    {
+      "id": "tracker",
+      "type": "tracker",
+      "title": "Object Tracking",
+      "subtitle": "Pelacakan ID dengan ByteTrack, BoT-SORT, OC-SORT, atau C-BIoU",
+      "x": 500,
+      "y": 140,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "trackerConfigVersion": 3,
+        "algorithm": "bytetrack",
+        "trackHighThreshold": 0.45,
+        "trackLowThreshold": 0.1,
+        "newTrackThreshold": 0.5,
+        "matchThreshold": 0.1,
+        "trackBuffer": 90,
+        "minimumConsecutiveFrames": 1,
+        "trackerFrameRate": 30,
+        "botSortFirstIouThreshold": 0.2,
+        "botSortSecondIouThreshold": 0.5,
+        "botSortUnconfirmedIouThreshold": 0.3,
+        "botSortGmc": true,
+        "botSortCmcMethod": "sparseOptFlow",
+        "botSortCmcDownscale": 2,
+        "ocSortDetectionThreshold": 0.45,
+        "ocSortIouThreshold": 0.3,
+        "ocSortMaxAge": 90,
+        "ocSortMinHits": 1,
+        "ocSortDeltaT": 3,
+        "ocSortInertia": 0.2,
+        "enableClassLock": true,
+        "classLockWindow": 10,
+        "enableSmoothing": true,
+        "smoothingAlpha": 0.7,
+        "batchSize": 1,
+        "classAgnostic": false,
+        "showLostTracks": false
+      }
+    },
+    {
+      "id": "lane_counter",
+      "type": "multi_zone_occupancy",
+      "title": "Multi-Zone Occupancy & Activity Tracker",
+      "subtitle": "Pantau keterisian banyak zona/meja/slot sekaligus, timer durasi, kapasitas, dan status Vacant/Occupied",
+      "x": 720,
+      "y": 140,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "targetClasses": "car,motorcycle,bus,truck",
+        "confirmationSeconds": 0.5,
+        "graceSeconds": 2,
+        "maxDwellMinutes": 5,
+        "labelPosition": "center",
+        "compactLabel": true,
+        "showHudOverlay": true,
+        "showSummaryCard": true,
+        "zones": [
+          {
+            "id": "lajur_01",
+            "name": "Lajur 01 (Utara / Kiri)",
+            "capacity": 8,
+            "points": "0.08,0.25; 0.48,0.25; 0.45,0.95; 0.05,0.95"
+          },
+          {
+            "id": "lajur_02",
+            "name": "Lajur 02 (Selatan / Kanan)",
+            "capacity": 8,
+            "points": "0.52,0.25; 0.92,0.25; 0.95,0.95; 0.55,0.95"
+          }
+        ]
+      }
+    },
+    {
+      "id": "annotate",
+      "type": "overlay_annotate",
+      "title": "Overlay / Annotate",
+      "subtitle": "Gambarkan seluruh anotasi (kotak, label, ikon, heatmap) di satu tempat",
+      "x": 940,
+      "y": 140,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "layers": []
+      }
+    },
+    {
+      "id": "alert_out",
+      "type": "alert",
+      "title": "Alert Output",
+      "subtitle": "Catat riwayat log event dan rekam klip video alarm",
+      "x": 1160,
+      "y": 70,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "cooldownSeconds": 5,
+        "message": "Kepadatan kendaraan di lajur melebihi kapasitas!",
+        "recordClip": true,
+        "clipDurationSeconds": 5
+      }
+    },
+    {
+      "id": "db_out",
+      "type": "database_output",
+      "title": "Database Output",
+      "subtitle": "Simpan hasil deteksi dan log event ke database lokal SQLite",
+      "x": 1160,
+      "y": 170,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "databasePath": "",
+        "saveDetections": true,
+        "eventObjectsOnly": true,
+        "saveFrames": false,
+        "saveEvents": true,
+        "saveDebug": false,
+        "sampleEvery": 1,
+        "batchSize": 128,
+        "flushIntervalMs": 500,
+        "maxQueue": 10000,
+        "retentionDays": 14,
+        "aggregateHourly": true,
+        "table": "traffic_flow_events"
+      }
+    },
+    {
+      "id": "preview",
+      "type": "preview",
+      "title": "Live Preview",
+      "subtitle": "Jendela tampilan streaming video hasil pemrosesan",
+      "x": 1160,
+      "y": 270,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "showBoxes": true,
+        "showLabels": true,
+        "showMasks": true,
+        "showTrackIds": true,
+        "showTrails": true,
+        "showCounts": true,
+        "maskOpacity": 0.35,
+        "cropGridMaxItems": 16,
+        "cropGridColumns": 0,
+        "cropGridGap": 8,
+        "holdLastEvent": true,
+        "maxPreviewFps": 0,
+        "saveVideo": false,
+        "outputPath": "",
+        "outputFps": 0
+      }
+    }
+  ],
+  "edges": [
+    [
+      "input",
+      "detector"
+    ],
+    [
+      "detector",
+      "tracker"
+    ],
+    [
+      "tracker",
+      "lane_counter"
+    ],
+    [
+      "lane_counter",
+      "annotate"
+    ],
+    [
+      "annotate",
+      "alert_out"
+    ],
+    [
+      "annotate",
+      "db_out"
+    ],
+    [
+      "annotate",
+      "preview"
+    ]
+  ]
+}

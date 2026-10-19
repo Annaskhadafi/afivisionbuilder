@@ -74,6 +74,8 @@ _MODEL_ENGINES = (
     {"id": "convnext", "label": "ConvNeXt", "nodeTypes": ["classifier"], "configKey": "convnextCheckpoint", "extensions": [".pt", ".pth", ".ckpt"], "requirement": "PyTorch; blank checkpoint uses the selected pretrained model."},
     {"id": "efficientad", "label": "EfficientAD", "nodeTypes": ["efficientad"], "configKey": "efficientadModel", "extensions": [".pt"], "requirement": "PyTorch and a trained EfficientAD deployment export."},
     {"id": "ultralytics_yolo", "label": "Ultralytics YOLO (best.pt)", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "modelPath", "extensions": [".pt", ".pth"], "requirement": "Ultralytics YOLO PyTorch checkpoint."},
+    {"id": "yolo_world", "label": "YOLO-World (Zero-Shot Text Prompt)", "nodeTypes": ["detector"], "configKey": "modelPath", "extensions": [".pt", ""], "requirement": "Zero-shot open-vocabulary detection using Ultralytics YOLO-World."},
+    {"id": "roboflow_universe", "label": "Roboflow Universe (Model ID)", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "modelPath", "extensions": [""], "requirement": "Roboflow Universe model ID via Roboflow Inference API."},
     {"id": "onnx_custom", "label": "Custom ONNX Runtime", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "modelPath", "extensions": [".onnx"], "requirement": "ONNX Runtime model file; segmentation requires a YOLO export."},
     {"id": "custom_auto", "label": "Custom model (auto)", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "modelPath", "extensions": [".pt", ".pth", ".onnx", ".tflite", ".keras", ".h5"], "requirement": "Runtime for the selected model format."},
     {"id": "tflite", "label": "TensorFlow Lite", "nodeTypes": ["detector", "classifier"], "configKey": "rfdetrCheckpoint", "extensions": [".tflite"], "requirement": "TensorFlow Lite model file."},
@@ -374,6 +376,8 @@ def _model_availability(engine_id: str) -> bool:
         "convnext": ("torch", "timm"),
         "efficientad": ("torch",),
         "ultralytics_yolo": ("ultralytics", "torch"),
+        "yolo_world": ("ultralytics", "torch"),
+        "roboflow_universe": ("requests",),
         "onnx_custom": ("onnxruntime",),
         "tflite": ("tensorflow",),
         "tensorflow_keras": ("tensorflow",),
@@ -383,11 +387,38 @@ def _model_availability(engine_id: str) -> bool:
 
 @app.get("/api/models/inspect")
 def inspect_model(path: str) -> dict:
+    raw = path.strip().strip('"')
+    if ("/" in raw and not Path(raw).is_file() and not Path(raw).suffix) or raw.startswith("roboflow:"):
+        return {
+            "path": raw,
+            "name": raw,
+            "engine": "roboflow_universe",
+            "format": "cloud",
+            "task": "detect",
+            "classes": [],
+            "classesCount": 0,
+            "sizeBytes": 0,
+            "sha256": "",
+            "contentId": raw,
+        }
+    if ("world" in raw.lower() and not Path(raw).is_file()) or raw == "yolo_world":
+        return {
+            "path": raw,
+            "name": raw,
+            "engine": "yolo_world",
+            "format": "pt",
+            "task": "detect",
+            "classes": [],
+            "classesCount": 0,
+            "sizeBytes": 0,
+            "sha256": "",
+            "contentId": raw,
+        }
     try:
         import custom_model_runtime
     except ImportError:
         from engine import custom_model_runtime
-    target = custom_model_runtime.resolve_model_file(path.strip().strip('"'))
+    target = custom_model_runtime.resolve_model_file(raw)
     if not target.is_file():
         raise HTTPException(404, f"Model file not found: {path}")
     engine = custom_model_runtime.detect_model_engine(str(target))
@@ -1288,7 +1319,7 @@ def _preflight_models(workflow: dict) -> None:
                     value = -1
                 if not math.isfinite(value) or value < minimum or (value != int(value) and key != "maxDetectionFps"):
                     raise HTTPException(400, f"node '{node['id']}' {key} must be at least {minimum}")
-        is_custom = engine_id in ("ultralytics_yolo", "onnx_custom", "custom_auto", "tflite", "tensorflow_keras")
+        is_custom = engine_id in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "custom_auto", "tflite", "tensorflow_keras")
         raw = custom_model_path(config) if is_custom else str(config.get(spec["configKey"]) or config.get("modelPath") or config.get("customModelPath") or "").strip().strip('"')
         if not raw and engine_id == "rfdetr":
             if node["type"] in ("detector", "segmenter"):
@@ -1297,6 +1328,20 @@ def _preflight_models(workflow: dict) -> None:
         if not raw and engine_id == "convnext":
             continue
         if not raw and engine_id == "sam3":
+            continue
+        if engine_id == "yolo_world":
+            raw_target = raw or "yolov8s-worldv2.pt"
+            config["customModelPath"] = raw_target
+            classes_str = str(config.get("customClasses") or config.get("classes") or "").strip()
+            labels = {c.strip().lower() for c in classes_str.split(",") if c.strip()}
+            resolved_labels[node["id"]] = labels
+            continue
+        if engine_id == "roboflow_universe":
+            if not raw:
+                raise HTTPException(400, f"node '{node['id']}' requires a Roboflow model ID in 'modelPath' for engine '{engine_id}'")
+            classes_str = str(config.get("classes") or config.get("customClasses") or "").strip()
+            labels = {c.strip().lower() for c in classes_str.split(",") if c.strip()}
+            resolved_labels[node["id"]] = labels
             continue
         if not raw and engine_id == "ultralytics_yolo":
             config["customModelPath"] = "yolov8n.pt"

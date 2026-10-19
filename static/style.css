@@ -116,6 +116,24 @@
   background-size: 24px 24px !important;
 }
 
+/* Canvas Nodes & Edge Stacking Order */
+#nodes {
+  position: relative !important;
+  z-index: 5 !important;
+  pointer-events: none !important;
+}
+
+#nodes .node-card {
+  pointer-events: auto !important;
+  z-index: 6 !important;
+}
+
+.canvas > svg#edges {
+  position: absolute !important;
+  z-index: 2 !important;
+  pointer-events: none !important;
+}
+
 /* High-Contrast Modern Node Card Base */
 .node-card {
   width: 214px !important;
@@ -1299,7 +1317,7 @@
 /* Instant Delete Button right on the connection wire (Clean & subtle) */
 .edge-del-btn-group {
   cursor: pointer !important;
-  pointer-events: all !important;
+  pointer-events: none !important;
   opacity: 0;
   transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -1308,6 +1326,7 @@
 .edge-del-btn-group:hover,
 .edge-group.selected .edge-del-btn-group {
   opacity: 1 !important;
+  pointer-events: all !important;
   transform: scale(1.15);
 }
 
