@@ -184,6 +184,26 @@
 - **Pusat Bantuan & Panduan (`Help`)**: Dialog modal interaktif berisikan tabel *Pintasan Keyboard* lengkap (<kbd>Space</kbd>+Drag, <kbd>Ctrl+S</kbd>, <kbd>Ctrl+Enter</kbd>, dll.), *Panduan Cepat 5 Langkah*, ringkasan *Katalog Node*, serta info versi sistem.
 - **Profil Pengguna Enterprise (`AN`)**: Avatar interaktif dengan kartu profil **Anas Khadafi** (*Lead Vision Engineer & Admin*), status live server, pintasan 1-klik ke *Model Quantizer*, *Sinkronisasi Sistem*, dan *Kunci Sesi*.
 
+### 🤖 28. AI Studio Copilot & Multi-Turn Iterative Revision
+- **Drawer Mengambang Terintegrasi**: Copilot cerdas di sisi kanan kanvas studio yang kompatibel dengan protokol OpenAI (9router, OpenAI, OpenRouter, Ollama, dan vLLM).
+- **Prompt-to-Pipeline Otomatis**: Buat alur kerja lengkap (Input, Detector, Filter, Tracker, Zone Timer, Visual Annotate) hanya dari instruksi teks natural language.
+- **Multi-Turn Context Awareness**: AI mengingat percakapan sebelumnya sehingga pengguna dapat merevisi konfigurasi secara bertahap (contoh: *"Ganti kelasnya jadi mobil dan bus saja, dan ubah confidence detector ke 0.8"*).
+- **In-Place Node Parameter Updates & Diff**: Perubahan parameter (kelas, threshold, filter, mode) ditandai dengan badge *REVISI SIAP* dan ringkasan diff sebelum diterapkan ke kanvas tanpa merusak node yang ada.
+
+### 🐍 29. Enhanced Python Script Inspector with 1-Frame Sandbox Preview
+- **AI Prompt-to-Code**: Buat fungsi OpenCV kustom `def process(frame, state):` dari prompt bahasa alami dengan generator terintegrasi.
+- **Monospace Code Editor**: Editor kode bawaan dengan dukungan indentasi tombol <kbd>Tab</kbd>, syntax validator AST Python real-time, dan status badge validasi.
+- **6 Preset Siap Pakai**: Pilihan preset industri instan (Watermark & Timestamp, Color Threshold Masking, Edge Detection Overlay, Draw Crosshair Grid, Speedometer HUD, Dynamic ROI Masking).
+- **Uji 1-Frame Sandbox**: Eksekusi uji kode pada 1 frame visual sintetis dalam lingkungan terisolasi lengkap dengan perbandingan gambar *Before vs After*, metrik latensi eksekusi (ms), dan tangkapan *standard output logs*.
+
+### 🎨 30. Unified Toolbar Action Controls & Responsive Layout
+- **Desain Seragam & Kontras Terstandarisasi**: Tombol aksi kanvas `[⚡ Rangkai Otomatis]` dan `[✨ AI Copilot]` memiliki tinggi presisi 30px, tipografi seimbang, radius sudut 7px, dan rasio kontras visual tinggi.
+- **Tata Letak Bebas Tumpang Tindih**: Toolbar responsif yang menjaga tombol aksi tetap mudah dijangkau di berbagai resolusi layar tanpa terpotong teks petunjuk kanvas.
+
+### 📄 31. Blank Canvas on New Project Creation
+- **Kanvas Kosong Murni**: Pembuatan proyek baru kini langsung menginisialisasi kanvas bersih (`{"nodes": [], "edges": []}`), memudahkan pengguna merancang alur kerja kustom atau menggunakan AI Copilot dari awal.
+- **Akses Template Fleksibel**: Seluruh template solusi industri (Workshop Timer, Warehouse Exit Guard, Restaurant Table Monitor, Traffic Flow) tetap siap digunakan kapan saja melalui Projects Hub dan menu Templates.
+
 ---
 
 ## 📸 Tur Antarmuka & Showcase Visual
@@ -251,6 +271,30 @@ Panel manajemen model AI terpusat dengan tabel metadata terstruktur (YOLOv8, YOL
 ### 11. Model Quantizer & Optimizer Tool (TFLite & ONNX)
 Alat visual terintegrasi di Model Registry untuk mengompresi model AI ke presisi INT8 / FP16 dengan kalibrasi sintetis otomatis, menampilkan rasio kompresi, unduh file, dan tombol 1-klik terapkan ke node aktif.
 ![Model Quantizer & Optimizer](docs/screenshots/11_model_quantizer.png)
+
+---
+
+### 12. Unified High-Contrast Toolbar Action Buttons
+Penyelarasan tinggi (30px), bobot font, dan kontras warna antara tombol `[⚡ Rangkai Otomatis]` dan `[✨ AI Copilot]` untuk pengalaman kanvas yang seimbang dan profesional.
+![Unified Toolbar Actions](docs/screenshots/12_unified_toolbar_actions.png)
+
+---
+
+### 13. AI Studio Copilot Multi-Turn Revision & Parameter Diff
+Drawer AI Copilot mengambang dengan kemampuan multi-turn history: memahami konteks instruksi sebelumnya, merevisi parameter kelas/threshold secara in-place, dan menampilkan diff parameter sebelum diterapkan ke kanvas.
+![AI Studio Copilot Drawer](docs/screenshots/13_ai_studio_copilot_drawer.png)
+
+---
+
+### 14. Enhanced Custom Python Script Inspector & 1-Frame Sandbox Preview
+Inspector script Python modern dengan generator Prompt-to-Code, AST syntax validator badge, pilihan 6 preset siap pakai, serta uji 1-frame sandbox dengan visual comparison Sebelum vs Sesudah.
+![Python Script Sandbox Preview](docs/screenshots/14_python_script_sandbox_preview.png)
+
+---
+
+### 15. Blank Canvas on New Project Creation
+Pembuatan proyek baru langsung menginisialisasi kanvas kosong tanpa node default, memberikan fleksibilitas penuh untuk merancang pipeline dari nol.
+![Blank Canvas New Project](docs/screenshots/15_blank_canvas_new_project.png)
 
 ---
 

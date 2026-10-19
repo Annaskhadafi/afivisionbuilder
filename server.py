@@ -6,6 +6,7 @@ import copy
 import datetime
 import hashlib
 import json
+import logging
 import math
 import os
 import re
@@ -19,6 +20,14 @@ from collections import deque
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 from typing import Any
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
+
+logger = logging.getLogger("afi.server")
 
 from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
@@ -125,13 +134,7 @@ def _check_finite(value: Any) -> bool:
 
 
 def _default_workflow() -> dict:
-    nodes = [
-        store.make_node("input", id="input", x=80, y=180),
-        store.make_node("color_convert", id="grayscale", x=320, y=180),
-        store.make_node("resize", id="resize", x=540, y=180),
-        store.make_node("preview", id="preview", x=760, y=180),
-    ]
-    return {"nodes": nodes, "edges": [["input", "grayscale"], ["grayscale", "resize"], ["resize", "preview"]]}
+    return {"nodes": [], "edges": []}
 
 
 def validate_workflow(workflow: Any) -> dict:
@@ -355,6 +358,103 @@ def check_python_script(request: Request, body: dict) -> dict:
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"valid": True}
+
+
+@app.post("/api/nodes/test-python-script")
+def test_python_script_endpoint(request: Request, body: dict) -> dict:
+    _write_allowed(request)
+    code = body.get("code")
+    if not isinstance(code, str) or len(code) > 65536:
+        raise HTTPException(400, "Script must contain at most 65536 characters")
+    state_in = body.get("state") if isinstance(body.get("state"), dict) else {}
+    frame_source = str(body.get("frameSource", "synthetic"))
+
+    try:
+        from engine.ai_studio_assistant import execute_test_python_script
+    except ImportError:
+        import ai_studio_assistant
+        execute_test_python_script = ai_studio_assistant.execute_test_python_script
+
+    res = execute_test_python_script(code=code, state=state_in, frame_source=frame_source)
+    if not res.get("success"):
+        raise HTTPException(400, res.get("error", "Execution failed"))
+    return res
+
+
+@app.post("/api/ai/generate-script")
+def generate_ai_script_endpoint(request: Request, body: dict) -> dict:
+    _write_allowed(request)
+    prompt = body.get("prompt")
+    if not prompt or not isinstance(prompt, str):
+        raise HTTPException(400, "Prompt is required")
+    current_code = body.get("currentCode")
+    ai_config = body.get("aiConfig") if isinstance(body.get("aiConfig"), dict) else None
+
+    try:
+        from engine.ai_studio_assistant import generate_python_script_from_prompt
+    except ImportError:
+        import ai_studio_assistant
+        generate_python_script_from_prompt = ai_studio_assistant.generate_python_script_from_prompt
+
+    try:
+        res = generate_python_script_from_prompt(prompt=prompt, current_code=current_code, ai_config=ai_config)
+        return res
+    except Exception as exc:
+        logger.exception("AI script generation failed: %s", exc)
+        raise HTTPException(500, f"AI generation failed: {exc}") from exc
+
+
+@app.post("/api/ai/chat")
+def ai_chat_endpoint(request: Request, body: dict) -> dict:
+    _write_allowed(request)
+    messages = body.get("messages")
+    if not isinstance(messages, list) or not messages:
+        raise HTTPException(400, "Messages list is required")
+    system_prompt = body.get("systemPrompt")
+    ai_config = body.get("aiConfig") if isinstance(body.get("aiConfig"), dict) else None
+
+    try:
+        from engine.ai_studio_assistant import call_ai_completion
+    except ImportError:
+        import ai_studio_assistant
+        call_ai_completion = ai_studio_assistant.call_ai_completion
+
+    try:
+        resp = call_ai_completion(messages=messages, system_prompt=system_prompt, ai_config=ai_config)
+        return {"success": True, "response": resp}
+    except Exception as exc:
+        logger.exception("AI chat completion failed: %s", exc)
+        raise HTTPException(500, f"AI chat failed: {exc}") from exc
+
+
+@app.post("/api/ai/generate-workflow")
+def generate_ai_workflow_endpoint(request: Request, body: dict) -> dict:
+    _write_allowed(request)
+    user_instruction = body.get("userInstruction")
+    if not user_instruction or not isinstance(user_instruction, str):
+        raise HTTPException(400, "userInstruction is required")
+    current_workflow = body.get("currentWorkflow")
+    history = body.get("history") if isinstance(body.get("history"), list) else None
+    ai_config = body.get("aiConfig") if isinstance(body.get("aiConfig"), dict) else None
+
+    try:
+        from engine.ai_studio_assistant import assistant_generate_or_modify_workflow
+    except ImportError:
+        import ai_studio_assistant
+        assistant_generate_or_modify_workflow = ai_studio_assistant.assistant_generate_or_modify_workflow
+
+    try:
+        res = assistant_generate_or_modify_workflow(
+            user_instruction=user_instruction,
+            current_workflow=current_workflow,
+            history=history,
+            ai_config=ai_config,
+        )
+        return res
+    except Exception as exc:
+        logger.exception("AI workflow copilot failed: %s", exc)
+        raise HTTPException(500, f"AI copilot failed: {exc}") from exc
+
 
 
 def _write_allowed(request: Request) -> None:

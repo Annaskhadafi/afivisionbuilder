@@ -412,9 +412,9 @@
 
     <section class="workspace">
       <div class="canvas-toolbar">
-        <div>
-          <strong>Workflow canvas</strong>
-          <span id="canvasHint">Drag empty space to pan · Space + drag · drag a node to move</span>
+        <div class="canvas-title-group" style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <strong style="font-size:12.5px;font-weight:700;color:#0f172a">Canvas</strong>
+          <span id="canvasHint" class="canvas-hint-text">Pan: Drag · Space</span>
         </div>
         <div class="canvas-tools">
           <button class="icon-button" id="zoomOutBtn" title="Zoom out" aria-label="Zoom out">
@@ -443,6 +443,10 @@
             <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             <span>Rangkai Otomatis</span>
           </button>
+          <button class="button ai-copilot-btn" id="toggleAiCopilotBtn" type="button" title="AI Studio Copilot: Rancang & Revisi Pipeline dengan Natural Language" aria-label="Buka AI Copilot">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg>
+            <span>AI Copilot</span>
+          </button>
           <div class="panel-layout-actions" aria-label="Tampilkan panel">
             <button class="icon-button panel-toggle" id="toggleSidebar" type="button" aria-label="Sembunyikan panel kiri" title="Sembunyikan panel kiri" aria-pressed="false">
               <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
@@ -467,6 +471,57 @@
           <small>Add a node from the library or load a preset template to begin.</small>
         </div>
       </div>
+
+      <!-- Floating AI Studio Copilot Drawer -->
+      <aside class="copilot-drawer" id="studioAiCopilotDrawer" hidden aria-label="AI Studio Copilot">
+        <div class="copilot-header">
+          <div class="copilot-title-group">
+            <div class="copilot-avatar">
+              <svg class="icon-svg" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg>
+            </div>
+            <div>
+              <div class="copilot-name">Studio Copilot</div>
+              <div class="copilot-badge" id="copilotActiveModel">cx/gpt-5.6-luna</div>
+            </div>
+          </div>
+          <div class="copilot-actions">
+            <button class="icon-button" id="copilotClearChatBtn" type="button" title="Bersihkan Percakapan" aria-label="Bersihkan Percakapan">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+            <button class="icon-button" id="copilotCloseDrawerBtn" type="button" title="Tutup Copilot" aria-label="Tutup Copilot">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="copilot-messages" id="copilotMessagesList">
+          <div class="copilot-msg assistant">
+            <div class="msg-bubble">
+              Halo! Saya <strong>Studio Copilot</strong> berbasis AI. Tuliskan apa yang ingin Anda bangun atau ubah:
+              <ul style="margin:6px 0 0 16px;padding:0;font-size:11px;line-height:1.5">
+                <li>Membuat rangkaian node pipeline lengkap secara instan.</li>
+                <li>Merevisi atau menambahkan node/edge pada kanvas aktif.</li>
+                <li>Menerapkan perubahan langsung dengan tombol 1-klik preview & apply.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="copilot-suggestions" id="copilotQuickChips">
+          <button type="button" class="copilot-chip" data-prompt="Buatkan pipeline deteksi kendaraan CCTV dengan YOLOv8 dan preview">🚗 Deteksi Kendaraan CCTV</button>
+          <button type="button" class="copilot-chip" data-prompt="Tambahkan Zone Activity Timer untuk area kerja setelah deteksi orang">⏱️ Zone Timer Orang</button>
+          <button type="button" class="copilot-chip" data-prompt="Tambahkan node Custom Python Script untuk watermark timestamp">🐍 Custom Python Script</button>
+        </div>
+
+        <div class="copilot-footer">
+          <form id="copilotChatForm" class="copilot-input-form">
+            <textarea id="copilotPromptInput" rows="2" placeholder="Instruksi alur (contoh: Buatkan alur deteksi helm APD lalu simpan alert ke CSV)..."></textarea>
+            <button type="submit" class="button primary copilot-send-btn" id="copilotSendBtn" aria-label="Kirim" title="Kirim Instruksi (Ctrl+Enter)">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </form>
+        </div>
+      </aside>
 
       <div class="panel-resizer panel-resizer-bottom" id="resizeBottom" role="separator" aria-orientation="horizontal" aria-label="Ubah tinggi panel bawah" aria-valuemin="180" aria-valuemax="600" tabindex="0" title="Tarik untuk mengubah tinggi panel bawah"></div>
       <div class="bottom-grid">
@@ -1113,6 +1168,12 @@
           <div class="field">
             <label for="settingBaseUrl">Router Base URL</label>
             <input type="text" id="settingBaseUrl" placeholder="https://9router.chitraparatama.com/v1">
+          </div>
+
+          <div class="field">
+            <label for="settingAiModel">AI Model Name (Copilot & Script)</label>
+            <input type="text" id="settingAiModel" placeholder="cx/gpt-5.6-luna">
+            <small style="color:#64748b;font-size:11px">Model kompatibel OpenAI (contoh: cx/gpt-5.6-luna, gpt-4o, qwen-2.5-coder).</small>
           </div>
 
           <div class="field">

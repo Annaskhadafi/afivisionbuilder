@@ -2199,7 +2199,7 @@
         const created = await api('/api/projects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: 'Integration', workflow: state.defaults })
+          body: JSON.stringify({ name: 'Integration', workflow: { nodes: [], edges: [] } })
         });
         state.projects = [created.project];
       }
@@ -2833,6 +2833,8 @@
     });
   }
   window.renderModelsManager = renderModelsManager;
+  window.switchProject = switchProject;
+  window.newProject = newProject;
 
   async function switchProject(id, force = false) {
     if (!force && state.dirty && !confirm('You have unsaved changes. Switch project anyway?')) return;
@@ -2864,11 +2866,12 @@
       const data = await api('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), workflow: state.defaults })
+        body: JSON.stringify({ name: name.trim(), workflow: { nodes: [], edges: [] } })
       });
       await loadProjects();
       await switchProject(data.project.id, true);
-      toast('Project created');
+      switchMainView('studio');
+      toast('Proyek baru dengan kanvas kosong berhasil dibuat');
     } catch (e) {
       toast(e.message, true);
     }
@@ -5876,42 +5879,367 @@
     };
 
     if (node.type === 'python_script' && key === 'code') {
+      const container = document.createElement('div');
+      container.className = 'script-inspector-enhanced';
+
+      // 1. Preset Templates definition
+      const SCRIPT_PRESETS = [
+        { label: '⚡ Pilih Template OpenCV...', code: '' },
+        {
+          label: '1. Watermark Teks & Timestamp Dinamis',
+          code: `def process(frame, state):
+    # Hitung frame dan catat waktu
+    import time
+    state['count'] = state.get('count', 0) + 1
+    ts = time.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Render background watermark semi-transparan
+    h, w = frame.shape[:2]
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (15, 15), (320, 65), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
+
+    # Teks watermark informatif
+    cv2.putText(frame, "AFI VISION BUILDER", (25, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.putText(frame, f"{ts} | Frame #{state['count']}", (25, 56), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (14, 165, 233), 1, cv2.LINE_AA)
+    return frame`
+        },
+        {
+          label: '2. Masking Warna HSV (Deteksi Target Warna)',
+          code: `def process(frame, state):
+    # Ubah ruang warna BGR ke HSV
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # Rentang warna target (contoh: fluorescent / hijau)
+    lower_bound = np.array([35, 60, 60], dtype=np.uint8)
+    upper_bound = np.array([85, 255, 255], dtype=np.uint8)
+    mask = cv2.inRange(hsv, lower_bound, upper_bound)
+
+    # Temukan kontur area yang cocok
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for c in contours:
+        if cv2.contourArea(c) > 600:
+            x, y, w, h = cv2.boundingRect(c)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(frame, "COLOR MATCH", (x, max(15, y - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 1)
+
+    return frame`
+        },
+        {
+          label: '3. Adaptive Threshold & Canny Edge Overlay',
+          code: `def process(frame, state):
+    # Grayscale & Canny edge detection
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blurred, 50, 150)
+
+    # Warnai edge dengan Cyan terang
+    edge_bgr = np.zeros_like(frame)
+    edge_bgr[edges > 0] = [255, 255, 0]
+
+    # Padukan kembali ke frame
+    frame = cv2.addWeighted(frame, 0.85, edge_bgr, 0.7, 0)
+    return frame`
+        },
+        {
+          label: '4. Dynamic Gamma Correction (Pencerah Area Gelap)',
+          code: `def process(frame, state):
+    # Koreksi kecerahan gamma dinamis (gamma < 1.0 mencerahkan)
+    gamma = 0.75
+    inv_gamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** inv_gamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+    return cv2.LUT(frame, table)`
+        },
+        {
+          label: '5. Sharpening Kernel 3x3 (Penajaman Detail)',
+          code: `def process(frame, state):
+    # Kernel unsharp mask
+    kernel = np.array([
+        [0, -1, 0],
+        [-1, 5, -1],
+        [0, -1, 0]
+    ], dtype=np.float32)
+    return cv2.filter2D(frame, -1, kernel)`
+        },
+        {
+          label: '6. Vignette & Cinematic Lens Effect',
+          code: `def process(frame, state):
+    h, w = frame.shape[:2]
+    # Gaussian kernel untuk vignetting
+    X_kernel = cv2.getGaussianKernel(w, w / 2)
+    Y_kernel = cv2.getGaussianKernel(h, h / 2)
+    kernel = Y_kernel * X_kernel.T
+    mask = 255 * kernel / np.linalg.norm(kernel)
+    mask = np.clip(mask * 1.5, 0, 1)
+
+    out = np.copy(frame)
+    for i in range(3):
+        out[:, :, i] = out[:, :, i] * mask
+    return out.astype(np.uint8)`
+        }
+      ];
+
+      // 2. Toolbar baris atas: Preset Select + Tombol AI Prompt to Code
+      const toolbar = document.createElement('div');
+      toolbar.className = 'script-inspector-toolbar';
+
+      const presetSelect = document.createElement('select');
+      presetSelect.className = 'script-preset-select';
+      SCRIPT_PRESETS.forEach((p, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = p.label;
+        presetSelect.appendChild(opt);
+      });
+
+      const aiPromptBtn = document.createElement('button');
+      aiPromptBtn.type = 'button';
+      aiPromptBtn.className = 'script-ai-prompt-btn';
+      aiPromptBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg><span>✨ AI Prompt</span>';
+
+      toolbar.append(presetSelect, aiPromptBtn);
+      container.append(toolbar);
+
+      // 3. Inline AI Prompt Box (Hidden by default)
+      const aiBox = document.createElement('div');
+      aiBox.className = 'script-ai-box';
+      aiBox.hidden = true;
+      aiBox.innerHTML = `
+        <div style="font-size:11.5px;font-weight:700;color:#0d9488;display:flex;align-items:center;gap:6px">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg>
+          <span>AI Prompt-to-Code Python Script</span>
+        </div>
+        <textarea class="script-ai-prompt-input" rows="2" placeholder="Tulis instruksi OpenCV (misal: 'Beri grid garis hijau 4x4 dan tulis koordinat cell')..."></textarea>
+        <div class="script-ai-box-actions">
+          <button type="button" class="button secondary btn-sm cancel-ai-btn">Batal</button>
+          <button type="button" class="button primary btn-sm generate-ai-btn" style="background:#0d9488!important;border:none!important">Generate Script</button>
+        </div>
+      `;
+      container.append(aiBox);
+
+      // 4. Code Editor Wrapper
+      const editorWrap = document.createElement('div');
+      editorWrap.className = 'script-editor-wrap';
+
       const textarea = document.createElement('textarea');
+      textarea.className = 'script-code-editor';
       textarea.value = value ?? '';
-      textarea.rows = 9;
+      textarea.rows = 10;
       textarea.spellcheck = false;
-      textarea.style.fontFamily = 'ui-monospace, SFMono-Regular, Consolas, monospace';
-      textarea.style.fontSize = '12px';
-      textarea.onchange = () => {
+
+      // Tab indentation support
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          textarea.value = textarea.value.substring(0, start) + '    ' + textarea.value.substring(end);
+          textarea.selectionStart = textarea.selectionEnd = start + 4;
+          node.config.code = textarea.value;
+          markDirty();
+          checkSyntaxLive();
+        }
+      });
+
+      textarea.addEventListener('input', () => {
         node.config.code = textarea.value;
         markDirty();
-      };
-      wrap.append(textarea);
-      const help = document.createElement('p');
-      help.className = 'field-help';
-      help.textContent = 'Kontrak: def process(frame, state) -> frame. frame adalah uint8 HxWx3 BGR; pertahankan shape untuk kompatibilitas box. np dan cv2 tersedia. state bertahan per node/per run. Gunakan resize yang sudah ada untuk mengubah ukuran.';
-      wrap.append(help);
-      const checkBtn = document.createElement('button');
-      checkBtn.type = 'button';
-      checkBtn.className = 'button secondary';
-      checkBtn.style.marginTop = '6px';
-      checkBtn.textContent = 'Check Script';
-      checkBtn.onclick = async () => {
-        checkBtn.disabled = true;
+        checkSyntaxLive();
+      });
+
+      // Status Footer & Syntax Badge
+      const editorFooter = document.createElement('div');
+      editorFooter.className = 'script-editor-footer';
+
+      const syntaxBadge = document.createElement('span');
+      syntaxBadge.className = 'script-syntax-badge valid';
+      syntaxBadge.textContent = '✓ Valid Python AST';
+
+      const charCounter = document.createElement('span');
+      charCounter.style.color = '#94a3b8';
+      charCounter.textContent = `${(textarea.value || '').length} chars`;
+
+      editorFooter.append(syntaxBadge, charCounter);
+      editorWrap.append(textarea, editorFooter);
+      container.append(editorWrap);
+
+      // Syntax checker logic
+      let syntaxTimer = null;
+      async function checkSyntaxLive() {
+        charCounter.textContent = `${(textarea.value || '').length} chars`;
+        clearTimeout(syntaxTimer);
+        const code = textarea.value.trim();
+        if (!code.includes('def process')) {
+          syntaxBadge.className = 'script-syntax-badge invalid';
+          syntaxBadge.textContent = '✕ Harus ada def process(frame, state)';
+          return;
+        }
+        syntaxTimer = setTimeout(async () => {
+          try {
+            await api('/api/scripts/validate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: textarea.value })
+            });
+            syntaxBadge.className = 'script-syntax-badge valid';
+            syntaxBadge.textContent = '✓ Valid Python AST';
+          } catch (e) {
+            syntaxBadge.className = 'script-syntax-badge invalid';
+            syntaxBadge.textContent = '✕ ' + (e.message || 'Syntax Error');
+          }
+        }, 300);
+      }
+      checkSyntaxLive();
+
+      // Preset change handler
+      presetSelect.addEventListener('change', () => {
+        const idx = Number(presetSelect.value);
+        if (idx > 0 && SCRIPT_PRESETS[idx]) {
+          textarea.value = SCRIPT_PRESETS[idx].code;
+          node.config.code = textarea.value;
+          markDirty();
+          checkSyntaxLive();
+          toast(`Template "${SCRIPT_PRESETS[idx].label}" dimuat.`);
+        }
+      });
+
+      // AI Prompt toggle & submit
+      aiPromptBtn.addEventListener('click', () => {
+        aiBox.hidden = !aiBox.hidden;
+        if (!aiBox.hidden) {
+          aiBox.querySelector('.script-ai-prompt-input')?.focus();
+        }
+      });
+
+      aiBox.querySelector('.cancel-ai-btn')?.addEventListener('click', () => {
+        aiBox.hidden = true;
+      });
+
+      aiBox.querySelector('.generate-ai-btn')?.addEventListener('click', async () => {
+        const promptInput = aiBox.querySelector('.script-ai-prompt-input');
+        const promptVal = promptInput?.value?.trim();
+        if (!promptVal) {
+          toast('Silakan masukkan instruksi script', true);
+          return;
+        }
+
+        const genBtn = aiBox.querySelector('.generate-ai-btn');
+        genBtn.disabled = true;
+        genBtn.textContent = 'Generating...';
+
         try {
-          await api('/api/scripts/validate', {
+          const aiConfig = {
+            provider: localStorage.getItem('visonode_setting_vlm_provider') || '9router',
+            apiKey: localStorage.getItem('visonode_setting_api_key') || '',
+            baseUrl: localStorage.getItem('visonode_setting_base_url') || '',
+            model: localStorage.getItem('visonode_setting_ai_model') || 'cx/gpt-5.6-luna',
+            ollamaUrl: localStorage.getItem('visonode_setting_ollama_url') || 'http://127.0.0.1:11434'
+          };
+
+          const res = await api('/api/ai/generate-script', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt: promptVal,
+              currentCode: textarea.value,
+              aiConfig
+            })
+          });
+
+          if (res.code) {
+            textarea.value = res.code;
+            node.config.code = textarea.value;
+            markDirty();
+            checkSyntaxLive();
+            aiBox.hidden = true;
+            toast('✨ Script Python berhasil dibuat oleh AI!');
+          }
+        } catch (err) {
+          toast('AI Generation Error: ' + err.message, true);
+        } finally {
+          genBtn.disabled = false;
+          genBtn.textContent = 'Generate Script';
+        }
+      });
+
+      // 5. Test 1 Frame Sandbox Card (Realtime Visual Preview)
+      const testCard = document.createElement('div');
+      testCard.className = 'script-test-card';
+      testCard.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <strong style="font-size:12px;color:#0f172a">Sandbox Visual Test</strong>
+          <span class="script-test-status" style="font-size:11px;color:#64748b">Siap diuji</span>
+        </div>
+        <button type="button" class="script-test-btn" id="runScriptTestBtn">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>▶️ Uji 1 Frame (Preview Visual)</span>
+        </button>
+        <div class="script-preview-grid" id="scriptTestPreviewGrid" style="display:none">
+          <div class="script-preview-box">
+            <span class="box-tag">Input Frame</span>
+            <img id="scriptTestInputImg" alt="Input Frame">
+          </div>
+          <div class="script-preview-box">
+            <span class="box-tag" style="background:#0d9488">Output Frame</span>
+            <img id="scriptTestOutputImg" alt="Output Frame">
+          </div>
+        </div>
+        <div class="script-test-meta" id="scriptTestMeta" style="display:none">
+          <span id="scriptTestTime">Latency: 0 ms</span>
+          <span id="scriptTestDims">Dimensi: 640x480</span>
+        </div>
+        <div class="script-logs-output" id="scriptTestLogs" style="display:none"></div>
+      `;
+
+      const testBtn = testCard.querySelector('#runScriptTestBtn');
+      const testStatus = testCard.querySelector('.script-test-status');
+      const testGrid = testCard.querySelector('#scriptTestPreviewGrid');
+      const testInImg = testCard.querySelector('#scriptTestInputImg');
+      const testOutImg = testCard.querySelector('#scriptTestOutputImg');
+      const testMeta = testCard.querySelector('#scriptTestMeta');
+      const testTime = testCard.querySelector('#scriptTestTime');
+      const testDims = testCard.querySelector('#scriptTestDims');
+      const testLogs = testCard.querySelector('#scriptTestLogs');
+
+      testBtn.addEventListener('click', async () => {
+        testBtn.disabled = true;
+        testStatus.textContent = 'Menjalankan di sandbox worker...';
+        try {
+          const res = await api('/api/nodes/test-python-script', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: textarea.value })
           });
-          toast('Script valid');
-        } catch (e) {
-          toast(e.message, true);
+
+          if (res.success) {
+            testGrid.style.display = 'grid';
+            testMeta.style.display = 'flex';
+            testInImg.src = res.inputImage;
+            testOutImg.src = res.outputImage;
+            testTime.textContent = `Latency: ${res.durationMs} ms`;
+            testDims.textContent = `Dimensi: ${res.dimensions}`;
+            testStatus.textContent = `Sukses (${res.durationMs} ms)`;
+            testStatus.style.color = '#10b981';
+
+            if (res.logs && res.logs.trim()) {
+              testLogs.style.display = 'block';
+              testLogs.textContent = 'Console Logs:\n' + res.logs;
+            } else {
+              testLogs.style.display = 'none';
+            }
+            toast(`Uji frame berhasil (${res.durationMs} ms)`);
+          }
+        } catch (err) {
+          testStatus.textContent = 'Error eksekusi';
+          testStatus.style.color = '#ef4444';
+          toast('Uji script gagal: ' + err.message, true);
         } finally {
-          checkBtn.disabled = false;
+          testBtn.disabled = false;
         }
-      };
-      wrap.append(checkBtn);
+      });
+
+      container.append(testCard);
+      wrap.append(container);
       return wrap;
     }
 
@@ -11635,6 +11963,7 @@
     const vlmProvider = localStorage.getItem('visonode_setting_vlm_provider') || '9router';
     const apiKey = localStorage.getItem('visonode_setting_api_key') || '';
     const baseUrl = localStorage.getItem('visonode_setting_base_url') || '';
+    const aiModel = localStorage.getItem('visonode_setting_ai_model') || 'cx/gpt-5.6-luna';
     const ollamaUrl = localStorage.getItem('visonode_setting_ollama_url') || 'http://127.0.0.1:11434';
     const erpWebhook = localStorage.getItem('visonode_setting_erp_webhook') || '';
 
@@ -11644,6 +11973,7 @@
     if ($('#settingVlmProvider')) $('#settingVlmProvider').value = vlmProvider;
     if ($('#settingApiKey')) $('#settingApiKey').value = apiKey;
     if ($('#settingBaseUrl')) $('#settingBaseUrl').value = baseUrl;
+    if ($('#settingAiModel')) $('#settingAiModel').value = aiModel;
     if ($('#settingOllamaUrl')) $('#settingOllamaUrl').value = ollamaUrl;
     if ($('#settingErpWebhook')) $('#settingErpWebhook').value = erpWebhook;
 
@@ -11675,8 +12005,12 @@
       localStorage.setItem('visonode_setting_vlm_provider', $('#settingVlmProvider')?.value || '9router');
       localStorage.setItem('visonode_setting_api_key', $('#settingApiKey')?.value || '');
       localStorage.setItem('visonode_setting_base_url', $('#settingBaseUrl')?.value || '');
+      localStorage.setItem('visonode_setting_ai_model', $('#settingAiModel')?.value?.trim() || 'cx/gpt-5.6-luna');
       localStorage.setItem('visonode_setting_ollama_url', $('#settingOllamaUrl')?.value || 'http://127.0.0.1:11434');
       localStorage.setItem('visonode_setting_erp_webhook', $('#settingErpWebhook')?.value || '');
+
+      const copilotBadge = $('#copilotActiveModel');
+      if (copilotBadge) copilotBadge.textContent = localStorage.getItem('visonode_setting_ai_model') || 'cx/gpt-5.6-luna';
 
       modal.close();
       toast('Studio & Pipeline Settings saved successfully');
@@ -11726,6 +12060,291 @@
       } catch (err) {
         toast(err.message, true);
       }
+    });
+  }
+
+  // --- AI Studio Copilot Engine ---
+  function initAiStudioCopilot() {
+    const toggleBtn = $('#toggleAiCopilotBtn');
+    const drawer = $('#studioAiCopilotDrawer');
+    if (!toggleBtn || !drawer) return;
+
+    const closeBtn = $('#copilotCloseDrawerBtn');
+    const clearBtn = $('#copilotClearChatBtn');
+    const chatForm = $('#copilotChatForm');
+    const promptInput = $('#copilotPromptInput');
+    const sendBtn = $('#copilotSendBtn');
+    const messagesList = $('#copilotMessagesList');
+    const chipsContainer = $('#copilotQuickChips');
+    const modelBadge = $('#copilotActiveModel');
+
+    if (modelBadge) {
+      modelBadge.textContent = localStorage.getItem('visonode_setting_ai_model') || 'cx/gpt-5.6-luna';
+    }
+
+    let chatHistory = [];
+
+    function toggleDrawer(open) {
+      const willOpen = (open !== undefined) ? open : drawer.hidden;
+      drawer.hidden = !willOpen;
+      toggleBtn.classList.toggle('active', willOpen);
+      if (willOpen) {
+        promptInput?.focus();
+      }
+    }
+
+    toggleBtn.addEventListener('click', () => toggleDrawer());
+    closeBtn?.addEventListener('click', () => toggleDrawer(false));
+
+    clearBtn?.addEventListener('click', () => {
+      chatHistory = [];
+      messagesList.innerHTML = `
+        <div class="copilot-msg assistant">
+          <div class="msg-bubble">
+            Percakapan telah dibersihkan. Tuliskan instruksi alur baru atau pilih saran di bawah ini.
+          </div>
+        </div>
+      `;
+      toast('Riwayat Copilot dibersihkan.');
+    });
+
+    function appendMessage(role, htmlContent) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `copilot-msg ${role}`;
+      msgDiv.innerHTML = `<div class="msg-bubble">${htmlContent}</div>`;
+      messagesList.appendChild(msgDiv);
+      messagesList.scrollTop = messagesList.scrollHeight;
+      return msgDiv;
+    }
+
+    async function handleSendPrompt(userText) {
+      const text = (userText || promptInput?.value || '').trim();
+      if (!text) return;
+
+      appendMessage('user', escapeHtml(text));
+      chatHistory.push({ role: 'user', content: text });
+      if (promptInput) promptInput.value = '';
+
+      if (sendBtn) sendBtn.disabled = true;
+      const thinkingMsg = appendMessage('assistant', '<div style="display:flex;align-items:center;gap:6px"><em>Studio Copilot sedang merancang alur...</em></div>');
+
+      try {
+        const aiConfig = {
+          provider: localStorage.getItem('visonode_setting_vlm_provider') || '9router',
+          apiKey: localStorage.getItem('visonode_setting_api_key') || '',
+          baseUrl: localStorage.getItem('visonode_setting_base_url') || '',
+          model: localStorage.getItem('visonode_setting_ai_model') || 'cx/gpt-5.6-luna',
+          ollamaUrl: localStorage.getItem('visonode_setting_ollama_url') || 'http://127.0.0.1:11434'
+        };
+
+        const currentWf = {
+          nodes: (state.workflow?.nodes || []).map(n => ({
+            id: n.id,
+            type: n.type,
+            title: n.title,
+            x: n.x,
+            y: n.y,
+            config: n.config
+          })),
+          edges: (state.workflow?.edges || []).map(e => ({
+            id: e.id,
+            source: e.source,
+            target: e.target
+          }))
+        };
+
+        const historyPayload = chatHistory.slice(-8);
+        chatHistory.push({ role: 'user', content: text });
+
+        const res = await api('/api/ai/generate-workflow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userInstruction: text,
+            currentWorkflow: currentWf,
+            history: historyPayload,
+            aiConfig
+          })
+        });
+
+        thinkingMsg.remove();
+
+        const explanation = res.explanation || 'Alur alur kerja telah dirancang.';
+        const modifications = Array.isArray(res.modifications) ? res.modifications : [];
+        const isUpdate = res.action === 'update';
+
+        // Keep multi-turn assistant context with modification details
+        let assistantSummary = explanation;
+        if (modifications.length > 0) {
+          assistantSummary += '\nPerubahan Parameter:\n' + modifications.map(m => '- ' + m).join('\n');
+        }
+        chatHistory.push({ role: 'assistant', content: assistantSummary });
+
+        let modificationsHtml = '';
+        if (modifications.length > 0) {
+          modificationsHtml = `
+            <div style="margin: 8px 0 6px 0; padding: 6px 10px; background: rgba(14, 165, 233, 0.08); border-left: 3px solid #0284c7; border-radius: 4px; font-size: 11px;">
+              <strong style="color: #0369a1; display: block; margin-bottom: 4px;">Perubahan Parameter (Diff):</strong>
+              <ul style="margin: 0; padding-left: 14px; color: #334155;">
+                ${modifications.map(m => `<li>${escapeHtml(m)}</li>`).join('')}
+              </ul>
+            </div>
+          `;
+        }
+
+        if (res.workflow && Array.isArray(res.workflow.nodes) && res.workflow.nodes.length > 0) {
+          const actionTitle = isUpdate
+            ? `Pembaruan Alur AI (${res.workflow.nodes.length} node terdampak)`
+            : `Rancangan Alur AI (${res.workflow.nodes.length} node, ${res.workflow.edges ? res.workflow.edges.length : 0} edge)`;
+          const buttonLabel = isUpdate
+            ? `Terapkan Pembaruan ke Kanvas`
+            : `Terapkan ke Kanvas (Apply to Canvas)`;
+
+          const actionCardHtml = `
+            <div>${explanation}</div>
+            ${modificationsHtml}
+            <div class="copilot-action-card">
+              <div class="card-head">
+                <span>${actionTitle}</span>
+                <span style="font-size:10px;color:${isUpdate ? '#0284c7' : '#0d9488'};font-weight:700">${isUpdate ? 'REVISI SIAP' : 'SIAP DITERAPKAN'}</span>
+              </div>
+              <ul style="margin:4px 0 8px 16px;padding:0;font-size:11px;color:#475569">
+                ${res.workflow.nodes.map(n => `<li><strong>${escapeHtml(n.title || n.type)}</strong> <code>(${n.type})</code></li>`).join('')}
+              </ul>
+              <button type="button" class="copilot-apply-btn">
+                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>${buttonLabel}</span>
+              </button>
+            </div>
+          `;
+          const bubble = appendMessage('assistant', actionCardHtml);
+          const applyBtn = bubble.querySelector('.copilot-apply-btn');
+          applyBtn?.addEventListener('click', () => {
+            applyWorkflowToCanvas(res.workflow, res.action || 'create');
+            applyBtn.disabled = true;
+            applyBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg><span>✓ Telah Diterapkan</span>';
+            applyBtn.style.background = '#64748b';
+          });
+        } else {
+          appendMessage('assistant', `<div>${explanation}</div>${modificationsHtml}`);
+        }
+      } catch (err) {
+        thinkingMsg.remove();
+        appendMessage('assistant', `<span style="color:#ef4444">Gagal memproses alur: ${escapeHtml(err.message)}</span>`);
+      } finally {
+        if (sendBtn) sendBtn.disabled = false;
+      }
+    }
+
+    function applyWorkflowToCanvas(wf, action) {
+      if (!wf || !wf.nodes) return;
+
+      const actionType = action || 'create';
+      const existingNodes = state.workflow?.nodes || [];
+
+      if (actionType === 'update' && existingNodes.length > 0) {
+        let updatedCount = 0;
+        let addedCount = 0;
+        const matchedExistingIds = new Set();
+
+        wf.nodes.forEach(n => {
+          let existing = existingNodes.find(en => en.id === n.id);
+          if (!existing) {
+            existing = existingNodes.find(en => en.type === n.type && !matchedExistingIds.has(en.id));
+          }
+
+          if (existing) {
+            matchedExistingIds.add(existing.id);
+            if (n.title) existing.title = n.title;
+            if (n.config) {
+              existing.config = Object.assign({}, existing.config || {}, n.config);
+            }
+            if (n.x !== undefined && Number.isFinite(Number(n.x))) existing.x = Number(n.x);
+            if (n.y !== undefined && Number.isFinite(Number(n.y))) existing.y = Number(n.y);
+            updatedCount++;
+          } else {
+            const nodeTypeSpec = (state.catalog && state.catalog[n.type]) || {};
+            const baseConfig = JSON.parse(JSON.stringify(nodeTypeSpec.defaults || {}));
+            existingNodes.push({
+              id: n.id || ('node_' + Math.random().toString(36).substring(2, 9)),
+              type: n.type,
+              title: n.title || titleFor(n.type),
+              x: Number(n.x) || 100,
+              y: Number(n.y) || 200,
+              enabled: n.enabled !== false,
+              config: Object.assign(baseConfig, n.config || {})
+            });
+            addedCount++;
+          }
+        });
+
+        if (Array.isArray(wf.edges) && wf.edges.length > 0) {
+          state.workflow.edges = wf.edges.map((e, idx) => ({
+            id: e.id || `edge_${idx}_${Date.now()}`,
+            source: e.source,
+            target: e.target
+          }));
+        }
+
+        renderCanvas();
+        markDirty();
+        if (state.selected) {
+          renderInspector();
+        }
+        toast(`✨ Pembaruan alur diterapkan: ${updatedCount} node diperbarui, ${addedCount} node baru.`);
+        return;
+      }
+
+      const resolvedNodes = wf.nodes.map(n => {
+        const nodeTypeSpec = (state.catalog && state.catalog[n.type]) || {};
+        const baseConfig = JSON.parse(JSON.stringify(nodeTypeSpec.defaults || {}));
+        return {
+          id: n.id || ('node_' + Math.random().toString(36).substring(2, 9)),
+          type: n.type,
+          title: n.title || titleFor(n.type),
+          x: Number(n.x) || 100,
+          y: Number(n.y) || 200,
+          enabled: n.enabled !== false,
+          config: Object.assign(baseConfig, n.config || {})
+        };
+      });
+
+      const resolvedEdges = (wf.edges || []).map((e, idx) => ({
+        id: e.id || `edge_${idx}_${Date.now()}`,
+        source: e.source,
+        target: e.target
+      }));
+
+      state.workflow = {
+        nodes: resolvedNodes,
+        edges: resolvedEdges
+      };
+
+      renderCanvas();
+      markDirty();
+      if (state.selected) {
+        renderInspector();
+      }
+      toast(`✨ ${resolvedNodes.length} node berhasil diterapkan ke kanvas!`);
+    }
+
+    chatForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleSendPrompt();
+    });
+
+    promptInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        handleSendPrompt();
+      }
+    });
+
+    chipsContainer?.querySelectorAll('.copilot-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const p = chip.dataset.prompt;
+        if (p) handleSendPrompt(p);
+      });
     });
   }
 
@@ -12082,6 +12701,7 @@
       wireEvents();
       initSystemSettings();
       initHeaderActions();
+      initAiStudioCopilot();
       switchMainView('projectsHub');
 
       const catalog = await api('/api/catalog');
