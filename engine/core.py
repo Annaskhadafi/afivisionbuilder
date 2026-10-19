@@ -2377,7 +2377,7 @@ def _is_live_source(input_config: dict) -> bool:
     engine.normalize_camera_source), so they are covered by the camera branch.
     """
     source_type = str(input_config.get("sourceType", "camera") or "camera").lower()
-    return source_type in ("camera", "daheng")
+    return source_type in ("camera", "daheng", "youtube")
 
 
 class LatestSlot:

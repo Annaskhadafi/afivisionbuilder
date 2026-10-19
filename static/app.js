@@ -2027,6 +2027,8 @@
     y: 'Posisi Vertikal Y (Pixel)',
     zoneColor: 'Warna Garis / Area Zona',
     zoneName: 'Nama Zona Pemantauan',
+    youtubeUrl: 'URL Video / Live Stream YouTube',
+    youtubeQuality: 'Kualitas / Resolusi Stream',
   };
 
 
@@ -2505,7 +2507,71 @@
             </g>
           `;
 
-          if (t.id === 'restaurant_table_occupancy') {
+          if (t.id === 'traffic_flow_counter') {
+            bannerGraphic = `
+              <g opacity="0.95">
+                <rect x="25" y="15" width="145" height="110" rx="8" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 2" fill="#0284c718"/>
+                <text x="35" y="35" fill="#38bdf8" font-size="11" font-weight="700">LAJUR 01 (UTARA)</text>
+                <text x="35" y="55" fill="#bae6fd" font-size="16" font-weight="800">42 KENDARAAN</text>
+                <text x="35" y="75" fill="#94a3b8" font-size="10">Mobil: 28 • Motor: 14</text>
+                <rect x="35" y="90" width="70" height="20" rx="4" fill="#22c55e33" stroke="#22c55e"/>
+                <text x="43" y="104" fill="#86efac" font-size="10" font-weight="700">LANCAR</text>
+
+                <rect x="190" y="15" width="145" height="110" rx="8" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 2" fill="#d9770618"/>
+                <text x="200" y="35" fill="#f59e0b" font-size="11" font-weight="700">LAJUR 02 (SELATAN)</text>
+                <text x="200" y="55" fill="#fde68a" font-size="16" font-weight="800">78 KENDARAAN</text>
+                <text x="200" y="75" fill="#94a3b8" font-size="10">Truk: 12 • Bus: 8 • Mobil: 58</text>
+                <rect x="200" y="90" width="70" height="20" rx="4" fill="#ef444433" stroke="#ef4444"/>
+                <text x="212" y="104" fill="#fca5a5" font-size="10" font-weight="700">PADAT ⚠</text>
+              </g>
+            `;
+          } else if (t.id === 'assembly_workshop_cycle_timer') {
+            bannerGraphic = `
+              <g opacity="0.95">
+                <rect x="30" y="22" width="140" height="96" rx="8" stroke="#22c55e" stroke-width="2" fill="#22c55e1a"/>
+                <circle cx="48" cy="42" r="5" fill="#22c55e"/>
+                <text x="60" y="46" fill="#86efac" font-size="11" font-weight="700">STASIUN 01 • ACTIVE</text>
+                <text x="48" y="72" fill="#ffffff" font-size="18" font-weight="800">04m : 18s</text>
+                <text x="48" y="95" fill="#94a3b8" font-size="10">Target Cycle: 05:00</text>
+
+                <rect x="190" y="22" width="140" height="96" rx="8" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4 2" fill="#ef44441a"/>
+                <circle cx="208" cy="42" r="5" fill="#ef4444"/>
+                <text x="220" y="46" fill="#fca5a5" font-size="11" font-weight="700">STASIUN 02 • IDLE</text>
+                <text x="208" y="72" fill="#f87171" font-size="18" font-weight="800">01m : 42s ⚠</text>
+                <text x="208" y="95" fill="#94a3b8" font-size="10">Status: Tidak Terisi</text>
+              </g>
+            `;
+          } else if (t.id === 'warehouse_forklift_safety_guard') {
+            bannerGraphic = `
+              <g opacity="0.95">
+                <rect x="30" y="20" width="140" height="100" rx="8" stroke="#eab308" stroke-width="2" fill="#eab3081a"/>
+                <text x="45" y="42" fill="#fde047" font-size="11" font-weight="800">DOCK 01 • LOADING</text>
+                <text x="45" y="68" fill="#ffffff" font-size="16" font-weight="800">TRUK IN: 28m</text>
+                <rect x="45" y="82" width="110" height="24" rx="4" fill="#0284c733" stroke="#38bdf8"/>
+                <text x="53" y="98" fill="#7dd3fc" font-size="10" font-weight="700">GERBANG TERBUKA</text>
+
+                <rect x="190" y="20" width="140" height="100" rx="8" stroke="#ef4444" stroke-width="2" fill="#ef444426"/>
+                <text x="202" y="42" fill="#fca5a5" font-size="11" font-weight="800">FORKLIFT ZONE ⚠</text>
+                <text x="202" y="68" fill="#ef4444" font-size="15" font-weight="800">PROXIMITY ALERT</text>
+                <rect x="202" y="82" width="115" height="24" rx="4" fill="#ef444444" stroke="#f87171"/>
+                <text x="210" y="98" fill="#fecaca" font-size="10" font-weight="700">JARAK AMAN: &lt; 2.5m</text>
+              </g>
+            `;
+          } else if (t.id === 'retail_checkout_queue_monitor') {
+            bannerGraphic = `
+              <g opacity="0.95">
+                <rect x="30" y="22" width="140" height="96" rx="8" stroke="#ef4444" stroke-width="2" fill="#ef444422"/>
+                <text x="45" y="45" fill="#fca5a5" font-size="11" font-weight="800">KASIR 01 (UTAMA)</text>
+                <text x="45" y="75" fill="#f87171" font-size="20" font-weight="900">4 ORANG ⚠</text>
+                <text x="45" y="98" fill="#fecaca" font-size="10" font-weight="700">ALERT: BUKA KASIR +1</text>
+
+                <rect x="190" y="22" width="140" height="96" rx="8" stroke="#22c55e" stroke-width="1.5" fill="#22c55e1a"/>
+                <text x="205" y="45" fill="#86efac" font-size="11" font-weight="800">KASIR 02 (EXPRESS)</text>
+                <text x="205" y="75" fill="#22c55e" font-size="20" font-weight="900">1 ORANG</text>
+                <text x="205" y="98" fill="#bbf7d0" font-size="10" font-weight="700">STATUS: ANTRIAN NORMAL</text>
+              </g>
+            `;
+          } else if (t.id === 'restaurant_table_occupancy') {
             bannerGraphic = `
               <g opacity="0.95">
                 <rect x="35" y="20" width="130" height="42" rx="7" stroke="#10b981" stroke-width="2" fill="#10b98126"/>
@@ -2972,7 +3038,15 @@
 
       const meta = document.createElement('div');
       meta.className = 'node-meta';
-      meta.textContent = n.subtitle || state.catalog[n.type]?.subtitle || n.type;
+      let subtitleText = n.subtitle || state.catalog[n.type]?.subtitle || n.type;
+      if (n.type === 'input') {
+        if (n.config?.sourceType === 'youtube') {
+          subtitleText = n.config?.youtubeUrl ? `YouTube: ${n.config.youtubeUrl.slice(0, 28)}...` : 'YouTube Stream Source';
+        } else if (n.config?.sourceType === 'camera') {
+          subtitleText = `Webcam / Camera #${n.config.source || 0}`;
+        }
+      }
+      meta.textContent = subtitleText;
 
       if (!isEnabled) {
         const bypassTag = document.createElement('span');
@@ -5260,17 +5334,20 @@
     // Input node conditional visibility
     if (node.type === 'input') {
       const src = cfg.sourceType || 'camera';
+      if (src === 'youtube') {
+        return ['sourceType', 'youtubeUrl', 'youtubeQuality', 'loop', 'autoReconnect', 'frameQueueSize', 'dropFrames', 'asyncPreview'].includes(key);
+      }
       if (src === 'camera') {
-        return !['filePath', 'loop', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
+        return !['filePath', 'loop', 'youtubeUrl', 'youtubeQuality', 'autoReconnect', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
       }
       if (src === 'image') {
-        return !['source', 'loop', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
+        return !['source', 'loop', 'youtubeUrl', 'youtubeQuality', 'autoReconnect', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
       }
       if (src === 'video' || src === 'file') {
-        return !['source', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
+        return !['source', 'youtubeUrl', 'youtubeQuality', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
       }
       if (src === 'daheng') {
-        return !['source', 'filePath', 'loop'].includes(key);
+        return !['source', 'filePath', 'loop', 'youtubeUrl', 'youtubeQuality', 'autoReconnect'].includes(key);
       }
     }
 
@@ -5482,6 +5559,7 @@
   function createSmartConfigField(node, key, value) {
     const wrap = document.createElement('div');
     wrap.className = 'field';
+    wrap.dataset.fieldKey = key;
     const label = document.createElement('label');
     
     const labelText = document.createElement('span');
@@ -5571,10 +5649,18 @@
       ],
       sourceType: [
         ['camera', 'Camera (USB/Built-in OpenCV)'],
+        ['youtube', 'YouTube Video / Live Stream'],
         ['daheng', 'Daheng Industrial Camera'],
         ['image', 'Static Image File'],
         ['video', 'Video File'],
         ['file', 'Generic File Source']
+      ],
+      youtubeQuality: [
+        ['auto', 'Auto (Maks 720p - Rekomendasi)'],
+        ['360p', '360p (Hemat Bandwidth)'],
+        ['480p', '480p (Standar)'],
+        ['720p', '720p (HD Tajam)'],
+        ['1080p', '1080p (Full HD)']
       ],
       engine: [
         ['rfdetr', 'RF-DETR (PyTorch Engine)'],
@@ -6373,6 +6459,8 @@
 
     // 8. General text input
     const input = document.createElement('input');
+    input.name = key;
+    input.dataset.fieldKey = key;
     if (key === 'apiKey') {
       input.type = 'password';
       input.placeholder = (node.type === 'ai_agent')

@@ -474,13 +474,16 @@ RFDETR_NATIVE_IMAGE_SIZE = 0
 NODE_BLUEPRINTS = {
     "input": {
         "title": "Input",
-        "subtitle": "Sumber kamera USB/webcam, Daheng, gambar, atau file video",
+        "subtitle": "Sumber kamera USB/webcam, Daheng, YouTube stream, gambar, atau file video",
         "category": "Sources",
         "x": 40,
         "y": 60,
         "config": {
             "sourceType": "camera",
             "source": 0,
+            "youtubeUrl": "",
+            "youtubeQuality": "720p",
+            "autoReconnect": True,
             "width": 0,
             "height": 0,
             "dahengOpenMode": "index",

@@ -670,6 +670,250 @@ async def upload_model(request: Request, file: UploadFile = File(...)) -> dict:
 def _templates() -> list[dict]:
     templates = [
         {
+            "id": "traffic_flow_counter",
+            "name": "Smart Traffic Flow & Vehicle Counter",
+            "description": "Pemantauan arus lalu lintas jalan raya & simpang kota: input stream CCTV YouTube lalu lintas, deteksi kendaraan (mobil, motor, bus, truk) dengan YOLOv8, tracking ByteTrack, penghitungan volume & arah per lajur, HUD visual kartu statistik kendaraan, serta pencatatan log kepadatan ke database.",
+            "tags": ["Trafik", "Traffic", "Smart City", "Highway CCTV", "Vehicle Counter", "YouTube Stream"],
+            "badge": "Trafik & Smart City",
+            "modelSize": "Includes YOLOv8n · 6.2 MB",
+            "workflow": {
+                "nodes": [
+                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=1EiC9bvVGnk", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
+                    store.make_node("detector", id="detector", x=280, y=140, config={"threshold": 0.35, "modelPath": "yolov8n.pt", "classes": "car,motorcycle,bus,truck"}),
+                    store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
+                    store.make_node(
+                        "multi_zone_occupancy",
+                        id="lane_counter",
+                        x=720,
+                        y=140,
+                        config={
+                            "targetClasses": "car,motorcycle,bus,truck",
+                            "confirmationSeconds": 0.5,
+                            "graceSeconds": 2.0,
+                            "maxDwellMinutes": 5.0,
+                            "labelPosition": "center",
+                            "compactLabel": True,
+                            "showHudOverlay": True,
+                            "showSummaryCard": True,
+                            "zones": [
+                                {
+                                    "id": "lajur_01",
+                                    "name": "Lajur 01 (Utara / Kiri)",
+                                    "capacity": 8,
+                                    "points": "0.08,0.25; 0.48,0.25; 0.45,0.95; 0.05,0.95"
+                                },
+                                {
+                                    "id": "lajur_02",
+                                    "name": "Lajur 02 (Selatan / Kanan)",
+                                    "capacity": 8,
+                                    "points": "0.52,0.25; 0.92,0.25; 0.95,0.95; 0.55,0.95"
+                                }
+                            ]
+                        }
+                    ),
+                    store.make_node("overlay_annotate", id="annotate", x=940, y=140),
+                    store.make_node("alert", id="alert_out", x=1160, y=70, config={"message": "Kepadatan kendaraan di lajur melebihi kapasitas!"}),
+                    store.make_node("database_output", id="db_out", x=1160, y=170, config={"table": "traffic_flow_events"}),
+                    store.make_node("preview", id="preview", x=1160, y=270),
+                ],
+                "edges": [
+                    ["input", "detector"],
+                    ["detector", "tracker"],
+                    ["tracker", "lane_counter"],
+                    ["lane_counter", "annotate"],
+                    ["annotate", "alert_out"],
+                    ["annotate", "db_out"],
+                    ["annotate", "preview"],
+                ],
+            },
+        },
+        {
+            "id": "restaurant_table_occupancy",
+            "name": "Restaurant Table Occupancy & Dining Dwell Tracker",
+            "description": "Pemantauan okupansi meja restoran dan durasi tamu duduk (dwell time): input stream CCTV YouTube kafe/resto, deteksi orang (person), ByteTrack tracker, Multi-Zone Occupancy & Activity Tracker untuk menghitung berapa lama setiap meja terisi (Meja 01 s/d Meja 04), visual HUD overlay timer meja, deteksi overstay, dan pencatatan event turnover ke database.",
+            "tags": ["Retail", "Restoran", "Table Tracker", "Dwell Time", "Multi-Zone", "YouTube Stream"],
+            "badge": "Retail & Restoran",
+            "modelSize": "Includes YOLOv8n · 6.2 MB",
+            "workflow": {
+                "nodes": [
+                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=07d2dXHYb94", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
+                    store.make_node("detector", id="detector", x=280, y=140, config={"threshold": 0.20, "modelPath": "yolov8n.pt", "classes": "person"}),
+                    store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
+                    store.make_node(
+                        "multi_zone_occupancy",
+                        id="table_tracker",
+                        x=720,
+                        y=140,
+                        config={
+                            "targetClasses": "person",
+                            "confirmationSeconds": 2.0,
+                            "graceSeconds": 10.0,
+                            "maxDwellMinutes": 30.0,
+                            "labelPosition": "center",
+                            "compactLabel": True,
+                            "showHudOverlay": True,
+                            "showSummaryCard": True,
+                            "zones": [
+                                {
+                                    "id": "meja_01",
+                                    "name": "Meja 01 (Tengah)",
+                                    "capacity": 2,
+                                    "points": "0.42,0.28; 0.62,0.28; 0.62,0.62; 0.42,0.62"
+                                },
+                                {
+                                    "id": "meja_02",
+                                    "name": "Meja 02 (Kiri Depan)",
+                                    "capacity": 4,
+                                    "points": "0.15,0.54; 0.41,0.54; 0.41,0.98; 0.15,0.98"
+                                },
+                                {
+                                    "id": "meja_03",
+                                    "name": "Meja 03 (Kiri Belakang)",
+                                    "capacity": 6,
+                                    "points": "0.07,0.17; 0.40,0.17; 0.40,0.52; 0.07,0.52"
+                                },
+                                {
+                                    "id": "meja_04",
+                                    "name": "Meja 04 (Kanan Depan)",
+                                    "capacity": 4,
+                                    "points": "0.63,0.47; 0.98,0.47; 0.98,0.98; 0.63,0.98"
+                                }
+                            ]
+                        }
+                    ),
+                    store.make_node("overlay_annotate", id="annotate", x=940, y=140),
+                    store.make_node("alert", id="alert_out", x=1160, y=70, config={"message": "Perhatian: Meja tamu melebihi batas durasi santap (overstay)!"}),
+                    store.make_node("database_output", id="db_out", x=1160, y=170, config={"table": "restaurant_table_events"}),
+                    store.make_node("preview", id="preview", x=1160, y=270),
+                ],
+                "edges": [
+                    ["input", "detector"],
+                    ["detector", "tracker"],
+                    ["tracker", "table_tracker"],
+                    ["table_tracker", "annotate"],
+                    ["annotate", "alert_out"],
+                    ["annotate", "db_out"],
+                    ["annotate", "preview"],
+                ],
+            },
+        },
+        {
+            "id": "assembly_workshop_cycle_timer",
+            "name": "Assembly Line & Workshop Cycle Timer",
+            "description": "Pelacakan efisiensi stasiun kerja perakitan dan bengkel: input stream CCTV YouTube manufaktur/bengkel, deteksi operator mekanik & part, tracking ByteTrack, Zone Activity Timer untuk pencatatan durasi siklus kerja aktif per stasiun, deteksi stasiun idle (menganggur), serta pencatatan cycle time ke database.",
+            "tags": ["Manufaktur", "Assembly Line", "Workshop Timer", "Cycle Time", "YouTube Stream"],
+            "badge": "Manufaktur & QC",
+            "modelSize": "Includes YOLOv8n · 6.2 MB",
+            "workflow": {
+                "nodes": [
+                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=21X5lGlDOfg", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
+                    store.make_node("detector", id="detector", x=280, y=140, config={"threshold": 0.30, "modelPath": "yolov8n.pt", "classes": "person"}),
+                    store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
+                    store.make_node("zone_activity_timer", id="station_timer", x=720, y=140, config={"classes": "person", "confirmationSeconds": 3, "absenceGraceSeconds": 10, "points": "0.15,0.20;0.85,0.20;0.80,0.85;0.20,0.85"}),
+                    store.make_node("overlay_annotate", id="annotate", x=940, y=140),
+                    store.make_node("alert", id="alert_out", x=1160, y=70, config={"message": "Peringatan: Operator meninggalkan stasiun kerja perakitan!"}),
+                    store.make_node("database_output", id="db_out", x=1160, y=170, config={"table": "assembly_cycle_events"}),
+                    store.make_node("preview", id="preview", x=1160, y=270),
+                ],
+                "edges": [
+                    ["input", "detector"],
+                    ["detector", "tracker"],
+                    ["tracker", "station_timer"],
+                    ["station_timer", "annotate"],
+                    ["annotate", "alert_out"],
+                    ["annotate", "db_out"],
+                    ["annotate", "preview"],
+                ],
+            },
+        },
+        {
+            "id": "warehouse_forklift_safety_guard",
+            "name": "Warehouse Dock & Forklift Safety Guard",
+            "description": "Pengawasan keselamatan loading dock dan pencegahan tabrakan forklift: input stream CCTV YouTube gudang logistik, deteksi truk, forklift, dan pekerja pejalan kaki, ByteTrack tracker, Zone Exit Event untuk verifikasi batas gerbang dock keluar, serta alert instan saat objek melintas.",
+            "tags": ["Gudang", "Warehouse", "Forklift Safety", "Loading Dock", "Zone Exit", "YouTube Stream"],
+            "badge": "Gudang & Logistik",
+            "modelSize": "Includes YOLOv8n · 6.2 MB",
+            "workflow": {
+                "nodes": [
+                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=v7SNW6_vFfM", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
+                    store.make_node("detector", id="detector", x=280, y=140, config={"threshold": 0.35, "modelPath": "yolov8n.pt", "classes": "truck,car,person"}),
+                    store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
+                    store.make_node("zone_exit_event", id="dock_exit", x=720, y=140, config={"classes": "truck,car,person", "points": "0.15,0.20;0.85,0.20;0.80,0.85;0.20,0.85", "crossingDirection": "inside_to_outside"}),
+                    store.make_node("overlay_annotate", id="annotate", x=940, y=140),
+                    store.make_node("alert", id="alert_out", x=1160, y=70, config={"message": "Bahaya: Perlintasan terdeteksi di gerbang dock / area kerja forklift!"}),
+                    store.make_node("database_output", id="db_out", x=1160, y=170, config={"table": "warehouse_safety_events"}),
+                    store.make_node("preview", id="preview", x=1160, y=270),
+                ],
+                "edges": [
+                    ["input", "detector"],
+                    ["detector", "tracker"],
+                    ["tracker", "dock_exit"],
+                    ["dock_exit", "annotate"],
+                    ["annotate", "alert_out"],
+                    ["annotate", "db_out"],
+                    ["annotate", "preview"],
+                ],
+            },
+        },
+        {
+            "id": "retail_checkout_queue_monitor",
+            "name": "Retail Checkout Queue & Hotspot Analyzer",
+            "description": "Pemantauan panjang antrean kasir dan zona belanja terpadat supermarket: input stream CCTV YouTube area kasir ritel, deteksi pengunjung (person), ByteTrack tracker, Multi-Zone Occupancy untuk menghitung jumlah antrean per loket kasir (Kasir 01 & Kasir 02), alert otomatis panggil kasir cadangan jika antrean > 3 orang, dan logging waktu antre ke database.",
+            "tags": ["Retail", "Supermarket", "Checkout Queue", "Customer Dwell", "YouTube Stream"],
+            "badge": "Retail & Restoran",
+            "modelSize": "Includes YOLOv8n · 6.2 MB",
+            "workflow": {
+                "nodes": [
+                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=wXhTHyIGQ80", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
+                    store.make_node("detector", id="detector", x=280, y=140, config={"threshold": 0.25, "modelPath": "yolov8n.pt", "classes": "person"}),
+                    store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
+                    store.make_node(
+                        "multi_zone_occupancy",
+                        id="queue_tracker",
+                        x=720,
+                        y=140,
+                        config={
+                            "targetClasses": "person",
+                            "confirmationSeconds": 1.5,
+                            "graceSeconds": 5.0,
+                            "maxDwellMinutes": 10.0,
+                            "labelPosition": "top",
+                            "compactLabel": False,
+                            "showHudOverlay": True,
+                            "showSummaryCard": True,
+                            "zones": [
+                                {
+                                    "id": "kasir_01",
+                                    "name": "Antrean Kasir 01 (Utama)",
+                                    "capacity": 3,
+                                    "points": "0.10,0.30; 0.45,0.30; 0.45,0.90; 0.10,0.90"
+                                },
+                                {
+                                    "id": "kasir_02",
+                                    "name": "Antrean Kasir 02 (Express)",
+                                    "capacity": 3,
+                                    "points": "0.55,0.30; 0.90,0.30; 0.90,0.90; 0.55,0.90"
+                                }
+                            ]
+                        }
+                    ),
+                    store.make_node("overlay_annotate", id="annotate", x=940, y=140),
+                    store.make_node("alert", id="alert_out", x=1160, y=70, config={"message": "Antrean Kasir melebihi kapasitas standar (> 3 orang)! Segera buka kasir tambahan."}),
+                    store.make_node("database_output", id="db_out", x=1160, y=170, config={"table": "retail_queue_events"}),
+                    store.make_node("preview", id="preview", x=1160, y=270),
+                ],
+                "edges": [
+                    ["input", "detector"],
+                    ["detector", "tracker"],
+                    ["tracker", "queue_tracker"],
+                    ["queue_tracker", "annotate"],
+                    ["annotate", "alert_out"],
+                    ["annotate", "db_out"],
+                    ["annotate", "preview"],
+                ],
+            },
+        },
+        {
             "id": "workshop_bay_activity",
             "name": "Workshop Bay Activity Monitoring",
             "description": "Pengawasan aktivitas mekanik dan ban di bay bengkel: stream RTSP CCTV IP Camera, deteksi YOLOv8 person & tire, ByteTrack tracker, Zone Activity Timer untuk pencatatan durasi sesi kerja, dan penyimpanan event database.",
@@ -719,74 +963,6 @@ def _templates() -> list[dict]:
                     ["tracker", "zone_exit"],
                     ["zone_exit", "annotate"],
                     ["annotate", "alert_out"],
-                    ["annotate", "preview"],
-                ],
-            },
-        },
-        {
-            "id": "restaurant_table_occupancy",
-            "name": "Restaurant Table Occupancy & Dining Dwell Tracker",
-            "description": "Pemantauan okupansi meja restoran dan durasi tamu duduk (dwell time): input kamera CCTV, deteksi orang (person), ByteTrack tracker, Multi-Zone Occupancy & Activity Tracker untuk menghitung berapa lama setiap meja terisi (Meja 01 s/d Meja 04), visual HUD overlay timer meja, deteksi overstay, dan pencatatan event turnover ke database.",
-            "tags": ["Restaurant", "Table Tracker", "Dwell Time", "Multi-Zone"],
-            "badge": "Hospitality",
-            "modelSize": "Includes models · 6.2 MB",
-            "workflow": {
-                "nodes": [
-                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "video", "filePath": "D:/CCTV-EATON-Cafe-SnapYT.App.mp4", "loop": True}),
-                    store.make_node("detector", id="detector", x=280, y=140, config={"threshold": 0.20, "modelPath": "yolov8n.pt"}),
-                    store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
-                    store.make_node(
-                        "multi_zone_occupancy",
-                        id="table_tracker",
-                        x=720,
-                        y=140,
-                        config={
-                            "targetClasses": "person",
-                            "confirmationSeconds": 2.0,
-                            "graceSeconds": 10.0,
-                            "maxDwellMinutes": 30.0,
-                            "labelPosition": "center",
-                            "compactLabel": True,
-                            "showHudOverlay": True,
-                            "showSummaryCard": True,
-                            "zones": [
-                                {
-                                    "id": "meja_01",
-                                    "name": "Meja 01 (Tengah)",
-                                    "capacity": 2,
-                                    "points": "0.42,0.28; 0.62,0.28; 0.62,0.62; 0.42,0.62"
-                                },
-                                {
-                                    "id": "meja_02",
-                                    "name": "Meja 02 (Kiri Depan)",
-                                    "capacity": 4,
-                                    "points": "0.15,0.54; 0.41,0.54; 0.41,0.98; 0.15,0.98"
-                                },
-                                {
-                                    "id": "meja_03",
-                                    "name": "Meja 03 (Kiri Belakang)",
-                                    "capacity": 6,
-                                    "points": "0.07,0.17; 0.40,0.17; 0.40,0.52; 0.07,0.52"
-                                },
-                                {
-                                    "id": "meja_04",
-                                    "name": "Meja 04 (Kanan Depan)",
-                                    "capacity": 4,
-                                    "points": "0.63,0.47; 0.98,0.47; 0.98,0.98; 0.63,0.98"
-                                }
-                            ]
-                        }
-                    ),
-                    store.make_node("overlay_annotate", id="annotate", x=940, y=140),
-                    store.make_node("database_output", id="db_out", x=1160, y=80, config={"table": "restaurant_table_events"}),
-                    store.make_node("preview", id="preview", x=1160, y=220),
-                ],
-                "edges": [
-                    ["input", "detector"],
-                    ["detector", "tracker"],
-                    ["tracker", "table_tracker"],
-                    ["table_tracker", "annotate"],
-                    ["annotate", "db_out"],
                     ["annotate", "preview"],
                 ],
             },

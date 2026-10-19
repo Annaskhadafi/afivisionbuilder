@@ -17,6 +17,7 @@ from functools import lru_cache, wraps
 from contextlib import contextmanager
 from pathlib import Path
 from threading import Event, Lock, RLock, Thread
+import urllib.parse
 from urllib.parse import urlsplit
 
 from app_version import APP_NAME, VERSION as APP_VERSION
@@ -1156,15 +1157,14 @@ def normalize_workflow(workflow: dict) -> dict:
         if node.get("type") == INPUT_NODE_ID:
             config = node.setdefault("config", {})
             config.setdefault("sourceType", "camera")
-            if config.get("sourceType") not in ("camera", "daheng", "file", "image", "video"):
+            if config.get("sourceType") not in ("camera", "daheng", "file", "image", "video", "youtube"):
                 config["sourceType"] = "camera"
             if "source" not in config:
                 config["source"] = config.get("cameraIndex", config.get("deviceId", 0))
             config.setdefault("frameQueueSize", 8)
             config.setdefault("dropFrames", True)
-            config.pop("youtubeUrl", None)
-            config.pop("youtubeMaxHeight", None)
-            config.pop("youtubeMaxFps", None)
+            config.setdefault("youtubeUrl", "")
+            config.setdefault("youtubeQuality", "720p")
         if node.get("type") == FRAME_SAMPLER_NODE_TYPE:
             config = node.setdefault("config", {})
             if isinstance(config.get("targetFps", 10), bool):
@@ -3588,6 +3588,82 @@ class DahengInputSource:
         self.manager = None
 
 
+_YOUTUBE_URL_PATTERN = re.compile(
+    r"(?i)^(https?://)?(www\.|m\.)?(youtube\.com/(watch\?v=|live/|embed/|v/)|youtu\.be/)([\w\-]+)"
+)
+_YOUTUBE_STREAM_CACHE: dict[str, tuple[float, str, bool, str]] = {}
+
+
+def is_youtube_url(url: str) -> bool:
+    """Check if the given string is a YouTube video or live-stream URL."""
+    return bool(_YOUTUBE_URL_PATTERN.search(str(url or "").strip()))
+
+
+def resolve_youtube_stream_url(url: str, quality: str = "720p") -> tuple[str, bool, str]:
+    """Resolve a YouTube video or live-stream URL to a direct streamable URL via yt-dlp.
+
+    Returns:
+        (stream_url, is_live, video_title)
+    """
+    clean_url = str(url or "").strip()
+    if not clean_url:
+        raise RuntimeError("YouTube URL is empty. Please enter a valid YouTube link.")
+
+    quality_str = str(quality or "720p").lower()
+    cache_key = f"{clean_url}_{quality_str}"
+    now = time.monotonic()
+    if cache_key in _YOUTUBE_STREAM_CACHE:
+        cached_time, cached_stream_url, cached_is_live, cached_title = _YOUTUBE_STREAM_CACHE[cache_key]
+        if now - cached_time < 7200:  # Direct GoogleVideo URLs expire in ~4-6 hours
+            return cached_stream_url, cached_is_live, cached_title
+
+    try:
+        import yt_dlp
+    except ImportError as exc:
+        raise RuntimeError(
+            "yt-dlp is not installed in the environment. Please run: pip install yt-dlp"
+        ) from exc
+
+    if quality_str == "360p":
+        fmt = "bestvideo[height<=360]/best[height<=360]/best"
+    elif quality_str == "480p":
+        fmt = "bestvideo[height<=480]/best[height<=480]/best"
+    elif quality_str == "1080p":
+        fmt = "bestvideo[height<=1080]/best[height<=1080]/best"
+    else:  # 720p or auto
+        fmt = "bestvideo[height<=720]/best[height<=720]/best"
+
+    ydl_opts = {
+        "format": fmt,
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "extract_flat": False,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(clean_url, download=False)
+            if not info:
+                raise RuntimeError(f"Could not extract stream info from YouTube URL: {clean_url}")
+            stream_url = info.get("url")
+            if not stream_url:
+                formats = info.get("formats") or []
+                for f in reversed(formats):
+                    if f.get("url"):
+                        stream_url = f["url"]
+                        break
+            if not stream_url:
+                raise RuntimeError(f"No playable stream found for YouTube URL: {clean_url}")
+
+            is_live = bool(info.get("is_live") or info.get("was_live") or info.get("live_status") == "is_live")
+            title = str(info.get("title") or "YouTube Stream")
+            _YOUTUBE_STREAM_CACHE[cache_key] = (now, stream_url, is_live, title)
+            return stream_url, is_live, title
+    except Exception as exc:
+        raise RuntimeError(f"Error resolving YouTube stream: {exc}") from exc
+
+
 class OpenCVInputSource:
     def __init__(self, cv2_module, config: dict) -> None:
         self.cv2 = cv2_module
@@ -3599,6 +3675,9 @@ class OpenCVInputSource:
         self.label = "input"
         self._finite_video = False
         self._frame_count = 0
+        self._youtube_url = None
+        self._youtube_quality = "720p"
+        self._youtube_is_live = False
 
     def open(self) -> tuple[str, int, int]:
         # Check if this input config is from an ip_camera node or has rtsp/http streamUrl
@@ -3630,6 +3709,28 @@ class OpenCVInputSource:
             return self.label, width, height
 
         source_type = str(self.config.get("sourceType", "camera") or "camera").lower()
+        if source_type == "youtube":
+            yt_url = str(self.config.get("youtubeUrl") or "").strip()
+            if not yt_url:
+                raise RuntimeError("YouTube URL is empty. Please enter a valid YouTube link (e.g. https://www.youtube.com/watch?v=...).")
+            quality = str(self.config.get("youtubeQuality", "720p") or "720p")
+            stream_url, is_live, title = resolve_youtube_stream_url(yt_url, quality)
+            self._youtube_url = yt_url
+            self._youtube_quality = quality
+            self._youtube_is_live = is_live
+            self.label = f"YouTube: {title}"
+            self.capture = self.cv2.VideoCapture(stream_url)
+            self.capture.set(self.cv2.CAP_PROP_BUFFERSIZE, 2)
+            if not self.capture.isOpened():
+                self.capture.release()
+                self.capture = None
+                raise RuntimeError(f"Unable to connect to YouTube stream for: {yt_url}. Please check video accessibility.")
+            width = int(self.capture.get(self.cv2.CAP_PROP_FRAME_WIDTH) or 0)
+            height = int(self.capture.get(self.cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+            self._frame_count = int(self.capture.get(self.cv2.CAP_PROP_FRAME_COUNT) or 0) if not is_live else 0
+            self._finite_video = not is_live and self._frame_count > 0
+            return self.label, width, height
+
         if source_type == "daheng":
             self.loop = False
             self.daheng = DahengInputSource(self.cv2, self.config)
@@ -3638,6 +3739,24 @@ class OpenCVInputSource:
             return label, width, height
         if source_type in ("file", "image", "video"):
             location = str(self.config.get("filePath") or "").strip().strip('"')
+            if source_type in ("file", "video") and is_youtube_url(location):
+                quality = str(self.config.get("youtubeQuality", "720p") or "720p")
+                stream_url, is_live, title = resolve_youtube_stream_url(location, quality)
+                self._youtube_url = location
+                self._youtube_quality = quality
+                self._youtube_is_live = is_live
+                self.label = f"YouTube: {title}"
+                self.capture = self.cv2.VideoCapture(stream_url)
+                self.capture.set(self.cv2.CAP_PROP_BUFFERSIZE, 2)
+                if not self.capture.isOpened():
+                    self.capture.release()
+                    self.capture = None
+                    raise RuntimeError(f"Unable to open YouTube stream for video link: {location}")
+                width = int(self.capture.get(self.cv2.CAP_PROP_FRAME_WIDTH) or 0)
+                height = int(self.capture.get(self.cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+                self._frame_count = int(self.capture.get(self.cv2.CAP_PROP_FRAME_COUNT) or 0) if not is_live else 0
+                self._finite_video = not is_live and self._frame_count > 0
+                return self.label, width, height
             if source_type in ("file", "video") and re.match(r"(?i)^https?:", location):
                 try:
                     parsed = urlsplit(location)
@@ -3782,6 +3901,31 @@ class OpenCVInputSource:
         if ok:
             return True, frame
 
+        # If it's a YouTube source, handle looping or auto-reconnect
+        if getattr(self, "_youtube_url", None):
+            if self.loop or getattr(self, "_youtube_is_live", False):
+                if not getattr(self, "_youtube_is_live", False) and self.capture is not None:
+                    self.capture.set(self.cv2.CAP_PROP_POS_FRAMES, 0)
+                    ok, frame = self.capture.read()
+                    if ok:
+                        return True, frame
+                if bool(self.config.get("autoReconnect", True)):
+                    try:
+                        time.sleep(1.0)
+                        stream_url, is_live, title = resolve_youtube_stream_url(self._youtube_url, self._youtube_quality)
+                        if self.capture is not None:
+                            self.capture.release()
+                        self.capture = self.cv2.VideoCapture(stream_url)
+                        self.capture.set(self.cv2.CAP_PROP_BUFFERSIZE, 2)
+                        if self.capture.isOpened():
+                            ok, frame = self.capture.read()
+                            if ok:
+                                return True, frame
+                    except Exception:
+                        pass
+            return False, None
+
+        stream_url = str(self.config.get("streamUrl") or "").strip()
         # If it's a live camera (not finite video/image/streamUrl), retry briefly for transient frame drop / driver sync
         if not self._finite_video and self.image is None and not stream_url:
             for _ in range(3):
@@ -3792,7 +3936,6 @@ class OpenCVInputSource:
             return False, None
         
         # If it's an IP Camera stream (streamUrl) with autoReconnect enabled, attempt reconnect
-        stream_url = str(self.config.get("streamUrl") or "").strip()
         auto_reconnect = bool(self.config.get("autoReconnect", True))
         if stream_url and auto_reconnect:
             delay = max(0.5, float(self.config.get("reconnectDelaySeconds", 2.0) or 2.0))

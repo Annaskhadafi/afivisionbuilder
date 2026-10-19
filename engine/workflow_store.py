@@ -182,6 +182,9 @@ def video_detection_demo_workflow() -> dict:
 
 def input_subtitle(node: dict) -> str:
     source_type = node.get("config", {}).get("sourceType") or "camera"
+    if source_type == "youtube":
+        yt_url = str(node.get("config", {}).get("youtubeUrl") or "").strip()
+        return f"YouTube: {yt_url[:28]}..." if len(yt_url) > 28 else (f"YouTube: {yt_url}" if yt_url else "YouTube stream source")
     if source_type == "image":
         return "Image file source"
     if source_type == "video":
@@ -213,15 +216,14 @@ def normalize_workflow(workflow: dict) -> dict:
         if node.get("type") == INPUT_NODE_ID:
             config = node.setdefault("config", {})
             config.setdefault("sourceType", "camera")
-            if config.get("sourceType") not in ("camera", "daheng", "file", "image", "video"):
+            if config.get("sourceType") not in ("camera", "daheng", "file", "image", "video", "youtube"):
                 config["sourceType"] = "camera"
             if "source" not in config:
                 config["source"] = config.get("cameraIndex", config.get("deviceId", 0))
             config.setdefault("frameQueueSize", 64)
             config.setdefault("dropFrames", True)
-            config.pop("youtubeUrl", None)
-            config.pop("youtubeMaxHeight", None)
-            config.pop("youtubeMaxFps", None)
+            config.setdefault("youtubeUrl", "")
+            config.setdefault("youtubeQuality", "720p")
         if node.get("type") == "detector":
             config = node.setdefault("config", {})
             valid_detector_engines = (

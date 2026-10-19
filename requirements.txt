@@ -14,3 +14,4 @@ pyyaml>=6.0
 pydantic>=2.0.0
 supervision>=0.25.0,<=0.30.9
 trackers==2.5.0.post0
+yt-dlp>=2024.0.0
