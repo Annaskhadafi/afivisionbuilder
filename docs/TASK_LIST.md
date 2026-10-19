@@ -306,24 +306,25 @@ Dependensi: rilis awal stabil; detail perangkat/API tersedia. Output: pilot terp
 | 2026-10-18 | Relokasi 19 Unit Test ke Folder 'tests/unit/' | PASS unit (115/115) & E2E (`example.e2e.ts`) | `tests/unit/`, `docs/TASK_LIST.md` | Memindahkan seluruh 19 berkas unit test Python (`test_*.py`) dari root workspace ke folder khusus `tests/unit/` agar root repository GitHub bersih dan rapi; menambahkan `tests/unit/conftest.py` dan menyesuaikan resolusi import workspace root; seluruh 115 unit test berhasil lulus 100% (PASS dalam 26.55s). |
 | 2026-10-18 | Gitignore Dokumen Internal PRD | PASS audit & E2E (`example.e2e.ts`) | `.gitignore`, `docs/TASK_LIST.md` | Menambahkan `docs/PRD.md` dan `PRD.md` ke dalam `.gitignore` serta menghapus pelacakannya dari Git (`git rm --cached docs/PRD.md`) sehingga dokumen spesifikasi internal tetap aman di laptop lokal dan tidak dipublikasikan ke GitHub. |
 | 2026-10-19 | Redesign Header, Settings Modal, Project 3-Dots Action & Track Class Lock / EMA Stabilizer | PASS backend, UI, unit (115/115) & E2E | `static/index.html`, `static/style.css`, `static/app.js`, `engine/roboflow_tracker.py`, `engine/node_catalog.py`, `tests/unit/test_tracking.py`, `task 2.md` | (1) Redesign Topbar Header menjadi 3 bagian teratur (`.topbar-left`, `.topbar-center`, `.topbar-right`) dan hilangkan horizontal scrollbar; (2) Fungsikan tombol Settings membuka `#systemSettingsModal` (Engine/Device, Max FPS throttle, API keys 9router/OpenAI/Ollama, ERP webhook endpoint); (3) Ganti browser prompt/confirm pada titik 3 (`...`) kartu project menjadi popup menu kustom (Buka Proyek, Ganti Nama / Rename modal, Hapus Proyek / Delete modal); (4) Implementasi Task 1.1 Blueprint `task 2.md`: Track Class Lock (majority voting label class sepanjang track ID) & Bounding Box Stabilizer (EMA smoothing faktor $\alpha=0.7$) pada `roboflow_tracker.py`; 115 unit test pytest lulus 100%. |
+| 2026-10-19 | Task 1.2 Per-Class Confidence & Task 1.3 Detections Consensus (Multi-Model Ensemble) | PASS backend, UI, unit (120/120) & E2E | `engine/main.py`, `engine/core.py`, `engine/detections_consensus.py`, `engine/node_catalog.py`, `static/app.js`, `tests/unit/test_nodes.py`, `tests/unit/test_detections_consensus.py`, `tests/consensus_and_filter.e2e.ts` | (1) Task 1.2: Filter node per-class confidence parser (`person:0.85, tire:0.40`), `defaultConfidence` fallback, dan `paddingPercent` dengan bounds clamping; (2) Task 1.3: Node Baru 07 `detections_consensus` dengan IoU clustering, agreement voting threshold, multi-mode confidence & bounding box aggregation (`average`, `max`, `min`, `highest_confidence`), dan class-aware filtering; (3) Integrasi eksekusi pipeline threaded dan serial; (4) 120/120 unit test pytest lulus 100% dan E2E test `tests/consensus_and_filter.e2e.ts` PASS dengan 5 tangkapan layar visual. |
+| 2026-10-19 | Fase 2: Pengukuran Spasial & Klasikal Computer Vision (4 Node Baru) | PASS backend, UI, unit (127/127) & E2E | `engine/spatial_measurement.py`, `engine/classical_cv.py`, `engine/node_catalog.py`, `engine/core.py`, `static/app.js`, `tests/unit/test_spatial_and_classical_cv.py`, `tests/spatial_and_classical_cv.e2e.ts` | (1) [Node Baru 01] `distance_measurement`: Pengukuran jarak 2D (Euclidean, horizontal, vertikal) antara dua kelas objek, kalibrasi rasio piksel/cm, batas jarak bahaya, alarm `proximity_violation`, dan overlay visual interaktif; (2) [Node Baru 02] `size_measurement`: Pengukuran dimensi fisik (lebar, tinggi, luas area) objek, satuan mm/cm/m/inch, batas toleransi min/max dimensi, dan alarm toleransi; (3) [Node Baru 03] `camera_focus`: Pemantau kesehatan ketajaman lensa kamera via Laplacian Variance, evaluasi interval waktu berkala, ROI polygon support, dan alarm `camera_blur_detected`; (4) [Node Baru 04] `auto_rotate_edges`: Pelurusan gambar otomatis (deskewing) berbasis Canny edge dan MinAreaRect dengan rotasi warpAffine; (5) Seluruh 127 unit test pytest lulus 100% dan E2E test `tests/spatial_and_classical_cv.e2e.ts` PASS dalam 5.38s dengan 9 tangkapan layar visual. |
+| 2026-10-19 | Fase 3: Logika Tingkat Lanjut & Kinematika Video (5 Node Baru & Dynamic Anchor) | PASS backend, UI, unit (134/134) & E2E | `engine/video_kinematics.py`, `engine/advanced_logic.py`, `engine/project_nodes.py`, `engine/node_catalog.py`, `engine/core.py`, `static/app.js`, `tests/unit/test_video_kinematics_and_advanced_logic.py`, `tests/advanced_logic_and_kinematics.e2e.ts` | (1) [Node Baru 08] `overlap_analysis`: Inspeksi kepatuhan APD (helm/rompi pada person sub-region) dan alarm `compliance_violation`; (2) [Node Baru 09] `delta_filter`: Compute & motion throttler penghemat 70%+ CPU/GPU saat visual statis dengan heartbeat bypass; (3) [Node Baru 10] `switch_case`: Multi-branch conditional flow router berdasarkan kelas atau atribut deteksi; (4) [Node Baru 11] `velocity_calculator`: Estimasi kecepatan km/jam objek nyata via perpindahan centroid ($v = ds/dt$) dan alarm overspeed; (5) [Node Baru 12] `path_deviation`: Pemantau rute koridor virtual dan alarm deviasi jalur; (6) Dynamic Zone Anchor pada timer zona mengikuti pergerakan unit acuan; (7) Seluruh 134 unit test pytest lulus 100% dan E2E test `tests/advanced_logic_and_kinematics.e2e.ts` PASS dalam 5.75s dengan 11 tangkapan layar visual. |
 
 ### Checks yang dapat dijalankan sesi berikutnya
 
 ```powershell
 npm run test:e2e
 npx e2e run tests/example.e2e.ts
-npx e2e run tests/restaurant_cafe_running.e2e.ts
-npx e2e run tests/template_restaurant_table.e2e.ts
+npx e2e run tests/consensus_and_filter.e2e.ts
+npx e2e run tests/spatial_and_classical_cv.e2e.ts
+npx e2e run tests/advanced_logic_and_kinematics.e2e.ts
+npx e2e run tests/header_settings_menu.e2e.ts
 npx e2e run tests/nodes_tracking_analysis.e2e.ts
-npx e2e run tests/multi_zone_occupancy.e2e.ts
-npx e2e run tests/camera_settings_workflow.e2e.ts
-npx e2e run tests/dashboard_operations.e2e.ts
 .venv/Scripts/python.exe -m pytest tests/unit/ -q
-.venv/Scripts/python.exe tests/unit/test_tracking_integration.py
 node -c "static/app.js"
 git diff --check
 ```
 
-Hasil terbaru 19 Oktober: Header redesigned, Settings modal fungsional, menu titik 3 kartu proyek interaktif, dan Task 1.1 (Track Class Lock & Bounding Box Stabilizer EMA) telah diimplementasi dan lulus seluruh unit test.
+Hasil terbaru 19 Oktober: Fase 1, Fase 2, dan Fase 3 telah selesai diimplementasikan secara komprehensif, lulus 134/134 unit test, dan terverifikasi secara nyata pada real-browser E2E testing dengan 25 tangkapan layar visual.
 
 

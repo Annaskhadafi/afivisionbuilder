@@ -63,6 +63,50 @@ def test_branch_remap_and_filter():
     assert nodes.filter_detections(filtered_workflow, [detection]) == []
 
 
+def test_filter_per_class_confidence_and_padding():
+    # 1. Test Per-Class Confidence and Default Confidence
+    fn = {
+        "id": "filter",
+        "type": "filter",
+        "config": {
+            "perClassConfidence": "person:0.85, tire:0.40",
+            "defaultConfidence": 0.50,
+            "minCount": 1,
+        },
+    }
+    wf = _workflow(extra=[{"id": "det", "type": "detector"}, fn])
+    wf["edges"] = [["input", "det"], ["det", "filter"]]
+    items = [
+        {"class": "person", "score": 0.80, "bbox": [10, 10, 20, 20]},  # dropped (0.80 < 0.85)
+        {"class": "person", "score": 0.90, "bbox": [10, 10, 20, 20]},  # kept (0.90 >= 0.85)
+        {"class": "tire", "score": 0.45, "bbox": [10, 10, 20, 20]},    # kept (0.45 >= 0.40)
+        {"class": "truck", "score": 0.55, "bbox": [10, 10, 20, 20]},   # kept (default 0.55 >= 0.50)
+        {"class": "truck", "score": 0.35, "bbox": [10, 10, 20, 20]},   # dropped (default 0.35 < 0.50)
+    ]
+    res = nodes.filter_detections(wf, items)
+    assert len(res) == 3
+    assert [r["class"] for r in res] == ["person", "tire", "truck"]
+    assert res[0]["score"] == 0.90
+
+    # 2. Test Detection Bounding Box Padding (20% expansion)
+    pad_fn = {
+        "id": "filter",
+        "type": "filter",
+        "config": {
+            "paddingPercent": 20,
+            "minCount": 1,
+        },
+    }
+    pad_wf = _workflow(extra=[{"id": "det", "type": "detector"}, pad_fn])
+    pad_wf["edges"] = [["input", "det"], ["det", "filter"]]
+    raw_item = [{"class": "person", "score": 0.90, "bbox": [10.0, 10.0, 20.0, 20.0]}]
+    padded = nodes.filter_detections(pad_wf, raw_item, frame_size=(100, 100))
+    assert len(padded) == 1
+    # 20% of 20 = 4.0; dx = 2.0, dy = 2.0 -> bx = 8.0, by = 8.0, bw = 24.0, bh = 24.0
+    assert padded[0]["bbox"] == [8.0, 8.0, 24.0, 24.0]
+    assert padded[0]["rawBbox"] == [10.0, 10.0, 20.0, 20.0]
+
+
 def test_logic_and_overlay():
     detection = {"kind": "detection", "class": "person", "score": 0.9, "bbox": [4, 5, 12, 8]}
     logic = {"id": "gate", "type": "confidence_threshold", "config": {"threshold": 0.8, "operator": "gte"}}

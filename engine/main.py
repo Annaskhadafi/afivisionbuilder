@@ -5258,6 +5258,9 @@ def filter_project_inputs(workflow: dict, target_id: str, detections: list[dict]
                 batch = list({id(item): item for parent in parents[key] for item in batches.get(parent, [])}.values())
                 if nodes[key].get("type") == "filter":
                     batch = filter_detections(workflow, batch, frame_size, filter_node=nodes[key])
+                elif nodes[key].get("type") == "detections_consensus":
+                    from detections_consensus import apply_detections_consensus
+                    batch = apply_detections_consensus(batch, nodes[key].get("config", {}))
                 batches[key] = batch
             result.extend(batches.get(target_id, []))
         return result
@@ -5267,6 +5270,31 @@ def filter_project_inputs(workflow: dict, target_id: str, detections: list[dict]
             workflow, str(node.get("id") or ""), target_id,
         ):
             result = filter_detections(workflow, result, frame_size, filter_node=node)
+        elif node.get("type") == "detections_consensus" and node.get("enabled", True) and has_active_path(
+            workflow, str(node.get("id") or ""), target_id,
+        ):
+            from detections_consensus import apply_detections_consensus
+            result = apply_detections_consensus(result, node.get("config", {}))
+    return result
+
+
+def parse_per_class_confidence(raw_val: str | dict | None) -> dict[str, float]:
+    """Parse format like 'person:0.75, tire:0.40, truck:0.60' or dict into {class: threshold}."""
+    if isinstance(raw_val, dict):
+        return {str(k).strip().lower(): float(v) for k, v in raw_val.items() if str(k).strip()}
+    if not isinstance(raw_val, str) or not raw_val.strip():
+        return {}
+    result = {}
+    for entry in raw_val.split(","):
+        if ":" in entry:
+            cls_name, score_str = entry.split(":", 1)
+            cls_name = cls_name.strip().lower()
+            try:
+                score = float(score_str.strip())
+                if cls_name:
+                    result[cls_name] = max(0.0, min(1.0, score))
+            except (TypeError, ValueError):
+                continue
     return result
 
 
@@ -5286,10 +5314,27 @@ def filter_detections(workflow: dict, detections: list[dict], frame_size: tuple[
     max_aspect = float(config.get("maxAspectRatio", 0) or 0)
     border_margin = float(config.get("excludeBorderMargin", 0) or 0)
 
+    # Per-Class Confidence & Default Confidence
+    per_class_conf = parse_per_class_confidence(config.get("perClassConfidence"))
+    default_conf = float(config.get("defaultConfidence", 0.0) or 0.0)
+
+    # Detection Bounding Box Padding
+    padding_percent = float(config.get("paddingPercent", 0.0) or 0.0)
+
     filtered = []
-    for item in detections:
-        if classes and item.get("class", "").lower() not in classes:
+    for raw_item in detections:
+        item = dict(raw_item)
+        item_class = str(item.get("class", "")).lower()
+        if classes and item_class not in classes:
             continue
+
+        item_score = float(item.get("score", 0.0) or 0.0)
+        if item_class in per_class_conf:
+            if item_score < per_class_conf[item_class]:
+                continue
+        elif default_conf > 0.0:
+            if item_score < default_conf:
+                continue
 
         bbox = item.get("bbox")
         if bbox and len(bbox) >= 4:
@@ -5316,6 +5361,30 @@ def filter_detections(workflow: dict, detections: list[dict], frame_size: tuple[
             fw, fh = frame_size
             if bx < border_margin or by < border_margin or (bx + bw) > (fw - border_margin) or (by + bh) > (fh - border_margin):
                 continue
+
+        if padding_percent > 0.0:
+            pad_fraction = padding_percent / 100.0
+            dx = (bw * pad_fraction) / 2.0
+            dy = (bh * pad_fraction) / 2.0
+            new_bx = bx - dx
+            new_by = by - dy
+            new_bw = bw + (2.0 * dx)
+            new_bh = bh + (2.0 * dy)
+
+            if frame_size:
+                fw, fh = frame_size
+                clamped_x = max(0.0, new_bx)
+                clamped_y = max(0.0, new_by)
+                clamped_w = max(0.0, min(float(fw) - clamped_x, new_bw))
+                clamped_h = max(0.0, min(float(fh) - clamped_y, new_bh))
+            else:
+                clamped_x = max(0.0, new_bx)
+                clamped_y = max(0.0, new_by)
+                clamped_w = new_bw
+                clamped_h = new_bh
+
+            item["rawBbox"] = [bx, by, bw, bh]
+            item["bbox"] = [round(clamped_x, 2), round(clamped_y, 2), round(clamped_w, 2), round(clamped_h, 2)]
 
         filtered.append(item)
 

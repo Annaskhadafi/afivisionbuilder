@@ -724,7 +724,12 @@ def _process_track_event_nodes(
     extra_results.extend(dwell_events)
 
     for project_node in workflow.get("nodes", []):
-        if project_node.get("type") not in ("zone_activity_timer", "zone_exit_event", "multi_zone_occupancy") or not project_node.get("enabled", True):
+        p_type = project_node.get("type")
+        if p_type not in (
+            "zone_activity_timer", "zone_exit_event", "multi_zone_occupancy",
+            "distance_measurement", "size_measurement", "camera_focus", "auto_rotate_edges",
+            "overlap_analysis", "velocity_calculator", "path_deviation", "delta_filter"
+        ) or not project_node.get("enabled", True):
             continue
         project_id = str(project_node.get("id") or "")
         if not engine.has_active_path(workflow, engine.source_node_id(workflow), project_id):
@@ -733,9 +738,48 @@ def _process_track_event_nodes(
         candidates = engine.filter_project_inputs(workflow, project_id, candidates, (frame.shape[1], frame.shape[0]))
         with logic_lock if logic_lock is not None else nullcontext():
             candidates = engine.apply_logic_nodes(workflow, project_id, candidates, logic_runtime, now)
-        if project_node.get("type") == "multi_zone_occupancy":
+        if p_type == "multi_zone_occupancy":
             from multi_zone_occupancy import process_multi_zone_occupancy
             extra_results.extend(process_multi_zone_occupancy(project_node, frame, candidates, event_runtime, now))
+        elif p_type == "distance_measurement":
+            from spatial_measurement import measure_distance_between_objects, draw_distance_measurement_overlay
+            state = event_runtime.setdefault(project_id, {})
+            measurements, dist_events = measure_distance_between_objects(frame, candidates, project_node.get("config", {}), state)
+            extra_results.extend(dist_events)
+            if project_node.get("config", {}).get("showOverlay", True):
+                draw_distance_measurement_overlay(frame, measurements)
+        elif p_type == "size_measurement":
+            from spatial_measurement import measure_object_dimensions
+            augmented, size_events = measure_object_dimensions(frame, candidates, project_node.get("config", {}))
+            extra_results.extend(size_events)
+        elif p_type == "camera_focus":
+            from classical_cv import compute_camera_focus_score
+            state = event_runtime.setdefault(project_id, {})
+            score, is_blur, focus_events = compute_camera_focus_score(frame, project_node.get("config", {}), state)
+            extra_results.extend(focus_events)
+        elif p_type == "auto_rotate_edges":
+            from classical_cv import auto_rotate_edges
+            frame, angle = auto_rotate_edges(frame, project_node.get("config", {}))
+        elif p_type == "overlap_analysis":
+            from advanced_logic import analyze_overlap
+            state = event_runtime.setdefault(project_id, {})
+            augmented, overlap_events = analyze_overlap(candidates, project_node.get("config", {}), state, now)
+            extra_results.extend(overlap_events)
+        elif p_type == "velocity_calculator":
+            from video_kinematics import calculate_object_velocities
+            state = event_runtime.setdefault(project_id, {})
+            augmented, speed_events = calculate_object_velocities(candidates, project_node.get("config", {}), state, now)
+            extra_results.extend(speed_events)
+        elif p_type == "path_deviation":
+            from video_kinematics import check_path_deviation
+            state = event_runtime.setdefault(project_id, {})
+            f_shape = (frame.shape[1], frame.shape[0]) if hasattr(frame, "shape") else (1920, 1080)
+            augmented, dev_events = check_path_deviation(candidates, project_node.get("config", {}), state, f_shape, now)
+            extra_results.extend(dev_events)
+        elif p_type == "delta_filter":
+            from advanced_logic import evaluate_delta_filter
+            state = event_runtime.setdefault(project_id, {})
+            continue_branch, motion_score = evaluate_delta_filter(frame, project_node.get("config", {}), state, now)
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
 
@@ -3695,6 +3739,10 @@ class WorkflowRunner:
                         filter_started_at = time.monotonic()
                         f_shape = (packet.frame.shape[1], packet.frame.shape[0]) if hasattr(packet.frame, "shape") else None
                         filtered = engine.filter_detections(workflow, filter_candidates, frame_size=f_shape)
+                        consensus_node = next((n for n in workflow.get("nodes", []) if n.get("type") == "detections_consensus" and n.get("enabled", True)), None)
+                        if consensus_node:
+                            from detections_consensus import apply_detections_consensus
+                            filtered = apply_detections_consensus(filtered, consensus_node.get("config", {}))
                         if filter_node and self._debug_enabled:
                             self._emit_node_debug(
                                 filter_node,
@@ -4904,6 +4952,10 @@ class WorkflowRunner:
                     filter_started_at = time.monotonic()
                     f_shape = (frame.shape[1], frame.shape[0]) if hasattr(frame, "shape") else None
                     filtered = engine.filter_detections(workflow, filter_candidates, frame_size=f_shape)
+                    consensus_node = next((n for n in workflow.get("nodes", []) if n.get("type") == "detections_consensus" and n.get("enabled", True)), None)
+                    if consensus_node:
+                        from detections_consensus import apply_detections_consensus
+                        filtered = apply_detections_consensus(filtered, consensus_node.get("config", {}))
                     if filter_node and self._debug_enabled:
                         self._emit_node_debug(
                             filter_node,

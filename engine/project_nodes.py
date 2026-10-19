@@ -146,6 +146,25 @@ def _in_zone(det, polygon, width, height):
     return _inside(point, polygon)
 
 
+def _resolve_zone_polygon(config, frame, detections):
+    width, height = _frame_size(frame)
+    polygon = _polygon(config.get("points", "0.2,0.2;0.8,0.2;0.8,0.8;0.2,0.8"), width, height)
+    anchor_class = str(config.get("anchorClass", "")).strip().lower()
+    if str(config.get("mode", "")).strip().lower() == "dynamic_anchor" and anchor_class and polygon:
+        anchor_det = next((d for d in detections if str(d.get("class", "")).lower() == anchor_class), None)
+        if anchor_det:
+            abox = _box(anchor_det)
+            if abox:
+                ax, ay, aw, ah = abox
+                acx, acy = ax + aw / 2.0, ay + ah / 2.0
+                poly_cx = sum(p[0] for p in polygon) / float(len(polygon))
+                poly_cy = sum(p[1] for p in polygon) / float(len(polygon))
+                dx = acx - poly_cx
+                dy = acy - poly_cy
+                polygon = [(px + dx, py + dy) for px, py in polygon]
+    return polygon, width, height
+
+
 def _field_config(config, name, default):
     value = config.get(name, default)
     try:
@@ -303,8 +322,7 @@ def _process_timer(node, frame, detections, runtime, now):
     previous_required = state.get("lastRequired")
     if previous is not None and now < previous:
         return []
-    width, height = _frame_size(frame)
-    polygon = _polygon(config.get("points", "0.2,0.2;0.8,0.2;0.8,0.8;0.2,0.8"), width, height)
+    polygon, width, height = _resolve_zone_polygon(config, frame, detections)
     inside = [d for d in detections if d.get("kind", "detection") in ("detection", "segmentation")
               and _in_zone(d, polygon, width, height)]
     required = sum(str(d.get("class", "")).lower() in _classes(config.get("requiredClasses", "tire")) for d in inside)
@@ -444,8 +462,7 @@ def _process_exit(node, frame, detections, runtime, now):
     config = _config(node)
     node_id = str(node.get("id") or "zone_exit_event")
     state = runtime.setdefault(node_id, {"tracks": {}, "lastFrame": None})
-    width, height = _frame_size(frame)
-    polygon = _polygon(config.get("points", "0.2,0.2;0.8,0.2;0.8,0.8;0.2,0.8"), width, height)
+    polygon, width, height = _resolve_zone_polygon(config, frame, detections)
     classes = _classes(config.get("classes", "truck,tire"))
     gap = _field_config(config, "maxObservationGapSeconds", 5)
     if state.get("lastFrame") is not None and now - state["lastFrame"] > gap:

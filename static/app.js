@@ -33,6 +33,16 @@
     line_counter: '<svg class="icon-svg" viewBox="0 0 24 24"><line x1="2" y1="12" x2="22" y2="12"/><polyline points="8 8 12 4 16 8"/><polyline points="8 16 12 20 16 16"/></svg>',
     dwell_time: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M12 2a10 10 0 0 0-7.07 2.93"/></svg>',
     filter: '<svg class="icon-svg" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>',
+    detections_consensus: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    distance_measurement: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    size_measurement: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 3H3v18h18V3z"/><path d="M7 3v4"/><path d="M17 3v4"/><path d="M3 7h18"/><path d="M3 17h18"/></svg>',
+    camera_focus: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>',
+    auto_rotate_edges: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.8 1.04 6.43 2.72L21 8"/><path d="M21 3v5h-5"/></svg>',
+    overlap_analysis: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="12" height="12" x="2" y="2" rx="2"/><rect width="12" height="12" x="10" y="10" rx="2"/></svg>',
+    velocity_calculator: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>',
+    path_deviation: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M4 5h16"/><line x1="6" y1="12" x2="18" y2="12" stroke-dasharray="2 2"/><circle cx="12" cy="8" r="2"/></svg>',
+    delta_filter: '<svg class="icon-svg" viewBox="0 0 24 24"><polygon points="11 19 2 12 11 5 11 19"/><polygon points="22 19 13 12 22 5 22 19"/></svg>',
+    switch_case: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>',
 
     // Preprocessing
     slicer: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
@@ -192,10 +202,10 @@
   function categoryFor(type) {
     if (type === 'input' || type === 'ip_camera') return 'Sources';
     if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ai_agent'].includes(type)) return 'AI Vision Models';
-    if (['tracker', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter'].includes(type)) return 'Tracking & Analysis';
-    if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer'].includes(type)) return 'Image Preprocessing';
+    if (['tracker', 'detections_consensus', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter'].includes(type)) return 'Tracking & Analysis';
+    if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer', 'camera_focus', 'auto_rotate_edges', 'delta_filter'].includes(type)) return 'Image Preprocessing';
     if (['overlay_annotate', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
-    if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once'].includes(type)) return 'Logic & Flow Control';
+    if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once', 'switch_case'].includes(type)) return 'Logic & Flow Control';
     return 'Outputs & Export';
   }
 
@@ -239,6 +249,168 @@
   ]);
 
   const FIELD_HELP = {
+    // Logika Tingkat Lanjut & Kinematika Video (Fase 3)
+    parentClass: {
+      text: 'Label nama kelas objek induk yang akan diperiksa kelengkapannya.',
+      guide: 'Contoh: person, operator, driver. Objek ini menjadi acuan utama pemeriksaan APD.'
+    },
+    childClass: {
+      text: 'Label nama kelas objek anak yang wajib berada di dalam area objek induk.',
+      guide: 'Contoh: helmet, safety_vest, seatbelt. Sistem akan memverifikasi keberadaannya di sub-region induk.'
+    },
+    minOverlapRatio: {
+      text: 'Rasio minimal luas tumpang tindih (overlap) objek anak terhadap area sub-region induk.',
+      guide: 'Rentang 0.0 s/d 1.0 (default: 0.5 = 50% area helmet harus berada di dalam kepala person).'
+    },
+    parentRegion: {
+      text: 'Bagian sub-area tubuh/objek induk yang diperiksa.',
+      guide: 'top_half (separuh atas, untuk helm/kacamata), bottom_half (separuh bawah, untuk sepatu safety), full (seluruh tubuh, untuk rompi).'
+    },
+    triggerAlarmOnNonCompliance: {
+      text: 'Otomatis kirimkan event pelanggaran jika objek induk tidak memiliki objek anak pelengkap.',
+      guide: 'Event compliance_violation akan langsung diteruskan ke Alert, Webhook, atau Database.'
+    },
+    deltaThreshold: {
+      text: 'Ambang batas persentase perubahan visual piksel untuk memicu pemrosesan inferensi AI.',
+      guide: 'Default: 0.03 (3% piksel berubah). Jika perubahan visual di bawah nilai ini, inferensi model AI dilewati untuk menghemat CPU/GPU.'
+    },
+    heartbeatIntervalSeconds: {
+      text: 'Batas waktu interval detak jantung untuk memaksa inferensi frame tetap berjalan berkala.',
+      guide: 'Default: 15 detik. Menjamin status sistem tetap terbarui meskipun suasana di depan kamera diam.'
+    },
+    minContourArea: {
+      text: 'Luas area kontur gerakan minimal dalam piksel untuk dihitung sebagai pergerakan nyata.',
+      guide: 'Mencegah noise sensor kamera atau kedipan cahaya kecil memicu inferensi model.'
+    },
+    evaluationField: {
+      text: 'Nama bidang metadata yang dievaluasi untuk menentukan cabang port keluaran.',
+      guide: 'Pilihan: class (nama kelas deteksi), status, event_type, atau custom attribute.'
+    },
+    cases: {
+      text: 'Daftar pemetaan nilai evaluasi ke nomor/nama port keluaran.',
+      guide: 'Format: nilai1:port_1, nilai2:port_2. Contoh: person:port_1, forklift:port_2'
+    },
+    defaultPort: {
+      text: 'Nama port keluaran fallback jika nilai evaluasi tidak cocok dengan daftar kasus mana pun.',
+      guide: 'Default: default.'
+    },
+    speedLimitKmh: {
+      text: 'Batas kecepatan maksimal kendaraan atau objek di workshop/gudang (km/jam).',
+      guide: 'Default: 15.0 km/jam. Jika kecepatan melebihi ambang batas ini, alarm overspeed akan dipicu.'
+    },
+    speedUnit: {
+      text: 'Satuan tampilan kecepatan objek di layar inspeksi.',
+      guide: 'Pilihan: kmh (kilometer per jam) atau mps (meter per detik).'
+    },
+    smoothingWindow: {
+      text: 'Jumlah frame riwayat pergerakan yang digunakan untuk meredam fluktuasi kecepatan (EMA).',
+      guide: 'Rentang 2 s/d 10 frame. Default: 5 frame.'
+    },
+    triggerAlarmOnSpeeding: {
+      text: 'Otomatis kirimkan event bahaya saat objek bergerak melebihi batas kecepatan.',
+      guide: 'Event overspeed_detected akan diteruskan ke node Alert, Webhook, atau Database.'
+    },
+    guidePathPoints: {
+      text: 'Titik-titik koordinat polyline rute lintasan baku kendaraan (virtual corridor).',
+      guide: 'Format x,y; x,y; ... Contoh: 0.1,0.5; 0.5,0.5; 0.9,0.5'
+    },
+    maxAllowedDeviationMeters: {
+      text: 'Batas jarak penyimpangan tegak lurus maksimal dari koridor lintasan (meter).',
+      guide: 'Default: 1.5 meter. Jika objek keluar melebihi batas ini, alarm deviasi akan dipicu.'
+    },
+    targetClasses: {
+      text: 'Daftar nama kelas kendaraan atau orang yang dipantau rute lintasannya.',
+      guide: 'Pisahkan dengan koma. Contoh: forklift, agv, vehicle'
+    },
+    triggerAlarmOnDeviation: {
+      text: 'Otomatis kirimkan event saat objek menyimpang keluar dari koridor jalur aman.',
+      guide: 'Event path_deviation_detected akan diteruskan ke node Alert, Webhook, atau Database.'
+    },
+    // Pengukuran Spasial & Klasikal CV (Fase 2)
+    objectAClass: {
+      text: 'Label nama kelas objek pertama yang akan diukur jaraknya.',
+      guide: 'Contoh: person, pedestrian. Harus sesuai dengan nama kelas yang dihasilkan oleh model detektor.'
+    },
+    objectBClass: {
+      text: 'Label nama kelas objek kedua yang akan diukur jaraknya terhadap objek pertama.',
+      guide: 'Contoh: forklift, truck, machine. Jika sama dengan Kelas A, sistem akan mengukur jarak antar objek sejenis (misal social distancing).'
+    },
+    measurementAxis: {
+      text: 'Sumbu proyeksi pengukuran jarak fisik.',
+      guide: 'Pilihan: euclidean (jarak diagonal 2D langsung), horizontal (selisih sumbu X saja), vertical (selisih sumbu Y saja).'
+    },
+    pixelRatio: {
+      text: 'Faktor konversi kalibrasi kamera (jumlah piksel per 1 sentimeter fisik).',
+      guide: 'Hitung dengan mengukur panjang objek referensi di layar dalam piksel dibagi panjang aktualnya dalam cm (default: 10.0 piksel = 1 cm).'
+    },
+    minDistanceThreshold: {
+      text: 'Batas jarak aman minimum (dalam cm) sebelum alarm peringatan dipicu.',
+      guide: 'Contoh: 150.0 (1.5 meter). Jika jarak objek A dan B lebih dekat dari nilai ini, alarm bahaya akan terpicu.'
+    },
+    anchorMode: {
+      text: 'Titik acuan koordinat bounding box yang digunakan untuk menghitung jarak.',
+      guide: 'bottom_center (tapak kaki/titik kontak lantai, paling akurat untuk kamera miring) atau centroid (pusat kotak).'
+    },
+    triggerAlarmOnProximity: {
+      text: 'Otomatis kirimkan event bahaya saat jarak antar objek melanggar batas ambang.',
+      guide: 'Event proximity_violation akan diteruskan ke node Alert, Webhook, atau Database.'
+    },
+    alarmCooldownSeconds: {
+      text: 'Jeda waktu minimum antar alarm proximity berulang (detik).',
+      guide: 'Mencegah spam notifikasi terus-menerus saat kedua objek masih berada di zona bahaya.'
+    },
+    targetClass: {
+      text: 'Label kelas objek yang akan diukur dimensi fisik lebar dan tingginya.',
+      guide: 'Isi "all" untuk mengukur seluruh deteksi, atau sebutkan kelas spesifik seperti "box", "tire", "bottle".'
+    },
+    pixelPerUnit: {
+      text: 'Jumlah piksel kamera yang merepresentasikan 1 satuan dimensi fisik.',
+      guide: 'Misal jika 100 piksel = 10 cm, maka nilai pixelPerUnit adalah 10.0 piksel per cm.'
+    },
+    unitName: {
+      text: 'Satuan ukuran fisik yang ingin ditampilkan pada label inspeksi.',
+      guide: 'Pilihan: mm, cm, m, inch.'
+    },
+    minAllowedWidth: {
+      text: 'Batas toleransi lebar minimum objek dalam satuan yang dipilih.',
+      guide: 'Nilai 0 menonaktifkan pemeriksaan batas bawah lebar.'
+    },
+    maxAllowedWidth: {
+      text: 'Batas toleransi lebar maksimum objek dalam satuan yang dipilih.',
+      guide: 'Nilai 0 menonaktifkan pemeriksaan batas atas lebar.'
+    },
+    minAllowedHeight: {
+      text: 'Batas toleransi tinggi minimum objek dalam satuan yang dipilih.',
+      guide: 'Nilai 0 menonaktifkan pemeriksaan batas bawah tinggi.'
+    },
+    maxAllowedHeight: {
+      text: 'Batas toleransi tinggi maksimum objek dalam satuan yang dipilih.',
+      guide: 'Nilai 0 menonaktifkan pemeriksaan batas atas tinggi.'
+    },
+    triggerAlarmOnToleranceViolation: {
+      text: 'Picu event alarm jika dimensi fisik objek berada di luar rentang toleransi.',
+      guide: 'Berguna untuk QA/QC penyortiran otomatis produk cacat atau ukuran tidak standar.'
+    },
+    blurThreshold: {
+      text: 'Ambang batas nilai variansi Laplacian untuk mendeteksi kamera buram.',
+      guide: 'Nilai di bawah ambang batas (default: 100.0) menandakan frame gambar tidak fokus, lensa kotor, atau tertutup kabut.'
+    },
+    checkIntervalSeconds: {
+      text: 'Interval jeda waktu evaluasi kesehatan lensa kamera (detik).',
+      guide: 'Pemeriksaan ketajaman dilakukan secara berkala tanpa membebani CPU di setiap frame.'
+    },
+    maxAngleLimit: {
+      text: 'Batas sudut rotasi maksimal yang diizinkan untuk meluruskan gambar (derajat).',
+      guide: 'Default: 45.0 derajat. Sudut kemiringan ekstrem di atas batas ini tidak akan dirotasi untuk mencegah distorsi.'
+    },
+    minAngleThreshold: {
+      text: 'Ambang batas sudut kemiringan minimum sebelum rotasi dieksekusi (derajat).',
+      guide: 'Default: 0.5 derajat. Mencegah rotasi mikro yang tidak perlu jika objek sudah cukup tegak.'
+    },
+    borderMode: {
+      text: 'Perlakuan piksel pada area kosong hasil rotasi gambar.',
+      guide: 'black_constant (isi area kosong dengan warna hitam pekat) atau replicate (duplikasi piksel tepi).'
+    },
     // Sumber Input (Sources)
     sourceType: {
       text: 'Pilih jenis sumber input video atau gambar.',
@@ -635,6 +807,38 @@
     excludeBorderMargin: {
       text: 'Batas jarak aman dari tepi frame kamera (dalam pixel).',
       guide: 'Nilai 0 = Nonaktif. Isi 10 - 20 jika ingin mengabaikan objek yang baru muncul setengah badan di pinggir layar.'
+    },
+    perClassConfidence: {
+      text: 'Ambang batas akurasi spesifik per-kelas objek (format: person:0.75, tire:0.40, truck:0.60).',
+      guide: 'Memungkinkan threshold fleksibel untuk objek sulit (seperti ban) tanpa membiarkan noise untuk objek umum.'
+    },
+    defaultConfidence: {
+      text: 'Ambang batas akurasi default untuk kelas yang tidak terdaftar di perClassConfidence.',
+      guide: 'Nilai 0.0 = menggunakan confidence bawaan detector.'
+    },
+    paddingPercent: {
+      text: 'Persentase ekspansi kotak pembatas (bounding box padding) sebesar 0 - 100%.',
+      guide: 'Memperluas area kotak pembatas agar seluruh kontur objek tercakup sebelum dipotong untuk inspeksi sekunder.'
+    },
+    paddingMode: {
+      text: 'Metode penyesuaian rasio ekspansi kotak pembatas.',
+      guide: 'aspect_ratio_preserve mempertahankan bentuk rasio asli kotak objek.'
+    },
+    requiredVotes: {
+      text: 'Jumlah suara/model minimal yang harus sepakat atas deteksi objek yang sama.',
+      guide: 'Contoh: 2 jika menghubungkan YOLO dan RF-DETR untuk memangkas false alarm.'
+    },
+    confidenceAggregation: {
+      text: 'Metode kalkulasi nilai akurasi konsensus.',
+      guide: 'Average: Rata-rata nilai confidence seluruh model yang sepakat. Max: Ambil nilai tertinggi. Min: Nilai paling konservatif.'
+    },
+    boxAggregation: {
+      text: 'Metode penentuan koordinat kotak konsensus.',
+      guide: 'highest_confidence: Menggunakan koordinat dari model dengan akurasi tertinggi. average: Rata-rata koordinat.'
+    },
+    classAware: {
+      text: 'Wajibkan kelas objek identik saat mencocokkan deteksi antar-model.',
+      guide: 'True: Hanya sepakat jika kedua model mendeteksi label kelas yang sama (misal sama-sama person).'
     },
     mode: {
       text: 'Mode perhitungan jumlah objek pada kamera.',
@@ -1311,6 +1515,46 @@
   };
 
   const INDO_FIELD_LABELS = {
+    parentClass: 'Kelas Induk (Parent Class)',
+    childClass: 'Kelas Anak (Child Class)',
+    minOverlapRatio: 'Rasio Minimal Tumpang Tindih',
+    parentRegion: 'Area Bagian Induk',
+    triggerAlarmOnNonCompliance: 'Picu Alarm Ketidakpatuhan APD',
+    deltaThreshold: 'Ambang Batas Gerakan Delta',
+    heartbeatIntervalSeconds: 'Interval Detak Jantung (Detik)',
+    minContourArea: 'Luas Kontur Minimum (Piksel)',
+    evaluationField: 'Bidang Evaluasi Routing',
+    cases: 'Daftar Kasus Percabangan (Nilai:Port)',
+    defaultPort: 'Port Keluaran Default',
+    speedLimitKmh: 'Batas Kecepatan Maksimal (km/jam)',
+    speedUnit: 'Satuan Kecepatan',
+    smoothingWindow: 'Jendela Peredam Kecepatan (Frames)',
+    triggerAlarmOnSpeeding: 'Picu Alarm Kecepatan Berlebih',
+    guidePathPoints: 'Titik Jalur Baku (Virtual Corridor)',
+    maxAllowedDeviationMeters: 'Batas Maksimal Penyimpangan (Meter)',
+    targetClasses: 'Target Kelas Kendaraan / Objek',
+    triggerAlarmOnDeviation: 'Picu Alarm Keluar Jalur',
+    objectAClass: 'Kelas Objek A',
+    objectBClass: 'Kelas Objek B',
+    measurementAxis: 'Sumbu Pengukuran Jarak',
+    pixelRatio: 'Rasio Kalibrasi (Piksel per cm)',
+    minDistanceThreshold: 'Batas Jarak Bahaya (cm)',
+    anchorMode: 'Titik Acuan Posisi Objek',
+    triggerAlarmOnProximity: 'Picu Alarm Saat Terlalu Dekat',
+    alarmCooldownSeconds: 'Jeda Waktu Alarm (Detik)',
+    targetClass: 'Target Kelas Inspeksi Dimensi',
+    pixelPerUnit: 'Rasio Piksel per Satuan Fisik',
+    unitName: 'Satuan Dimensi Fisik',
+    minAllowedWidth: 'Batas Minimum Lebar',
+    maxAllowedWidth: 'Batas Maksimum Lebar (0 = Bebas)',
+    minAllowedHeight: 'Batas Minimum Tinggi',
+    maxAllowedHeight: 'Batas Maksimum Tinggi (0 = Bebas)',
+    triggerAlarmOnToleranceViolation: 'Picu Alarm Pelanggaran Toleransi',
+    blurThreshold: 'Ambang Batas Skor Ketajaman (Blur)',
+    checkIntervalSeconds: 'Interval Pengecekan Ketajaman (Detik)',
+    maxAngleLimit: 'Batas Maksimal Sudut Rotasi (Derajat)',
+    minAngleThreshold: 'Batas Sudut Minimum Rotasi (Derajat)',
+    borderMode: 'Mode Batas Tepi Rotasi',
     trackerConfigVersion: 'Versi Konfigurasi Tracker',
     enableClassLock: 'Kunci Kelas Objek (Class Lock)',
     classLockWindow: 'Jendela Voting Kelas (Frames)',
@@ -1390,6 +1634,10 @@
     engine: 'Mesin Inferensi AI (Engine)',
     eventObjectsOnly: 'Hanya Simpan Objek Pemicu Event',
     excludeBorderMargin: 'Abaikan Margin Tepi Layar (Pixel)',
+    perClassConfidence: 'Akurasi Spesifik per Kelas (Per-Class Confidence)',
+    defaultConfidence: 'Akurasi Minimal Default',
+    paddingPercent: 'Ekspansi Bounding Box Padding (%)',
+    paddingMode: 'Mode Padding Kotak',
     filePath: 'Lokasi File Video / Gambar Lokal',
     filenameTemplate: 'Pola Penamaan File Gambar',
     fillOpacity: 'Transparansi Isi Kotak (Fill)',
@@ -1486,6 +1734,10 @@
     queryIntervalSeconds: 'Interval Query API VLM (Detik)',
     reconnectDelaySeconds: 'Jeda Sambung Ulang CCTV (Detik)',
     recordClip: 'Rekam Klip Video Singkat Saat Alarm',
+    requiredVotes: 'Jumlah Model Sepakat (Required Votes)',
+    confidenceAggregation: 'Agregasi Akurasi (Confidence)',
+    boxAggregation: 'Penentuan Kotak Konsensus (Bbox)',
+    classAware: 'Cocokkan Berdasarkan Kelas (Class-Aware)',
     requiredClasses: 'Kelas Wajib di Zona (Wajib Ada)',
     requiredCount: 'Jumlah Minimal Kelas Wajib',
     requiredGraceSeconds: 'Toleransi Hilang Kelas Wajib (Detik)',
@@ -4449,8 +4701,11 @@
     trackerFrameRate: { min: 1, max: 60, step: 1, isSlider: true, unit: 'fps' },
     classLockWindow: { min: 2, max: 30, step: 1, isSlider: true, unit: 'frame' },
     smoothingAlpha: { min: 0.05, max: 1.0, step: 0.05, isSlider: true, unit: '' },
+    paddingPercent: { min: 0, max: 100, step: 5, isSlider: true, unit: '%' },
+    defaultConfidence: { min: 0.0, max: 1.0, step: 0.05, isSlider: true, unit: '' },
     topK: { min: 1, max: 10, step: 1, isSlider: true, unit: '' },
     detectEveryNFrames: { min: 1, max: 30, step: 1, isSlider: true, unit: 'frame' },
+    requiredVotes: { min: 1, max: 8, step: 1, isSlider: true, unit: 'model' },
     batchSize: { min: 1, max: 32, step: 1, isSlider: true, unit: '' },
     retryCount: { min: 0, max: 5, step: 1, isSlider: true, unit: 'x' },
 
@@ -7185,6 +7440,183 @@
       }
     ],
     "tips": "Gunakan filter ini untuk membersihkan deteksi palsu sebelum masuk ke tahap tracking dan counting."
+  },
+  "detections_consensus": {
+    "concept": "Node ensemble multi-model yang menggabungkan hasil deteksi dari dua atau lebih model AI berbeda (misal YOLOv8 + RF-DETR) dengan sistem voting IoU untuk menghasilkan deteksi yang jauh lebih akurat dan bebas false positive.",
+    "diagram": "[ Model A ] ──┐\n[ Model B ] ──┴──▶ [ Detections Consensus ] ──▶ [ Tracker / Filter ]",
+    "steps": [
+      "Hubungkan dua atau lebih node deteksi upstream ke node ini.",
+      "Atur Required Votes (default 2): objek hanya diloloskan jika minimal 2 model mendeteksi objek yang sama.",
+      "Atur IoU Threshold (default 0.5): ambang batas tumpang tindih kotak antar model.",
+      "Pilih Confidence Aggregation (Average / Max / Min) dan Box Aggregation."
+    ],
+    "params": [
+      {
+        "key": "requiredVotes",
+        "label": "Jumlah Suara Sepakat",
+        "desc": "Minimal jumlah deteksi/model yang tumpang tindih untuk meloloskan objek."
+      },
+      {
+        "key": "iouThreshold",
+        "label": "Ambang Batas IoU",
+        "desc": "Derajat tumpang tindih spasial (0.0 - 1.0) antar kotak deteksi model."
+      },
+      {
+        "key": "classAware",
+        "label": "Sensitif Terhadap Kelas",
+        "desc": "Jika True, deteksi hanya dihitung sepakat jika memiliki label kelas yang sama."
+      }
+    ],
+    "tips": "Sangat ideal untuk inspeksi keselamatan kritis di mana false alarm tidak boleh terjadi."
+  },
+  "distance_measurement": {
+    "concept": "Node pengukuran jarak fisik 2D (sentimeter/meter) antara dua objek deteksi pada bidang datar. Otomatis memicu alarm event proximity_violation jika jarak kedua objek melanggar batas aman minimum.",
+    "diagram": "[ Detections / Tracker ] ──▶ [ Distance Measurement ] ──▶ [ Alert / Webhook / Preview ]",
+    "steps": [
+      "Tentukan Kelas A (misal: person) dan Kelas B (misal: forklift).",
+      "Kalibrasi faktor konversi rasio piksel ke sentimeter (Pixel Ratio).",
+      "Atur Min Distance Threshold (misal 150 cm untuk batas zona bahaya).",
+      "Pilih titik acuan (Bottom Center untuk kontak lantai, Centroid untuk pusat objek)."
+    ],
+    "params": [
+      { "key": "objectAClass", "label": "Kelas Objek A", "desc": "Kelas objek pertama dalam pasangan pengukuran." },
+      { "key": "objectBClass", "label": "Kelas Objek B", "desc": "Kelas objek kedua dalam pasangan pengukuran." },
+      { "key": "pixelRatio", "label": "Rasio Piksel/cm", "desc": "Jumlah piksel pada gambar untuk merepresentasikan 1 cm fisik." },
+      { "key": "minDistanceThreshold", "label": "Batas Jarak Bahaya (cm)", "desc": "Jarak minimum sebelum alarm bahaya dipicu." },
+      { "key": "anchorMode", "label": "Titik Acuan Posisi", "desc": "Titik bottom_center atau centroid objek." }
+    ],
+    "tips": "Gunakan mode bottom_center untuk kamera CCTV dengan sudut miring dari atas agar jarak tapak kaki ke roda kendaraan terukur akurat."
+  },
+  "size_measurement": {
+    "concept": "Node inspeksi dimensi fisik (lebar, tinggi, luas area) dari objek yang terdeteksi. Menyematkan metadata ukuran fisik dan mengevaluasi toleransi min/max untuk penyortiran QA/QC otomatis.",
+    "diagram": "[ Detections / Segmentation ] ──▶ [ Size Measurement ] ──▶ [ Logic / Database / Preview ]",
+    "steps": [
+      "Pilih Target Kelas Inspeksi atau 'all' untuk seluruh objek.",
+      "Tentukan faktor konversi Pixel Per Unit dan satuan (mm, cm, m, inch).",
+      "Atur batas toleransi dimensi (Min/Max Width dan Min/Max Height).",
+      "Aktifkan Trigger Alarm jika ingin menerima peringatan saat ukuran produk tidak standar."
+    ],
+    "params": [
+      { "key": "targetClass", "label": "Target Kelas", "desc": "Nama kelas objek yang akan diukur dimensinya." },
+      { "key": "pixelPerUnit", "label": "Piksel per Satuan", "desc": "Rasio kalibrasi piksel terhadap unit fisik." },
+      { "key": "unitName", "label": "Satuan Ukuran", "desc": "Satuan fisik (mm, cm, m, inch)." },
+      { "key": "minAllowedWidth", "label": "Batas Minimum Lebar", "desc": "Toleransi batas bawah lebar objek." },
+      { "key": "maxAllowedWidth", "label": "Batas Maksimum Lebar", "desc": "Toleransi batas atas lebar objek." }
+    ],
+    "tips": "Kombinasikan dengan node Detection Crop atau Segmenter untuk inspeksi dimensi komponen presisi tinggi pada conveyor belt."
+  },
+  "camera_focus": {
+    "concept": "Node pemantau kesehatan perangkat keras kamera yang menghitung skor ketajaman lensa (Laplacian Variance). Memicu peringatan otomatis bila lensa kamera buram, terkena debu tebal, uap, atau kabut.",
+    "diagram": "[ Input / IP Camera ] ──▶ [ Camera Focus Health ] ──▶ [ Alert / Notifications ]",
+    "steps": [
+      "Letakkan node ini langsung setelah node sumber (Input / IP Camera).",
+      "Tentukan Ambang Batas Blur (default: 100.0, semakin kecil semakin buram).",
+      "Atur interval pengecekan (Check Interval Seconds) agar efisien.",
+      "Opsional: Tentukan ROI poligon jika hanya ingin memeriksa area fokus tertentu."
+    ],
+    "params": [
+      { "key": "blurThreshold", "label": "Ambang Batas Blur", "desc": "Skor Laplacian di bawah nilai ini dianggap buram." },
+      { "key": "checkIntervalSeconds", "label": "Interval Pengecekan", "desc": "Jeda waktu antar evaluasi ketajaman lensa." },
+      { "key": "enableAlarm", "label": "Picu Alarm", "desc": "Kirim event kamera buram saat skor di bawah ambang batas." },
+      { "key": "roi", "label": "Poligon Area Fokus (ROI)", "desc": "Area spesifik untuk evaluasi ketajaman lensa." }
+    ],
+    "tips": "Gunakan pada kamera outdoor atau area workshop berdebu untuk mendeteksi dini kebutuhan maintenance pembersihan lensa CCTV."
+  },
+  "auto_rotate_edges": {
+    "concept": "Node perataan gambar otomatis (Deskewing / Alignment) yang mendeteksi sudut kemiringan dominan dari tepi kontras tinggi menggunakan MinAreaRect dan merotasinya agar tegak lurus sempurna.",
+    "diagram": "[ Input / Crop ] ──▶ [ Auto Rotate Edges ] ──▶ [ AI Detector / Barcode / Classifier ]",
+    "steps": [
+      "Letakkan sebelum node detektor atau OCR/Barcode yang memerlukan orientasi tegak.",
+      "Tentukan Max Angle Limit (default: 45 derajat) untuk membatasi rentang rotasi.",
+      "Pilih Border Mode (black_constant untuk latar hitam, replicate untuk duplikasi tepi)."
+    ],
+    "params": [
+      { "key": "maxAngleLimit", "label": "Batas Maksimal Sudut", "desc": "Batas kemiringan ekstrem yang diizinkan untuk dirotasi." },
+      { "key": "minAngleThreshold", "label": "Batas Sudut Minimum", "desc": "Ambang batas sudut terkecil sebelum koreksi rotasi dijalankan." },
+      { "key": "borderMode", "label": "Mode Batas Tepi", "desc": "Perlakuan piksel pada area kosong hasil rotasi." }
+    ],
+    "tips": "Sangat ideal untuk conveyor belt paket/box atau pemindaian dokumen agar objek selalu berposisi tegak sebelum klasifikasi."
+  },
+  "overlap_analysis": {
+    "concept": "Node analisis tumpang tindih spasial relasi parent-child untuk inspeksi kepatuhan APD (Alat Pelindung Diri) dan perakitan industri (misal: helm di atas kepala person, sabuk pengaman di tubuh supir).",
+    "diagram": "[ Detector / Tracker ] ──▶ [ Overlap Analysis ] ──▶ [ Alert / Output ]",
+    "steps": [
+      "Tentukan Parent Class (misal: person) dan Child Class (misal: helmet).",
+      "Pilih Parent Region (top_half untuk helm/kacamata, bottom_half untuk sepatu, full untuk rompi).",
+      "Atur Min Overlap Ratio (default 0.5: minimal 50% area objek anak berada di dalam sub-region induk).",
+      "Aktifkan Trigger Alarm jika ingin event otomatis dipicu saat pelanggaran terjadi."
+    ],
+    "params": [
+      { "key": "parentClass", "label": "Kelas Induk", "desc": "Objek utama yang diperiksa kelengkapannya." },
+      { "key": "childClass", "label": "Kelas Anak", "desc": "Objek pelengkap yang wajib hadir di sub-region induk." },
+      { "key": "minOverlapRatio", "label": "Rasio Overlap Minimal", "desc": "Batas ambang rasio luas tumpang tindih." },
+      { "key": "parentRegion", "label": "Sub-Area Induk", "desc": "Bagian tubuh/area induk (top_half, bottom_half, full)." }
+    ],
+    "tips": "Gunakan mode top_half untuk inspeksi helm keselamatan pekerja proyek agar akurasi tetap tinggi meskipun pekerja menunduk."
+  },
+  "velocity_calculator": {
+    "concept": "Node kinematika video untuk mengestimasi kecepatan gerak objek nyata (km/jam atau m/s) dari perpindahan koordinat centroid per satuan waktu terukur (v = ds/dt).",
+    "diagram": "[ Object Tracker ] ──▶ [ Velocity Calculator ] ──▶ [ Alert / Live Preview ]",
+    "steps": [
+      "Wajib diletakkan setelah node Object Tracker (ByteTrack / BoT-SORT / OC-SORT).",
+      "Kalibrasi faktor Pixel Per Meter (jumlah piksel di frame untuk jarak 1 meter nyata).",
+      "Tentukan Batas Kecepatan Maksimal (Speed Limit) di area kerja (misal 15 km/jam untuk forklift gudang).",
+      "Pilih satuan kecepatan yang diinginkan (km/jam atau m/s)."
+    ],
+    "params": [
+      { "key": "pixelPerMeter", "label": "Piksel per Meter", "desc": "Faktor konversi piksel kamera ke meter fisik." },
+      { "key": "speedLimitKmh", "label": "Batas Kecepatan (km/jam)", "desc": "Batas kecepatan aman operasional." },
+      { "key": "speedUnit", "label": "Satuan Kecepatan", "desc": "Satuan tampilan kecepatan (kmh / mps)." },
+      { "key": "smoothingWindow", "label": "Jendela Peredam EMA", "desc": "Jumlah frame untuk meredam fluktuasi mikro." }
+    ],
+    "tips": "Untuk kamera yang menghadap miring, gunakan kalibrasi jarak pada bidang lantai untuk hasil kecepatan yang presisi."
+  },
+  "path_deviation": {
+    "concept": "Node pemantau deviasi koridor rute (Virtual Corridor) untuk memastikan kendaraan logistik, forklift, atau AGV tetap berjalan di jalur lintasan yang telah ditetapkan.",
+    "diagram": "[ Object Tracker ] ──▶ [ Path Deviation Monitor ] ──▶ [ Alert / Webhook ]",
+    "steps": [
+      "Tentukan koordinat garis rute baku (Guide Path Points) berupa rangkaian titik x,y.",
+      "Tentukan Batas Maksimal Penyimpangan dalam meter (misal 1.5 meter).",
+      "Kalibrasi faktor konversi Pixel Per Meter sesuai skala kamera.",
+      "Tentukan Target Classes yang dipantau (misal: forklift, vehicle)."
+    ],
+    "params": [
+      { "key": "guidePathPoints", "label": "Titik Rute Baku", "desc": "Rangkaian titik polyline koridor aman." },
+      { "key": "maxAllowedDeviationMeters", "label": "Batas Toleransi Deviasi (m)", "desc": "Jarak tegak lurus maksimal dari koridor sebelum alarm." },
+      { "key": "pixelPerMeter", "label": "Piksel per Meter", "desc": "Faktor konversi piksel kamera ke meter fisik." },
+      { "key": "targetClasses", "label": "Target Kelas Objek", "desc": "Daftar kelas kendaraan yang dipantau." }
+    ],
+    "tips": "Gunakan pada lorong warehouse sempit untuk mencegah insiden tabrakan forklift dengan rak penyimpanan."
+  },
+  "delta_filter": {
+    "concept": "Node penghemat komputasi AI (Compute & Motion Throttler) yang membandingkan perbedaan visual frame saat ini dengan background/frame sebelumnya. Jika pemandangan diam, inferensi model AI dilewati.",
+    "diagram": "[ Input Source ] ──▶ [ Delta Motion Filter ] ──▶ [ AI Detector (Throttled) ]",
+    "steps": [
+      "Letakkan node ini langsung sebelum model deteksi AI (YOLO / RF-DETR).",
+      "Atur Delta Threshold (default: 0.03 = 3% piksel berubah).",
+      "Tentukan Heartbeat Interval (misal 15 detik) untuk menjamin frame tetap diproses secara berkala."
+    ],
+    "params": [
+      { "key": "deltaThreshold", "label": "Ambang Batas Gerakan", "desc": "Persentase perubahan piksel untuk mengaktifkan pemrosesan." },
+      { "key": "heartbeatIntervalSeconds", "label": "Interval Detak Jantung", "desc": "Jeda waktu maksimal untuk memaksa pemrosesan frame meskipun diam." },
+      { "key": "minContourArea", "label": "Luas Kontur Minimum", "desc": "Ukuran kontur gerakan minimal dalam piksel." }
+    ],
+    "tips": "Menghemat hingga 70-85% penggunaan CPU/GPU pada kamera pengawas gudang yang sering berada dalam kondisi sepi."
+  },
+  "switch_case": {
+    "concept": "Node pengarah alur logika multi-cabang (Multi-Branch Flow Router) yang mendistribusikan data packet atau deteksi ke port cabang keluaran spesifik berdasarkan nilai kelas atau atribut.",
+    "diagram": "                    ┌──▶ Port 1 (Person)\n[ Switch Case Router ] ──┼──▶ Port 2 (Forklift)\n                    └──▶ Default Port",
+    "steps": [
+      "Tentukan bidang evaluasi (Evaluation Field, default: class).",
+      "Tuliskan pemetaan kasus (Cases) dengan format nilai:port (misal: person:port_1, forklift:port_2).",
+      "Hubungkan masing-masing cabang ke alur downstream yang sesuai."
+    ],
+    "params": [
+      { "key": "evaluationField", "label": "Bidang Evaluasi", "desc": "Metadata yang dievaluasi (class, status, dll)." },
+      { "key": "cases", "label": "Daftar Kasus Percabangan", "desc": "Pemetaan nilai ke nama port keluaran." },
+      { "key": "defaultPort", "label": "Port Keluaran Default", "desc": "Port tujuan fallback jika tidak ada kasus yang cocok." }
+    ],
+    "tips": "Gunakan untuk memisahkan alur penanganan orang (masuk ke timer kerja) dan kendaraan (masuk ke logistik) dalam satu pipeline tunggal."
   },
   "preview": {
     "concept": "Node penampil streaming video langsung (Live Preview) untuk memantau jalankan pipeline secara visual realtime lengkap dengan anotasi, kotak, label, dan statistik.",
