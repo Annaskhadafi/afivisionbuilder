@@ -12066,6 +12066,147 @@
     });
   }
 
+  let faceWebcamStream = null;
+  let faceCameraFacing = 'user';
+  let facePhotoMode = 'upload';
+
+  function switchFacePhotoMode(mode) {
+    facePhotoMode = mode;
+    const tabUpload = $('#faceTabUpload');
+    const tabCamera = $('#faceTabCamera');
+    const dropArea = $('#facePhotoDropArea');
+    const cameraArea = $('#faceCameraArea');
+    const previewContainer = $('#facePhotoPreviewContainer');
+
+    if (tabUpload) {
+      tabUpload.style.background = mode === 'upload' ? '#fff' : 'transparent';
+      tabUpload.style.color = mode === 'upload' ? '#0f172a' : '#64748b';
+      tabUpload.style.boxShadow = mode === 'upload' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none';
+    }
+    if (tabCamera) {
+      tabCamera.style.background = mode === 'camera' ? '#fff' : 'transparent';
+      tabCamera.style.color = mode === 'camera' ? '#0f172a' : '#64748b';
+      tabCamera.style.boxShadow = mode === 'camera' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none';
+    }
+
+    if (selectedEnrollPhotoBase64) {
+      if (previewContainer) previewContainer.style.display = 'block';
+      if (dropArea) dropArea.style.display = 'none';
+      if (cameraArea) cameraArea.style.display = 'none';
+      stopFaceWebcam();
+      return;
+    }
+
+    if (mode === 'camera') {
+      if (dropArea) dropArea.style.display = 'none';
+      if (cameraArea) cameraArea.style.display = 'block';
+      startFaceWebcam();
+    } else {
+      stopFaceWebcam();
+      if (cameraArea) cameraArea.style.display = 'none';
+      if (dropArea) dropArea.style.display = 'block';
+    }
+  }
+
+  async function startFaceWebcam() {
+    const video = $('#faceWebcamVideo');
+    const statusMsg = $('#cameraStatusMsg');
+    if (!video) return;
+
+    stopFaceWebcam();
+    if (statusMsg) {
+      statusMsg.textContent = 'Menghubungkan ke kamera...';
+      statusMsg.style.color = '#94a3b8';
+    }
+
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Browser tidak mendukung akses kamera (getUserMedia).');
+      }
+
+      const constraints = {
+        video: {
+          facingMode: faceCameraFacing,
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        },
+        audio: false
+      };
+
+      faceWebcamStream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = faceWebcamStream;
+      await video.play();
+
+      if (statusMsg) {
+        statusMsg.textContent = 'Kamera aktif · Arahkan wajah ke oval panduan';
+        statusMsg.style.color = '#10b981';
+      }
+    } catch (err) {
+      console.warn('Webcam capture error:', err);
+      if (statusMsg) {
+        statusMsg.textContent = 'Gagal mengakses kamera: ' + (err.message || 'Izin ditolak');
+        statusMsg.style.color = '#ef4444';
+      }
+      toast('Kamera tidak dapat diakses. Gunakan tab Unggah Berkas.', true);
+    }
+  }
+
+  function stopFaceWebcam() {
+    if (faceWebcamStream) {
+      try {
+        faceWebcamStream.getTracks().forEach(t => t.stop());
+      } catch (e) {}
+      faceWebcamStream = null;
+    }
+    const video = $('#faceWebcamVideo');
+    if (video) video.srcObject = null;
+  }
+
+  function captureFaceWebcamSnapshot() {
+    const video = $('#faceWebcamVideo');
+    const canvas = $('#faceWebcamCanvas');
+    const previewImg = $('#facePhotoPreviewImg');
+    const previewContainer = $('#facePhotoPreviewContainer');
+    const cameraArea = $('#faceCameraArea');
+
+    if (!video || !canvas) return;
+
+    const vw = video.videoWidth || 640;
+    const vh = video.videoHeight || 480;
+    canvas.width = vw;
+    canvas.height = vh;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Flip horizontal for natural selfie perspective if user-facing
+    ctx.save();
+    if (faceCameraFacing === 'user') {
+      ctx.translate(vw, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0, vw, vh);
+    ctx.restore();
+
+    selectedEnrollPhotoBase64 = canvas.toDataURL('image/jpeg', 0.95);
+    if (previewImg) previewImg.src = selectedEnrollPhotoBase64;
+
+    stopFaceWebcam();
+    if (cameraArea) cameraArea.style.display = 'none';
+    if (previewContainer) previewContainer.style.display = 'block';
+    toast('Foto berhasil diambil dari kamera!');
+  }
+
+  function resetEnrollPhoto() {
+    selectedEnrollPhotoBase64 = null;
+    const previewContainer = $('#facePhotoPreviewContainer');
+    const previewImg = $('#facePhotoPreviewImg');
+    if (previewContainer) previewContainer.style.display = 'none';
+    if (previewImg) previewImg.src = '';
+
+    switchFacePhotoMode(facePhotoMode);
+  }
+
   function openEnrollFaceModal() {
     selectedEnrollPhotoBase64 = null;
     const modal = $('#enrollFaceModal');
@@ -12077,6 +12218,8 @@
     if ($('#facePhotoPreviewContainer')) $('#facePhotoPreviewContainer').style.display = 'none';
     if ($('#facePhotoPreviewImg')) $('#facePhotoPreviewImg').src = '';
 
+    switchFacePhotoMode('upload');
+
     if (modal) {
       modal.removeAttribute('hidden');
       modal.style.display = 'flex';
@@ -12084,6 +12227,7 @@
   }
 
   function closeEnrollFaceModal() {
+    stopFaceWebcam();
     const modal = $('#enrollFaceModal');
     if (modal) {
       modal.setAttribute('hidden', '');
@@ -12152,12 +12296,23 @@
     const previewImg = $('#facePhotoPreviewImg');
     const changeBtn = $('#changePhotoBtn');
 
+    // Tab buttons
+    $('#faceTabUpload')?.addEventListener('click', () => switchFacePhotoMode('upload'));
+    $('#faceTabCamera')?.addEventListener('click', () => switchFacePhotoMode('camera'));
+
+    // Camera action buttons
+    $('#captureWebcamBtn')?.addEventListener('click', captureFaceWebcamSnapshot);
+    $('#switchCameraFacingBtn')?.addEventListener('click', () => {
+      faceCameraFacing = faceCameraFacing === 'user' ? 'environment' : 'user';
+      startFaceWebcam();
+    });
+    if (changeBtn) changeBtn.onclick = resetEnrollPhoto;
+
     if (!dropArea || !fileInput) return;
 
     dropArea.onclick = (e) => {
       if (e.target !== changeBtn) fileInput.click();
     };
-    if (changeBtn) changeBtn.onclick = () => fileInput.click();
 
     fileInput.onchange = (e) => {
       const file = e.target.files?.[0];
@@ -12194,7 +12349,7 @@
       reader.onload = (ev) => {
         selectedEnrollPhotoBase64 = ev.target.result;
         if (previewImg) previewImg.src = selectedEnrollPhotoBase64;
-        if (placeholder) placeholder.style.display = 'none';
+        if (dropArea) dropArea.style.display = 'none';
         if (previewContainer) previewContainer.style.display = 'block';
       };
       reader.readAsDataURL(file);

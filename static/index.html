@@ -711,9 +711,18 @@
             <input type="text" id="enrollNotesInput" placeholder="Catatan internal (opsional)" style="height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 10px; width: 100%;">
           </div>
 
-          <!-- Photo Selection (Upload) -->
+          <!-- Photo Selection (Upload & Camera Capture) -->
           <div class="field" style="margin-bottom: 16px;">
-            <label style="font-size: 11px; font-weight: 700; color: #475569;">Foto Wajah (JPG / PNG) *</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label style="font-size: 11px; font-weight: 700; color: #475569; margin: 0;">Foto Wajah (JPG / PNG / Webcam) *</label>
+              <!-- Mode Tabs -->
+              <div class="face-source-switcher" style="display: inline-flex; background: #e2e8f0; padding: 2px; border-radius: 6px;">
+                <button type="button" class="tab-pill active" id="faceTabUpload" style="border: none; background: #fff; padding: 3px 9px; font-size: 11px; font-weight: 600; border-radius: 4px; cursor: pointer; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.06);">📁 Unggah</button>
+                <button type="button" class="tab-pill" id="faceTabCamera" style="border: none; background: transparent; padding: 3px 9px; font-size: 11px; font-weight: 600; border-radius: 4px; cursor: pointer; color: #64748b;">📷 Kamera</button>
+              </div>
+            </div>
+
+            <!-- 1. Upload Dropzone Area -->
             <div class="face-photo-upload-area" id="facePhotoDropArea" style="border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; cursor: pointer; text-align: center; padding: 18px 12px; transition: border-color .15s;">
               <input type="file" id="faceFileInput" accept="image/jpeg,image/png,image/webp" style="display:none;">
               <div id="facePhotoPlaceholder">
@@ -721,11 +730,38 @@
                 <div style="font-weight: 600; font-size: 12.5px; color: #334155;">Pilih atau Tarik Foto Wajah ke Sini</div>
                 <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">UniFace otomatis mengekstrak embedding ArcFace 512-D</div>
               </div>
-              <div id="facePhotoPreviewContainer" style="display: none; position: relative;">
-                <img id="facePhotoPreviewImg" src="" alt="Preview Wajah" style="max-height: 150px; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: contain;">
-                <div style="margin-top: 6px;">
-                  <button type="button" class="button ghost" id="changePhotoBtn" style="height: 24px; padding: 0 8px; font-size: 10.5px; background: #e2e8f0;">Ganti Foto</button>
+            </div>
+
+            <!-- 2. Live Webcam Capture Area -->
+            <div class="face-camera-capture-area" id="faceCameraArea" style="display: none; border: 1px solid #cbd5e1; border-radius: 8px; background: #0f172a; text-align: center; padding: 12px; position: relative;">
+              <div style="position: relative; width: 100%; max-width: 280px; margin: 0 auto; border-radius: 8px; overflow: hidden; background: #000; aspect-ratio: 4/3;">
+                <video id="faceWebcamVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);"></video>
+                <!-- Oval face guide overlay -->
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 130px; height: 170px; border: 2px dashed rgba(16, 185, 129, 0.9); border-radius: 50%; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.32);">
+                  <div style="position: absolute; top: 8px; width: 100%; text-align: center; font-size: 10.5px; color: #a7f3d0; font-weight: 700; text-shadow: 0 1px 2px #000;">👤 Posisikan Wajah</div>
                 </div>
+              </div>
+              <canvas id="faceWebcamCanvas" style="display: none;"></canvas>
+              <div style="margin-top: 10px; display: flex; justify-content: center; gap: 8px;">
+                <button type="button" class="button primary" id="captureWebcamBtn" style="height: 32px; padding: 0 14px; background: #059669; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                  <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>Ambil Foto</span>
+                </button>
+                <button type="button" class="button ghost" id="switchCameraFacingBtn" style="height: 32px; padding: 0 10px; color: #e2e8f0; border: 1px solid #475569;" title="Ganti Arah Kamera">
+                  <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                </button>
+              </div>
+              <div id="cameraStatusMsg" style="font-size: 11px; color: #94a3b8; margin-top: 6px;">Kamera aktif · Arahkan wajah ke oval panduan</div>
+            </div>
+
+            <!-- 3. Photo Preview Container (Shared by both upload & camera) -->
+            <div id="facePhotoPreviewContainer" style="display: none; text-align: center; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; padding: 14px;">
+              <img id="facePhotoPreviewImg" src="" alt="Preview Wajah" style="max-height: 180px; max-width: 100%; border-radius: 8px; border: 2px solid #10b981; object-fit: contain; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+              <div style="margin-top: 8px; display: flex; justify-content: center; gap: 8px;">
+                <button type="button" class="button ghost" id="changePhotoBtn" style="height: 28px; padding: 0 12px; font-size: 11px; font-weight: 600; background: #e2e8f0; color: #1e293b; display: inline-flex; align-items: center; gap: 4px;">
+                  <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                  <span>Ganti / Foto Ulang</span>
+                </button>
               </div>
             </div>
           </div>
