@@ -60,6 +60,18 @@ class UniFaceRegistry:
             if os.path.exists(self.registry_file):
                 with open(self.registry_file, "r", encoding="utf-8") as f:
                     self.faces = json.load(f)
+                # Ensure all stored embeddings are flattened 1D lists of floats
+                for face in self.faces:
+                    raw_emb = face.get("embedding")
+                    if raw_emb:
+                        try:
+                            arr = np.asarray(raw_emb, dtype=np.float32).flatten()
+                            norm = np.linalg.norm(arr)
+                            if norm > 1e-6:
+                                arr = arr / norm
+                            face["embedding"] = arr.tolist()
+                        except Exception:
+                            pass
             else:
                 self.faces = []
         except Exception as e:
@@ -164,6 +176,16 @@ class UniFaceRegistry:
             cv2.imwrite(avatar_path, avatar_resized, [int(cv2.IMWRITE_JPEG_QUALITY), 90])
             photo_url = f"/api/faces/images/{avatar_filename}"
 
+        if extracted_emb is not None:
+            try:
+                emb_arr = np.asarray(extracted_emb, dtype=np.float32).flatten()
+                norm = np.linalg.norm(emb_arr)
+                if norm > 1e-6:
+                    emb_arr = emb_arr / norm
+                extracted_emb = emb_arr.tolist()
+            except Exception:
+                pass
+
         record = {
             "id": face_id,
             "name": name.strip(),
@@ -204,29 +226,41 @@ class UniFaceRegistry:
         self._save()
         return True
 
-    def match_face(self, embedding: np.ndarray, threshold: float = 0.48) -> Tuple[Optional[Dict[str, Any]], float]:
+    def match_face(self, embedding: Any, threshold: float = 0.48) -> Tuple[Optional[Dict[str, Any]], float]:
         """
         Computes Cosine Similarity against all registered faces.
         Returns (best_match_face, similarity_score). If similarity < threshold, returns (None, score).
+        Handles both 1D and 2D embedding inputs safely.
         """
-        if embedding is None or len(embedding) == 0 or not self.faces:
+        if embedding is None:
+            return None, 0.0
+
+        try:
+            query = np.asarray(embedding, dtype=np.float32).flatten()
+        except Exception:
+            return None, 0.0
+
+        if len(query) == 0 or not self.faces:
             return None, 0.0
 
         # Ensure L2 normalized
-        norm = np.linalg.norm(embedding)
+        norm = np.linalg.norm(query)
         if norm > 1e-6:
-            query = embedding / norm
-        else:
-            query = embedding
+            query = query / norm
 
         best_score = -1.0
         best_face = None
 
         for face in self.faces:
             face_emb = face.get("embedding")
-            if not face_emb or len(face_emb) != len(query):
+            if not face_emb:
                 continue
-            f_vec = np.array(face_emb, dtype=np.float32)
+            try:
+                f_vec = np.asarray(face_emb, dtype=np.float32).flatten()
+            except Exception:
+                continue
+            if len(f_vec) != len(query):
+                continue
             f_norm = np.linalg.norm(f_vec)
             if f_norm > 1e-6:
                 f_vec = f_vec / f_norm
@@ -321,13 +355,14 @@ class UniFaceManager:
             return self._fallback_haar_detect(image_bgr, conf_thresh)
 
     def extract_embedding(self, image_bgr: np.ndarray, landmarks: Optional[List[List[float]]] = None) -> Optional[np.ndarray]:
-        """Extracts 512-D L2-normalized face embedding using ArcFace."""
+        """Extracts 512-D L2-normalized 1D face embedding using ArcFace."""
         if image_bgr is None or self._recognizer is None:
             return None
         try:
             lm_array = np.array(landmarks, dtype=np.float32) if landmarks and len(landmarks) >= 5 else None
             emb = self._recognizer.get_embedding(image_bgr, landmarks=lm_array)
             if emb is not None:
+                emb = np.asarray(emb, dtype=np.float32).flatten()
                 norm = np.linalg.norm(emb)
                 if norm > 1e-6:
                     emb = emb / norm
@@ -455,7 +490,9 @@ def process_face_tracker_node(
         emb = None
         if frame is not None and x2 > x1 and y2 > y1:
             face_crop = frame[y1:y2, x1:x2]
-            emb = mgr.extract_embedding(face_crop, landmarks=landmarks)
+            raw_emb = mgr.extract_embedding(face_crop, landmarks=landmarks)
+            if raw_emb is not None:
+                emb = np.asarray(raw_emb, dtype=np.float32).flatten()
 
         # 1. Match against Known Face Registry
         matched_face, similarity = registry.match_face(emb, threshold=sim_threshold)
@@ -475,13 +512,19 @@ def process_face_tracker_node(
         if track_key is None and emb is not None:
             best_t_sim = -1.0
             best_t_key = None
+            emb_vec = np.asarray(emb, dtype=np.float32).flatten()
             for tk, tr in tracks.items():
                 t_emb = tr.get("embedding")
                 if t_emb is not None:
-                    s = float(np.dot(emb, t_emb))
-                    if s > best_t_sim and s >= sim_threshold:
-                        best_t_sim = s
-                        best_t_key = tk
+                    try:
+                        t_vec = np.asarray(t_emb, dtype=np.float32).flatten()
+                        if len(t_vec) == len(emb_vec):
+                            s = float(np.dot(emb_vec, t_vec))
+                            if s > best_t_sim and s >= sim_threshold:
+                                best_t_sim = s
+                                best_t_key = tk
+                    except Exception:
+                        continue
             if best_t_key is not None:
                 track_key = best_t_key
                 similarity = best_t_sim
@@ -505,7 +548,7 @@ def process_face_tracker_node(
                 "lastSeen": now,
                 "name": person_name,
                 "isEnrolled": is_enrolled,
-                "embedding": emb,
+                "embedding": np.asarray(emb, dtype=np.float32).flatten() if emb is not None else None,
                 "lastBox": box,
             }
             # Emit face identification event
@@ -526,8 +569,23 @@ def process_face_tracker_node(
             tracks[track_key]["lastBox"] = box
             if emb is not None:
                 # Rolling feature update
-                old_emb = tracks[track_key]["embedding"]
-                tracks[track_key]["embedding"] = (0.8 * old_emb + 0.2 * emb) if old_emb is not None else emb
+                emb_vec = np.asarray(emb, dtype=np.float32).flatten()
+                old_emb = tracks[track_key].get("embedding")
+                if old_emb is not None:
+                    try:
+                        old_vec = np.asarray(old_emb, dtype=np.float32).flatten()
+                        if len(old_vec) == len(emb_vec):
+                            new_vec = 0.8 * old_vec + 0.2 * emb_vec
+                            norm = np.linalg.norm(new_vec)
+                            if norm > 1e-6:
+                                new_vec = new_vec / norm
+                            tracks[track_key]["embedding"] = new_vec
+                        else:
+                            tracks[track_key]["embedding"] = emb_vec
+                    except Exception:
+                        tracks[track_key]["embedding"] = emb_vec
+                else:
+                    tracks[track_key]["embedding"] = emb_vec
 
         # Enrich detection
         det["class"] = person_name

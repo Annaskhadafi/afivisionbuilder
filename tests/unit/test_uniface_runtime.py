@@ -133,3 +133,71 @@ def test_face_detector_and_tracker_pipeline_flow(temp_face_dir):
     finally:
         UniFaceRegistry._instance = orig_registry
         UniFaceManager._instance = orig_manager
+
+
+def test_face_tracker_2d_embedding_alignment(temp_face_dir):
+    """
+    Verify ArcFace 2D embedding (shape (1, 512)) does NOT cause:
+    'shapes (1,512) and (1,512) not aligned: 512 (dim 1) != 1 (dim 0)'.
+    """
+    registry = UniFaceRegistry(storage_dir=temp_face_dir)
+    # 2D embedding shape (1, 512)
+    vec_2d = np.random.randn(1, 512).astype(np.float32)
+    vec_2d = vec_2d / np.linalg.norm(vec_2d)
+
+    enrolled = registry.enroll_face(name="Citra Operator", embedding=vec_2d, role="Operator")
+    assert enrolled is not None
+    assert len(enrolled["embedding"]) == 512  # Must be flattened
+
+    # Match with 2D query
+    query_2d = vec_2d.copy()
+    matched, score = registry.match_face(query_2d, threshold=0.5)
+    assert matched is not None
+    assert matched["name"] == "Citra Operator"
+    assert score > 0.99
+
+    # Mock recognizer that strictly returns 2D array (1, 512) as ArcFace ONNX does
+    class Mock2DDetector:
+        def detect(self, img):
+            class FaceObj:
+                bbox = [20, 20, 100, 100]
+                landmarks = [[30, 30], [70, 30], [50, 50], [40, 70], [60, 70]]
+                confidence = 0.96
+            return [FaceObj()]
+
+    class Mock2DRecognizer:
+        def get_embedding(self, img, landmarks=None):
+            return vec_2d.copy()
+
+    mgr = UniFaceManager()
+    mgr._detector = Mock2DDetector()
+    mgr._recognizer = Mock2DRecognizer()
+
+    orig_reg = UniFaceRegistry._instance
+    orig_mgr = UniFaceManager._instance
+    UniFaceRegistry._instance = registry
+    UniFaceManager._instance = mgr
+
+    try:
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        node_det = {"id": "det_1", "type": "face_detector", "config": {}}
+        dets = process_face_detector_node(node_det, frame)
+
+        node_track = {"id": "track_1", "type": "face_tracker", "config": {}}
+        state = {}
+
+        # Frame 1: enrollment match & track initialization
+        t0 = 1000.0
+        out_dets_1, evts_1 = process_face_tracker_node(node_track, frame, dets, state, t0)
+        assert len(out_dets_1) == 1
+        assert out_dets_1[0]["personName"] == "Citra Operator"
+
+        # Frame 2: rolling feature update and dynamic Re-ID comparison with 2D embedding
+        t1 = t0 + 0.1
+        dets_2 = process_face_detector_node(node_det, frame)
+        out_dets_2, evts_2 = process_face_tracker_node(node_track, frame, dets_2, state, t1)
+        assert len(out_dets_2) == 1
+        assert out_dets_2[0]["personName"] == "Citra Operator"
+    finally:
+        UniFaceRegistry._instance = orig_reg
+        UniFaceManager._instance = orig_mgr
