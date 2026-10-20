@@ -304,11 +304,15 @@ class UniFaceManager:
 
                 detections.append({
                     "class": "face",
+                    "baseClass": "face",
                     "x": x1,
                     "y": y1,
                     "width": w,
                     "height": h,
+                    "bbox": [x1, y1, w, h],
                     "confidence": conf,
+                    "score": conf,
+                    "kind": "detection",
                     "landmarks": landmarks,
                 })
             return detections
@@ -343,11 +347,15 @@ class UniFaceManager:
             for (x, y, w, h) in boxes:
                 dets.append({
                     "class": "face",
+                    "baseClass": "face",
                     "x": float(x),
                     "y": float(y),
                     "width": float(w),
                     "height": float(h),
+                    "bbox": [float(x), float(y), float(w), float(h)],
                     "confidence": 0.85,
+                    "score": 0.85,
+                    "kind": "detection",
                     "landmarks": [],
                 })
             return dets
@@ -523,11 +531,15 @@ def process_face_tracker_node(
 
         # Enrich detection
         det["class"] = person_name
+        det["baseClass"] = "face"
         det["personName"] = person_name
         det["faceRole"] = person_role
         det["isEnrolled"] = is_enrolled
         det["similarity"] = round(similarity, 2)
         det["trackId"] = track_id
+        det["bbox"] = [float(box[0]), float(box[1]), float(box[2]), float(box[3])]
+        det["score"] = float(det.get("confidence", 0.9))
+        det["label"] = f"{person_name} ({round(similarity*100):d}%)"
         det["showLandmarks"] = show_landmarks
         det["showNameBadge"] = show_name_badge
 

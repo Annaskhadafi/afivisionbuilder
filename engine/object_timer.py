@@ -92,7 +92,7 @@ def process_object_timer(
     config = project_node.get("config", {})
     node_id = str(project_node.get("id") or "object_timer")
 
-    target_classes_raw = str(config.get("targetClasses", "person")).strip().lower()
+    target_classes_raw = str(config.get("targetClasses", "person, face")).strip().lower()
     if target_classes_raw in ("*", "all", ""):
         target_classes = None
     else:
@@ -113,11 +113,34 @@ def process_object_timer(
     matched_detections: List[Dict[str, Any]] = []
     events: List[Dict[str, Any]] = []
 
+    def _is_target_match(det_item: Dict[str, Any]) -> bool:
+        if target_classes is None:
+            return True
+        cls = str(det_item.get("class", "object")).strip().lower()
+        base_cls = str(det_item.get("baseClass", "")).strip().lower()
+        p_name = str(det_item.get("personName", "")).strip().lower()
+
+        if cls in target_classes or (base_cls and base_cls in target_classes):
+            return True
+
+        # Face & Person interoperability: "person" target also accepts faces, and "face" accepts enrolled/tracked persons
+        is_face = bool(cls == "face" or base_cls == "face" or "face" in cls or det_item.get("landmarks") is not None)
+        is_person = bool(cls == "person" or base_cls == "person" or p_name or det_item.get("isEnrolled") is not None)
+
+        if "person" in target_classes and (is_face or is_person):
+            return True
+        if "face" in target_classes and (is_face or is_person):
+            return True
+        if p_name and p_name in target_classes:
+            return True
+        return False
+
     # Map current detections to active tracks
     for det in detections:
-        cls_name = str(det.get("class", "object")).strip().lower()
-        if target_classes is not None and cls_name not in target_classes:
+        if not _is_target_match(det):
             continue
+
+        cls_name = str(det.get("personName") or det.get("class", "object")).strip()
 
         box = _box(det)
         if box is None:

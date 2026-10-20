@@ -736,7 +736,18 @@ def _process_track_event_nodes(
     dwell_events = _process_dwell_zones(workflow, frame, tracked, event_runtime, now)
     extra_results.extend(dwell_events)
 
-    for project_node in workflow.get("nodes", []):
+    def _node_priority(n):
+        t = n.get("type")
+        if t == "face_detector":
+            return 0
+        if t == "face_tracker":
+            return 1
+        if t == "object_timer":
+            return 2
+        return 3
+
+    sorted_project_nodes = sorted(workflow.get("nodes", []), key=_node_priority)
+    for project_node in sorted_project_nodes:
         p_type = project_node.get("type")
         if p_type not in (
             "zone_activity_timer", "zone_exit_event", "multi_zone_occupancy",
@@ -849,7 +860,7 @@ def _process_track_event_nodes(
         elif p_type == "object_timer":
             from object_timer import process_object_timer
             state = event_runtime.setdefault(project_id, {})
-            timer_events = process_object_timer(project_node, frame, tracked or candidates, state, now)
+            timer_events = process_object_timer(project_node, frame, tracked or candidates or detections, state, now)
             extra_results.extend(timer_events)
         elif p_type == "face_detector":
             from uniface_runtime import process_face_detector_node
@@ -859,8 +870,9 @@ def _process_track_event_nodes(
             from uniface_runtime import process_face_tracker_node
             state = event_runtime.setdefault(project_id, {})
             tracked_faces, face_events = process_face_tracker_node(project_node, frame, candidates or detections, state, now)
-            detections.clear()
-            detections.extend(tracked_faces)
+            # Retain non-face detections, replace raw faces with enriched identity tracks
+            detections[:] = [d for d in detections if d.get("class") != "face" and not d.get("landmarks")] + tracked_faces
+            tracked.extend(tracked_faces)
             extra_results.extend(face_events)
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))

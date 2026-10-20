@@ -932,7 +932,7 @@ NODE_BLUEPRINTS = {
         "x": 620,
         "y": 420,
         "config": {
-            "targetClasses": "person",
+            "targetClasses": "person, face",
             "alertThresholdSeconds": 10.0,
             "graceSeconds": 2.0,
             "timerFormat": "mm:ss",
@@ -1019,7 +1019,7 @@ NODE_BLUEPRINTS = {
         "x": 920,
         "y": 520,
         "config": {
-            "targetClasses": "person",
+            "targetClasses": "person, face",
             "confirmationSeconds": 3.0,
             "graceSeconds": 10.0,
             "maxDwellMinutes": 0.0,

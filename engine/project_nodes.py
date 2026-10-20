@@ -33,7 +33,10 @@ def _polygon(value, width, height):
         for part in value.split(";"):
             try:
                 x, y = (float(item.strip()) for item in part.split(",", 1))
-                points.append((x * width, y * height))
+                if 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0:
+                    points.append((x * width, y * height))
+                else:
+                    points.append((x, y))
             except (ValueError, TypeError):
                 continue
         return points
@@ -42,7 +45,11 @@ def _polygon(value, width, height):
         for point in value:
             try:
                 x, y = point
-                result.append((float(x) * width, float(y) * height))
+                x, y = float(x), float(y)
+                if 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0:
+                    result.append((x * width, y * height))
+                else:
+                    result.append((x, y))
             except (ValueError, TypeError):
                 continue
         return result
@@ -134,8 +141,9 @@ def _in_zone(det, polygon, width, height):
         return False
     x, y, w, h = box
     cls = str(det.get("class", "")).lower()
-    if cls == "person":
-        # Check feet (bottom edge), center (torso), or lower torso for sitting/webcam views
+    base_cls = str(det.get("baseClass", "")).lower()
+    if cls in ("person", "face") or base_cls in ("person", "face"):
+        # Check feet (bottom edge), center (torso/face), or lower torso for sitting/webcam views
         pts = [
             (x + w / 2, y + h),
             (x + w / 2, y + h / 2),
@@ -148,7 +156,10 @@ def _in_zone(det, polygon, width, height):
 
 def _resolve_zone_polygon(config, frame, detections):
     width, height = _frame_size(frame)
-    polygon = _polygon(config.get("points", "0.2,0.2;0.8,0.2;0.8,0.8;0.2,0.8"), width, height)
+    raw_pts = config.get("points")
+    if raw_pts is None:
+        raw_pts = config.get("polygon", "0.2,0.2;0.8,0.2;0.8,0.8;0.2,0.8")
+    polygon = _polygon(raw_pts, width, height)
     anchor_class = str(config.get("anchorClass", "")).strip().lower()
     if str(config.get("mode", "")).strip().lower() == "dynamic_anchor" and anchor_class and polygon:
         anchor_det = next((d for d in detections if str(d.get("class", "")).lower() == anchor_class), None)
@@ -325,8 +336,24 @@ def _process_timer(node, frame, detections, runtime, now):
     polygon, width, height = _resolve_zone_polygon(config, frame, detections)
     inside = [d for d in detections if d.get("kind", "detection") in ("detection", "segmentation")
               and _in_zone(d, polygon, width, height)]
-    required = sum(str(d.get("class", "")).lower() in _classes(config.get("requiredClasses", "tire")) for d in inside)
-    trigger = sum(str(d.get("class", "")).lower() in _classes(config.get("triggerClasses", "person")) for d in inside)
+    req_classes = _classes(config.get("requiredClasses", "tire"))
+    trig_classes = _classes(config.get("triggerClasses", "person"))
+
+    def _matches_trigger(d):
+        c = str(d.get("class", "")).lower()
+        if c in trig_classes:
+            return True
+        is_face = bool(c == "face" or "face" in c or d.get("landmarks") is not None)
+        is_person = bool(c == "person" or d.get("personName") or d.get("isEnrolled") is not None)
+        if "person" in trig_classes and (is_face or is_person):
+            return True
+        if "face" in trig_classes and (is_face or is_person):
+            return True
+        p_name = str(d.get("personName") or "").lower()
+        return bool(p_name and p_name in trig_classes)
+
+    required = sum(str(d.get("class", "")).lower() in req_classes for d in inside)
+    trigger = sum(1 for d in inside if _matches_trigger(d))
     req_ok = required >= int(config.get("requiredCount", 1))
     trigger_ok = trigger >= int(config.get("triggerCount", 1))
     active = state.get("sessionId") is not None and not state.get("completed")

@@ -140,7 +140,11 @@ def parse_zones_config(config: dict) -> list[dict]:
             zid = str(item.get("id") or f"zone_{idx + 1}")
             name = str(item.get("name") or f"Zona {idx + 1}")
             capacity = max(1, int(item.get("capacity", 4) or 4))
-            pts = str(item.get("points") or "").strip()
+            pts = item.get("points")
+            if pts is None:
+                pts = item.get("polygon", "")
+            if isinstance(pts, str):
+                pts = pts.strip()
             result.append({
                 "id": zid,
                 "name": name,
@@ -222,11 +226,22 @@ def process_multi_zone_occupancy(
     zones_def = parse_zones_config(config)
     emitted_events: list[dict] = []
 
-    # Filter detections matching target classes
-    matching_dets = [
-        d for d in detections
-        if str(d.get("class", "")).lower() in target_classes
-    ]
+    # Filter detections matching target classes (supports person, face, and identified persons)
+    def _is_matching_class(d):
+        c = str(d.get("class", "")).lower()
+        base_c = str(d.get("baseClass", "")).lower()
+        p_name = str(d.get("personName", "")).lower()
+        if c in target_classes or (base_c and base_c in target_classes) or (p_name and p_name in target_classes):
+            return True
+        is_face = bool(c == "face" or base_c == "face" or "face" in c or d.get("landmarks") is not None)
+        is_person = bool(c == "person" or base_c == "person" or p_name or d.get("isEnrolled") is not None)
+        if "person" in target_classes and (is_face or is_person):
+            return True
+        if "face" in target_classes and (is_face or is_person):
+            return True
+        return False
+
+    matching_dets = [d for d in detections if _is_matching_class(d)]
 
     total_objects_in_any_zone = 0
     total_occupied_zones = 0
