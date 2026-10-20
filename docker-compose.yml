@@ -1,0 +1,65 @@
+services:
+  afi-vision-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: afi-vision-builder:latest
+    container_name: afi-vision-builder
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8765}:8765"
+    environment:
+      # Server & Network Binding
+      - VISONODE_WEB_HOST=0.0.0.0
+      - VISONODE_WEB_PORT=8765
+      - VISONODE_APP_DATA_DIR=/app/data
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
+      # CPU Threading Optimization for Vision Pipelines & PyTorch
+      - OPENBLAS_NUM_THREADS=1
+      - OMP_NUM_THREADS=1
+      - MKL_NUM_THREADS=1
+      - NUMEXPR_NUM_THREADS=1
+    volumes:
+      # ==========================================================
+      # PERSISTENT MOUNT CONFIGURATION (DOKPLOY)
+      # ==========================================================
+      # 1. DATA UTAMA:
+      #    Menyimpan database SQLite, projects.json, workflows,
+      #    cameras.json, data/uploads, data/models, data/faces, outputs.
+      #    Default: Named Volume 'afi_vision_data' (Aman saat update Dokploy).
+      #    Host Bind Mount (Opsional): Set DATA_PATH=/mnt/data/visonode/data di .env
+      - ${DATA_PATH:-afi_vision_data}:/app/data
+
+      # 2. BOBOT MODEL AI:
+      #    Menyimpan file model .pt / .onnx (YOLO, CLIP, dll)
+      #    Default: Named Volume 'afi_vision_weights'.
+      #    Host Bind Mount (Opsional): Set WEIGHTS_PATH=/mnt/data/visonode/weights di .env
+      - ${WEIGHTS_PATH:-afi_vision_weights}:/app/weights
+
+      # 3. CACHE FRAMEWORK:
+      #    Cache Torch & Ultralytics agar tidak mengunduh ulang saat update container
+      - afi_vision_torch_cache:/root/.cache/torch
+      - afi_vision_ultralytics_cache:/root/.config/Ultralytics
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8765/api/cctv-cameras || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  # ==========================================================
+  # DOKPLOY PERSISTENT VOLUMES DEFINITION
+  # Volume ini dikelola otomatis oleh Docker Host.
+  # Data di dalamnya TIDAK AKAN HILANG saat rebuild, pull image baru,
+  # atau redeploy di Dokploy.
+  # ==========================================================
+  afi_vision_data:
+    name: afi_vision_data
+  afi_vision_weights:
+    name: afi_vision_weights
+  afi_vision_torch_cache:
+    name: afi_vision_torch_cache
+  afi_vision_ultralytics_cache:
+    name: afi_vision_ultralytics_cache

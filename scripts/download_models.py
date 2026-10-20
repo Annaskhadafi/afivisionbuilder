@@ -11,7 +11,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MODELS_DIR = ROOT / "data" / "models"
+MODELS_DIR = Path(os.environ.get("VISONODE_APP_DATA_DIR", str(ROOT / "data"))) / "models"
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Model umum Ultralytics standar yang siap diunduh jika belum ada di data/models/

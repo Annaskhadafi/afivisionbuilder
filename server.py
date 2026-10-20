@@ -56,10 +56,12 @@ import workflow_store as store  # noqa: E402
 import workflow_export  # noqa: E402
 
 app = FastAPI(title="Afi Vision Builder")
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
+_allowed_hosts = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if h.strip()]
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts or ["*"])
 if (ROOT / "static").exists():
     app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
-_outputs = ROOT / "data" / "outputs"
+_data_dir = Path(os.environ["VISONODE_APP_DATA_DIR"])
+_outputs = _data_dir / "outputs"
 _outputs.mkdir(parents=True, exist_ok=True)
 app.mount("/outputs", StaticFiles(directory=_outputs), name="outputs")
 
@@ -2454,4 +2456,6 @@ if __name__ == "__main__":
         except Exception:
             pass
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=int(os.getenv("VISONODE_WEB_PORT", "8765")), loop="asyncio")
+    host = os.getenv("VISONODE_WEB_HOST", "127.0.0.1")
+    port = int(os.getenv("VISONODE_WEB_PORT", "8765"))
+    uvicorn.run(app, host=host, port=port, loop="asyncio")

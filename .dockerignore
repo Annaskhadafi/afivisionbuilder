@@ -1,0 +1,29 @@
+# Git & Version Control
+.git
+.gitignore
+.gitattributes
+
+# Python Virtual Environment & Caches
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+
+# Testing & E2E Artifacts
+.e2e
+tests/
+node_modules
+package-lock.json
+
+# Temporary local test files & debug images
+debug_*.png
+ChatGPT*.png
+*.tmp
+
+# Dynamic runtime data generated locally (akan disediakan oleh persistent volume)
+data/outputs/*
+data/uploads/*
+data/faces/*
+visonode.db

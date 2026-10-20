@@ -1559,4 +1559,33 @@ NODE_BLUEPRINTS = {
             "tiltSpeed": 0.6,
         },
     },
+    "screenshot_capture": {
+        "title": "Screenshot Capture",
+        "subtitle": "Ambil tangkapan layar full annotated, raw frame, atau crop objek ke memori",
+        "category": "Outputs & Export",
+        "x": 910,
+        "y": 740,
+        "config": {
+            "captureMode": "full_annotated",
+            "jpegQuality": 85,
+            "addTimestampWatermark": True,
+            "saveToDisk": False,
+            "outputDirectory": "data/snapshots",
+        },
+    },
+    "telegram_notification": {
+        "title": "Telegram Alert",
+        "subtitle": "Kirim foto tangkapan layar dan pesan peringatan langsung ke bot Telegram",
+        "category": "Outputs & Export",
+        "x": 910,
+        "y": 825,
+        "config": {
+            "botToken": "",
+            "chatId": "",
+            "messageCaption": "🚨 <b>PERINGATAN SISTEM VISI</b>\n\n📌 <b>Kejadian:</b> {event.type}\n📍 <b>Zona:</b> {event.zoneName}\n🕒 <b>Waktu:</b> {timestamp}\n🔍 <b>Detail:</b> {event.message}",
+            "parseMode": "HTML",
+            "cooldownSeconds": 5.0,
+            "disableNotification": False,
+        },
+    },
 }

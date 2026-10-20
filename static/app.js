@@ -49,6 +49,8 @@
     csv_formatter: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>',
     s3_sink: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="m12 12 3 3m-3-3-3 3m3-3v7"/></svg>',
     notification_dispatcher: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+    screenshot_capture: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+    telegram_notification: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
     ptz_controller: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>',
     ocr_reader: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><rect width="20" height="16" x="2" y="4" rx="2" stroke-dasharray="2 2"/></svg>',
     object_timer: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
@@ -1808,6 +1810,13 @@
     burnWatermark: 'Bakar Label & Waktu ke Foto (Watermark)',
     calibrationPath: 'File Kalibrasi Kamera (.yml / .xml)',
     captureMode: 'Mode Pengambilan Gambar (Capture)',
+    addTimestampWatermark: 'Sematkan Cap Waktu (Timestamp Watermark)',
+    saveToDisk: 'Simpan File Arsip ke Harddisk (Save to Disk)',
+    botToken: 'Token Bot Telegram (Bot Token)',
+    chatId: 'ID Obrolan / Chat ID Telegram',
+    messageCaption: 'Teks Keterangan / Caption Notifikasi',
+    parseMode: 'Mode Format Teks (Parse Mode)',
+    disableNotification: 'Kirim Senyap (Silent Notification)',
     classAgnostic: 'Pelacakan Tanpa Memandang Kelas',
     classRemap: 'Pemetaan Ulang Nama Kelas',
     classes: 'Target Kelas Objek (Classes)',
@@ -5820,11 +5829,13 @@
     }
     wrap.append(label);
 
-    if (node.type === 'draw_text' && key === 'textTemplate') {
+    if ((node.type === 'telegram_notification' && (key === 'messageCaption' || key === 'messageTemplate')) || (node.type === 'draw_text' && key === 'textTemplate')) {
       const input = document.createElement('textarea');
       input.value = value ?? '';
-      input.rows = 3;
-      input.placeholder = 'Contoh: Jumlah orang: {detection.count}';
+      input.rows = node.type === 'telegram_notification' ? 4 : 3;
+      input.placeholder = node.type === 'telegram_notification'
+        ? '🚨 Peringatan: {event.type} pada {event.zoneName}!\\nWaktu: {timestamp}'
+        : 'Contoh: Jumlah orang: {detection.count}';
       input.oninput = () => {
         node.config[key] = input.value;
         markDirty();
@@ -5832,10 +5843,59 @@
       wrap.append(input);
       const hint = document.createElement('small');
       hint.className = 'field-help';
-      hint.textContent = 'Variabel tersedia: {detection.count}, {detection.class}, {detection.confidence}, {track.id}, {image.width}, {image.height}.';
+      hint.textContent = node.type === 'telegram_notification'
+        ? 'Placeholder dinamis: {event.type}, {event.zoneName}, {timestamp}, {event.message}, {track_id}, {class}, {confidence}'
+        : 'Variabel tersedia: {detection.count}, {detection.class}, {detection.confidence}, {track.id}, {image.width}, {image.height}.';
       wrap.append(hint);
       return wrap;
     }
+
+    if (node.type === 'screenshot_capture' && key === 'captureMode') {
+      const select = document.createElement('select');
+      const modes = [
+        ['full_annotated', '🖼️ Full Frame Beranotasi (Bbox + Labels)'],
+        ['raw_frame', '📷 Raw Frame Asli (Kamera Polos)'],
+        ['crop_object', '✂️ Potongan Objek Pemicu (Crop Only)']
+      ];
+      modes.forEach(([val, lbl]) => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = lbl;
+        if (String(value) === val) opt.selected = true;
+        select.append(opt);
+      });
+      select.onchange = () => {
+        node.config[key] = select.value;
+        markDirty();
+        liveUpdateWorkflow();
+      };
+      wrap.append(select);
+      return wrap;
+    }
+
+    if (key === 'parseMode') {
+      const select = document.createElement('select');
+      const pModes = [
+        ['HTML', 'HTML (<b>tebal</b>, <i>miring</i>)'],
+        ['Markdown', 'Markdown (*tebal*, _miring_)'],
+        ['None', 'Teks Polos (Plain Text)']
+      ];
+      pModes.forEach(([val, lbl]) => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = lbl;
+        if (String(value) === val) opt.selected = true;
+        select.append(opt);
+      });
+      select.onchange = () => {
+        node.config[key] = select.value;
+        markDirty();
+        liveUpdateWorkflow();
+      };
+      wrap.append(select);
+      return wrap;
+    }
+
 
     if (key === 'targetFps') {
       const input = document.createElement('input');
@@ -10160,6 +10220,43 @@
       { "key": "cooldownSeconds", "label": "Jeda Cooldown (Detik)", "desc": "Durasi jeda antar notifikasi untuk mencegah banjir pesan." }
     ],
     "tips": "Gunakan template pesan yang ringkas dan jelas sehingga petugas patroli lapangan dapat langsung bertindak cepat saat alarm berbunyi."
+  },
+  "screenshot_capture": {
+    "concept": "Node penangkap visual layar (Snapshot/Screenshot) yang merekam momen frame saat terjadi event kejadian atau deteksi dalam bentuk buffer in-memory tanpa membebani disk penyimpanan lokal.",
+    "diagram": "[ Event / Detection ] ──▶ [ Screenshot Capture ] ──▶ [ Telegram Alert / Sink ]",
+    "steps": [
+      "Pilih Capture Mode sesuai kebutuhan (Full Frame Beranotasi, Raw Frame Kamera, atau Crop Objek Pemicu).",
+      "Tentukan kualitas kompresi JPEG (default 85) untuk keseimbangan ketajaman dan ukuran file.",
+      "Centang Sematkan Cap Waktu jika ingin menyertakan watermark tanggal jam di pojok gambar.",
+      "Biarkan Simpan ke Disk tidak dicentang agar tangkapan layar langsung diteruskan via memori RAM ke Telegram."
+    ],
+    "params": [
+      { "key": "captureMode", "label": "Mode Tangkapan", "desc": "Pilihan tangkapan frame utuh beranotasi, frame polos, atau crop objek." },
+      { "key": "jpegQuality", "label": "Kualitas JPEG", "desc": "Tingkat kompresi foto visual dari 30 hingga 100." },
+      { "key": "addTimestampWatermark", "label": "Watermark Waktu", "desc": "Mencetak tanggal dan jam UTC di bagian sudut bawah frame." },
+      { "key": "saveToDisk", "label": "Simpan ke Disk", "desc": "Simpan salinan file fisik JPEG ke folder harddisk lokal." },
+      { "key": "outputDirectory", "label": "Folder Arsip", "desc": "Direktori penyimpanan file tangkapan layar jika opsi simpan diaktifkan." }
+    ],
+    "tips": "Mode Full Frame Beranotasi sangat disukai manajemen karena menampilkan kotak deteksi hijau beserta nama kelas dan skor akurasi secara jelas."
+  },
+  "telegram_notification": {
+    "concept": "Node pengiriman peringatan visual instan ke bot Telegram via API sendPhoto / sendMessage dengan dukungan caption dinamis, cooldown anti-spam, dan upload foto langsung dari RAM.",
+    "diagram": "[ Screenshot / Alert Event ] ──▶ [ Telegram Alert ] ──▶ [ Telegram Chat / Grup / Channel ]",
+    "steps": [
+      "Masukkan Bot Token dari @BotFather dan Chat ID tujuan (grup, channel, atau akun pribadi).",
+      "Kustomisasi format caption pesan dengan placeholder dinamis seperti {event.type}, {event.zoneName}, dan {timestamp}.",
+      "Pilih mode format Markdown atau HTML sesuai gaya tampilan yang diinginkan.",
+      "Atur Jeda Cooldown (detik) untuk membatasi frekuensi kirim agar grup tidak terbanjiri notifikasi berulang."
+    ],
+    "params": [
+      { "key": "botToken", "label": "Token Bot API", "desc": "Kunci otentikasi bot Telegram (fallback ke TELEGRAM_BOT_TOKEN jika kosong)." },
+      { "key": "chatId", "label": "ID Obrolan / Chat ID", "desc": "ID penerima pesan Telegram (fallback ke TELEGRAM_CHAT_ID jika kosong)." },
+      { "key": "messageCaption", "label": "Format Keterangan (Caption)", "desc": "Template teks pesan notifikasi dengan tag variabel dinamis." },
+      { "key": "parseMode", "label": "Format Styling Teks", "desc": "Penguraian tag styling (HTML, Markdown, atau Plain Text)." },
+      { "key": "cooldownSeconds", "label": "Jeda Cooldown (Detik)", "desc": "Waktu jeda antar pesan untuk mencegah banjir notifikasi." },
+      { "key": "disableNotification", "label": "Kirim Senyap", "desc": "Kirim pesan tanpa memicu nada dering/getar di ponsel penerima." }
+    ],
+    "tips": "Jika token bot dan chat ID dikosongkan, node akan secara otomatis membaca environment variable TELEGRAM_BOT_TOKEN dan TELEGRAM_CHAT_ID dari sistem."
   },
   "ptz_controller": {
     "concept": "Node pengendali motor kamera fisik PTZ (Pan-Tilt-Zoom) melalui protokol standar ONVIF Continuous Move untuk melacak objek bergerak (Auto-Following) dan menjaganya tetap berada di titik tengah frame inspeksi.",

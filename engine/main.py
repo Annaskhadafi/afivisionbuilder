@@ -2055,6 +2055,8 @@ def active_analysis_pipeline(workflow: dict) -> bool:
         "csv_formatter",
         "s3_sink",
         "notification_dispatcher",
+        "screenshot_capture",
+        "telegram_notification",
         "ptz_controller",
         "object_timer",
         "face_detector",

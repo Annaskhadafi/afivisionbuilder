@@ -744,6 +744,10 @@ def _process_track_event_nodes(
             return 1
         if t == "object_timer":
             return 2
+        if t == "screenshot_capture":
+            return 8
+        if t == "telegram_notification":
+            return 9
         return 3
 
     sorted_project_nodes = sorted(workflow.get("nodes", []), key=_node_priority)
@@ -754,7 +758,7 @@ def _process_track_event_nodes(
             "distance_measurement", "size_measurement", "camera_focus", "auto_rotate_edges",
             "overlap_analysis", "velocity_calculator", "path_deviation", "delta_filter",
             "detections_difference", "data_aggregator", "csv_formatter", "s3_sink",
-            "notification_dispatcher", "ptz_controller", "ocr_reader", "object_timer",
+            "notification_dispatcher", "ptz_controller", "screenshot_capture", "telegram_notification", "ocr_reader", "object_timer",
             "face_detector", "face_tracker"
         ):
             continue
@@ -842,6 +846,18 @@ def _process_track_event_nodes(
             state = event_runtime.setdefault(project_id, {})
             for ev in extra_results:
                 dispatch_res = dispatch_notification(ev, frame, project_node.get("config", {}), state)
+        elif p_type == "screenshot_capture":
+            from screenshot_capture import process_screenshot_node
+            ss_res = process_screenshot_node(project_node, frame, tracked or candidates or detections, extra_results)
+        elif p_type == "telegram_notification":
+            from telegram_sink import dispatch_telegram_alert
+            state = event_runtime.setdefault(project_id, {})
+            events_to_dispatch = extra_results if extra_results else (
+                [{"type": "DETECTION_ALERT", "message": f"Terdeteksi {len(tracked or candidates or detections)} objek", "zoneName": "Camera Frame"}]
+                if (tracked or candidates or detections) else []
+            )
+            for ev in events_to_dispatch:
+                tg_res = dispatch_telegram_alert(ev, frame, project_node.get("config", {}), state)
         elif p_type == "ptz_controller":
             from ptz_controller import calculate_ptz_velocity
             state = event_runtime.setdefault(project_id, {})
@@ -5578,7 +5594,7 @@ class WorkflowRunner:
         for output in sorted(workflow.get("nodes", []), key=lambda node: node.get("type") != "image_output"):
             output_id = str(output.get("id") or "")
             output_type = output.get("type")
-            if output_type not in ("image_output", "alert", "webhook_output", "database_output") or not output.get("enabled", True):
+            if output_type not in ("image_output", "alert", "webhook_output", "database_output", "screenshot_capture", "telegram_notification") or not output.get("enabled", True):
                 continue
             candidates = engine.results_for_node(workflow, output_id, sparse, [])
             with logic_lock if logic_lock is not None else nullcontext():
@@ -5592,6 +5608,19 @@ class WorkflowRunner:
             elif output_type == "webhook_output":
                 _dispatch_webhook_async(output.get("config", {}), copy.deepcopy(candidates), frame.copy())
                 self._emit_log(f"Zone webhook dispatched ({len(candidates)} event(s)); delivery is not yet durable")
+            elif output_type == "screenshot_capture":
+                from screenshot_capture import process_screenshot_node
+                ss_res = process_screenshot_node(output, frame, candidates, candidates)
+                self._emit_log(f"Screenshot captured: {ss_res.get('mode')}")
+            elif output_type == "telegram_notification":
+                from telegram_sink import dispatch_telegram_alert
+                state = getattr(self, "_telegram_runtime", None)
+                if state is None:
+                    self._telegram_runtime = {}
+                    state = self._telegram_runtime
+                for event in candidates:
+                    tg_res = dispatch_telegram_alert(event, frame, output.get("config", {}), state)
+                    self._emit_log(f"Telegram alert dispatched: {tg_res.get('status')}")
             elif output_type == "alert":
                 if any(c.get("kind") in ("ocr_text_read", "text_detected") for c in candidates):
                     first_txt = next((c.get("text") for c in candidates if c.get("text")), "")
