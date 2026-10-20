@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Mencegah jendela CMD menutup otomatis jika dibuka lewat double-click di File Explorer
+rem Mencegah jendela CMD menutup otomatis jika dibuka lewat double-click di File Explorer
 if "%~1"=="__KEEP_OPEN__" goto :MAIN
 if not defined INSIDE_INSTALL_WRAPPER (
     set INSIDE_INSTALL_WRAPPER=1
@@ -11,10 +11,10 @@ if not defined INSIDE_INSTALL_WRAPPER (
 
 :MAIN
 cd /d "%~dp0"
-title AFI Vision Builder - Setup & Installation
+title AFI Vision Builder - Setup and Installation
 
 echo ========================================================
-echo         AFI VISION BUILDER - SETUP & INSTALLASI
+echo         AFI VISION BUILDER - SETUP DAN INSTALASI
 echo ========================================================
 echo.
 echo Lokasi folder instalasi: "%CD%"
@@ -25,61 +25,63 @@ set "SYS_PYTHON="
 python --version >nul 2>nul
 if !ERRORLEVEL! equ 0 (
     set "SYS_PYTHON=python"
-) else (
-    where python >nul 2>nul
-    if !ERRORLEVEL! equ 0 (
-        set "SYS_PYTHON=python"
-    ) else (
-        echo.
-        echo ========================================================
-        echo [ERROR] Python tidak ditemukan di PATH sistem Anda!
-        echo Silakan unduh dan install Python 3.10 / 3.11 / 3.12 dari:
-        echo   https://www.python.org/downloads/
-        echo Pastikan mencentang opsi "Add Python to PATH" saat instalasi.
-        echo ========================================================
-        echo.
-        echo Tekan tombol apapun untuk keluar...
-        pause
-        exit /b 1
-    )
+    goto :FOUND_PYTHON
 )
+
+where python >nul 2>nul
+if !ERRORLEVEL! equ 0 (
+    set "SYS_PYTHON=python"
+    goto :FOUND_PYTHON
+)
+
+echo.
+echo ========================================================
+echo [ERROR] Python tidak ditemukan di PATH sistem Anda!
+echo Silakan unduh dan install Python 3.10 / 3.11 / 3.12 dari:
+echo   https://www.python.org/downloads/
+echo Pastikan mencentang opsi "Add Python to PATH" saat instalasi.
+echo ========================================================
+echo.
+echo Tekan tombol apapun untuk keluar...
+pause
+exit /b 1
+
+:FOUND_PYTHON
 call %SYS_PYTHON% --version
 
 echo.
 echo [2/5] Menyiapkan Virtual Environment (.venv)...
-set "NEED_NEW_VENV=0"
-if not exist ".venv" (
-    set "NEED_NEW_VENV=1"
-) else (
-    :: Periksa apakah .venv yang ada masih valid atau dari folder lain yang dipindahkan
-    call ".venv\Scripts\python.exe" -c "import sys" >nul 2>nul
-    if !ERRORLEVEL! neq 0 (
-        echo [INFO] Folder .venv lama terdeteksi tidak valid (kemungkinan dipindahkan dari path lain).
-        echo Menghapus .venv lama untuk dibuat ulang di lokasi folder baru...
-        rmdir /s /q ".venv"
-        set "NEED_NEW_VENV=1"
-    ) else (
-        echo Virtual environment (.venv) sudah tersedia dan cocok dengan folder ini.
-    )
+
+if not exist ".venv" goto :CREATE_VENV
+
+rem Cek apakah .venv yang sudah ada masih valid
+call ".venv\Scripts\python.exe" -c "import sys" >nul 2>nul
+if !ERRORLEVEL! equ 0 (
+    echo Virtual environment .venv sudah tersedia dan cocok dengan folder ini.
+    goto :VENV_READY
 )
 
-if "!NEED_NEW_VENV!"=="1" (
-    echo Membuat virtual environment baru di folder .venv...
-    call %SYS_PYTHON% -m venv .venv
-    if !ERRORLEVEL! neq 0 (
-        echo.
-        echo ========================================================
-        echo [ERROR] Gagal membuat virtual environment!
-        echo Pastikan Anda memiliki izin akses tulis di folder ini.
-        echo ========================================================
-        echo.
-        echo Tekan tombol apapun untuk keluar...
-        pause
-        exit /b 1
-    )
-    echo Virtual environment berhasil dibuat.
-)
+echo [INFO] Folder .venv lama tidak cocok dengan lokasi folder saat ini.
+echo Menghapus .venv lama untuk dibuat ulang di lokasi folder baru...
+rmdir /s /q ".venv"
 
+:CREATE_VENV
+echo Membuat virtual environment baru di folder .venv...
+call %SYS_PYTHON% -m venv .venv
+if !ERRORLEVEL! neq 0 (
+    echo.
+    echo ========================================================
+    echo [ERROR] Gagal membuat virtual environment!
+    echo Pastikan Anda memiliki izin akses tulis di folder ini.
+    echo ========================================================
+    echo.
+    echo Tekan tombol apapun untuk keluar...
+    pause
+    exit /b 1
+)
+echo Virtual environment berhasil dibuat.
+
+:VENV_READY
 echo.
 echo [3/5] Mengaktifkan .venv dan mengupdate pip...
 if exist ".venv\Scripts\activate.bat" (
