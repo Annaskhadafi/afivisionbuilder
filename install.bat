@@ -77,26 +77,26 @@ if !ERRORLEVEL! neq 0 (
 echo Virtual environment berhasil dibuat.
 
 :VENV_READY
+set "TARGET_PYTHON=.venv\Scripts\python.exe"
+if not exist "!TARGET_PYTHON!" set "TARGET_PYTHON=%SYS_PYTHON%"
+
 echo.
-echo [3/5] Mengaktifkan .venv dan mengupdate pip...
-if exist ".venv\Scripts\activate.bat" (
-    call .venv\Scripts\activate.bat
-)
-call python -m pip install --upgrade pip
+echo [3/5] Memperbarui pip di environment (!TARGET_PYTHON!)...
+call "!TARGET_PYTHON!" -m pip install --upgrade pip
 
 echo.
 echo [4/5] Menginstall paket dependensi dari requirements.txt...
-call python -m pip install --prefer-binary -r requirements.txt
+call "!TARGET_PYTHON!" -m pip install --prefer-binary -r requirements.txt
 if !ERRORLEVEL! neq 0 (
     echo.
     echo [WARNING] Mencoba opsi fallback kompatibilitas...
-    call python -m pip install --prefer-binary --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
+    call "!TARGET_PYTHON!" -m pip install --prefer-binary --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 )
 
 echo.
 echo [5/5] Memeriksa ketersediaan bobot model AI bawaan...
 if exist "scripts\download_models.py" (
-    call python scripts\download_models.py
+    call "!TARGET_PYTHON!" scripts\download_models.py
 )
 
 echo.

@@ -63,16 +63,41 @@ exit /b 1
 
 :CHECK_DEPS
 rem 4. Periksa apakah FastAPI dan Uvicorn sudah terpasang
-call %PY_CMD% -c "import fastapi, uvicorn" >nul 2>nul
+call "%PY_CMD%" -c "import fastapi, uvicorn" >nul 2>nul
 if !ERRORLEVEL! equ 0 goto :START_SERVER
 
 echo.
 echo ========================================================
-echo [ERROR] Paket FastAPI dan Uvicorn belum terpasang!
+echo [PERINGATAN] Modul FastAPI / Uvicorn belum terpasang di:
+echo %PY_CMD%
+echo ========================================================
 echo.
-echo Server belum bisa dijalankan karena dependensi belum lengkap.
-echo Silakan jalankan 'install.bat' terlebih dahulu, atau jalankan:
-echo   %PY_CMD% -m pip install fastapi uvicorn
+echo Dependensi diperlukan untuk menjalankan server web.
+echo.
+echo Pilihan:
+echo   [1] Install dependensi sekarang secara otomatis
+echo   [2] Keluar
+echo.
+set "INSTALL_NOW=1"
+set /p "INSTALL_NOW=Pilihan Anda [1/2, default 1]: "
+if "!INSTALL_NOW!"=="2" exit /b 1
+
+echo.
+echo Menginstall FastAPI, Uvicorn, dan paket dasar ke %PY_CMD%...
+call "%PY_CMD%" -m pip install --upgrade pip
+call "%PY_CMD%" -m pip install --prefer-binary --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
+
+call "%PY_CMD%" -c "import fastapi, uvicorn" >nul 2>nul
+if !ERRORLEVEL! equ 0 (
+    echo.
+    echo [OK] Dependensi berhasil diinstall!
+    goto :START_SERVER
+)
+
+echo.
+echo ========================================================
+echo [ERROR] Instalasi FastAPI belum berhasil.
+echo Silakan periksa pesan error pip di atas.
 echo ========================================================
 echo.
 pause
@@ -90,7 +115,7 @@ echo  (Tekan Ctrl+C di jendela ini untuk menghentikan server)
 echo ========================================================
 echo.
 
-call %PY_CMD% server.py
+call "%PY_CMD%" server.py
 
 echo.
 echo ========================================================
