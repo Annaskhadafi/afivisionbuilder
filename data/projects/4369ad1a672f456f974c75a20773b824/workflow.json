@@ -1,30 +1,6 @@
 {
   "nodes": [
     {
-      "id": "object_timer",
-      "type": "object_timer",
-      "title": "Object Timer",
-      "subtitle": "Hitung durasi dan tampilkan timer langsung di atas setiap orang atau objek yang terdeteksi secara real-time",
-      "x": 754.4443359375,
-      "y": 105.55557250976562,
-      "enabled": true,
-      "status": "idle",
-      "config": {
-        "targetClasses": "person",
-        "alertThresholdSeconds": 10,
-        "graceSeconds": 2,
-        "timerFormat": "mm:ss",
-        "showOverlay": true,
-        "showTrackId": true,
-        "badgePosition": "inside",
-        "minDurationSeconds": 0,
-        "alertMode": "once",
-        "alertCooldownSeconds": 5,
-        "normalColor": "#10b981",
-        "alertColor": "#ef4444"
-      }
-    },
-    {
       "id": "input",
       "type": "input",
       "title": "Input",
@@ -56,41 +32,6 @@
       }
     },
     {
-      "id": "detector",
-      "type": "detector",
-      "title": "Object Detection",
-      "subtitle": "Deteksi objek dengan model RF-DETR PyTorch, TensorRT, atau YOLO",
-      "x": 254.4443359375,
-      "y": 122.22221374511719,
-      "enabled": true,
-      "status": "idle",
-      "config": {
-        "engine": "ultralytics_yolo",
-        "threshold": 0.55,
-        "rfdetrModel": "rfdetr-nano",
-        "rfdetrCheckpoint": "yolov8n.pt",
-        "rfdetrImageSize": 0,
-        "rfdetrHalfPrecision": true,
-        "rfdetrTensorRTEngine": "",
-        "rfdetrTensorRTClasses": "",
-        "rfdetrTensorRTCudaGraph": false,
-        "rfdetrTensorRTProcess": false,
-        "rfdetrOnnxModel": "",
-        "rfdetrOnnxClasses": "",
-        "detectEveryNFrames": 1,
-        "maxDetectionFps": 0,
-        "batchSize": 1,
-        "iouThreshold": 0.45,
-        "device": "auto",
-        "customModelPath": "D:\\[01] PROJECT\\REA\\webapp\\yolov8n.pt",
-        "customClasses": "person",
-        "perClassThresholds": "",
-        "classRemap": "",
-        "modelPath": "D:\\[01] PROJECT\\REA\\webapp\\yolov8n.pt",
-        "classes": ""
-      }
-    },
-    {
       "id": "preview",
       "type": "preview",
       "title": "Live Preview",
@@ -116,19 +57,54 @@
         "outputPath": "",
         "outputFps": 0
       }
+    },
+    {
+      "id": "face_detector",
+      "type": "face_detector",
+      "title": "Face Detector (UniFace)",
+      "subtitle": "Deteksi wajah dan 5-titik facial landmark berakurasi tinggi menggunakan model ONNX UniFace",
+      "x": 511.111083984375,
+      "y": 123.33334350585938,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "model": "retinaface",
+        "confidenceThreshold": 0.45,
+        "nmsThreshold": 0.4,
+        "minFaceSize": 20,
+        "detectLandmarks": true
+      }
+    },
+    {
+      "id": "face_tracker",
+      "type": "face_tracker",
+      "title": "Face Re-ID Tracker (UniFace)",
+      "subtitle": "Lacak dan kenali identitas orang berdasarkan embedding wajah ArcFace yang terhubung dengan Database Wajah",
+      "x": 855.5554809570312,
+      "y": 112.22225952148438,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "recognitionModel": "arcface",
+        "similarityThreshold": 0.48,
+        "unknownPrefix": "Tamu",
+        "maxMissingSeconds": 5,
+        "showLandmarks": true,
+        "showNameBadge": true
+      }
     }
   ],
   "edges": [
     [
       "input",
-      "detector"
+      "face_detector"
     ],
     [
-      "detector",
-      "object_timer"
+      "face_detector",
+      "face_tracker"
     ],
     [
-      "object_timer",
+      "face_tracker",
       "preview"
     ]
   ]

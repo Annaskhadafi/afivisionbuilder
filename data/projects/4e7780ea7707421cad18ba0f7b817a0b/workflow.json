@@ -1,0 +1,139 @@
+{
+  "nodes": [
+    {
+      "id": "input",
+      "type": "input",
+      "title": "Input",
+      "subtitle": "Camera capture",
+      "x": 14,
+      "y": 0,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "sourceType": "camera",
+        "source": 0,
+        "youtubeUrl": "",
+        "youtubeQuality": "720p",
+        "autoReconnect": true,
+        "width": 0,
+        "height": 0,
+        "dahengOpenMode": "index",
+        "dahengIdentifier": "1",
+        "dahengTimeoutMs": 1000,
+        "dahengFrameRate": 0,
+        "dahengExposureUs": 0,
+        "dahengGain": 0,
+        "filePath": "",
+        "loop": true,
+        "frameQueueSize": 8,
+        "torchCpuThreads": 0,
+        "asyncPreview": false,
+        "dropFrames": true
+      }
+    },
+    {
+      "id": "face_detector",
+      "type": "face_detector",
+      "title": "Face Detector (UniFace)",
+      "subtitle": "Deteksi wajah dan 5-titik facial landmark berakurasi tinggi menggunakan model ONNX UniFace",
+      "x": 7,
+      "y": 150,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "model": "retinaface",
+        "confidenceThreshold": 0.45,
+        "nmsThreshold": 0.4,
+        "minFaceSize": 20,
+        "detectLandmarks": true
+      }
+    },
+    {
+      "id": "face_tracker",
+      "type": "face_tracker",
+      "title": "Face Re-ID Tracker (UniFace)",
+      "subtitle": "Lacak dan kenali identitas orang berdasarkan embedding wajah ArcFace yang terhubung dengan Database Wajah",
+      "x": 13,
+      "y": 306,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "recognitionModel": "arcface",
+        "similarityThreshold": 0.48,
+        "unknownPrefix": "Tamu",
+        "maxMissingSeconds": 5,
+        "showLandmarks": true,
+        "showNameBadge": true
+      }
+    },
+    {
+      "id": "preview",
+      "type": "preview",
+      "title": "Live Preview",
+      "subtitle": "Jendela tampilan streaming video hasil pemrosesan",
+      "x": 339,
+      "y": 176,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "showBoxes": true,
+        "showLabels": true,
+        "showMasks": true,
+        "showTrackIds": true,
+        "showTrails": true,
+        "showCounts": true,
+        "maskOpacity": 0.35,
+        "cropGridMaxItems": 16,
+        "cropGridColumns": 0,
+        "cropGridGap": 8,
+        "holdLastEvent": true,
+        "maxPreviewFps": 0,
+        "saveVideo": false,
+        "outputPath": "",
+        "outputFps": 0
+      }
+    },
+    {
+      "id": "object_timer",
+      "type": "object_timer",
+      "title": "Object Timer",
+      "subtitle": "Hitung durasi dan tampilkan timer langsung di atas setiap orang atau objek yang terdeteksi secara real-time",
+      "x": 353,
+      "y": 14,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "targetClasses": "person, face",
+        "alertThresholdSeconds": 10,
+        "graceSeconds": 2,
+        "timerFormat": "hh:mm:ss",
+        "showOverlay": true,
+        "showTrackId": false,
+        "badgePosition": "inside",
+        "minDurationSeconds": 0,
+        "alertMode": "once",
+        "alertCooldownSeconds": 5,
+        "normalColor": "#10b981",
+        "alertColor": "#ef4444"
+      }
+    }
+  ],
+  "edges": [
+    [
+      "input",
+      "face_detector"
+    ],
+    [
+      "face_detector",
+      "face_tracker"
+    ],
+    [
+      "face_tracker",
+      "object_timer"
+    ],
+    [
+      "object_timer",
+      "preview"
+    ]
+  ]
+}

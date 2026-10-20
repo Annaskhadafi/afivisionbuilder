@@ -36,6 +36,32 @@ def _ensure_storage_dirs(faces_dir: str = FACES_DIR, images_dir: str = IMAGES_DI
             json.dump([], f, indent=2)
 
 
+def _calc_box_iou(box1: Tuple[float, float, float, float], box2: Tuple[float, float, float, float]) -> float:
+    """Computes IoU between two [x, y, w, h] bounding boxes."""
+    x1_a, y1_a, w_a, h_a = box1
+    x2_a, y2_a = x1_a + w_a, y1_a + h_a
+
+    x1_b, y1_b, w_b, h_b = box2
+    x2_b, y2_b = x1_b + w_b, y1_b + h_b
+
+    inter_x1 = max(x1_a, x1_b)
+    inter_y1 = max(y1_a, y1_b)
+    inter_x2 = min(x2_a, x2_b)
+    inter_y2 = min(y2_a, y2_b)
+
+    inter_w = max(0.0, inter_x2 - inter_x1)
+    inter_h = max(0.0, inter_y2 - inter_y1)
+    inter_area = inter_w * inter_h
+
+    area_a = max(0.0, w_a * h_a)
+    area_b = max(0.0, w_b * h_b)
+    union_area = area_a + area_b - inter_area
+
+    if union_area <= 1e-6:
+        return 0.0
+    return float(inter_area / union_area)
+
+
 class UniFaceRegistry:
     """Manages enrolled faces, avatar images, and 512-D ArcFace feature embeddings."""
 
@@ -47,6 +73,7 @@ class UniFaceRegistry:
         self.registry_file = os.path.join(self.storage_dir, "registry.json")
         _ensure_storage_dirs(self.storage_dir, self.images_dir, self.registry_file)
         self.faces: List[Dict[str, Any]] = []
+        self._last_mtime: float = 0.0
         self._load()
 
     @classmethod
@@ -55,9 +82,19 @@ class UniFaceRegistry:
             cls._instance = UniFaceRegistry()
         return cls._instance
 
+    def _ensure_fresh(self) -> None:
+        try:
+            if os.path.exists(self.registry_file):
+                mtime = os.path.getmtime(self.registry_file)
+                if mtime > getattr(self, "_last_mtime", 0.0):
+                    self._load()
+        except Exception:
+            pass
+
     def _load(self) -> None:
         try:
             if os.path.exists(self.registry_file):
+                self._last_mtime = os.path.getmtime(self.registry_file)
                 with open(self.registry_file, "r", encoding="utf-8") as f:
                     self.faces = json.load(f)
                 # Ensure all stored embeddings are flattened 1D lists of floats
@@ -83,11 +120,14 @@ class UniFaceRegistry:
             _ensure_storage_dirs(self.storage_dir, self.images_dir, self.registry_file)
             with open(self.registry_file, "w", encoding="utf-8") as f:
                 json.dump(self.faces, f, indent=2, ensure_ascii=False)
+            if os.path.exists(self.registry_file):
+                self._last_mtime = os.path.getmtime(self.registry_file)
         except Exception as e:
             logger.error(f"Error saving face registry: {e}")
 
     def list_faces(self) -> List[Dict[str, Any]]:
         """Return public list of faces (excluding raw embedding arrays for lightweight API response)."""
+        self._ensure_fresh()
         result = []
         for f in self.faces:
             has_emb = bool(f.get("embedding") and len(f["embedding"]) > 0)
@@ -103,6 +143,7 @@ class UniFaceRegistry:
         return result
 
     def get_face(self, face_id: str) -> Optional[Dict[str, Any]]:
+        self._ensure_fresh()
         for f in self.faces:
             if f.get("id") == face_id:
                 return f
@@ -144,7 +185,9 @@ class UniFaceRegistry:
             # If embedding not provided, use UniFace to detect and extract
             if extracted_emb is None:
                 mgr = get_uniface_manager()
-                faces = mgr.detect_faces(final_img, conf_thresh=0.4)
+                faces = mgr.detect_faces(final_img, conf_thresh=0.35)
+                if not faces:
+                    faces = mgr.detect_faces(final_img, conf_thresh=0.20)
                 if faces:
                     # Pick largest face
                     largest = max(faces, key=lambda fc: (fc["width"] * fc["height"]))
@@ -164,6 +207,12 @@ class UniFaceRegistry:
 
                     # Extract embedding
                     emb_vec = mgr.extract_embedding(final_img, landmarks=largest.get("landmarks"))
+                    if emb_vec is not None:
+                        extracted_emb = emb_vec.tolist()
+                else:
+                    # If detector found no face (e.g. tight crop or small avatar), use aligned resize
+                    aligned_avatar = cv2.resize(final_img, (112, 112), interpolation=cv2.INTER_AREA)
+                    emb_vec = mgr.extract_embedding(aligned_avatar, landmarks=None)
                     if emb_vec is not None:
                         extracted_emb = emb_vec.tolist()
 
@@ -188,7 +237,7 @@ class UniFaceRegistry:
 
         record = {
             "id": face_id,
-            "name": name.strip(),
+            "name": final_name.strip() if final_name else "Wajah Terdaftar",
             "role": role.strip() or "Karyawan",
             "notes": notes.strip(),
             "photo_url": photo_url,
@@ -232,6 +281,7 @@ class UniFaceRegistry:
         Returns (best_match_face, similarity_score). If similarity < threshold, returns (None, score).
         Handles both 1D and 2D embedding inputs safely.
         """
+        self._ensure_fresh()
         if embedding is None:
             return None, 0.0
 
@@ -486,11 +536,26 @@ def process_face_tracker_node(
 
         landmarks = det.get("landmarks", [])
 
-        # Extract embedding from face crop if frame is available
+        # Extract embedding from face
         emb = None
         if frame is not None and x2 > x1 and y2 > y1:
-            face_crop = frame[y1:y2, x1:x2]
-            raw_emb = mgr.extract_embedding(face_crop, landmarks=landmarks)
+            raw_emb = None
+            # Method A: Landmarks are in frame coordinates. Passing frame and landmarks aligns face accurately.
+            if landmarks and len(landmarks) >= 5:
+                raw_emb = mgr.extract_embedding(frame, landmarks=landmarks)
+
+            # Method B: Fallback - crop face and shift landmarks relative to crop
+            if raw_emb is None:
+                face_crop = frame[y1:y2, x1:x2]
+                if face_crop.size > 0:
+                    if landmarks and len(landmarks) >= 5:
+                        shifted_lm = [[float(pt[0]) - x1, float(pt[1]) - y1] for pt in landmarks]
+                        raw_emb = mgr.extract_embedding(face_crop, landmarks=shifted_lm)
+                    if raw_emb is None:
+                        # Fallback without landmarks: resize crop to 112x112
+                        aligned_crop = cv2.resize(face_crop, (112, 112), interpolation=cv2.INTER_AREA)
+                        raw_emb = mgr.extract_embedding(aligned_crop, landmarks=None)
+
             if raw_emb is not None:
                 emb = np.asarray(raw_emb, dtype=np.float32).flatten()
 
@@ -502,6 +567,14 @@ def process_face_tracker_node(
             person_role = matched_face.get("role", "Terdaftar")
             is_enrolled = True
             track_key = f"enrolled:{matched_face['id']}"
+
+            # Seamless promotion: Remove any previous unknown track that overlaps with this enrolled face
+            overlapping_keys = [
+                tk for tk, tr in tracks.items()
+                if tk.startswith("unknown:") and tr.get("lastBox") and _calc_box_iou(box, tr["lastBox"]) > 0.35
+            ]
+            for ok in overlapping_keys:
+                del tracks[ok]
         else:
             person_name = ""
             person_role = "Tamu"
@@ -529,15 +602,33 @@ def process_face_tracker_node(
                 track_key = best_t_key
                 similarity = best_t_sim
 
-        # 3. New track allocation
+        # 2b. Spatial IoU Fallback tracking for continuous video frames
+        # If Re-ID didn't match (e.g. lighting variation or angle), associate with existing track in nearby position
+        if track_key is None:
+            best_iou = 0.0
+            best_iou_key = None
+            for tk, tr in tracks.items():
+                if tr.get("lastBox"):
+                    iou = _calc_box_iou(box, tr["lastBox"])
+                    if iou > best_iou and iou >= 0.35:
+                        best_iou = iou
+                        best_iou_key = tk
+            if best_iou_key is not None:
+                track_key = best_iou_key
+                similarity = tracks[track_key].get("similarity", 0.80)
+
+        # 3. Track allocation & identity resolution
         if track_key is None:
             track_id = next_id
             state["next_track_id"] = next_id + 1
             track_key = f"unknown:{track_id}"
             person_name = f"{unknown_prefix} #{track_id}"
         elif not person_name:
+            # Preserve existing track identity
             track_id = tracks[track_key].get("trackId", next_id)
-            person_name = f"{unknown_prefix} #{track_id}"
+            person_name = tracks[track_key].get("name") or f"{unknown_prefix} #{track_id}"
+            is_enrolled = bool(tracks[track_key].get("isEnrolled", False))
+            person_role = tracks[track_key].get("role", "Tamu")
         else:
             track_id = tracks.get(track_key, {}).get("trackId", next_id)
 
@@ -547,7 +638,9 @@ def process_face_tracker_node(
                 "firstSeen": now,
                 "lastSeen": now,
                 "name": person_name,
+                "role": person_role,
                 "isEnrolled": is_enrolled,
+                "similarity": similarity,
                 "embedding": np.asarray(emb, dtype=np.float32).flatten() if emb is not None else None,
                 "lastBox": box,
             }
@@ -567,6 +660,11 @@ def process_face_tracker_node(
         else:
             tracks[track_key]["lastSeen"] = now
             tracks[track_key]["lastBox"] = box
+            tracks[track_key]["similarity"] = similarity
+            if is_enrolled:
+                tracks[track_key]["isEnrolled"] = True
+                tracks[track_key]["name"] = person_name
+                tracks[track_key]["role"] = person_role
             if emb is not None:
                 # Rolling feature update
                 emb_vec = np.asarray(emb, dtype=np.float32).flatten()

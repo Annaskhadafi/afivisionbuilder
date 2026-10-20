@@ -201,3 +201,78 @@ def test_face_tracker_2d_embedding_alignment(temp_face_dir):
     finally:
         UniFaceRegistry._instance = orig_reg
         UniFaceManager._instance = orig_mgr
+
+
+def test_face_tracker_enrolled_promotion_and_iou(temp_face_dir):
+    """Verify unknown track is cleanly promoted when recognized as enrolled face."""
+    registry = UniFaceRegistry(storage_dir=temp_face_dir)
+    vec1 = [0.2] * 512
+    vec1_norm = (np.array(vec1) / np.linalg.norm(vec1)).tolist()
+    registry.enroll_face(name="Annas Khadafi", embedding=vec1_norm, role="Karyawan")
+
+    class MockDetector:
+        def detect(self, img):
+            return []
+
+    class MockRecognizer:
+        def __init__(self):
+            self.return_vec = None
+        def get_embedding(self, img, landmarks=None):
+            return self.return_vec
+
+    mgr = UniFaceManager()
+    mgr._detector = MockDetector()
+    recognizer = MockRecognizer()
+    mgr._recognizer = recognizer
+
+    orig_reg = UniFaceRegistry._instance
+    orig_mgr = UniFaceManager._instance
+    UniFaceRegistry._instance = registry
+    UniFaceManager._instance = mgr
+
+    try:
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        node_track = {"id": "track_1", "type": "face_tracker", "config": {"similarityThreshold": 0.48, "unknownPrefix": "Tamu"}}
+        state = {}
+
+        # Frame 1: Face detected, but recognizer produces orthogonal vector (not in gallery) -> Classified as Tamu #1
+        recognizer.return_vec = (-np.array(vec1_norm, dtype=np.float32))
+        det_1 = [{
+            "class": "face", "x": 100, "y": 100, "width": 80, "height": 80,
+            "bbox": [100, 100, 80, 80], "confidence": 0.9,
+            "landmarks": [[120, 120], [160, 120], [140, 140], [125, 160], [155, 160]]
+        }]
+        out_1, evts_1 = process_face_tracker_node(node_track, frame, det_1, state, 100.0)
+        assert len(out_1) == 1
+        assert out_1[0]["personName"] == "Tamu #1"
+        assert out_1[0]["isEnrolled"] is False
+
+        # Frame 2: Person faces camera clearly, embedding now matches Annas -> Seamlessly promoted to Annas Khadafi
+        recognizer.return_vec = np.array(vec1_norm, dtype=np.float32)
+        det_2 = [{
+            "class": "face", "x": 102, "y": 101, "width": 80, "height": 80,
+            "bbox": [102, 101, 80, 80], "confidence": 0.95,
+            "landmarks": [[122, 121], [162, 121], [142, 141], [127, 161], [157, 161]]
+        }]
+        out_2, evts_2 = process_face_tracker_node(node_track, frame, det_2, state, 100.1)
+        assert len(out_2) == 1
+        assert out_2[0]["personName"] == "Annas Khadafi"
+        assert out_2[0]["isEnrolled"] is True
+        # Verify unknown:1 track was removed/promoted
+        assert not any(k.startswith("unknown:") for k in state["tracks"].keys())
+        assert any(k.startswith("enrolled:") for k in state["tracks"].keys())
+
+        # Frame 3: Temporary slight head turn (recognizer returns None/weak), but spatial IoU preserves identity
+        recognizer.return_vec = None
+        det_3 = [{
+            "class": "face", "x": 103, "y": 102, "width": 80, "height": 80,
+            "bbox": [103, 102, 80, 80], "confidence": 0.9,
+            "landmarks": []
+        }]
+        out_3, evts_3 = process_face_tracker_node(node_track, frame, det_3, state, 100.2)
+        assert len(out_3) == 1
+        assert out_3[0]["personName"] == "Annas Khadafi"
+        assert out_3[0]["isEnrolled"] is True
+    finally:
+        UniFaceRegistry._instance = orig_reg
+        UniFaceManager._instance = orig_mgr
