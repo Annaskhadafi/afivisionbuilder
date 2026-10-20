@@ -1,15 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
 
-rem Mencegah jendela CMD menutup otomatis jika dibuka lewat double-click di File Explorer
-if "%~1"=="__KEEP_OPEN__" goto :MAIN
-if not defined INSIDE_INSTALL_WRAPPER (
-    set INSIDE_INSTALL_WRAPPER=1
-    cmd /k ""%~f0" __KEEP_OPEN__ %*"
-    exit /b
-)
-
-:MAIN
 cd /d "%~dp0"
 title AFI Vision Builder - Setup and Installation
 
@@ -28,6 +19,12 @@ if !ERRORLEVEL! equ 0 (
     goto :FOUND_PYTHON
 )
 
+py --version >nul 2>nul
+if !ERRORLEVEL! equ 0 (
+    set "SYS_PYTHON=py"
+    goto :FOUND_PYTHON
+)
+
 where python >nul 2>nul
 if !ERRORLEVEL! equ 0 (
     set "SYS_PYTHON=python"
@@ -42,7 +39,6 @@ echo   https://www.python.org/downloads/
 echo Pastikan mencentang opsi "Add Python to PATH" saat instalasi.
 echo ========================================================
 echo.
-echo Tekan tombol apapun untuk keluar...
 pause
 exit /b 1
 
@@ -75,7 +71,6 @@ if !ERRORLEVEL! neq 0 (
     echo Pastikan Anda memiliki izin akses tulis di folder ini.
     echo ========================================================
     echo.
-    echo Tekan tombol apapun untuk keluar...
     pause
     exit /b 1
 )
@@ -112,6 +107,4 @@ echo   Untuk menjalankan AFI Vision Builder, silakan buka:
 echo   - run.bat (untuk membuka server web di browser)
 echo ========================================================
 echo.
-echo Jendela ini TIDAK akan tertutup otomatis agar Anda bisa membaca log.
-echo Tekan tombol apapun untuk keluar...
 pause

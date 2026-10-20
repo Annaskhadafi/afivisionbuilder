@@ -1,15 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
 
-rem Mencegah jendela CMD menutup otomatis jika dibuka lewat double-click di File Explorer
-if "%~1"=="__KEEP_OPEN__" goto :MAIN
-if not defined INSIDE_RUN_WRAPPER (
-    set INSIDE_RUN_WRAPPER=1
-    cmd /k ""%~f0" __KEEP_OPEN__ %*"
-    exit /b
-)
-
-:MAIN
 cd /d "%~dp0"
 title AFI Vision Builder
 
@@ -22,35 +13,43 @@ echo.
 
 set "PY_CMD="
 
-if not exist ".venv\Scripts\python.exe" goto :CHECK_SYS_PYTHON
+rem 1. Periksa apakah .venv tersedia dan cocok
+if not exist ".venv\Scripts\python.exe" goto :TRY_SYS_PYTHON
 
-rem Verifikasi apakah .venv valid
 call ".venv\Scripts\python.exe" -c "import sys" >nul 2>nul
-if !ERRORLEVEL! equ 0 (
-    set "PY_CMD=.venv\Scripts\python.exe"
-    echo [OK] Virtual Environment .venv aktif dan cocok dengan folder ini.
-    goto :START_SERVER
+if !ERRORLEVEL! neq 0 (
+    echo [INFO] Folder .venv lama tidak cocok dengan lokasi folder saat ini.
+    goto :TRY_SYS_PYTHON
 )
 
-echo [PERINGATAN] Folder .venv lama tidak cocok dengan path folder saat ini.
-echo Disarankan untuk menjalankan install.bat agar .venv disesuaikan.
-echo Mencoba menggunakan Python sistem...
+set "PY_CMD=.venv\Scripts\python.exe"
+echo [OK] Menggunakan Virtual Environment .venv.
+goto :CHECK_DEPS
 
-:CHECK_SYS_PYTHON
+:TRY_SYS_PYTHON
+rem 2. Cek Python sistem
 python --version >nul 2>nul
 if !ERRORLEVEL! equ 0 (
     set "PY_CMD=python"
     echo [OK] Menggunakan Python sistem.
-    goto :START_SERVER
+    goto :CHECK_DEPS
+)
+
+py --version >nul 2>nul
+if !ERRORLEVEL! equ 0 (
+    set "PY_CMD=py"
+    echo [OK] Menggunakan Python Launcher py.
+    goto :CHECK_DEPS
 )
 
 where python >nul 2>nul
 if !ERRORLEVEL! equ 0 (
     set "PY_CMD=python"
     echo [OK] Menggunakan Python sistem.
-    goto :START_SERVER
+    goto :CHECK_DEPS
 )
 
+rem 3. Jika Python tidak ditemukan sama sekali
 echo.
 echo ========================================================
 echo [ERROR] Python tidak ditemukan di sistem Anda!
@@ -59,7 +58,23 @@ echo   https://www.python.org/downloads/
 echo Pastikan mencentang Add Python to PATH saat instalasi.
 echo ========================================================
 echo.
-echo Tekan tombol apapun untuk keluar...
+pause
+exit /b 1
+
+:CHECK_DEPS
+rem 4. Periksa apakah FastAPI dan Uvicorn sudah terpasang
+call %PY_CMD% -c "import fastapi, uvicorn" >nul 2>nul
+if !ERRORLEVEL! equ 0 goto :START_SERVER
+
+echo.
+echo ========================================================
+echo [ERROR] Paket FastAPI dan Uvicorn belum terpasang!
+echo.
+echo Server belum bisa dijalankan karena dependensi belum lengkap.
+echo Silakan jalankan 'install.bat' terlebih dahulu, atau jalankan:
+echo   %PY_CMD% -m pip install fastapi uvicorn
+echo ========================================================
+echo.
 pause
 exit /b 1
 
@@ -71,32 +86,26 @@ start "" "http://127.0.0.1:8765"
 echo.
 echo ========================================================
 echo  Menjalankan server AFI Vision Builder...
-echo  Tekan Ctrl+C di jendela ini untuk menghentikan server
+echo  (Tekan Ctrl+C di jendela ini untuk menghentikan server)
 echo ========================================================
 echo.
 
-call "%PY_CMD%" server.py
+call %PY_CMD% server.py
 
 echo.
 echo ========================================================
 if !ERRORLEVEL! neq 0 (
-    echo [INFO] Server berhenti - Kode keluar: !ERRORLEVEL!
+    echo [ERROR] Server berhenti dengan kode error: !ERRORLEVEL!
 ) else (
     echo [INFO] Server AFI Vision Builder telah dihentikan.
 )
 echo ========================================================
 echo.
-echo Tindakan selanjutnya:
-echo   [1] Jalankan ulang server (Restart)
-echo   [2] Keluar dan tutup jendela ini
+echo Pilihan:
+echo   Tekan [R] lalu Enter untuk Restart server
+echo   Tekan [Enter] untuk menutup jendela ini
 echo.
-set "USER_ACT=1"
-set /p "USER_ACT=Masukkan pilihan Anda [1/2, default 1]: "
-if "!USER_ACT!"=="2" (
-    echo Menutup jendela...
-    timeout /t 1 >nul
-    exit /b 0
-)
-echo Memulai ulang server...
-echo.
-goto SERVER_LOOP
+set "USER_ACT="
+set /p "USER_ACT=Pilihan Anda: "
+if /i "!USER_ACT!"=="R" goto :SERVER_LOOP
+exit /b 0
