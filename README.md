@@ -10,9 +10,9 @@
   <img src="https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch" />
   <img src="https://img.shields.io/badge/OpenCV-4.8+-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white" alt="OpenCV" />
   <img src="https://img.shields.io/badge/Ultralytics-YOLOv8%20%2F%20v11-00FFFF?style=for-the-badge&logo=yolo&logoColor=black" alt="YOLO" />
-  <img src="https://img.shields.io/badge/Nodes%20Catalog-70%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
-  <img src="https://img.shields.io/badge/Unit%20Tests-168%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
-  <img src="https://img.shields.io/badge/E2E%20Tests-26%2B%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
+  <img src="https://img.shields.io/badge/Nodes%20Catalog-72%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
+  <img src="https://img.shields.io/badge/Unit%20Tests-170%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
+  <img src="https://img.shields.io/badge/E2E%20Tests-28%2B%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
 </p>
 
 <p align="center">
@@ -177,32 +177,39 @@
 - **Alur Kerja Terpadu 1-Klik**: Hasil kuantisasi langsung menampilkan ringkasan metrik kompresi (ukuran awal vs akhir, rasio penghematan), tombol `[🎯 Terapkan ke Node Aktif]` untuk langsung dipasang ke node deteksi aktif, dan tombol `[💾 Unduh File]` untuk mengunduh bobot terkuantisasi.
 - **Runtime Universal Terkalibrasi**: Custom model inference engine secara otomatis mengenali kuantisasi INT8, mengaplikasikan *scale & zero-point normalization*, serta mengekstrak tensor deteksi YOLO 2D/3D secara adaptif.
 
-### 🎛️ 27. Universal Header Actions & Profile Management
-- **Menu Opsi Lanjutan (`...`)**: Dropdown terintegrasi untuk *Import Workflow JSON*, *Export Workflow JSON*, *Salin JSON Workflow ke Clipboard*, *Pusatkan Kanvas (Fit View)*, *Kosongkan Kanvas (Clear)*, serta tautan cepat ke *Dokumentasi Swagger API (/docs)*.
-- **Pusat Notifikasi Real-Time (`🔔`)**: Panel notifikasi interaktif dengan badge dot dinamis merah saat ada kejadian baru, filter tab (*Semua*, *Alerts*, *Sistem*), tombol *Tandai Dibaca*, tombol *Bersihkan*, serta integrasi live dengan event pipeline.
-- **Pengaturan Studio & Pipeline (`⚙️ Settings`)**: Dialog modal pengaturan komprehensif untuk *Device Compute* (Auto/CPU/CUDA), *FPS Throttling*, *VLM Model API Keys* (OpenAI, 9router, Ollama), dan *Webhook Sink ERP*.
-- **Pusat Bantuan & Panduan (`Help`)**: Dialog modal interaktif berisikan tabel *Pintasan Keyboard* lengkap (<kbd>Space</kbd>+Drag, <kbd>Ctrl+S</kbd>, <kbd>Ctrl+Enter</kbd>, dll.), *Panduan Cepat 5 Langkah*, ringkasan *Katalog Node*, serta info versi sistem.
-- **Profil Pengguna Enterprise (`AN`)**: Avatar interaktif dengan kartu profil **Anas Khadafi** (*Lead Vision Engineer & Admin*), status live server, pintasan 1-klik ke *Model Quantizer*, *Sinkronisasi Sistem*, dan *Kunci Sesi*.
+### 👤 27. UniFace Face Detection, 5-Point Landmarks & Face Re-ID Tracking
+- **Deteksi Wajah Presisi Tinggi**: Mengintegrasikan model RetinaFace ONNX via UniFace untuk mendeteksi wajah dan melokalisasi 5 titik facial landmark (mata, hidung, ujung bibir) secara real-time.
+- **Ekstraksi Fitur ArcFace 512-D**: Menghitung vektor representasi wajah *L2-normalized cosine embedding* berdimensi 512 untuk pengenalan identitas akurat (*Face Re-ID*).
+- **Pencocokan Identitas Otomatis**: Menampilkan badge nama profil terdaftar (`👤 Budi Santoso (94%)`) jika wajah cocok dengan database, atau melacak orang asing secara dinamis (`👤 Tamu #1`) tanpa *ID hopping*.
+- **Pemancaran Event Terstruktur**: Mengirimkan event `face_identified` lengkap dengan metadata nama, role, kemiripan (similarity score), dan timestamp ke alert, webhook, maupun sistem absensi/keamanan.
 
-### 🤖 28. AI Studio Copilot & Multi-Turn Iterative Revision
+### 👥 28. Database Wajah Terdaftar (Known Faces Gallery)
+- **Halaman Manajemen Profil Wajah**: Tersedia langsung dari panel Left Rail navigasi (`👤 Wajah`) untuk melihat galeri identitas yang terdaftar di sistem.
+- **Pendaftaran 1-Klik (Drag-and-Drop / Upload)**: Unggah foto wajah profil, sistem otomatis mendeteksi wajah, meng-crop avatar thumbnail, dan mengekstrak embedding ArcFace ke database lokal.
+- **Live Search & Filter**: Pencarian instan berdasarkan nama lengkap, jabatan/role, atau departemen dengan badge statistik jumlah wajah terdaftar.
+- **Koneksi Cepat dari Inspector**: Di dalam inspector node `Face Re-ID Tracker`, tersedia tombol pintasan khusus `[ 👥 Kelola Database Wajah Terdaftar → ]` yang langsung membuka galeri wajah dengan satu klik.
+
+### ⏱️ 29. Object Timer (Durasi Kehadiran Objek & Peringatan Ambang Batas Waktu)
+- **Timer Durasi Kehadiran Real-Time**: Menghitung lama waktu setiap objek berada di frame kamera secara visual (format `mm:ss`, desimal `s`, atau `hh:mm:ss`).
+- **Posisi Badge Fleksibel**: Menempatkan indikator timer di atas kotak deteksi (`top`), di bawah kotak (`bottom`), atau di dalam kotak (`inside`) dengan styling semi-transparan yang bersih.
+- **Peringatan Ambang Batas Overstay**: Memicu alarm dan event peringatan jika objek berada lebih lama dari batas waktu yang ditentukan (`alertThresholdSeconds`).
+- **Filter Target Kelas Objek**: Opsi penyaringan kelas tertentu (misal: hanya hitung timer untuk `person` atau `truck`), mencegah frame kamera terdistorsi oleh rendering ganda.
+
+### 📐 30. In-Canvas Multi-Polygon Popup & Isolated Class Filters
+- **Popup Floating Toolbar Bebas Halangan**: Pengaturan dan daftar poligon multi-zona dapat disembunyikan (*hide / minimize*) atau digeser keluar frame video live sehingga pandangan operator terhadap preview kamera tetap maksimal dan tidak terhalang.
+- **Filter Kelas Objek Terisolasi**: Memastikan preview deteksi yang ditampilkan di kanvas hanya memunculkan kelas objek yang telah dipilih di filter, mengeliminasi bocoran visual kelas yang tidak diinginkan.
+
+### 🤖 31. AI Studio Copilot & Multi-Turn Iterative Revision
 - **Drawer Mengambang Terintegrasi**: Copilot cerdas di sisi kanan kanvas studio yang kompatibel dengan protokol OpenAI (9router, OpenAI, OpenRouter, Ollama, dan vLLM).
 - **Prompt-to-Pipeline Otomatis**: Buat alur kerja lengkap (Input, Detector, Filter, Tracker, Zone Timer, Visual Annotate) hanya dari instruksi teks natural language.
 - **Multi-Turn Context Awareness**: AI mengingat percakapan sebelumnya sehingga pengguna dapat merevisi konfigurasi secara bertahap (contoh: *"Ganti kelasnya jadi mobil dan bus saja, dan ubah confidence detector ke 0.8"*).
 - **In-Place Node Parameter Updates & Diff**: Perubahan parameter (kelas, threshold, filter, mode) ditandai dengan badge *REVISI SIAP* dan ringkasan diff sebelum diterapkan ke kanvas tanpa merusak node yang ada.
 
-### 🐍 29. Enhanced Python Script Inspector with 1-Frame Sandbox Preview
+### 🐍 32. Enhanced Python Script Inspector with 1-Frame Sandbox Preview
 - **AI Prompt-to-Code**: Buat fungsi OpenCV kustom `def process(frame, state):` dari prompt bahasa alami dengan generator terintegrasi.
 - **Monospace Code Editor**: Editor kode bawaan dengan dukungan indentasi tombol <kbd>Tab</kbd>, syntax validator AST Python real-time, dan status badge validasi.
 - **6 Preset Siap Pakai**: Pilihan preset industri instan (Watermark & Timestamp, Color Threshold Masking, Edge Detection Overlay, Draw Crosshair Grid, Speedometer HUD, Dynamic ROI Masking).
 - **Uji 1-Frame Sandbox**: Eksekusi uji kode pada 1 frame visual sintetis dalam lingkungan terisolasi lengkap dengan perbandingan gambar *Before vs After*, metrik latensi eksekusi (ms), dan tangkapan *standard output logs*.
-
-### 🎨 30. Unified Toolbar Action Controls & Responsive Layout
-- **Desain Seragam & Kontras Terstandarisasi**: Tombol aksi kanvas `[⚡ Rangkai Otomatis]` dan `[✨ AI Copilot]` memiliki tinggi presisi 30px, tipografi seimbang, radius sudut 7px, dan rasio kontras visual tinggi.
-- **Tata Letak Bebas Tumpang Tindih**: Toolbar responsif yang menjaga tombol aksi tetap mudah dijangkau di berbagai resolusi layar tanpa terpotong teks petunjuk kanvas.
-
-### 📄 31. Blank Canvas on New Project Creation
-- **Kanvas Kosong Murni**: Pembuatan proyek baru kini langsung menginisialisasi kanvas bersih (`{"nodes": [], "edges": []}`), memudahkan pengguna merancang alur kerja kustom atau menggunakan AI Copilot dari awal.
-- **Akses Template Fleksibel**: Seluruh template solusi industri (Workshop Timer, Warehouse Exit Guard, Restaurant Table Monitor, Traffic Flow) tetap siap digunakan kapan saja melalui Projects Hub dan menu Templates.
 
 ---
 
@@ -274,27 +281,27 @@ Alat visual terintegrasi di Model Registry untuk mengompresi model AI ke presisi
 
 ---
 
-### 12. Unified High-Contrast Toolbar Action Buttons
-Penyelarasan tinggi (30px), bobot font, dan kontras warna antara tombol `[⚡ Rangkai Otomatis]` dan `[✨ AI Copilot]` untuk pengalaman kanvas yang seimbang dan profesional.
-![Unified Toolbar Actions](docs/screenshots/12_unified_toolbar_actions.png)
+### 12. Database Wajah Terdaftar (Face Gallery) & UniFace Integration
+Halaman manajemen identitas profil wajah terpadu di Left Rail navigasi untuk melihat daftar wajah terdaftar, status ArcFace embedding, live search pencarian nama/role, dan penghapusan profil.
+![Face Registry Gallery](docs/screenshots/16_face_registry_gallery.png)
 
 ---
 
-### 13. AI Studio Copilot Multi-Turn Revision & Parameter Diff
-Drawer AI Copilot mengambang dengan kemampuan multi-turn history: memahami konteks instruksi sebelumnya, merevisi parameter kelas/threshold secara in-place, dan menampilkan diff parameter sebelum diterapkan ke kanvas.
-![AI Studio Copilot Drawer](docs/screenshots/13_ai_studio_copilot_drawer.png)
+### 13. Modal Pendaftaran Profil Wajah Baru (ArcFace 512-D)
+Dialog pendaftaran profil baru dengan area drag-and-drop unggah foto wajah, ekstraksi otomatis embedding 512-D L2 cosine ArcFace, serta pembuatan thumbnail avatar otomatis.
+![Enroll Face Modal](docs/screenshots/17_enroll_face_modal.png)
 
 ---
 
-### 14. Enhanced Custom Python Script Inspector & 1-Frame Sandbox Preview
-Inspector script Python modern dengan generator Prompt-to-Code, AST syntax validator badge, pilihan 6 preset siap pakai, serta uji 1-frame sandbox dengan visual comparison Sebelum vs Sesudah.
-![Python Script Sandbox Preview](docs/screenshots/14_python_script_sandbox_preview.png)
+### 14. Node AI Face Detector & Face Re-ID Tracker di Canvas Studio
+Penyusunan alur kerja analitik wajah visual: Face Detector (RetinaFace 5-point landmarks) disambungkan ke Face Re-ID Tracker (ArcFace) dengan shortcut langsung ke Database Wajah di inspector.
+![UniFace Nodes Canvas](docs/screenshots/18_uniface_and_timer_canvas.png)
 
 ---
 
-### 15. Blank Canvas on New Project Creation
-Pembuatan proyek baru langsung menginisialisasi kanvas kosong tanpa node default, memberikan fleksibilitas penuh untuk merancang pipeline dari nol.
-![Blank Canvas New Project](docs/screenshots/15_blank_canvas_new_project.png)
+### 15. Pelacakan Durasi Kehadiran & Object Timer
+Node Object Timer melacak waktu keberadaan setiap objek terdeteksi di frame video secara individual (format mm:ss) lengkap dengan badge visual fleksibel dan ambang batas peringatan overstay.
+![Object Timer Tracking](docs/screenshots/20_object_timer_tracking.png)
 
 ---
 
@@ -338,15 +345,15 @@ AFI Vision Builder dirancang portabel dengan skrip launcher otomatis:
 
 ---
 
-## 🧩 Katalog 70+ Node Lengkap
+## 🧩 Katalog 72+ Node Lengkap
 
 Seluruh node dikelompokkan ke dalam 5 kategori fungsional dengan parameter berlabel Bahasa Indonesia dan panduan interaktif:
 
 | Kategori | Node Siap Pakai | Fungsi & Deskripsi Utama |
 | :--- | :--- | :--- |
 | 📹 **Sources (Input)** | `Web Camera`, `IP Camera (RTSP)`, `Daheng Industrial Camera`, `Video File`, `Static Image`, `YouTube Live Stream (yt-dlp)` | Akuisisi citra/streaming frame dari berbagai tipe kamera fisik, live video URL YouTube, dan berkas multimedia. |
-| 🧠 **AI Vision Models** | `Ultralytics YOLO`, `YOLO-World (Zero-Shot)`, `Roboflow Universe (Model ID)`, `RF-DETR Object Detection`, `SAM 3 Segmentation`, `ConvNeXt Classifier`, `EfficientAD Anomaly`, `ONNX Model`, `TFLite Model`, `AI Agent (VLM Multimodal)`, `Detections Consensus`, `Model Comparison Diff`, `OCR Text Reader (ONNX)` | Deteksi objek real-time, zero-shot open-vocabulary text prompt via CLIP, hosted inference Roboflow Universe 50.000+ model, segmentasi instan, klasifikasi citra, inspeksi anomali cacat visual, analisis multimodal VLM, konsensus multi-model, komparasi dual-model side-by-side & diff overlay, dan OCR ONNX PP-OCRv3/v4. |
-| 🎯 **Tracking, Kinematics & Spatial** | `ByteTrack`, `BoT-SORT`, `OC-SORT`, `Multi-Zone Occupancy & Table Tracker`, `Zone Activity Timer`, `Zone Exit Event`, `Multi-Line Counter (A↔B)`, `Object Counter`, `Dwell Time Zone`, `ROI Filter (Polygon Area)`, `Distance Measurement`, `Size Measurement`, `Velocity Calculator`, `Path Deviation`, `Detections Difference`, `Dynamic Zone Tracking`, `PTZ Controller (ONVIF)` | Pelacakan ID konsisten objek bergerak, penghitungan keluar-masuk garis dua arah, timer durasi terisi meja restoran, verifikasi transisi gerbang, kalkulasi jarak fisik & ukuran objek dengan kalibrasi cm, perhitungan kecepatan km/h, koridor deviasi lintasan, komparator selisih status sebelum vs sesudah (baseline comparator), dan auto-following kamera PTZ fisik. |
+| 🧠 **AI Vision Models** | `Ultralytics YOLO`, `YOLO-World (Zero-Shot)`, `Roboflow Universe (Model ID)`, `Face Detector (UniFace)`, `RF-DETR Object Detection`, `SAM 3 Segmentation`, `ConvNeXt Classifier`, `EfficientAD Anomaly`, `ONNX Model`, `TFLite Model`, `AI Agent (VLM Multimodal)`, `Detections Consensus`, `Model Comparison Diff`, `OCR Text Reader (ONNX)` | Deteksi objek real-time, zero-shot open-vocabulary text prompt via CLIP, hosted inference Roboflow Universe 50.000+ model, deteksi wajah & 5 facial landmarks UniFace, segmentasi instan, klasifikasi citra, inspeksi anomali cacat visual, analisis multimodal VLM, konsensus multi-model, komparasi dual-model side-by-side & diff overlay, dan OCR ONNX PP-OCRv3/v4. |
+| 🎯 **Tracking, Kinematics & Spatial** | `ByteTrack`, `BoT-SORT`, `OC-SORT`, `Face Re-ID Tracker (UniFace)`, `Object Timer`, `Multi-Zone Occupancy & Table Tracker`, `Zone Activity Timer`, `Zone Exit Event`, `Multi-Line Counter (A↔B)`, `Object Counter`, `Dwell Time Zone`, `ROI Filter (Polygon Area)`, `Distance Measurement`, `Size Measurement`, `Velocity Calculator`, `Path Deviation`, `Detections Difference`, `Dynamic Zone Tracking`, `PTZ Controller (ONVIF)` | Pelacakan ID konsisten objek bergerak, pelacakan & pengenalan identitas wajah terdaftar (ArcFace 512-D), timer durasi visual objek di frame (mm:ss), penghitungan keluar-masuk garis dua arah, timer durasi terisi meja restoran, verifikasi transisi gerbang, kalkulasi jarak fisik & ukuran objek dengan kalibrasi cm, perhitungan kecepatan km/h, koridor deviasi lintasan, komparator selisih status sebelum vs sesudah (baseline comparator), dan auto-following kamera PTZ fisik. |
 | 🎨 **Preprocessing, Classical CV & Drawing** | `Overlay / Annotate (Layers)`, `Resize Frame`, `Crop Region`, `Rotate & Flip`, `Color Convert`, `Brightness & Contrast (CLAHE)`, `Blur & Sharpen`, `Perspective Correction`, `Privacy Blur`, `Camera Focus Score`, `Auto Rotate Edges`, `Python Script Editor` | Manipulasi citra, night-vision CLAHE, sensor otomatis wajah/plat nomor, compositing anotasi gambar (termasuk Motion Trail fading dan Halo Glow corner brackets), penilaian ketajaman fokus lensa kamera (Laplacian variance), perataan sudut kemiringan kontur otomatis, dan script Python kustom. |
 | 🔀 **Logic, Flow & Outputs** | `If / Else Branch`, `Compare Value`, `Confidence Threshold`, `Timer Delay`, `Debounce Filter`, `Rate Limiter`, `AND / OR Gate`, `Trigger Once`, `Overlap Analysis`, `Delta Frame Filter`, `Switch-Case Router`, `Live Preview`, `Event Alert Popup`, `Image / Crop Exporter`, `SQLite Database Logger`, `HTTP Webhook`, `Data Aggregator (Rollup)`, `CSV Formatter`, `S3 Cloud Sink`, `Notification Dispatcher` | Percabangan logika alur kerja, gerbang pembanding angka, inspeksi kepatuhan APD (overlap parent-child), penghemat komputasi 70%+ via delta frame, router multi-jalur switch-case, penampil preview real-time, perekaman event ke SQLite database, webhook REST API, akumulasi rollup statistik waktu, ekspor tabular CSV, sink cloud AWS S3/MinIO, dan notifikasi instan Telegram/Slack/WhatsApp. |
 
@@ -358,6 +365,8 @@ Seluruh node dikelompokkan ke dalam 5 kategori fungsional dengan parameter berla
 afivisionbuilder/
 ├── 📁 engine/                     # Core Runtime Computer Vision & AI Engine
 │   ├── core.py                    # Pipeline execution loop, threading, & Node Graph dispatcher
+│   ├── uniface_runtime.py         # RetinaFace face detector, ArcFace 512-D Re-ID tracker, & Face Registry
+│   ├── object_timer.py            # Object presence duration timer & alert thresholding
 │   ├── multi_zone_occupancy.py    # Multi-Zone table tracking, FSM states, & geometric centroid testing
 │   ├── project_nodes.py           # Specialized nodes (Zone Activity Timer, Zone Exit Event, Dynamic Zone)
 │   ├── detections_consensus.py    # Multi-model consensus voting & IoU bounding box clustering

@@ -1,0 +1,135 @@
+{
+  "nodes": [
+    {
+      "id": "object_timer",
+      "type": "object_timer",
+      "title": "Object Timer",
+      "subtitle": "Hitung durasi dan tampilkan timer langsung di atas setiap orang atau objek yang terdeteksi secara real-time",
+      "x": 754.4443359375,
+      "y": 105.55557250976562,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "targetClasses": "person",
+        "alertThresholdSeconds": 10,
+        "graceSeconds": 2,
+        "timerFormat": "mm:ss",
+        "showOverlay": true,
+        "showTrackId": true,
+        "badgePosition": "inside",
+        "minDurationSeconds": 0,
+        "alertMode": "once",
+        "alertCooldownSeconds": 5,
+        "normalColor": "#10b981",
+        "alertColor": "#ef4444"
+      }
+    },
+    {
+      "id": "input",
+      "type": "input",
+      "title": "Input",
+      "subtitle": "Camera capture",
+      "x": 3.333343505859375,
+      "y": 18.888885498046875,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "sourceType": "camera",
+        "source": 0,
+        "youtubeUrl": "",
+        "youtubeQuality": "720p",
+        "autoReconnect": true,
+        "width": 0,
+        "height": 0,
+        "dahengOpenMode": "index",
+        "dahengIdentifier": "1",
+        "dahengTimeoutMs": 1000,
+        "dahengFrameRate": 0,
+        "dahengExposureUs": 0,
+        "dahengGain": 0,
+        "filePath": "",
+        "loop": true,
+        "frameQueueSize": 8,
+        "torchCpuThreads": 0,
+        "asyncPreview": false,
+        "dropFrames": true
+      }
+    },
+    {
+      "id": "detector",
+      "type": "detector",
+      "title": "Object Detection",
+      "subtitle": "Deteksi objek dengan model RF-DETR PyTorch, TensorRT, atau YOLO",
+      "x": 254.4443359375,
+      "y": 122.22221374511719,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "engine": "ultralytics_yolo",
+        "threshold": 0.55,
+        "rfdetrModel": "rfdetr-nano",
+        "rfdetrCheckpoint": "yolov8n.pt",
+        "rfdetrImageSize": 0,
+        "rfdetrHalfPrecision": true,
+        "rfdetrTensorRTEngine": "",
+        "rfdetrTensorRTClasses": "",
+        "rfdetrTensorRTCudaGraph": false,
+        "rfdetrTensorRTProcess": false,
+        "rfdetrOnnxModel": "",
+        "rfdetrOnnxClasses": "",
+        "detectEveryNFrames": 1,
+        "maxDetectionFps": 0,
+        "batchSize": 1,
+        "iouThreshold": 0.45,
+        "device": "auto",
+        "customModelPath": "D:\\[01] PROJECT\\REA\\webapp\\yolov8n.pt",
+        "customClasses": "person",
+        "perClassThresholds": "",
+        "classRemap": "",
+        "modelPath": "D:\\[01] PROJECT\\REA\\webapp\\yolov8n.pt",
+        "classes": ""
+      }
+    },
+    {
+      "id": "preview",
+      "type": "preview",
+      "title": "Live Preview",
+      "subtitle": "Jendela tampilan streaming video hasil pemrosesan",
+      "x": 1498.8887939453125,
+      "y": 54.4444580078125,
+      "enabled": true,
+      "status": "idle",
+      "config": {
+        "showBoxes": true,
+        "showLabels": true,
+        "showMasks": true,
+        "showTrackIds": true,
+        "showTrails": true,
+        "showCounts": true,
+        "maskOpacity": 0.35,
+        "cropGridMaxItems": 16,
+        "cropGridColumns": 0,
+        "cropGridGap": 8,
+        "holdLastEvent": true,
+        "maxPreviewFps": 0,
+        "saveVideo": false,
+        "outputPath": "",
+        "outputFps": 0
+      }
+    }
+  ],
+  "edges": [
+    [
+      "input",
+      "detector"
+    ],
+    [
+      "detector",
+      "object_timer"
+    ],
+    [
+      "object_timer",
+      "preview"
+    ]
+  ]
+}

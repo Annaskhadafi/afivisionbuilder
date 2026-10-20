@@ -2056,6 +2056,9 @@ def active_analysis_pipeline(workflow: dict) -> bool:
         "s3_sink",
         "notification_dispatcher",
         "ptz_controller",
+        "object_timer",
+        "face_detector",
+        "face_tracker",
         "object_counter",
         "line_counter",
         "dwell_zone",
@@ -2408,13 +2411,15 @@ def _clamp_probability(value, fallback: float) -> float:
 
 
 def active_filter_node(workflow: dict) -> dict | None:
-    filter_node = enabled_node(workflow, "filter")
-    upstream_nodes = active_inference_nodes(workflow)
-    tracker = active_tracking_node(workflow)
-    if tracker:
-        upstream_nodes.append(tracker)
-    if filter_node and any(has_active_path(workflow, node.get("id"), "filter") for node in upstream_nodes):
-        return filter_node
+    for node in workflow.get("nodes", []):
+        if node.get("type") == "filter" and node.get("enabled", True):
+            upstream_nodes = active_inference_nodes(workflow)
+            tracker = active_tracking_node(workflow)
+            if tracker:
+                upstream_nodes.append(tracker)
+            node_id = str(node.get("id") or "")
+            if not upstream_nodes or any(has_active_path(workflow, u.get("id"), node_id) for u in upstream_nodes):
+                return node
     return None
 
 
@@ -2508,7 +2513,7 @@ def results_for_node(
 
     project_sources = {
         str(node.get("id") or "") for node in workflow.get("nodes", [])
-        if node.get("type") in ("zone_activity_timer", "zone_exit_event", "multi_zone_occupancy", "ocr_reader")
+        if node.get("type") in ("zone_activity_timer", "zone_exit_event", "multi_zone_occupancy", "ocr_reader", "object_timer", "face_tracker")
         and node.get("enabled", True)
         and str(node.get("id") or "") != node_id
         and has_active_path(workflow, str(node.get("id") or ""), node_id)
@@ -2517,7 +2522,7 @@ def results_for_node(
         "alert", "webhook_output", "image_output", "database_output", "ai_agent",
     ):
         events = [item for item in detections
-                  if item.get("kind") in ("zone_activity_event", "zone_exit", "zone_occupied", "zone_vacated", "zone_overstay", "ocr_text_read", "text_detected")
+                  if item.get("kind") in ("zone_activity_event", "zone_exit", "zone_occupied", "zone_vacated", "zone_overstay", "ocr_text_read", "text_detected", "object_timer_alert")
                   and str(item.get("sourceNodeId") or "") in project_sources]
         return filter_project_inputs(workflow, node_id, events, after_sources=project_sources)
     tracker = active_tracking_node(workflow) or active_vlm_box_tracker_node(workflow)
@@ -2565,7 +2570,7 @@ def results_for_node(
         event_kinds = {
             "track_snapshot", "count_event", "line_crossing", "loitering_alert",
             "object_classification", "anomaly", "zone_activity", "zone_activity_event",
-            "zone_exit", "ocr_text_read", "text_detected", "barcode_read"
+            "zone_exit", "ocr_text_read", "text_detected", "barcode_read", "object_timer_alert", "face_identified"
         }
         results.extend(
             item for item in detections
@@ -2598,7 +2603,9 @@ def detections_for_node(
     input_id = source_node_id(workflow)
     if not node or not has_active_path(workflow, input_id, node_id):
         return []
-    if active_filter_node(workflow) and has_active_path(workflow, "filter", node_id) and not any(
+    filter_node = active_filter_node(workflow)
+    filter_id = str(filter_node.get("id") or "filter") if filter_node else "filter"
+    if filter_node and has_active_path(workflow, filter_id, node_id) and not any(
         node.get("type") in ("zone_activity_timer", "zone_exit_event")
         and node.get("enabled", True)
         and has_active_path(workflow, str(node.get("id") or ""), node_id)
@@ -3001,7 +3008,7 @@ def active_logic_nodes_for_target(workflow: dict, target_id: str) -> list[dict]:
     if input_id:
         sources.append(input_id)
     for n in workflow.get("nodes", []):
-        if n.get("type") in ("line_counter", "object_counter", "dwell_time", "barcode_reader", "crop", "roi_filter", "zone_activity_timer", "zone_exit_event") and n.get("enabled", True):
+        if n.get("type") in ("line_counter", "object_counter", "dwell_time", "barcode_reader", "crop", "roi_filter", "zone_activity_timer", "zone_exit_event", "object_timer", "face_detector", "face_tracker") and n.get("enabled", True):
             sources.append(str(n.get("id", "")))
 
     nodes = [
@@ -3193,7 +3200,20 @@ def apply_logic_nodes(
             passed = True
         else:
             passed = _logic_signal(node, result, runtime, now)
-            next_result = result if passed else []
+            if passed and node.get("type") == "class_detected_condition":
+                wanted = {item.strip().casefold() for item in str(node.get("config", {}).get("classes", "")).replace("\n", ",").split(",") if item.strip()}
+                if wanted:
+                    next_result = [d for d in result if str(d.get("class", "")).casefold() in wanted]
+                else:
+                    next_result = result
+            elif passed and node.get("type") == "object_count_condition":
+                cond_classes = {item.strip().casefold() for item in str(node.get("config", {}).get("classes", "")).replace("\n", ",").split(",") if item.strip()}
+                if cond_classes:
+                    next_result = [d for d in result if str(d.get("class", "")).casefold() in cond_classes]
+                else:
+                    next_result = result
+            else:
+                next_result = result if passed else []
         if debug_callback:
             debug_callback(node, result, next_result, (time.monotonic() - started_at) * 1000, passed, target_id)
         if not passed:

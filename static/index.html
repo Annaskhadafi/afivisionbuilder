@@ -387,6 +387,10 @@
         <svg class="icon-svg icon-md" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         <span>Models</span>
       </button>
+      <button class="rail-tab" id="railTabFaces" type="button" title="Database Wajah Terdaftar (Face Gallery)">
+        <svg class="icon-svg icon-md" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg>
+        <span>Wajah</span>
+      </button>
     </nav>
 
     <!-- Workflow Canvas Shell -->
@@ -644,6 +648,96 @@
       </div>
     </div>
   </section>
+
+  <!-- View: Face Registry Management (Known Faces Gallery) -->
+  <section class="models-manager-panel face-registry-panel" id="viewFaceRegistry" hidden>
+    <div class="models-panel-head">
+      <div class="models-panel-title">
+        <h2>👤 Database Wajah Terdaftar (Face Gallery)</h2>
+        <p>Kelola profil wajah untuk pengenalan identitas otomatis (Face Re-ID) menggunakan model ONNX UniFace ArcFace.</p>
+      </div>
+      <div class="models-panel-actions">
+        <button class="button secondary" id="faceRegistrySyncBtn" type="button" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span>Refresh Data</span>
+        </button>
+        <button class="button primary" id="faceEnrollBtn" type="button" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; background: #059669;">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/><line x1="19" y1="11" x2="19" y2="17"/><line x1="16" y1="14" x2="22" y2="14"/></svg>
+          <span>+ Daftarkan Wajah Baru</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Toolbar: Search & Filter -->
+    <div class="face-registry-toolbar">
+      <div class="face-search-box">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="faceSearchInput" placeholder="Cari nama atau jabatan/role..." aria-label="Cari wajah">
+      </div>
+      <div class="face-filter-stats" id="faceStatsBadge">
+        0 Wajah Terdaftar
+      </div>
+    </div>
+
+    <!-- Gallery Grid of Enrolled Faces -->
+    <div class="face-cards-grid" id="faceCardsGrid">
+      <div class="face-empty-state">
+        <div style="font-size: 32px; margin-bottom: 8px;">👤</div>
+        <strong>Belum ada wajah terdaftar</strong>
+        <p>Klik tombol <b>"+ Daftarkan Wajah Baru"</b> untuk menambahkan profil wajah pertama Anda.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modal: Enroll Face -->
+  <div class="modal-backdrop" id="enrollFaceModal" hidden>
+    <div class="modal-content" style="max-width: 480px; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.3);">
+      <div class="modal-head" style="padding: 16px 20px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0; font-size: 16px; font-weight: 700;">👤 Daftarkan Profil Wajah Baru</h3>
+        <button type="button" class="icon-button" id="closeEnrollModalBtn" aria-label="Tutup" style="width: 28px; height: 28px;">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 16px 20px;">
+        <form id="enrollFaceForm" onsubmit="return false;">
+          <div class="field" style="margin-bottom: 12px;">
+            <label for="enrollNameInput" style="font-size: 11px; font-weight: 700; color: #475569;">Nama Lengkap / Identitas *</label>
+            <input type="text" id="enrollNameInput" placeholder="Contoh: Budi Santoso, Anas, dll." required style="height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 10px; width: 100%;">
+          </div>
+          <div class="field" style="margin-bottom: 12px;">
+            <label for="enrollRoleInput" style="font-size: 11px; font-weight: 700; color: #475569;">Role / Jabatan / Departemen</label>
+            <input type="text" id="enrollRoleInput" placeholder="Contoh: Karyawan, Supervisor, Tamu VIP" value="Karyawan" style="height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 10px; width: 100%;">
+          </div>
+          <div class="field" style="margin-bottom: 14px;">
+            <label for="enrollNotesInput" style="font-size: 11px; font-weight: 700; color: #475569;">Catatan Tambahan (Opsional)</label>
+            <input type="text" id="enrollNotesInput" placeholder="Catatan internal (opsional)" style="height: 36px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 10px; width: 100%;">
+          </div>
+
+          <!-- Photo Selection (Upload) -->
+          <div class="field" style="margin-bottom: 16px;">
+            <label style="font-size: 11px; font-weight: 700; color: #475569;">Foto Wajah (JPG / PNG) *</label>
+            <div class="face-photo-upload-area" id="facePhotoDropArea" style="border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; cursor: pointer; text-align: center; padding: 18px 12px; transition: border-color .15s;">
+              <input type="file" id="faceFileInput" accept="image/jpeg,image/png,image/webp" style="display:none;">
+              <div id="facePhotoPlaceholder">
+                <svg class="icon-svg icon-lg" viewBox="0 0 24 24" style="color: #64748b; margin-bottom: 6px; width: 36px; height: 36px;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <div style="font-weight: 600; font-size: 12.5px; color: #334155;">Pilih atau Tarik Foto Wajah ke Sini</div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">UniFace otomatis mengekstrak embedding ArcFace 512-D</div>
+              </div>
+              <div id="facePhotoPreviewContainer" style="display: none; position: relative;">
+                <img id="facePhotoPreviewImg" src="" alt="Preview Wajah" style="max-height: 150px; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: contain;">
+                <div style="margin-top: 6px;">
+                  <button type="button" class="button ghost" id="changePhotoBtn" style="height: 24px; padding: 0 8px; font-size: 10.5px; background: #e2e8f0;">Ganti Foto</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button type="button" class="button ghost" id="cancelEnrollBtn" style="height: 34px; padding: 0 12px;">Batal</button>
+            <button type="button" class="button primary" id="submitEnrollBtn" style="height: 34px; padding: 0 14px; background: #059669; font-weight: 700;">Simpan & Daftarkan Wajah</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </div>
 
   <!-- View: Live Cameras Operational Grid (Fase F PRD) -->

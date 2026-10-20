@@ -269,6 +269,7 @@ def _filter_and_remap_detections(
     is_tracking_eligible: bool,
     per_class_map: dict[str, float],
     class_remap_map: dict[str, str],
+    allowed_classes: set[str] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     kept = []
     tracking = []
@@ -277,6 +278,8 @@ def _filter_and_remap_detections(
             kept.append(raw_item)
             continue
         c_label = str(raw_item.get("class", "")).strip().lower()
+        if allowed_classes and c_label not in allowed_classes:
+            continue
         req_thresh = per_class_map.get(c_label, default_threshold)
         score = float(raw_item.get("score", 0))
 
@@ -285,6 +288,9 @@ def _filter_and_remap_detections(
             item = dict(raw_item)
             item["originalClass"] = item.get("class")
             item["class"] = class_remap_map[c_label]
+            c_label = item["class"].strip().lower()
+            if allowed_classes and c_label not in allowed_classes:
+                continue
 
         if score >= req_thresh:
             kept.append(item)
@@ -737,7 +743,8 @@ def _process_track_event_nodes(
             "distance_measurement", "size_measurement", "camera_focus", "auto_rotate_edges",
             "overlap_analysis", "velocity_calculator", "path_deviation", "delta_filter",
             "detections_difference", "data_aggregator", "csv_formatter", "s3_sink",
-            "notification_dispatcher", "ptz_controller", "ocr_reader"
+            "notification_dispatcher", "ptz_controller", "ocr_reader", "object_timer",
+            "face_detector", "face_tracker"
         ):
             continue
         project_id = str(project_node.get("id") or "")
@@ -839,6 +846,22 @@ def _process_track_event_nodes(
             ocr_dets, ocr_events = ocr_eng.process_frame(frame, candidates, project_id)
             extra_results.extend(ocr_events)
             detections.extend(ocr_dets)
+        elif p_type == "object_timer":
+            from object_timer import process_object_timer
+            state = event_runtime.setdefault(project_id, {})
+            timer_events = process_object_timer(project_node, frame, tracked or candidates, state, now)
+            extra_results.extend(timer_events)
+        elif p_type == "face_detector":
+            from uniface_runtime import process_face_detector_node
+            face_dets = process_face_detector_node(project_node, frame)
+            detections.extend(face_dets)
+        elif p_type == "face_tracker":
+            from uniface_runtime import process_face_tracker_node
+            state = event_runtime.setdefault(project_id, {})
+            tracked_faces, face_events = process_face_tracker_node(project_node, frame, candidates or detections, state, now)
+            detections.clear()
+            detections.extend(tracked_faces)
+            extra_results.extend(face_events)
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
         if telemetry_callback and project_id:
@@ -3611,6 +3634,8 @@ class WorkflowRunner:
                         per_class_map = _parse_per_class_thresholds(inf_cfg.get("perClassThresholds", ""))
                         class_remap_map = _parse_class_remap(inf_cfg.get("classRemap", ""))
                         is_track_elig = inference_node.get("type") in ("detector", "segmenter")
+                        raw_classes = str(inf_cfg.get("customClasses") or inf_cfg.get("classes") or "").strip()
+                        allowed_classes = {c.strip().lower() for c in raw_classes.split(",") if c.strip()} if raw_classes else None
                         for result_index, packet_index in enumerate(eligible_indices):
                             node_detections = node_results[result_index] if result_index < len(node_results) else []
                             kept_detections, tracking_detections = _filter_and_remap_detections(
@@ -3620,6 +3645,7 @@ class WorkflowRunner:
                                 is_track_elig,
                                 per_class_map,
                                 class_remap_map,
+                                allowed_classes=allowed_classes,
                             )
                             detections_by_index[packet_index].extend(kept_detections)
                             tracking_detections_by_index[packet_index].extend(
@@ -3904,17 +3930,18 @@ class WorkflowRunner:
                         self._deliver_project_events(cv2, workflow, packet.frame, event_results, logic_runtime, now, logic_lock=logic_lock)
                         packet.crop_batches.update(event_crops)
 
+                        filter_node = engine.active_filter_node(workflow)
+                        filter_id = str(filter_node.get("id") or "filter") if filter_node else "filter"
                         filter_candidates = (
-                            engine.results_for_node(workflow, "filter", detections, tracked)
-                            if engine.active_filter_node(workflow)
+                            engine.results_for_node(workflow, filter_id, detections, tracked)
+                            if filter_node
                             else detections
                         )
-                        filter_node = engine.active_filter_node(workflow)
                         if filter_node:
                             with logic_lock:
                                 filter_candidates = engine.apply_logic_nodes(
                                     workflow,
-                                    "filter",
+                                    filter_id,
                                     filter_candidates,
                                     logic_runtime,
                                     now,
@@ -4154,6 +4181,9 @@ class WorkflowRunner:
                                         tag = f"QR: {det['qr_text'][:20]}"
                                         cv2.rectangle(display_frame, (dx, dy + dh + 4), (dx + len(tag) * 7 + 10, dy + dh + 18), (16, 185, 129), -1)
                                         cv2.putText(display_frame, tag, (dx + 4, dy + dh + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
+                                    if "timerSeconds" in det and det.get("showTimerOverlay", True):
+                                        from object_timer import draw_single_object_timer_badge
+                                        draw_single_object_timer_badge(display_frame, det)
                             if not hold_crop_grid:
                                 display_frame = engine.apply_drawing_nodes(
                                     display_frame, workflow, preview_id, drawing_detections,
@@ -4968,6 +4998,8 @@ class WorkflowRunner:
                         per_class_map = _parse_per_class_thresholds(inf_cfg.get("perClassThresholds", ""))
                         class_remap_map = _parse_class_remap(inf_cfg.get("classRemap", ""))
                         is_track_elig = inference_node.get("type") in ("detector", "segmenter")
+                        raw_classes = str(inf_cfg.get("customClasses") or inf_cfg.get("classes") or "").strip()
+                        allowed_classes = {c.strip().lower() for c in raw_classes.split(",") if c.strip()} if raw_classes else None
                         kept_detections, track_dets = _filter_and_remap_detections(
                             node_detections,
                             threshold,
@@ -4975,6 +5007,7 @@ class WorkflowRunner:
                             is_track_elig,
                             per_class_map,
                             class_remap_map,
+                            allowed_classes=allowed_classes,
                         )
                         detections.extend(kept_detections)
                         tracking_detections.extend(track_dets)
@@ -5141,16 +5174,17 @@ class WorkflowRunner:
                                 event_results.extend(ai_events)
                     logic_runtime["_event_runtime"] = event_runtime
                     self._deliver_project_events(cv2, workflow, frame, event_results, logic_runtime, now)
+                    filter_node = engine.active_filter_node(workflow)
+                    filter_id = str(filter_node.get("id") or "filter") if filter_node else "filter"
                     filter_candidates = (
-                        engine.results_for_node(workflow, "filter", detections, tracked)
-                        if engine.active_filter_node(workflow)
+                        engine.results_for_node(workflow, filter_id, detections, tracked)
+                        if filter_node
                         else detections
                     )
-                    filter_node = engine.active_filter_node(workflow)
                     if filter_node:
                         filter_candidates = engine.apply_logic_nodes(
                             workflow,
-                            "filter",
+                            filter_id,
                             filter_candidates,
                             logic_runtime,
                             now,
@@ -5259,6 +5293,25 @@ class WorkflowRunner:
                                 ),
                                 counter_state=counter_state,
                             )
+                            for det in preview_detections:
+                                dx, dy = int(round(det.get("x", 0))), int(round(det.get("y", 0)))
+                                dw, dh = int(round(det.get("width", 0))), int(round(det.get("height", 0)))
+                                if "dwellSeconds" in det:
+                                    dwell_sec = det["dwellSeconds"]
+                                    is_loit = det.get("isLoitering", False)
+                                    tag = f"{dwell_sec:.1f}s LOITERING" if is_loit else f"{dwell_sec:.1f}s"
+                                    pill_color = (0, 0, 220) if is_loit else (0, 165, 255)
+                                    cv2.rectangle(display_frame, (dx, max(16, dy - 22)), (dx + len(tag) * 7 + 10, max(32, dy - 6)), pill_color, -1)
+                                    cv2.putText(display_frame, tag, (dx + 4, max(28, dy - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
+                                if "qr_text" in det:
+                                    tag = f"QR: {det['qr_text'][:20]}"
+                                    cv2.rectangle(display_frame, (dx, dy + dh + 4), (dx + len(tag) * 7 + 10, dy + dh + 18), (16, 185, 129), -1)
+                                    cv2.putText(display_frame, tag, (dx + 4, dy + dh + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1, cv2.LINE_AA)
+                                if "timerSeconds" in det and det.get("showTimerOverlay", True):
+                                    from object_timer import draw_single_object_timer_badge
+                                    draw_single_object_timer_badge(display_frame, det)
+                            from uniface_runtime import draw_face_landmarks_overlay
+                            draw_face_landmarks_overlay(display_frame, preview_detections)
                         if not hold_crop_grid:
                             display_frame = engine.apply_drawing_nodes(
                                 display_frame, workflow, preview_id, drawing_detections,

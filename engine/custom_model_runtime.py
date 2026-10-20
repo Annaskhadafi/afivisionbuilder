@@ -239,7 +239,7 @@ def _run_roboflow_universe(frame, model_id: str, api_key: str, threshold: float,
         data = resp.json()
         predictions = data.get("predictions", [])
         detections = []
-        configured_classes = [c.strip().casefold() for c in str(config.get("classes") or "").split(",") if c.strip()]
+        configured_classes = [c.strip().casefold() for c in str(config.get("classes") or config.get("customClasses") or "").split(",") if c.strip()]
         for p in predictions:
             score = float(p.get("confidence", 0.0))
             if score < threshold:
@@ -440,7 +440,7 @@ class CustomModelRunner:
                 boxes = res.boxes.xyxy.cpu().numpy()
                 confs = res.boxes.conf.cpu().numpy()
                 classes = res.boxes.cls.cpu().numpy()
-                configured_classes = [c.strip().casefold() for c in str(config.get("classes") or "").split(",") if c.strip()]
+                configured_classes = [c.strip().casefold() for c in str(config.get("classes") or config.get("customClasses") or "").split(",") if c.strip()]
 
                 for i, box in enumerate(boxes):
                     score = float(confs[i])
@@ -524,7 +524,7 @@ class CustomModelRunner:
                 classes = res.boxes.cls.cpu().numpy()
 
                 masks_data = res.masks.data.cpu().numpy() if (hasattr(res, "masks") and res.masks is not None) else None
-                configured_classes = [c.strip().casefold() for c in str(config.get("classes") or "").split(",") if c.strip()]
+                configured_classes = [c.strip().casefold() for c in str(config.get("classes") or config.get("customClasses") or "").split(",") if c.strip()]
 
                 for i, box in enumerate(boxes):
                     score = float(confs[i])
@@ -771,7 +771,7 @@ class CustomModelRunner:
                     out = out.T  # Transpose to (N_boxes, 4 + classes)
                 scale_x = frame.shape[1] / in_w
                 scale_y = frame.shape[0] / in_h
-                configured_classes = [c.strip().casefold() for c in str(config.get("classes") or "").split(",") if c.strip()]
+                configured_classes = [c.strip().casefold() for c in str(config.get("classes") or config.get("customClasses") or "").split(",") if c.strip()]
                 for row in out:
                     cls_scores = row[4:]
                     cls_id = int(np.argmax(cls_scores))

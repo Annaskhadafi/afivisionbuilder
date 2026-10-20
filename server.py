@@ -1733,6 +1733,87 @@ async def upload(request: Request, file: UploadFile = File(...)) -> dict:
     return {"path": str(target), "name": file.filename, "kind": kind}
 
 
+# --- Face Registry Endpoints (UniFace Face Gallery) ---
+@app.get("/api/faces")
+def list_registered_faces():
+    from engine.uniface_runtime import get_face_registry
+    return {"faces": get_face_registry().list_faces()}
+
+
+@app.post("/api/faces/enroll")
+async def enroll_registered_face(request: Request):
+    from engine.uniface_runtime import get_face_registry
+    import base64
+    import cv2
+    import numpy as np
+
+    content_type = request.headers.get("content-type", "")
+    name = "Unnamed"
+    role = "Karyawan"
+    notes = ""
+    img = None
+
+    if "application/json" in content_type:
+        payload = await request.json()
+        name = str(payload.get("name", "")).strip() or "Unnamed"
+        role = str(payload.get("role", "Karyawan")).strip() or "Karyawan"
+        notes = str(payload.get("notes", "")).strip()
+        img_b64 = payload.get("image_base64") or payload.get("image")
+        if img_b64:
+            if "," in img_b64:
+                img_b64 = img_b64.split(",", 1)[1]
+            raw_bytes = base64.b64decode(img_b64)
+            img = cv2.imdecode(np.frombuffer(raw_bytes, np.uint8), cv2.IMREAD_COLOR)
+    else:
+        form = await request.form()
+        name = str(form.get("name", "")).strip() or "Unnamed"
+        role = str(form.get("role", "Karyawan")).strip() or "Karyawan"
+        notes = str(form.get("notes", "")).strip()
+        file = form.get("file")
+        if file and hasattr(file, "read"):
+            data = await file.read()
+            img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+
+    if img is None or img.size == 0:
+        raise HTTPException(400, "Gambar wajah wajib disertakan")
+
+    record = get_face_registry().enroll_face(img, name=name, role=role, notes=notes)
+    return {"ok": True, "face": record}
+
+
+@app.put("/api/faces/{face_id}")
+async def update_registered_face(face_id: str, request: Request):
+    from engine.uniface_runtime import get_face_registry
+    payload = await request.json()
+    face = get_face_registry().update_face(
+        face_id,
+        str(payload.get("name", "")),
+        str(payload.get("role", "Karyawan")),
+        str(payload.get("notes", ""))
+    )
+    if not face:
+        raise HTTPException(404, "Wajah tidak ditemukan")
+    return {"ok": True, "face": face}
+
+
+@app.delete("/api/faces/{face_id}")
+def delete_registered_face(face_id: str):
+    from engine.uniface_runtime import get_face_registry
+    ok = get_face_registry().delete_face(face_id)
+    if not ok:
+        raise HTTPException(404, "Wajah tidak ditemukan")
+    return {"ok": True}
+
+
+@app.get("/api/faces/images/{filename}")
+def get_face_image(filename: str):
+    from engine.uniface_runtime import IMAGES_DIR
+    img_path = Path(IMAGES_DIR) / filename
+    if not img_path.is_file():
+        raise HTTPException(404, "Foto tidak ditemukan")
+    return FileResponse(str(img_path), media_type="image/jpeg")
+
+
 @app.get("/api/uploads")
 def list_uploads() -> dict:
     if not _uploads.is_dir():

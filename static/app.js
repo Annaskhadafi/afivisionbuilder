@@ -51,6 +51,9 @@
     notification_dispatcher: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
     ptz_controller: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>',
     ocr_reader: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><rect width="20" height="16" x="2" y="4" rx="2" stroke-dasharray="2 2"/></svg>',
+    object_timer: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    face_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M10 16c.5.5 1.5 1 2 1s1.5-.5 2-1"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>',
+    face_tracker: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M12 14v7"/><polyline points="9 18 12 21 15 18"/></svg>',
 
     // Preprocessing
     slicer: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
@@ -209,8 +212,8 @@
   // --- Category Mapping ---
   function categoryFor(type) {
     if (type === 'input' || type === 'ip_camera') return 'Sources';
-    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison'].includes(type)) return 'AI Vision Models';
-    if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller'].includes(type)) return 'Tracking & Analysis';
+    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison', 'face_detector'].includes(type)) return 'AI Vision Models';
+    if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller', 'object_timer', 'face_tracker'].includes(type)) return 'Tracking & Analysis';
     if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer', 'camera_focus', 'auto_rotate_edges', 'delta_filter'].includes(type)) return 'Image Preprocessing';
     if (['overlay_annotate', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
     if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once', 'switch_case'].includes(type)) return 'Logic & Flow Control';
@@ -1728,6 +1731,12 @@
     parentRegion: 'Area Bagian Induk',
     triggerAlarmOnNonCompliance: 'Picu Alarm Ketidakpatuhan APD',
     deltaThreshold: 'Ambang Batas Gerakan Delta',
+    targetClasses: 'Target Kelas Objek (Pisah Koma atau *)',
+    alertThresholdSeconds: 'Batas Alarm Durasi (Detik, 0 = Nonaktif)',
+    timerFormat: 'Format Tampilan Timer',
+    showTrackId: 'Sertakan ID Objek (#ID)',
+    badgePosition: 'Posisi Badge Timer',
+    minDurationSeconds: 'Durasi Minimal Muncul (Detik)',
     heartbeatIntervalSeconds: 'Interval Detak Jantung (Detik)',
     minContourArea: 'Luas Kontur Minimum (Piksel)',
     evaluationField: 'Bidang Evaluasi Routing',
@@ -1741,6 +1750,13 @@
     maxAllowedDeviationMeters: 'Batas Maksimal Penyimpangan (Meter)',
     targetClasses: 'Target Kelas Kendaraan / Objek',
     triggerAlarmOnDeviation: 'Picu Alarm Keluar Jalur',
+    recognitionModel: 'Model Ekstraksi Fitur Wajah (Re-ID)',
+    similarityThreshold: 'Ambang Kemiripan Cosine (Threshold)',
+    drawLandmarks: 'Gambarkan 5 Titik Landmark Wajah',
+    drawFaceBox: 'Gambarkan Kotak Deteksi Wajah',
+    showIdentityBadge: 'Tampilkan Badge Nama & Skor %',
+    showUnknownFaces: 'Lacak & Beri ID Wajah Tak Dikenal',
+    unknownPrefix: 'Awalan Nama Wajah Asing (Prefix)',
     objectAClass: 'Kelas Objek A',
     objectBClass: 'Kelas Objek B',
     measurementAxis: 'Sumbu Pengukuran Jarak',
@@ -2720,12 +2736,15 @@
     state.activeRailTab = railTabName;
     const tabWorkflow = $('#railTabWorkflow');
     const tabModels = $('#railTabModels');
+    const tabFaces = $('#railTabFaces');
 
     if (tabWorkflow) tabWorkflow.classList.toggle('active', railTabName === 'workflow');
     if (tabModels) tabModels.classList.toggle('active', railTabName === 'models');
+    if (tabFaces) tabFaces.classList.toggle('active', railTabName === 'faces');
 
     const appShell = $('#viewStudio .app-shell');
     const modelManager = $('#viewModelManager');
+    const faceRegistry = $('#viewFaceRegistry');
 
     if (railTabName === 'workflow') {
       if (appShell) {
@@ -2736,16 +2755,38 @@
         modelManager.setAttribute('hidden', '');
         modelManager.style.display = 'none';
       }
+      if (faceRegistry) {
+        faceRegistry.setAttribute('hidden', '');
+        faceRegistry.style.display = 'none';
+      }
       renderCanvas();
     } else if (railTabName === 'models') {
       if (appShell) {
         appShell.setAttribute('hidden', '');
         appShell.style.display = 'none';
       }
+      if (faceRegistry) {
+        faceRegistry.setAttribute('hidden', '');
+        faceRegistry.style.display = 'none';
+      }
       if (modelManager) {
         modelManager.removeAttribute('hidden');
         modelManager.style.display = 'flex';
         renderModelsManager();
+      }
+    } else if (railTabName === 'faces') {
+      if (appShell) {
+        appShell.setAttribute('hidden', '');
+        appShell.style.display = 'none';
+      }
+      if (modelManager) {
+        modelManager.setAttribute('hidden', '');
+        modelManager.style.display = 'none';
+      }
+      if (faceRegistry) {
+        faceRegistry.removeAttribute('hidden');
+        faceRegistry.style.display = 'flex';
+        renderFaceRegistry();
       }
     }
   }
@@ -4987,6 +5028,28 @@
       enabledWrap.append(toggle, document.createTextNode('Enable this node in execution graph'));
       section.append(enabledWrap);
 
+      if (n.type === 'face_tracker') {
+        const shortcutBox = document.createElement('div');
+        shortcutBox.className = 'face-registry-shortcut-card';
+        shortcutBox.style.cssText = 'background: linear-gradient(135deg, rgba(5,150,105,0.08), rgba(6,182,212,0.08)); border: 1px solid rgba(5,150,105,0.3); border-radius: 8px; padding: 12px; margin: 0 0 14px 0;';
+        shortcutBox.innerHTML = `
+          <div style="font-weight: 700; font-size: 12px; color: #047857; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg>
+            <span>Database Wajah Terdaftar (Known Faces)</span>
+          </div>
+          <p style="font-size: 11px; color: #475569; margin: 0 0 10px 0; line-height: 1.4;">
+            Node ini mencocokkan wajah yang terdeteksi dengan profil wajah di Galeri Wajah. Anda dapat mendaftarkan foto & nama karyawan/tamu.
+          </p>
+          <button type="button" class="button primary" id="openFaceRegistryFromNode" style="width: 100%; height: 32px; font-size: 11.5px; font-weight: 600; background: #059669; justify-content: center; display: flex; align-items: center; gap: 6px; border: none; cursor: pointer; border-radius: 6px; color: #fff;">
+            <span>👥 Kelola Database Wajah Terdaftar →</span>
+          </button>
+        `;
+        shortcutBox.querySelector('#openFaceRegistryFromNode').onclick = () => {
+          switchProjectRailTab('faces');
+        };
+        section.append(shortcutBox);
+      }
+
       // Primary / Basic config fields (filtered conditionally)
       Object.entries(n.config || {}).forEach(([key, value]) => {
         if (!ADVANCED_KEYS.has(key) && shouldShowField(n, key)) {
@@ -5681,6 +5744,16 @@
 
     // Dropdown mappings
     const OPTION_MAPS = {
+      timerFormat: [
+        ['mm:ss', 'Menit : Detik (00:15)'],
+        ['seconds', 'Detik Desimal (15.2s)'],
+        ['hh:mm:ss', 'Jam : Menit : Detik (00:01:25)']
+      ],
+      badgePosition: [
+        ['top', 'Di Atas Kotak (Top / Above Box)'],
+        ['bottom', 'Di Bawah Kotak (Bottom / Below Box)'],
+        ['inside', 'Di Dalam Kotak (Inside Box)']
+      ],
       algorithm: [
         ['bytetrack', 'ByteTrack (Fastest, High/Low Match)'],
         ['botsort', 'BoT-SORT (Camera Motion Compensation)'],
@@ -7280,6 +7353,11 @@
     svg.setAttribute('aria-label', 'Editor poligon zona');
     const toolbar = document.createElement('div');
     toolbar.className = 'zone-preview-toolbar';
+    const dragHandle = document.createElement('span');
+    dragHandle.className = 'multi-zone-drag-handle';
+    dragHandle.title = 'Zona';
+    dragHandle.innerHTML = '<span style="font-size:11px;">📐</span>';
+
     const status = document.createElement('span');
     status.className = 'zone-preview-status';
     const removeBtn = document.createElement('button');
@@ -7287,6 +7365,21 @@
     removeBtn.className = 'button ghost';
     removeBtn.textContent = 'Hapus titik';
     removeBtn.disabled = true;
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'button ghost';
+    toggleBtn.title = 'Sembunyikan / Tampilkan detail';
+    toggleBtn.innerHTML = '<span>👁️ Sembunyikan</span>';
+    let zoneCollapsed = false;
+    toggleBtn.onclick = (e) => {
+      e.stopPropagation();
+      zoneCollapsed = !zoneCollapsed;
+      status.style.display = zoneCollapsed ? 'none' : '';
+      removeBtn.style.display = zoneCollapsed ? 'none' : '';
+      toggleBtn.innerHTML = zoneCollapsed ? '<span>👁️ Buka</span>' : '<span>👁️ Sembunyikan</span>';
+    };
+
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
     cancelBtn.className = 'button ghost';
@@ -7295,8 +7388,41 @@
     saveBtn.type = 'button';
     saveBtn.className = 'button primary';
     saveBtn.textContent = 'Simpan zona';
-    toolbar.append(status, removeBtn, cancelBtn, saveBtn);
-    parent.append(svg, toolbar);
+    toolbar.append(dragHandle, status, removeBtn, toggleBtn, cancelBtn, saveBtn);
+    const oldZoneToolbar = parent.parentElement ? parent.parentElement.querySelector('.zone-preview-toolbar') : null;
+    if (oldZoneToolbar) oldZoneToolbar.remove();
+    if (parent.parentElement) {
+      parent.parentElement.insertBefore(toolbar, parent);
+    } else {
+      parent.append(toolbar);
+    }
+    parent.append(svg);
+
+    // Draggable
+    let isDraggingZ = false, zStartX = 0, zStartY = 0, zInitL = 8, zInitT = 8;
+    dragHandle.onmousedown = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      isDraggingZ = true; zStartX = e.clientX; zStartY = e.clientY;
+      const rect = toolbar.getBoundingClientRect();
+      const parentRect = parent.getBoundingClientRect();
+      zInitL = rect.left - parentRect.left;
+      zInitT = rect.top - parentRect.top;
+      const onMoveZ = (ev) => {
+        if (!isDraggingZ) return;
+        const pR = parent.getBoundingClientRect();
+        const tR = toolbar.getBoundingClientRect();
+        const nL = Math.max(2, Math.min(pR.width - tR.width - 4, zInitL + (ev.clientX - zStartX)));
+        const nT = Math.max(2, Math.min(pR.height - tR.height - 4, zInitT + (ev.clientY - zStartY)));
+        toolbar.style.left = `${nL}px`; toolbar.style.top = `${nT}px`;
+      };
+      const onUpZ = () => {
+        isDraggingZ = false;
+        document.removeEventListener('mousemove', onMoveZ);
+        document.removeEventListener('mouseup', onUpZ);
+      };
+      document.addEventListener('mousemove', onMoveZ);
+      document.addEventListener('mouseup', onUpZ);
+    };
 
     let selected = -1;
     let suppressAddClick = false;
@@ -7470,20 +7596,22 @@
     const toolbar = document.createElement('div');
     toolbar.className = 'zone-preview-toolbar multi-zone-toolbar';
 
+    // Header bar (always visible, draggable, compact status, hide/unhide toggle, Batal, Simpan)
+    const headerBar = document.createElement('div');
+    headerBar.className = 'multi-zone-toolbar-header';
+
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'multi-zone-drag-handle';
+    dragHandle.title = 'Multi-Area Editor';
+    dragHandle.innerHTML = '<span style="font-size:11px;">📐</span>';
+
+    const activePill = document.createElement('span');
+    activePill.className = 'multi-zone-active-pill';
+    activePill.style.display = 'none';
+
     const zoneSelect = document.createElement('select');
     zoneSelect.className = 'multi-zone-select';
-
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.className = 'multi-zone-name-input';
-    nameInput.placeholder = 'Nama Area';
-
-    const capInput = document.createElement('input');
-    capInput.type = 'number';
-    capInput.min = '1';
-    capInput.max = '999';
-    capInput.className = 'multi-zone-cap-input';
-    capInput.title = 'Kapasitas maksimal objek';
+    zoneSelect.title = 'Pilih area aktif';
 
     const addZoneBtn = document.createElement('button');
     addZoneBtn.type = 'button';
@@ -7494,17 +7622,14 @@
     const delZoneBtn = document.createElement('button');
     delZoneBtn.type = 'button';
     delZoneBtn.className = 'button ghost';
-    delZoneBtn.textContent = '🗑️ Area';
-    delZoneBtn.title = 'Hapus area aktif saat ini';
+    delZoneBtn.innerHTML = '🗑️';
+    delZoneBtn.title = 'Hapus area aktif';
 
-    const removePointBtn = document.createElement('button');
-    removePointBtn.type = 'button';
-    removePointBtn.className = 'button ghost';
-    removePointBtn.textContent = 'Hapus Titik';
-    removePointBtn.disabled = true;
-
-    const status = document.createElement('span');
-    status.className = 'zone-preview-status';
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'button ghost multi-zone-toggle-btn';
+    toggleBtn.title = 'Buka/Tutup pengaturan detail';
+    toggleBtn.innerHTML = '<span class="toggle-icon">⚙️</span>';
 
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
@@ -7516,8 +7641,94 @@
     saveBtn.className = 'button primary';
     saveBtn.textContent = 'Simpan Semua Area';
 
-    toolbar.append(zoneSelect, nameInput, capInput, addZoneBtn, delZoneBtn, removePointBtn, status, cancelBtn, saveBtn);
-    parent.append(svg, toolbar);
+    headerBar.append(dragHandle, activePill, zoneSelect, addZoneBtn, delZoneBtn, toggleBtn, cancelBtn, saveBtn);
+
+    // Body panel (contains compact name, capacity, point removal, status)
+    const bodyPanel = document.createElement('div');
+    bodyPanel.className = 'multi-zone-toolbar-body';
+
+    const nameLabel = document.createElement('span');
+    nameLabel.style.fontSize = '10px';
+    nameLabel.style.color = '#64748b';
+    nameLabel.textContent = 'Nama:';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'multi-zone-name-input';
+    nameInput.placeholder = 'Nama Area';
+
+    const capLabel = document.createElement('span');
+    capLabel.style.fontSize = '10px';
+    capLabel.style.color = '#64748b';
+    capLabel.textContent = 'Maks:';
+
+    const capInput = document.createElement('input');
+    capInput.type = 'number';
+    capInput.min = '1';
+    capInput.max = '999';
+    capInput.className = 'multi-zone-cap-input';
+    capInput.title = 'Kapasitas maksimal';
+
+    const removePointBtn = document.createElement('button');
+    removePointBtn.type = 'button';
+    removePointBtn.className = 'button ghost';
+    removePointBtn.textContent = 'Hapus Titik';
+    removePointBtn.disabled = true;
+
+    const status = document.createElement('span');
+    status.className = 'zone-preview-status';
+
+    bodyPanel.append(nameLabel, nameInput, capLabel, capInput, removePointBtn, status);
+    toolbar.append(headerBar, bodyPanel);
+    const oldMultiToolbar = parent.parentElement ? parent.parentElement.querySelector('.zone-preview-toolbar') : null;
+    if (oldMultiToolbar) oldMultiToolbar.remove();
+    if (parent.parentElement) {
+      parent.parentElement.insertBefore(toolbar, parent);
+    } else {
+      parent.append(toolbar);
+    }
+    parent.append(svg);
+
+    // Toggle hide/unhide logic
+    let isCollapsed = false;
+    toggleBtn.onclick = (e) => {
+      e.stopPropagation();
+      isCollapsed = !isCollapsed;
+      toolbar.classList.toggle('is-collapsed', isCollapsed);
+      const iconSpan = toggleBtn.querySelector('.toggle-icon');
+      const textSpan = toggleBtn.querySelector('.toggle-text');
+      if (iconSpan) iconSpan.textContent = isCollapsed ? '⚙️' : '👁️';
+      if (textSpan) textSpan.textContent = isCollapsed ? 'Buka Setting ▾' : 'Sembunyikan';
+    };
+
+    // Draggable logic
+    let isDragging = false, dragStartX = 0, dragStartY = 0, initialLeft = 8, initialTop = 8;
+    dragHandle.onmousedown = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      isDragging = true; dragStartX = e.clientX; dragStartY = e.clientY;
+      const rect = toolbar.getBoundingClientRect();
+      const parentRect = parent.getBoundingClientRect();
+      initialLeft = rect.left - parentRect.left;
+      initialTop = rect.top - parentRect.top;
+      const onMouseMove = (ev) => {
+        if (!isDragging) return;
+        const pR = parent.getBoundingClientRect();
+        const tR = toolbar.getBoundingClientRect();
+        const maxL = Math.max(0, pR.width - tR.width - 4);
+        const maxT = Math.max(0, pR.height - tR.height - 4);
+        const newL = Math.max(2, Math.min(maxL, initialLeft + (ev.clientX - dragStartX)));
+        const newT = Math.max(2, Math.min(maxT, initialTop + (ev.clientY - dragStartY)));
+        toolbar.style.left = `${newL}px`;
+        toolbar.style.top = `${newT}px`;
+      };
+      const onMouseUp = () => {
+        isDragging = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    };
 
     const updateSelector = () => {
       zoneSelect.replaceChildren();
@@ -7532,6 +7743,7 @@
       if (active) {
         nameInput.value = active.name || '';
         capInput.value = active.capacity || 4;
+        activePill.textContent = `${activeIndex + 1}. ${active.name || ('Zona ' + (activeIndex + 1))} (${active.capacity || 4})`;
       }
       delZoneBtn.disabled = workingZones.length <= 1;
     };
@@ -8091,6 +8303,24 @@
       { "key": "absenceGraceSeconds", "label": "Toleransi Keluar", "desc": "Durasi observasi di luar zona sebelum event exit diterbitkan." }
     ],
     "tips": "Kehilangan track atau objek yang tidak teramati tidak dianggap keluar sampai ada observasi di luar zona."
+  },
+  "object_timer": {
+    "concept": "Object Timer menghitung durasi waktu kehadiran setiap orang atau objek yang terdeteksi secara real-time, menempelkan badge timer visual di atas objek pada layar, serta memicu event/alarm saat durasi melebihi batas yang ditentukan.",
+    "diagram": "[ Detector / YOLO ] ──▶ [ Tracker ] ──▶ [ Object Timer ] ──▶ [ Live Preview / Alert ]",
+    "steps": [
+      "Hubungkan output dari model AI (Detector/YOLO) atau Tracker ke input Object Timer.",
+      "Tentukan targetClasses (contoh: person untuk pekerja/tamu, forklift, atau * untuk semua objek).",
+      "Atur alertThresholdSeconds untuk memicu peringatan jika orang/objek bertahan melebihi durasi tertentu (contoh: 10 detik).",
+      "Pilih timerFormat ('mm:ss' atau 'seconds') dan posisi badge (top / bottom)."
+    ],
+    "params": [
+      { "key": "targetClasses", "label": "Target Kelas Objek", "desc": "Kelas objek yang dihitung timernya (contoh: person, car, atau * untuk semua objek)." },
+      { "key": "alertThresholdSeconds", "label": "Batas Alarm Durasi", "desc": "Durasi maksimal dalam detik sebelum status berubah menjadi peringatan OVERTIME (0 = nonaktif)." },
+      { "key": "graceSeconds", "label": "Toleransi Hilang Sesaat", "desc": "Jeda toleransi detik jika objek tertutup sesaat sebelum timer di-reset." },
+      { "key": "timerFormat", "label": "Format Tampilan", "desc": "Format teks timer: mm:ss (00:15), seconds (15.2s), atau hh:mm:ss." },
+      { "key": "showOverlay", "label": "Tampilkan Badge Timer", "desc": "Tampilkan indikator stopwatch dan durasi secara langsung di frame video." }
+    ],
+    "tips": "Object Timer bekerja baik dengan Tracker (ByteTrack / BoT-SORT) maupun secara mandiri dengan deteksi langsung berkat algoritma pencocokan spasial IoU bawaan."
   },
   "multi_zone_occupancy": {
     "concept": "Multi-Zone Occupancy & Activity Tracker memantau banyak area/meja/slot/workstation sekaligus dalam satu frame kamera dengan kapasitas, durasi, status Vacant/Occupied, dan event ringkasan sesi.",
@@ -11735,6 +11965,242 @@
       }
     });
 
+  // ==========================================
+  // FACE REGISTRY (UNIFACE GALLERY) LOGIC
+  // ==========================================
+  let selectedEnrollPhotoBase64 = null;
+
+  async function renderFaceRegistry() {
+    const cardsGrid = $('#faceCardsGrid');
+    const statsBadge = $('#faceStatsBadge');
+    if (!cardsGrid) return;
+
+    try {
+      const res = await fetch('/api/faces');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      state.registeredFaces = data.faces || [];
+    } catch (err) {
+      console.warn('Could not fetch face registry:', err);
+      state.registeredFaces = state.registeredFaces || [];
+    }
+
+    const faces = state.registeredFaces;
+    if (statsBadge) {
+      statsBadge.textContent = `${faces.length} Wajah Terdaftar`;
+    }
+
+    filterFaceGallery($('#faceSearchInput')?.value || '');
+  }
+
+  function filterFaceGallery(query) {
+    const cardsGrid = $('#faceCardsGrid');
+    if (!cardsGrid) return;
+    cardsGrid.replaceChildren();
+
+    const q = (query || '').trim().toLowerCase();
+    const allFaces = state.registeredFaces || [];
+    const filtered = q ? allFaces.filter(f => (f.name || '').toLowerCase().includes(q) || (f.role || '').toLowerCase().includes(q) || (f.notes || '').toLowerCase().includes(q)) : allFaces;
+
+    if (!filtered.length) {
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'face-empty-state';
+      emptyDiv.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 48px 16px; color: #64748b; background: #fff; border: 1px dashed #cbd5e1; border-radius: 12px;';
+      emptyDiv.innerHTML = `
+        <div style="font-size: 36px; margin-bottom: 8px;">👤</div>
+        <strong style="font-size: 14px; color: #334155;">${q ? 'Tidak ada profil wajah yang sesuai pencarian' : 'Belum ada wajah terdaftar'}</strong>
+        <p style="font-size: 12px; margin-top: 4px; color: #94a3b8;">${q ? 'Coba gunakan kata kunci pencarian yang lain.' : 'Klik tombol <b>"+ Daftarkan Wajah Baru"</b> untuk menambahkan profil wajah pertama Anda.'}</p>
+      `;
+      cardsGrid.append(emptyDiv);
+      return;
+    }
+
+    filtered.forEach(face => {
+      const card = document.createElement('div');
+      card.className = 'face-card';
+      card.style.cssText = 'background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px; transition: transform .15s, box-shadow .15s;';
+
+      const avatarSrc = face.avatar_url || (face.image_path ? ('/' + face.image_path) : '');
+      const avatarHtml = avatarSrc
+        ? `<img src="${avatarSrc}" alt="${face.name}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #10b981; background: #f1f5f9;">`
+        : `<div style="width: 60px; height: 60px; border-radius: 50%; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; border: 2px solid #bae6fd;">${(face.name || 'W').charAt(0).toUpperCase()}</div>`;
+
+      card.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+          ${avatarHtml}
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${face.name}</h4>
+              <span style="font-size: 10px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 4px; padding: 1px 6px; font-weight: 600;">ArcFace</span>
+            </div>
+            <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
+              <span style="font-weight: 600; color: #0284c7;">${face.role || 'Karyawan'}</span>
+            </div>
+            <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">
+              ID: ${face.id} · Terdaftar: ${face.created_at ? new Date(face.created_at).toLocaleDateString() : '-'}
+            </div>
+          </div>
+        </div>
+        ${face.notes ? `<div style="font-size: 11px; color: #475569; background: #f8fafc; padding: 6px 8px; border-radius: 6px; border-left: 3px solid #3b82f6;">${face.notes}</div>` : ''}
+        <div style="margin-top: auto; padding-top: 8px; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 6px;">
+          <button type="button" class="button ghost delete-face-btn" style="height: 26px; padding: 0 8px; font-size: 11px; color: #ef4444;" title="Hapus profil wajah ini">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <span>Hapus</span>
+          </button>
+        </div>
+      `;
+
+      card.querySelector('.delete-face-btn').onclick = async () => {
+        if (!confirm(`Hapus profil wajah "${face.name}" dari sistem?`)) return;
+        try {
+          const delRes = await fetch(`/api/faces/${face.id}`, { method: 'DELETE' });
+          if (!delRes.ok) throw new Error('Gagal menghapus');
+          toast(`Profil wajah "${face.name}" berhasil dihapus.`);
+          await renderFaceRegistry();
+        } catch (e) {
+          toast('Error menghapus profil: ' + e.message, true);
+        }
+      };
+
+      cardsGrid.append(card);
+    });
+  }
+
+  function openEnrollFaceModal() {
+    selectedEnrollPhotoBase64 = null;
+    const modal = $('#enrollFaceModal');
+    const form = $('#enrollFaceForm');
+    if (form) form.reset();
+    if ($('#enrollRoleInput')) $('#enrollRoleInput').value = 'Karyawan';
+
+    if ($('#facePhotoPlaceholder')) $('#facePhotoPlaceholder').style.display = 'block';
+    if ($('#facePhotoPreviewContainer')) $('#facePhotoPreviewContainer').style.display = 'none';
+    if ($('#facePhotoPreviewImg')) $('#facePhotoPreviewImg').src = '';
+
+    if (modal) {
+      modal.removeAttribute('hidden');
+      modal.style.display = 'flex';
+    }
+  }
+
+  function closeEnrollFaceModal() {
+    const modal = $('#enrollFaceModal');
+    if (modal) {
+      modal.setAttribute('hidden', '');
+      modal.style.display = 'none';
+    }
+  }
+
+  async function handleEnrollFaceSubmit() {
+    const name = ($('#enrollNameInput')?.value || '').trim();
+    const role = ($('#enrollRoleInput')?.value || '').trim() || 'Karyawan';
+    const notes = ($('#enrollNotesInput')?.value || '').trim();
+
+    if (!name) {
+      toast('Nama lengkap wajib diisi!', true);
+      $('#enrollNameInput')?.focus();
+      return;
+    }
+
+    if (!selectedEnrollPhotoBase64) {
+      toast('Silakan pilih foto wajah terlebih dahulu!', true);
+      return;
+    }
+
+    const submitBtn = $('#submitEnrollBtn');
+    const origText = submitBtn ? submitBtn.textContent : '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Mengekstrak Fitur ArcFace...';
+    }
+
+    try {
+      const res = await fetch('/api/faces/enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name,
+          role: role,
+          notes: notes,
+          image_base64: selectedEnrollPhotoBase64
+        })
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        throw new Error(result.detail || 'Gagal mendaftarkan wajah');
+      }
+
+      toast(`✅ Wajah "${name}" berhasil didaftarkan ke Database!`);
+      closeEnrollFaceModal();
+      await renderFaceRegistry();
+    } catch (err) {
+      toast('Gagal: ' + err.message, true);
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = origText;
+      }
+    }
+  }
+
+  function setupFacePhotoUploadHandlers() {
+    const dropArea = $('#facePhotoDropArea');
+    const fileInput = $('#faceFileInput');
+    const placeholder = $('#facePhotoPlaceholder');
+    const previewContainer = $('#facePhotoPreviewContainer');
+    const previewImg = $('#facePhotoPreviewImg');
+    const changeBtn = $('#changePhotoBtn');
+
+    if (!dropArea || !fileInput) return;
+
+    dropArea.onclick = (e) => {
+      if (e.target !== changeBtn) fileInput.click();
+    };
+    if (changeBtn) changeBtn.onclick = () => fileInput.click();
+
+    fileInput.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      handleSelectedPhotoFile(file);
+    };
+
+    dropArea.ondragover = (e) => {
+      e.preventDefault();
+      dropArea.style.borderColor = '#059669';
+      dropArea.style.background = '#ecfdf5';
+    };
+
+    dropArea.ondragleave = (e) => {
+      e.preventDefault();
+      dropArea.style.borderColor = '#cbd5e1';
+      dropArea.style.background = '#f8fafc';
+    };
+
+    dropArea.ondrop = (e) => {
+      e.preventDefault();
+      dropArea.style.borderColor = '#cbd5e1';
+      dropArea.style.background = '#f8fafc';
+      const file = e.dataTransfer?.files?.[0];
+      if (file) handleSelectedPhotoFile(file);
+    };
+
+    function handleSelectedPhotoFile(file) {
+      if (!file.type.startsWith('image/')) {
+        toast('Pilih file gambar (JPG, PNG, WebP)!', true);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        selectedEnrollPhotoBase64 = ev.target.result;
+        if (previewImg) previewImg.src = selectedEnrollPhotoBase64;
+        if (placeholder) placeholder.style.display = 'none';
+        if (previewContainer) previewContainer.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
     // Hub and Left Rail Navigation
     $('#brandLogoHome')?.addEventListener('click', () => switchMainView('projectsHub'));
     initProjectSwitcher();
@@ -11752,6 +12218,14 @@
     // Left Rail Tabs
     $('#railTabWorkflow')?.addEventListener('click', () => switchProjectRailTab('workflow'));
     $('#railTabModels')?.addEventListener('click', () => switchProjectRailTab('models'));
+    $('#railTabFaces')?.addEventListener('click', () => switchProjectRailTab('faces'));
+    $('#faceRegistrySyncBtn')?.addEventListener('click', () => renderFaceRegistry());
+    $('#faceEnrollBtn')?.addEventListener('click', () => openEnrollFaceModal());
+    $('#closeEnrollModalBtn')?.addEventListener('click', () => closeEnrollFaceModal());
+    $('#cancelEnrollBtn')?.addEventListener('click', () => closeEnrollFaceModal());
+    $('#submitEnrollBtn')?.addEventListener('click', () => handleEnrollFaceSubmit());
+    $('#faceSearchInput')?.addEventListener('input', (e) => filterFaceGallery(e.target.value));
+    setupFacePhotoUploadHandlers();
 
     // Models Manager
     $('#modelsAddBtn')?.addEventListener('click', () => {

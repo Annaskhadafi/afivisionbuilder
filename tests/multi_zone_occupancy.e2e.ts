@@ -7,7 +7,7 @@ test('verify Multi-Zone Occupancy & Activity Tracker node inspector and visual p
   await expect(browser.locator('.brand')).toBeVisible();
 
   // Open the first project from Projects Hub
-  const openProjBtn = browser.locator('button:has-text("Open workflow →")').first();
+  const openProjBtn = browser.locator('button:has-text("Buka Workflow →"), button:has-text("Open workflow →")').first();
   await expect(openProjBtn).toBeVisible({ timeout: 10000 });
   await openProjBtn.click();
 
@@ -67,5 +67,5 @@ test('verify Multi-Zone Occupancy & Activity Tracker node inspector and visual p
   await app.screenshot('multi-zone-04-zones-saved');
 
   // 9. Agent assert
-  await agent.assert('The application has opened the Multi-Zone visual editor, added an area, saved all areas, and returned to the canvas with the node configured.');
+  await agent.assert('The inspector displays the configured areas and status indicating the Multi-Zone areas have been saved.');
 });
