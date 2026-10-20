@@ -89,11 +89,11 @@ call python -m pip install --upgrade pip
 
 echo.
 echo [4/5] Menginstall paket dependensi dari requirements.txt...
-call python -m pip install -r requirements.txt
+call python -m pip install --prefer-binary -r requirements.txt
 if !ERRORLEVEL! neq 0 (
     echo.
-    echo [WARNING] Beberapa paket mungkin membutuhkan kompilasi C++ Build Tools.
-    echo Jika ada error OpenCV atau PyTorch, pastikan koneksi internet stabil.
+    echo [WARNING] Mencoba opsi fallback kompatibilitas...
+    call python -m pip install --prefer-binary --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 )
 
 echo.

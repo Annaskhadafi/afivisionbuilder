@@ -72,7 +72,7 @@ python -m pip install --upgrade pip
 # 4. Install dependensi
 echo ""
 echo "[4/5] Menginstall dependensi dari requirements.txt..."
-pip install -r requirements.txt
+pip install --prefer-binary -r requirements.txt
 
 # 5. Verifikasi dan unduh model-model umum jika belum ada
 echo ""

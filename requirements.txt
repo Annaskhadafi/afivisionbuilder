@@ -1,6 +1,6 @@
 # Core Framework & Web Server
 fastapi>=0.110.0
-uvicorn[standard]>=0.28.0
+uvicorn>=0.28.0
 python-multipart>=0.0.9
 pydantic>=2.0.0
 requests>=2.31.0
