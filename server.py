@@ -32,6 +32,7 @@ logger = logging.getLogger("afi.server")
 from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 ROOT = Path(__file__).resolve().parent
@@ -52,6 +53,7 @@ import cv2  # noqa: E402
 import core  # noqa: E402
 import node_catalog  # noqa: E402
 import workflow_store as store  # noqa: E402
+import workflow_export  # noqa: E402
 
 app = FastAPI(title="Afi Vision Builder")
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
@@ -292,6 +294,38 @@ def get_project(project_id: str) -> dict:
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", project_id):
         raise HTTPException(404, "project not found")
     return _project_payload(project_id)
+
+
+def _export_project(project_id: str) -> tuple[dict, dict, dict]:
+    payload = _project_payload(project_id)
+    workflow = validate_workflow(payload["workflow"])
+    try:
+        _preflight_models(workflow)
+        return workflow_export.prepare(workflow, payload["project"]["name"], ROOT)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/projects/{project_id}/export-code/check")
+def check_export_code(project_id: str, request: Request) -> dict:
+    _write_allowed(request)
+    _, manifest, files = _export_project(project_id)
+    return {"ok": True, "manifest": manifest, "includedModelBytes": sum(path.stat().st_size for path in files.values())}
+
+
+@app.post("/api/projects/{project_id}/export-code")
+def download_export_code(project_id: str, request: Request) -> FileResponse:
+    _write_allowed(request)
+    graph, manifest, files = _export_project(project_id)
+    with tempfile.NamedTemporaryFile(prefix="afi-export-", suffix=".zip", delete=False) as temporary:
+        archive_path = Path(temporary.name)
+    try:
+        workflow_export.build_zip(graph, manifest, files, ROOT, archive_path)
+    except Exception:
+        archive_path.unlink(missing_ok=True)
+        raise
+    filename = f"{manifest['name']}-{manifest['version']}.zip"
+    return FileResponse(archive_path, media_type="application/zip", filename=filename, background=BackgroundTask(archive_path.unlink, missing_ok=True))
 
 
 @app.put("/api/projects/{project_id}")

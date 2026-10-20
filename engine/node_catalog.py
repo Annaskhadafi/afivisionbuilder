@@ -475,6 +475,14 @@ SAM3_DEFAULT_THRESHOLD = 0.1
 RFDETR_NATIVE_IMAGE_SIZE = 0
 
 NODE_BLUEPRINTS = {
+    "export_code": {
+        "title": "Export Code",
+        "subtitle": "Build paket Python mandiri dari seluruh workflow aktif",
+        "category": "Outputs & Export",
+        "x": 910,
+        "y": 740,
+        "config": {"packageName": "", "version": "1.0.0", "includeModels": False},
+    },
     "input": {
         "title": "Input",
         "subtitle": "Sumber kamera USB/webcam, Daheng, YouTube stream, gambar, atau file video",

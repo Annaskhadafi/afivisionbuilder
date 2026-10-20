@@ -3143,7 +3143,8 @@
       statusBar.dataset.nodeId = n.id;
       renderNodeStatusBarContent(statusBar, n, state.status?.nodeTelemetry?.[n.id]);
 
-      card.append(head, meta, input, output, statusBar);
+      if (n.type === 'export_code') card.append(head, meta, statusBar);
+      else card.append(head, meta, input, output, statusBar);
 
       card.onclick = (e) => {
         if (state.reconnectingEdge) {
@@ -3533,6 +3534,7 @@
 
   function connectFrom(id) {
     const fromNode = nodeFor(id);
+    if (fromNode?.type === 'export_code') return;
     const p1 = getNodePortPos(id, 'output');
     state.connecting = {
       from: id,
@@ -3553,6 +3555,12 @@
     const fromId = state.connecting.from;
     const fromNode = nodeFor(fromId);
     const toNode = nodeFor(id);
+    if (fromNode?.type === 'export_code' || toNode?.type === 'export_code') {
+      state.connecting = null;
+      toast('Export Code tidak memakai koneksi graph', true);
+      renderCanvas();
+      return;
+    }
     const edge = [fromId, id];
 
     if (state.workflow.edges.some(e => e[0] === edge[0] && e[1] === edge[1])) {
@@ -3572,13 +3580,13 @@
 
   // Node types that are "terminal" outputs — we connect INTO them, not FROM them as tail
   const OUTPUT_NODE_TYPES = new Set([
-    'preview', 'alert', 'webhook_output', 'image_output', 'database_output'
+    'preview', 'alert', 'webhook_output', 'image_output', 'database_output', 'export_code'
   ]);
 
   // Find the best "tail" node to auto-connect from when adding a new node.
   // Returns the last node that has no outgoing edge, preferring non-output nodes.
   function findAutoConnectTail(excludeType) {
-    const nodes = state.workflow.nodes;
+    const nodes = state.workflow.nodes.filter(n => n.type !== 'export_code');
     if (nodes.length === 0) return null;
 
     const edges = state.workflow.edges;
@@ -3684,7 +3692,7 @@
     }
 
     // Urutkan node sesuai hierarki pipeline computer vision standar
-    const sorted = [...state.workflow.nodes].sort((a, b) => {
+    const sorted = state.workflow.nodes.filter(n => n.type !== 'export_code').sort((a, b) => {
       const rankDiff = getPipelineRank(a) - getPipelineRank(b);
       if (rankDiff !== 0) return rankDiff;
       return (a.x || 0) - (b.x || 0);
@@ -3719,12 +3727,16 @@
   function addNode(type) {
     const bp = state.catalog[type];
     if (!bp) return;
+    if (type === 'export_code' && state.workflow.nodes.some(n => n.type === 'export_code')) {
+      toast('Satu workflow hanya memerlukan satu Export Code', true);
+      return;
+    }
     const used = new Set(state.workflow.nodes.map(n => n.id));
     let id = type, i = 2;
     while (used.has(id)) id = `${type}-${i++}`;
 
     // Find a tail node to connect from (before pushing the new node)
-    const tail = state.autoConnect ? findAutoConnectTail(type) : null;
+    const tail = state.autoConnect && type !== 'export_code' ? findAutoConnectTail(type) : null;
 
     // Check if tail currently connects directly into an output node
     // e.g. Detector -> Preview. If we add Tracker, rewire to: Detector -> Tracker -> Preview
@@ -3743,6 +3755,7 @@
     // Position: place to the right of the tail node, or in a grid if no tail
     let nx = 140 + (state.workflow.nodes.length % 4) * 260;
     let ny = 90 + Math.floor(state.workflow.nodes.length / 4) * 140;
+    if (type === 'export_code') { nx = 360; ny = 80; }
     if (tail) {
       nx = tail.x + 240;
       ny = tail.y;
@@ -3795,7 +3808,7 @@
     renderCanvas();
     selectNode(id);
     updatePreviewSelect();
-    toast(state.autoConnect ? `${bp.title} ditambahkan & terhubung` : `${bp.title} ditambahkan (Manual)`);
+    toast(type === 'export_code' ? 'Export Code ditambahkan tanpa koneksi' : state.autoConnect ? `${bp.title} ditambahkan & terhubung` : `${bp.title} ditambahkan (Manual)`);
   }
 
   function deleteSelectedNode() {
@@ -4875,6 +4888,100 @@
     body.append(delBtn);
   }
 
+  function renderExportCodeInspector(node, body) {
+    $('#inspectorTitle').textContent = 'Export Code';
+    const info = document.createElement('p');
+    info.className = 'node-description';
+    info.textContent = 'Paket menjalankan seluruh workflow aktif secara terpisah. Node ini tidak memproses frame dan tidak memerlukan kabel.';
+    body.append(info);
+    const guide = document.createElement('button');
+    guide.type = 'button';
+    guide.className = 'inspector-guide-btn';
+    guide.textContent = 'Panduan Export Code';
+    guide.onclick = () => showNodeGuideModal(node);
+    body.append(guide);
+    const config = node.config ||= {};
+    for (const [key, label, fallback] of [['packageName', 'Nama paket', state.project?.name || 'workflow'], ['version', 'Versi paket', '1.0.0']]) {
+      const row = document.createElement('label');
+      row.className = 'field';
+      row.textContent = label;
+      const input = document.createElement('input');
+      input.value = config[key] || (key === 'packageName' ? '' : fallback);
+      input.placeholder = fallback;
+      input.oninput = () => { config[key] = input.value; markDirty(); };
+      row.append(input);
+      body.append(row);
+    }
+    const models = document.createElement('label');
+    models.className = 'field-check';
+    const include = document.createElement('input');
+    include.type = 'checkbox';
+    include.checked = config.includeModels === true;
+    include.onchange = () => { config.includeModels = include.checked; markDirty(); };
+    models.append(include, document.createTextNode(' Sertakan model lokal (pastikan hak distribusi)'));
+    body.append(models);
+    const result = document.createElement('div');
+    result.id = 'exportCodeResult';
+    result.className = 'field-help';
+    result.textContent = 'Simpan workflow, lalu periksa paket sebelum mengunduh.';
+    body.append(result);
+    const check = document.createElement('button');
+    check.type = 'button';
+    check.className = 'button secondary';
+    check.textContent = 'Periksa Paket';
+    check.onclick = async () => {
+      if (state.dirty && !(await save())) return;
+      try {
+        const data = await api(`/api/projects/${encodeURIComponent(state.project.id)}/export-code/check`, { method: 'POST' });
+        const env = data.manifest.environment.map(item => item.name).join(', ') || 'tidak ada';
+        result.textContent = `Siap dibangun. ${data.manifest.models.length} referensi model; environment: ${env}. ${data.manifest.warnings.join(' ')}`;
+        toast('Paket siap dibangun');
+      } catch (error) {
+        result.textContent = `Perlu tindakan: ${error.message}`;
+        toast(error.message, true);
+      }
+    };
+    body.append(check);
+    const build = document.createElement('button');
+    build.type = 'button';
+    build.className = 'button primary';
+    build.style.marginLeft = '8px';
+    build.textContent = 'Build & Download ZIP';
+    build.onclick = async () => {
+      if (state.dirty && !(await save())) return;
+      build.disabled = true;
+      result.textContent = 'Membangun paket…';
+      try {
+        const response = await fetch(`/api/projects/${encodeURIComponent(state.project.id)}/export-code`, { method: 'POST' });
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail || `Build gagal (${response.status})`);
+        }
+        const blob = await response.blob();
+        const filename = response.headers.get('content-disposition')?.match(/filename="?([^";]+)"?/)?.[1] || 'workflow.zip';
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        result.textContent = `ZIP berhasil diunduh: ${filename}`;
+        toast('Paket Python berhasil diunduh');
+      } catch (error) {
+        result.textContent = `Build gagal: ${error.message}`;
+        toast(error.message, true);
+      } finally {
+        build.disabled = false;
+      }
+    };
+    body.append(build);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'danger-button';
+    remove.textContent = 'Delete This Node';
+    remove.onclick = deleteSelectedNode;
+    body.append(remove);
+  }
+
   function renderInspector() {
     const n = nodeFor(state.selected);
     const body = $('#inspectorBody');
@@ -4892,6 +4999,11 @@
       `;
       body.append(empty);
       syncDrawTextPreviewEditor();
+      return;
+    }
+
+    if (n.type === 'export_code') {
+      renderExportCodeInspector(n, body);
       return;
     }
 
@@ -8257,6 +8369,21 @@
   }
 
   const NODE_GUIDES_ID = {
+  "export_code": {
+    "concept": "Export Code membuat ZIP Python yang menjalankan snapshot seluruh workflow aktif di folder terpisah. Node ini tidak diproses per frame dan tidak memakai kabel.",
+    "diagram": "[ Workflow tersimpan ] → [ Periksa Paket ] → [ ZIP ] → [ run.py ]",
+    "steps": [
+      "Simpan workflow, tambahkan satu node Export Code, dan biarkan tanpa koneksi.",
+      "Pilih model disertakan hanya bila Anda memiliki hak distribusinya.",
+      "Klik Periksa Paket, lalu Build & Download ZIP. Di komputer tujuan isi .env dan jalankan python run.py --check sebelum python run.py."
+    ],
+    "params": [
+      { "key": "packageName", "label": "Nama paket", "desc": "Nama ZIP dan manifest; kosong berarti nama proyek." },
+      { "key": "version", "label": "Versi paket", "desc": "Versi snapshot yang tercatat di manifest." },
+      { "key": "includeModels", "label": "Sertakan model", "desc": "Jika nonaktif, model harus disediakan melalui environment dengan checksum yang sama." }
+    ],
+    "tips": "Alamat sumber, path file lokal, dan kredensial mungkin harus diisi ulang pada mesin tujuan. File .env tidak ikut ZIP."
+  },
   "python_script": {
     "concept": "Custom Python Script memungkinkan pemrosesan frame langsung menggunakan OpenCV (cv2) dan NumPy (np) tingkat lanjut tanpa memblokir pipeline. Sangat fleksibel untuk manipulasi piksel, filter warna khusus, morfologi, atau running calculations.",
     "diagram": "[ Source / Preprocessing ] ──▶ [ Custom Python Script: process(frame, state) ] ──▶ [ Next Node ]",
