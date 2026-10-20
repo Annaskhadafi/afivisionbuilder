@@ -17,22 +17,49 @@ echo ========================================================
 echo               AFI VISION BUILDER
 echo ========================================================
 echo.
+echo Direktori aktif: "%CD%"
+echo.
+
+set "PY_CMD="
 
 if exist ".venv\Scripts\python.exe" (
-    set "PY_CMD=.venv\Scripts\python.exe"
-    echo Menggunakan Virtual Environment [.venv]...
-) else (
-    where python >nul 2>nul
-    if !ERRORLEVEL! neq 0 (
-        echo [ERROR] Python maupun virtual environment .venv tidak ditemukan!
-        echo Silakan jalankan install.bat terlebih dahulu untuk instalasi.
-        echo.
-        echo Tekan tombol apapun untuk menutup jendela ini...
-        pause
-        exit /b 1
+    :: Verifikasi apakah .venv valid atau berasal dari folder lama yang dipindahkan
+    call ".venv\Scripts\python.exe" -c "import sys" >nul 2>nul
+    if !ERRORLEVEL! equ 0 (
+        set "PY_CMD=.venv\Scripts\python.exe"
+        echo [OK] Virtual Environment [.venv] aktif dan cocok dengan folder ini.
+    ) else (
+        echo [PERINGATAN] Folder .venv lama tidak cocok dengan path folder saat ini!
+        echo Kemungkinan folder proyek telah dipindahkan atau diubah namanya.
+        echo Disarankan untuk menjalankan 'install.bat' sekali lagi agar .venv disesuaikan.
+        echo Mencoba mencari Python di sistem...
     )
-    set "PY_CMD=python"
-    echo Virtual Environment [.venv] tidak ditemukan, menggunakan python sistem...
+)
+
+if not defined PY_CMD (
+    python --version >nul 2>nul
+    if !ERRORLEVEL! equ 0 (
+        set "PY_CMD=python"
+        echo [OK] Menggunakan Python sistem.
+    ) else (
+        where python >nul 2>nul
+        if !ERRORLEVEL! equ 0 (
+            set "PY_CMD=python"
+            echo [OK] Menggunakan Python sistem.
+        ) else (
+            echo.
+            echo ========================================================
+            echo [ERROR] Python tidak ditemukan di sistem Anda!
+            echo Silakan unduh dan pasang Python 3.10 / 3.11 / 3.12 dari:
+            echo   https://www.python.org/downloads/
+            echo Pastikan mencentang "Add Python to PATH" saat instalasi.
+            echo ========================================================
+            echo.
+            echo Tekan tombol apapun untuk keluar...
+            pause
+            exit /b 1
+        )
+    )
 )
 
 echo Membuka browser ke http://127.0.0.1:8765 ...

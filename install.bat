@@ -17,45 +17,74 @@ echo ========================================================
 echo         AFI VISION BUILDER - SETUP & INSTALLASI
 echo ========================================================
 echo.
+echo Lokasi folder instalasi: "%CD%"
+echo.
 
 echo [1/5] Memeriksa versi Python...
+set "SYS_PYTHON="
 python --version >nul 2>nul
-if !ERRORLEVEL! neq 0 (
+if !ERRORLEVEL! equ 0 (
+    set "SYS_PYTHON=python"
+) else (
     where python >nul 2>nul
-    if !ERRORLEVEL! neq 0 (
+    if !ERRORLEVEL! equ 0 (
+        set "SYS_PYTHON=python"
+    ) else (
+        echo.
+        echo ========================================================
         echo [ERROR] Python tidak ditemukan di PATH sistem Anda!
         echo Silakan unduh dan install Python 3.10 / 3.11 / 3.12 dari:
         echo   https://www.python.org/downloads/
         echo Pastikan mencentang opsi "Add Python to PATH" saat instalasi.
+        echo ========================================================
         echo.
-        echo Tekan tombol apapun untuk menutup jendela ini...
+        echo Tekan tombol apapun untuk keluar...
         pause
         exit /b 1
     )
 )
-python --version
+call %SYS_PYTHON% --version
 
 echo.
 echo [2/5] Menyiapkan Virtual Environment (.venv)...
+set "NEED_NEW_VENV=0"
 if not exist ".venv" (
+    set "NEED_NEW_VENV=1"
+) else (
+    :: Periksa apakah .venv yang ada masih valid atau dari folder lain yang dipindahkan
+    call ".venv\Scripts\python.exe" -c "import sys" >nul 2>nul
+    if !ERRORLEVEL! neq 0 (
+        echo [INFO] Folder .venv lama terdeteksi tidak valid (kemungkinan dipindahkan dari path lain).
+        echo Menghapus .venv lama untuk dibuat ulang di lokasi folder baru...
+        rmdir /s /q ".venv"
+        set "NEED_NEW_VENV=1"
+    ) else (
+        echo Virtual environment (.venv) sudah tersedia dan cocok dengan folder ini.
+    )
+)
+
+if "!NEED_NEW_VENV!"=="1" (
     echo Membuat virtual environment baru di folder .venv...
-    python -m venv .venv
+    call %SYS_PYTHON% -m venv .venv
     if !ERRORLEVEL! neq 0 (
         echo.
+        echo ========================================================
         echo [ERROR] Gagal membuat virtual environment!
-        echo Pastikan Anda memiliki izin akses di folder ini.
-        echo Tekan tombol apapun untuk menutup jendela ini...
+        echo Pastikan Anda memiliki izin akses tulis di folder ini.
+        echo ========================================================
+        echo.
+        echo Tekan tombol apapun untuk keluar...
         pause
         exit /b 1
     )
     echo Virtual environment berhasil dibuat.
-) else (
-    echo Virtual environment (.venv) sudah tersedia.
 )
 
 echo.
 echo [3/5] Mengaktifkan .venv dan mengupdate pip...
-call .venv\Scripts\activate.bat
+if exist ".venv\Scripts\activate.bat" (
+    call .venv\Scripts\activate.bat
+)
 call python -m pip install --upgrade pip
 
 echo.
@@ -75,7 +104,7 @@ if exist "scripts\download_models.py" (
 
 echo.
 echo ========================================================
-echo   INSTALASI SELESAI!
+echo   INSTALASI SELESAI DENGAN SUKSES!
 echo.
 echo   Untuk menjalankan AFI Vision Builder, silakan buka:
 echo   - run.bat (untuk membuka server web di browser)

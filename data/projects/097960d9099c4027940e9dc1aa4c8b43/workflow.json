@@ -58,11 +58,11 @@
         "batchSize": 1,
         "iouThreshold": 0.45,
         "device": "auto",
-        "customModelPath": "D:\\[01] PROJECT\\REA\\webapp\\yolov8s.pt",
+        "customModelPath": "data/models/yolov8s.pt",
         "customClasses": "person",
         "perClassThresholds": "",
         "classRemap": "",
-        "modelPath": "D:\\[01] PROJECT\\REA\\webapp\\yolov8s.pt",
+        "modelPath": "data/models/yolov8s.pt",
         "classes": ""
       }
     },
