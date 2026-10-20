@@ -17,6 +17,7 @@ if exist ".venv\Scripts\python.exe" (
         echo [ERROR] Python maupun virtual environment .venv tidak ditemukan!
         echo Silakan jalankan install.bat terlebih dahulu untuk instalasi.
         echo.
+        echo Tekan tombol apapun untuk menutup jendela ini...
         pause
         exit /b 1
     )
@@ -33,8 +34,15 @@ echo.
 
 %PY_CMD% server.py
 
+echo.
+echo ========================================================
 if %ERRORLEVEL% neq 0 (
-    echo.
-    echo [ERROR] Server berhenti dengan status error (Exit code: %ERRORLEVEL%).
-    pause
+    echo [INFO] Server berhenti (Status Code: %ERRORLEVEL%).
+) else (
+    echo [INFO] Server AFI Vision Builder telah dihentikan.
 )
+echo ========================================================
+echo Jendela ini tidak akan tertutup otomatis agar Anda dapat membaca log di atas.
+echo Silakan tutup jendela ini secara manual atau tekan tombol apapun...
+echo.
+pause

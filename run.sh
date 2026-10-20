@@ -18,4 +18,4 @@ elif command -v open &> /dev/null; then
 fi
 
 echo "Menjalankan server AFI Vision Builder..."
-python3 server.py
+exec .venv/bin/python server.py

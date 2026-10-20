@@ -16,20 +16,24 @@ if %ERRORLEVEL% neq 0 (
     echo   https://www.python.org/downloads/
     echo Pastikan mencentang opsi "Add Python to PATH" saat instalasi.
     echo.
+    echo Tekan tombol apapun untuk menutup jendela ini...
     pause
     exit /b 1
 )
 
-echo [1/4] Memeriksa versi Python...
+echo [1/5] Memeriksa versi Python...
 python --version
 
 echo.
-echo [2/4] Menyiapkan Virtual Environment (.venv)...
+echo [2/5] Menyiapkan Virtual Environment (.venv)...
 if not exist ".venv" (
     echo Membuat virtual environment baru di folder .venv...
     python -m venv .venv
     if %ERRORLEVEL% neq 0 (
+        echo.
         echo [ERROR] Gagal membuat virtual environment!
+        echo Pastikan Anda memiliki izin akses di folder ini.
+        echo Tekan tombol apapun untuk menutup jendela ini...
         pause
         exit /b 1
     )
@@ -39,17 +43,23 @@ if not exist ".venv" (
 )
 
 echo.
-echo [3/4] Mengaktifkan .venv dan mengupdate pip...
+echo [3/5] Mengaktifkan .venv dan mengupdate pip...
 call .venv\Scripts\activate.bat
 python -m pip install --upgrade pip
 
 echo.
-echo [4/4] Menginstall paket dependensi dari requirements.txt...
+echo [4/5] Menginstall paket dependensi dari requirements.txt...
 pip install -r requirements.txt
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [WARNING] Beberapa paket mungkin membutuhkan kompilasi C++ Build Tools.
     echo Jika ada error OpenCV atau PyTorch, pastikan koneksi internet stabil.
+)
+
+echo.
+echo [5/5] Memeriksa ketersediaan bobot model AI bawaan...
+if exist "scripts\download_models.py" (
+    python scripts\download_models.py
 )
 
 echo.
@@ -60,4 +70,5 @@ echo   Untuk menjalankan AFI Vision Builder, silakan buka:
 echo   - run.bat (untuk membuka server web di browser)
 echo ========================================================
 echo.
+echo Tekan tombol apapun untuk menutup jendela instalasi ini...
 pause
