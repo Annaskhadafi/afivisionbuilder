@@ -742,13 +742,15 @@ def _process_track_event_nodes(
             return 0
         if t == "face_tracker":
             return 1
-        if t == "object_timer":
+        if t == "face_crop":
             return 2
+        if t == "object_timer":
+            return 3
         if t == "screenshot_capture":
             return 8
         if t == "telegram_notification":
             return 9
-        return 3
+        return 4
 
     sorted_project_nodes = sorted(workflow.get("nodes", []), key=_node_priority)
     for project_node in sorted_project_nodes:
@@ -759,7 +761,7 @@ def _process_track_event_nodes(
             "overlap_analysis", "velocity_calculator", "path_deviation", "delta_filter",
             "detections_difference", "data_aggregator", "csv_formatter", "s3_sink",
             "notification_dispatcher", "ptz_controller", "screenshot_capture", "telegram_notification", "ocr_reader", "object_timer",
-            "face_detector", "face_tracker"
+            "face_detector", "face_tracker", "face_crop"
         ):
             continue
         project_id = str(project_node.get("id") or "")
@@ -811,13 +813,17 @@ def _process_track_event_nodes(
         elif p_type == "velocity_calculator":
             from video_kinematics import calculate_object_velocities
             state = event_runtime.setdefault(project_id, {})
-            augmented, speed_events = calculate_object_velocities(candidates, project_node.get("config", {}), state, now)
+            augmented, speed_events = calculate_object_velocities(
+                candidates, project_node.get("config", {}), state, now, node_id=project_id
+            )
             extra_results.extend(speed_events)
         elif p_type == "path_deviation":
             from video_kinematics import check_path_deviation
             state = event_runtime.setdefault(project_id, {})
             f_shape = (frame.shape[1], frame.shape[0]) if hasattr(frame, "shape") else (1920, 1080)
-            augmented, dev_events = check_path_deviation(candidates, project_node.get("config", {}), state, f_shape, now)
+            augmented, dev_events = check_path_deviation(
+                candidates, project_node.get("config", {}), state, f_shape, now, node_id=project_id
+            )
             extra_results.extend(dev_events)
         elif p_type == "delta_filter":
             from advanced_logic import evaluate_delta_filter
@@ -840,12 +846,14 @@ def _process_track_event_nodes(
         elif p_type == "s3_sink":
             from cloud_sinks import upload_to_s3
             if extra_results and project_node.get("config", {}).get("endpointUrl"):
-                upload_res = upload_to_s3(frame, None, {"events": extra_results}, project_node.get("config", {}))
+                f_snap = frame.copy() if hasattr(frame, "copy") else frame
+                upload_res = upload_to_s3(f_snap, None, {"events": extra_results}, project_node.get("config", {}), async_dispatch=True)
         elif p_type == "notification_dispatcher":
             from cloud_sinks import dispatch_notification
             state = event_runtime.setdefault(project_id, {})
+            f_snap = frame.copy() if hasattr(frame, "copy") else frame
             for ev in extra_results:
-                dispatch_res = dispatch_notification(ev, frame, project_node.get("config", {}), state)
+                dispatch_res = dispatch_notification(ev, f_snap, project_node.get("config", {}), state, async_dispatch=True)
         elif p_type == "screenshot_capture":
             from screenshot_capture import process_screenshot_node
             ss_res = process_screenshot_node(project_node, frame, tracked or candidates or detections, extra_results)
@@ -856,8 +864,9 @@ def _process_track_event_nodes(
                 [{"type": "DETECTION_ALERT", "message": f"Terdeteksi {len(tracked or candidates or detections)} objek", "zoneName": "Camera Frame"}]
                 if (tracked or candidates or detections) else []
             )
+            f_snap = frame.copy() if hasattr(frame, "copy") else frame
             for ev in events_to_dispatch:
-                tg_res = dispatch_telegram_alert(ev, frame, project_node.get("config", {}), state)
+                tg_res = dispatch_telegram_alert(ev, f_snap, project_node.get("config", {}), state, async_dispatch=True)
         elif p_type == "ptz_controller":
             from ptz_controller import calculate_ptz_velocity
             state = event_runtime.setdefault(project_id, {})
@@ -880,8 +889,13 @@ def _process_track_event_nodes(
             extra_results.extend(timer_events)
         elif p_type == "face_detector":
             from uniface_runtime import process_face_detector_node
-            face_dets = process_face_detector_node(project_node, frame)
-            detections.extend(face_dets)
+            face_res = process_face_detector_node(project_node, frame)
+            if isinstance(face_res, tuple):
+                face_dets, spoof_events = face_res
+                detections.extend(face_dets)
+                extra_results.extend(spoof_events)
+            else:
+                detections.extend(face_res)
         elif p_type == "face_tracker":
             from uniface_runtime import process_face_tracker_node
             state = event_runtime.setdefault(project_id, {})
@@ -890,6 +904,12 @@ def _process_track_event_nodes(
             detections[:] = [d for d in detections if d.get("class") != "face" and not d.get("landmarks")] + tracked_faces
             tracked.extend(tracked_faces)
             extra_results.extend(face_events)
+        elif p_type == "face_crop":
+            from uniface_runtime import process_face_crop_node
+            f_crops, f_events = process_face_crop_node(project_node, frame, candidates or detections)
+            if f_crops:
+                crop_batches.setdefault(project_id, []).extend(f_crops)
+            extra_results.extend(f_events)
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
         if telemetry_callback and project_id:
@@ -4212,6 +4232,9 @@ class WorkflowRunner:
                                     if "timerSeconds" in det and det.get("showTimerOverlay", True):
                                         from object_timer import draw_single_object_timer_badge
                                         draw_single_object_timer_badge(display_frame, det)
+                                    if "speed_formatted" in det and det.get("showVelocityOverlay", True):
+                                        from video_kinematics import draw_single_velocity_badge
+                                        draw_single_velocity_badge(display_frame, det)
                             if not hold_crop_grid:
                                 display_frame = engine.apply_drawing_nodes(
                                     display_frame, workflow, preview_id, drawing_detections,
@@ -5338,6 +5361,9 @@ class WorkflowRunner:
                                 if "timerSeconds" in det and det.get("showTimerOverlay", True):
                                     from object_timer import draw_single_object_timer_badge
                                     draw_single_object_timer_badge(display_frame, det)
+                                if "speed_formatted" in det and det.get("showVelocityOverlay", True):
+                                    from video_kinematics import draw_single_velocity_badge
+                                    draw_single_velocity_badge(display_frame, det)
                             from uniface_runtime import draw_face_landmarks_overlay
                             draw_face_landmarks_overlay(display_frame, preview_detections)
                         if not hold_crop_grid:
@@ -5618,8 +5644,9 @@ class WorkflowRunner:
                 if state is None:
                     self._telegram_runtime = {}
                     state = self._telegram_runtime
+                f_snap = frame.copy() if hasattr(frame, "copy") else frame
                 for event in candidates:
-                    tg_res = dispatch_telegram_alert(event, frame, output.get("config", {}), state)
+                    tg_res = dispatch_telegram_alert(event, f_snap, output.get("config", {}), state, async_dispatch=True)
                     self._emit_log(f"Telegram alert dispatched: {tg_res.get('status')}")
             elif output_type == "alert":
                 if any(c.get("kind") in ("ocr_text_read", "text_detected") for c in candidates):

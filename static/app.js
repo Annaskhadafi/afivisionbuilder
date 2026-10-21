@@ -55,6 +55,7 @@
     ocr_reader: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><rect width="20" height="16" x="2" y="4" rx="2" stroke-dasharray="2 2"/></svg>',
     object_timer: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
     face_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M10 16c.5.5 1.5 1 2 1s1.5-.5 2-1"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>',
+    face_crop: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 10h.01"/><path d="M15 10h.01"/><circle cx="12" cy="12" r="7"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>',
     face_tracker: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M12 14v7"/><polyline points="9 18 12 21 15 18"/></svg>',
 
     // Preprocessing
@@ -214,7 +215,7 @@
   // --- Category Mapping ---
   function categoryFor(type) {
     if (type === 'input' || type === 'ip_camera') return 'Sources';
-    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison', 'face_detector'].includes(type)) return 'AI Vision Models';
+    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison', 'face_detector', 'face_crop'].includes(type)) return 'AI Vision Models';
     if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller', 'object_timer', 'face_tracker'].includes(type)) return 'Tracking & Analysis';
     if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer', 'camera_focus', 'auto_rotate_edges', 'delta_filter'].includes(type)) return 'Image Preprocessing';
     if (['overlay_annotate', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
@@ -310,6 +311,10 @@
     speedLimitKmh: {
       text: 'Batas kecepatan maksimal kendaraan atau objek di workshop/gudang (km/jam).',
       guide: 'Default: 15.0 km/jam. Jika kecepatan melebihi ambang batas ini, alarm overspeed akan dipicu.'
+    },
+    minSpeedKmh: {
+      text: 'Batas minimal kecepatan (km/jam) untuk meredam jitter/getaran piksel saat objek berhenti.',
+      guide: 'Default: 0.5 km/jam. Pergerakan dengan kecepatan di bawah batas ini akan dianggap 0.0 km/jam.'
     },
     speedUnit: {
       text: 'Satuan tampilan kecepatan objek di layar inspeksi.',
@@ -1745,6 +1750,7 @@
     cases: 'Daftar Kasus Percabangan (Nilai:Port)',
     defaultPort: 'Port Keluaran Default',
     speedLimitKmh: 'Batas Kecepatan Maksimal (km/jam)',
+    minSpeedKmh: 'Batas Minimal Gerak / Deadzone (km/jam)',
     speedUnit: 'Satuan Kecepatan',
     smoothingWindow: 'Jendela Peredam Kecepatan (Frames)',
     triggerAlarmOnSpeeding: 'Picu Alarm Kecepatan Berlebih',
@@ -1752,6 +1758,14 @@
     maxAllowedDeviationMeters: 'Batas Maksimal Penyimpangan (Meter)',
     targetClasses: 'Target Kelas Kendaraan / Objek',
     triggerAlarmOnDeviation: 'Picu Alarm Keluar Jalur',
+    enableAntiSpoofing: 'Verifikasi Anti-Spoofing (Wajah Asli)',
+    antiSpoofThreshold: 'Ambang Batas Kepercayaan Anti-Spoof',
+    filterSpoof: 'Saring / Buang Wajah Palsu (Drop Spoof)',
+    alignFaces: 'Lakukan Penyelarasan Wajah 5-Titik (Landmark Alignment)',
+    assessQuality: 'Evaluasi Kualitas Gambar (eDifFIQA)',
+    minQualityScore: 'Ambang Batas Kualitas Minimum (0.0 - 1.0)',
+    filterLowQuality: 'Buang Wajah Kualitas Rendah (< Threshold)',
+    showQualityChip: 'Tampilkan Badge Kualitas Wajah',
     recognitionModel: 'Model Ekstraksi Fitur Wajah (Re-ID)',
     similarityThreshold: 'Ambang Kemiripan Cosine (Threshold)',
     drawLandmarks: 'Gambarkan 5 Titik Landmark Wajah',
@@ -5925,6 +5939,11 @@
         ['top', 'Di Atas Kotak (Top / Above Box)'],
         ['bottom', 'Di Bawah Kotak (Bottom / Below Box)'],
         ['inside', 'Di Dalam Kotak (Inside Box)']
+      ],
+      speedUnit: [
+        ['kmh', 'km/h (Kilometer per Jam)'],
+        ['mps', 'm/s (Meter per Detik)'],
+        ['mph', 'mph (Mil per Jam)']
       ],
       algorithm: [
         ['bytetrack', 'ByteTrack (Fastest, High/Low Match)'],
@@ -10666,7 +10685,8 @@
     _previewLoading = true;
     _lastPreviewFetch = now;
 
-    const frameUrl = `/api/preview/${encodeURIComponent(targetId)}?t=${now}`;
+    const resMode = $('#previewResSelect')?.value || '720p';
+    const frameUrl = `/api/preview/${encodeURIComponent(targetId)}?t=${now}&res=${resMode}`;
     const preloader = new Image();
 
     preloader.onload = () => {
@@ -10729,6 +10749,16 @@
         select.append(opt);
       }
     });
+
+    const resSelect = $('#previewResSelect');
+    if (resSelect && !resSelect._bound) {
+      resSelect._bound = true;
+      resSelect.addEventListener('change', () => {
+        invalidatePreview();
+        const target = state.previewNode || state.status?.previews?.[0];
+        if (target) loadPreviewFrame(target, !!state.status?.running);
+      });
+    }
 
     select.value = current;
     select.onchange = () => {
@@ -10794,10 +10824,11 @@
         return;
       }
       const target = state.previewNode || state.status?.previews?.[0];
+      const resMode = $('#previewResSelect')?.value || '720p';
       if (target) {
         modalImg.src = state.status?.running
-          ? `/api/preview/${encodeURIComponent(target)}/stream`
-          : `/api/preview/${encodeURIComponent(target)}?t=${Date.now()}`;
+          ? `/api/preview/${encodeURIComponent(target)}/stream?res=${resMode}`
+          : `/api/preview/${encodeURIComponent(target)}?t=${Date.now()}&res=${resMode}`;
       } else {
         modalImg.src = $('#previewImage')?.src || '';
       }

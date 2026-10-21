@@ -325,13 +325,15 @@ class UniFaceRegistry:
 
 
 class UniFaceManager:
-    """Manages ONNX runtime instances for RetinaFace and ArcFace."""
+    """Manages ONNX runtime instances for RetinaFace, ArcFace, MiniFASNet, and EDifFIQA."""
 
     _instance: Optional["UniFaceManager"] = None
 
     def __init__(self):
         self._detector = None
         self._recognizer = None
+        self._spoofer = None
+        self._quality_estimator = None
         self._detector_name = "retinaface"
         self._init_models()
 
@@ -348,9 +350,105 @@ class UniFaceManager:
             logger.info("Initializing UniFace RetinaFace & ArcFace...")
             self._detector = RetinaFace(confidence_threshold=0.45)
             self._recognizer = ArcFace()
-            logger.info("UniFace models loaded successfully!")
+            logger.info("UniFace detector and recognizer loaded successfully!")
         except Exception as e:
             logger.warning(f"UniFace model initialization warning (will fallback if needed): {e}")
+
+        try:
+            from uniface.spoofing import MiniFASNet
+            from uniface.constants import MiniFASNetWeights
+            self._spoofer = MiniFASNet(model_name=MiniFASNetWeights.V2)
+            logger.info("UniFace MiniFASNet anti-spoofing model loaded successfully!")
+        except Exception as e:
+            logger.warning(f"UniFace MiniFASNet initialization warning: {e}")
+
+        try:
+            from uniface.quality import EDifFIQA
+            from uniface.constants import EDifFIQAWeights
+            self._quality_estimator = EDifFIQA(model_name=EDifFIQAWeights.T)
+            logger.info("UniFace EDifFIQA face quality model loaded successfully!")
+        except Exception as e:
+            logger.warning(f"UniFace EDifFIQA initialization warning: {e}")
+
+    def get_spoofer(self):
+        if self._spoofer is None:
+            try:
+                from uniface.spoofing import MiniFASNet
+                from uniface.constants import MiniFASNetWeights
+                self._spoofer = MiniFASNet(model_name=MiniFASNetWeights.V2)
+            except Exception as e:
+                logger.error(f"Failed to load MiniFASNet on demand: {e}")
+        return self._spoofer
+
+    def get_quality_estimator(self):
+        if self._quality_estimator is None:
+            try:
+                from uniface.quality import EDifFIQA
+                from uniface.constants import EDifFIQAWeights
+                self._quality_estimator = EDifFIQA(model_name=EDifFIQAWeights.T)
+            except Exception as e:
+                logger.error(f"Failed to load EDifFIQA on demand: {e}")
+        return self._quality_estimator
+
+    def predict_anti_spoof(self, image_bgr: np.ndarray, bbox_xyxy: list | np.ndarray) -> Tuple[bool, float]:
+        """
+        Runs anti-spoofing check using MiniFASNet.
+        Returns (is_real, confidence).
+        """
+        if image_bgr is None or not hasattr(image_bgr, "shape"):
+            return True, 1.0
+
+        spoofer = self.get_spoofer()
+        if spoofer is None:
+            return True, 1.0
+
+        try:
+            result = spoofer.predict(image_bgr, bbox_xyxy)
+            return bool(result.is_real), float(result.confidence)
+        except Exception as e:
+            logger.warning(f"Error in predict_anti_spoof: {e}")
+            return True, 1.0
+
+    def predict_face_quality(self, image_bgr: np.ndarray, landmarks: Optional[Any] = None) -> float:
+        """
+        Predicts face image quality score (0.0 - 1.0) using EDifFIQA.
+        Higher score = sharper, clearer, and better frontal quality.
+        """
+        if image_bgr is None or not hasattr(image_bgr, "shape"):
+            return 0.5
+
+        estimator = self.get_quality_estimator()
+        if estimator is None:
+            return 0.5
+
+        try:
+            if landmarks is not None and len(landmarks) >= 5:
+                lm_arr = np.asarray(landmarks, dtype=np.float32)[:5]
+                result = estimator.predict(image_bgr, lm_arr)
+                return float(result.score)
+            else:
+                gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY) if len(image_bgr.shape) == 3 else image_bgr
+                blur_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+                norm_score = max(0.1, min(0.95, blur_var / 350.0))
+                return norm_score
+        except Exception as e:
+            logger.warning(f"Error in predict_face_quality: {e}")
+            return 0.5
+
+    def align_face(self, image_bgr: np.ndarray, landmarks: Any, size: int = 112) -> Optional[np.ndarray]:
+        """
+        Aligns face using 5-point facial landmarks and affine transformation to standard 112x112 size.
+        """
+        if image_bgr is None or landmarks is None or len(landmarks) < 5:
+            return None
+        try:
+            from uniface.face_utils import face_alignment
+            lm_arr = np.asarray(landmarks, dtype=np.float32)[:5]
+            aligned, _ = face_alignment(image_bgr, lm_arr, image_size=size)
+            return aligned
+        except Exception as e:
+            logger.warning(f"Error in align_face: {e}")
+            return None
 
     def detect_faces(self, image_bgr: np.ndarray, conf_thresh: float = 0.45) -> List[Dict[str, Any]]:
         """
@@ -464,21 +562,166 @@ def get_face_registry() -> UniFaceRegistry:
 def process_face_detector_node(
     project_node: Dict[str, Any],
     frame: np.ndarray,
-) -> List[Dict[str, Any]]:
-    """Runs Face Detection on frame and outputs detections with class='face'."""
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Runs Face Detection on frame with optional Anti-Spoofing (MiniFASNet).
+    Outputs (detections, events).
+    """
     config = project_node.get("config", {})
     conf_thresh = float(config.get("confidenceThreshold", 0.45))
     min_size = float(config.get("minFaceSize", 20.0))
+    enable_anti_spoofing = bool(config.get("enableAntiSpoofing", False))
+    anti_spoof_thresh = float(config.get("antiSpoofThreshold", 0.60))
+    filter_spoof = bool(config.get("filterSpoof", True))
 
     mgr = get_uniface_manager()
     raw_faces = mgr.detect_faces(frame, conf_thresh=conf_thresh)
 
     filtered = []
+    events = []
+    node_id = str(project_node.get("id") or "face_detector")
+
+    h, w = frame.shape[:2] if frame is not None and hasattr(frame, "shape") else (480, 640)
+
     for f in raw_faces:
-        if f["width"] >= min_size and f["height"] >= min_size:
-            f["sourceNodeId"] = project_node.get("id")
-            filtered.append(f)
+        if f["width"] < min_size or f["height"] < min_size:
+            continue
+
+        f["sourceNodeId"] = node_id
+
+        # Anti-Spoofing Verification
+        if enable_anti_spoofing and frame is not None:
+            x1 = max(0, int(f["x"]))
+            y1 = max(0, int(f["y"]))
+            x2 = min(w, int(f["x"] + f["width"]))
+            y2 = min(h, int(f["y"] + f["height"]))
+            bbox_xyxy = [x1, y1, x2, y2]
+
+            is_real, spoof_conf = mgr.predict_anti_spoof(frame, bbox_xyxy)
+            is_fake = (not is_real) and (spoof_conf >= anti_spoof_thresh)
+
+            if is_fake:
+                f["isReal"] = False
+                f["antiSpoofStatus"] = "spoof"
+                f["antiSpoofConfidence"] = spoof_conf
+                events.append({
+                    "kind": "face_spoof_detected",
+                    "event_type": "face_spoof_detected",
+                    "title": "Percobaan Face Spoof Terdeteksi",
+                    "confidence": spoof_conf,
+                    "bbox": [f["x"], f["y"], f["width"], f["height"]],
+                    "sourceNodeId": node_id,
+                    "timestamp": time.time(),
+                })
+                # If filterSpoof is active, drop fake face so it doesn't propagate
+                if filter_spoof:
+                    continue
+            else:
+                f["isReal"] = True
+                f["antiSpoofStatus"] = "real"
+                f["antiSpoofConfidence"] = spoof_conf
+
+        filtered.append(f)
+
+    if enable_anti_spoofing:
+        return filtered, events
     return filtered
+
+
+def process_face_crop_node(
+    project_node: Dict[str, Any],
+    frame: np.ndarray,
+    detections: List[Dict[str, Any]],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Crops detected faces with optional 5-point alignment or padding crop,
+    computes face image quality scores via eDifFIQA, and produces crop batches.
+    Returns (crop_items, events).
+    """
+    config = project_node.get("config", {})
+    align_faces = bool(config.get("alignFaces", True))
+    padding_percent = float(config.get("paddingPercent", 0.15))
+    assess_quality = bool(config.get("assessQuality", True))
+    min_quality_score = float(config.get("minQualityScore", 0.40))
+    filter_low_quality = bool(config.get("filterLowQuality", False))
+    max_crops = max(1, int(config.get("maxCrops", 16)))
+    show_quality_chip = bool(config.get("showQualityChip", True))
+
+    mgr = get_uniface_manager()
+    crops = []
+    events = []
+
+    if frame is None or not hasattr(frame, "shape"):
+        return crops, events
+
+    h, w = frame.shape[:2]
+    crop_idx = 0
+
+    for det in detections:
+        cls_name = str(det.get("class", "")).lower()
+        # Accept face detections or objects that contain face landmarks
+        if cls_name != "face" and "face" not in cls_name and not det.get("landmarks"):
+            continue
+
+        if crop_idx >= max_crops:
+            break
+
+        box = det.get("bbox") or [
+            float(det.get("x", 0)),
+            float(det.get("y", 0)),
+            float(det.get("width", 0)),
+            float(det.get("height", 0)),
+        ]
+        bx, by, bw, bh = [float(v) for v in box[:4]]
+        landmarks = det.get("landmarks", [])
+
+        # Assess Face Image Quality via eDifFIQA
+        quality_score = 0.5
+        if assess_quality:
+            if landmarks and len(landmarks) >= 5:
+                quality_score = mgr.predict_face_quality(frame, landmarks)
+            else:
+                x1 = max(0, int(bx))
+                y1 = max(0, int(by))
+                x2 = min(w, int(bx + bw))
+                y2 = min(h, int(by + bh))
+                if x2 > x1 and y2 > y1:
+                    quality_score = mgr.predict_face_quality(frame[y1:y2, x1:x2], None)
+            det["faceQualityScore"] = quality_score
+            det["qualityScore"] = quality_score
+
+        if filter_low_quality and quality_score < min_quality_score:
+            continue
+
+        # Perform Cropping (Aligned or Padded Bounding Box)
+        crop_img = None
+        if align_faces and landmarks and len(landmarks) >= 5:
+            crop_img = mgr.align_face(frame, landmarks, size=112)
+
+        if crop_img is None:
+            # Fallback / Padded crop
+            pad_w = int(bw * padding_percent)
+            pad_h = int(bh * padding_percent)
+            x1 = max(0, int(bx - pad_w))
+            y1 = max(0, int(by - pad_h))
+            x2 = min(w, int(bx + bw + pad_w))
+            y2 = min(h, int(by + bh + pad_h))
+            if x2 > x1 and y2 > y1:
+                crop_img = frame[y1:y2, x1:x2].copy()
+
+        if crop_img is not None and crop_img.size > 0:
+            det["showQualityChip"] = show_quality_chip
+            crops.append({
+                "frame": crop_img,
+                "bounds": [int(bx), int(by), int(bw), int(bh)],
+                "cropIndex": crop_idx,
+                "detection": det,
+                "qualityScore": quality_score,
+                "sourceNodeId": project_node.get("id"),
+            })
+            crop_idx += 1
+
+    return crops, events
 
 
 def process_face_tracker_node(
@@ -515,6 +758,9 @@ def process_face_tracker_node(
     enriched_detections: List[Dict[str, Any]] = []
 
     h, w = frame.shape[:2] if frame is not None and hasattr(frame, "shape") else (480, 640)
+
+    if isinstance(detections, tuple) and len(detections) >= 1:
+        detections = detections[0]
 
     for det in detections:
         # Check if detection is a face or person
@@ -710,21 +956,62 @@ def process_face_tracker_node(
 
 
 def draw_face_landmarks_overlay(frame: np.ndarray, detections: List[Dict[str, Any]]) -> None:
-    """Draws 5-point facial landmark dots and face identity badge on frame."""
+    """Draws 5-point facial landmark dots, anti-spoof warnings, quality chips, and face identity badges."""
     if frame is None or not hasattr(frame, "shape"):
         return
 
+    h, w = frame.shape[:2]
+
     for det in detections:
-        # Landmarks: 5 dots
+        box = det.get("bbox") or [
+            float(det.get("x", 0)),
+            float(det.get("y", 0)),
+            float(det.get("width", 0)),
+            float(det.get("height", 0)),
+        ]
+        x1 = max(0, min(w - 1, int(box[0])))
+        y1 = max(0, min(h - 1, int(box[1])))
+        x2 = max(0, min(w - 1, int(box[0] + box[2])))
+        y2 = max(0, min(h - 1, int(box[1] + box[3])))
+        bbox_xyxy = [x1, y1, x2, y2]
+
+        # 1. Anti-Spoofing Visual Warning (if fake face not dropped)
+        is_spoof = (det.get("isReal") is False) or (det.get("antiSpoofStatus") == "spoof")
+        if is_spoof:
+            spoof_conf = float(det.get("antiSpoofConfidence", 1.0))
+            # Draw red corner box
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 239), 2, cv2.LINE_AA)
+            badge_text = f"SPOOF ({int(spoof_conf * 100)}%)"
+            ts, _ = cv2.getTextSize(badge_text, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
+            cv2.rectangle(frame, (x1, max(16, y1 - 22)), (x1 + ts[0] + 12, max(16, y1 - 22) + ts[1] + 8), (0, 0, 200), -1)
+            cv2.putText(frame, badge_text, (x1 + 6, max(16, y1 - 22) + ts[1] + 3), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+
+        # 2. Face Quality Score Chip (eDifFIQA)
+        quality_score = det.get("faceQualityScore")
+        if quality_score is None:
+            quality_score = det.get("qualityScore")
+
+        if quality_score is not None and det.get("showQualityChip", True) and not is_spoof:
+            try:
+                from uniface.draw import draw_quality_score
+                draw_quality_score(frame, bbox_xyxy, float(quality_score), draw_bbox=True, corner_bbox=True, low_threshold=0.4, high_threshold=0.6)
+            except Exception:
+                # Fallback manual score chip
+                q_val = float(quality_score)
+                q_col = (16, 185, 129) if q_val >= 0.6 else ((0, 165, 255) if q_val >= 0.4 else (0, 0, 239))
+                q_text = f"Q:{q_val:.2f}"
+                cv2.putText(frame, q_text, (x1, min(h - 5, y2 + 15)), cv2.FONT_HERSHEY_SIMPLEX, 0.42, q_col, 1, cv2.LINE_AA)
+
+        # 3. Landmarks: 5 dots
         landmarks = det.get("landmarks", [])
-        if det.get("showLandmarks", True) and landmarks:
+        if det.get("showLandmarks", True) and landmarks and not is_spoof:
             for pt in landmarks:
                 px, py = int(pt[0]), int(pt[1])
                 cv2.circle(frame, (px, py), 3, (56, 189, 248), -1, cv2.LINE_AA)  # cyan dot
                 cv2.circle(frame, (px, py), 4, (255, 255, 255), 1, cv2.LINE_AA)
 
-        # Name / Re-ID Badge
-        if det.get("showNameBadge", True) and det.get("personName"):
+        # 4. Name / Re-ID Badge
+        if det.get("showNameBadge", True) and det.get("personName") and not is_spoof:
             name = det["personName"]
             is_enrolled = bool(det.get("isEnrolled", False))
             sim = det.get("similarity", 0.0)

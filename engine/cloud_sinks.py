@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import base64
+import concurrent.futures
 import json
 import os
 import time
@@ -15,32 +16,37 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 
+# Background thread pool executor for non-blocking asynchronous cloud uploads and notifications
+_cloud_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="CloudSinkWorker")
+
 
 def upload_to_s3(
     image: Optional[np.ndarray],
     file_bytes: Optional[bytes],
     metadata: Dict[str, Any],
     config: Dict[str, Any],
+    async_dispatch: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Upload image or raw bytes to an S3-compatible cloud storage bucket.
 
     Returns:
-        {"status": "uploaded" | "mock_uploaded", "s3Url": ..., "key": ...}
+        {"status": "uploaded" | "mock_uploaded" | "dispatched_async", "s3Url": ..., "key": ...}
     """
     endpoint = str(config.get("endpointUrl") or "https://s3.amazonaws.com").rstrip("/")
     bucket = str(config.get("bucketName") or "afi-vision-records").strip()
     prefix = str(config.get("objectPrefix") or "events/").strip().strip("/")
     secret_ref = str(config.get("credentialsSecretRef") or "AWS_ACCESS_KEY_ID")
+    is_async = bool(config.get("asyncDispatch", True)) if async_dispatch is None else bool(async_dispatch)
 
     now = time.gmtime()
     date_path = time.strftime("%Y/%m/%d", now)
     filename = f"capture_{int(time.time() * 1000)}.jpg"
     key = f"{prefix}/{date_path}/{filename}" if prefix else f"{date_path}/{filename}"
 
-    # Prepare JPEG payload
+    # Prepare JPEG payload with quality strictly clamped to 65-75%
     payload = file_bytes
     if payload is None and image is not None:
-        quality = int(config.get("imageQuality", 85) or 85)
+        quality = max(65, min(75, int(config.get("imageQuality", 70) or 70)))
         success, buf = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
         if success:
             payload = buf.tobytes()
@@ -52,23 +58,41 @@ def upload_to_s3(
     secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY", "").strip()
 
     if access_key and secret_key and payload:
-        # Standard HTTP PUT upload or simulated S3 call
-        try:
-            req = urllib.request.Request(
-                s3_url,
-                data=payload,
-                headers={
-                    "Content-Type": "image/jpeg",
-                    "x-amz-meta-uploader": "AfiVisionBuilder",
-                },
-                method="PUT",
-            )
-            # In production, signature would be added; for sandbox/mock we catch connection
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                status = "uploaded" if resp.status in (200, 201) else "mock_uploaded"
-        except Exception:
-            # Fallback to simulated cloud storage confirmation
-            status = "simulated_uploaded"
+        if is_async:
+            def _async_s3_worker(target_url: str, upload_bytes: bytes) -> None:
+                try:
+                    req = urllib.request.Request(
+                        target_url,
+                        data=upload_bytes,
+                        headers={
+                            "Content-Type": "image/jpeg",
+                            "x-amz-meta-uploader": "AfiVisionBuilder",
+                        },
+                        method="PUT",
+                    )
+                    with urllib.request.urlopen(req, timeout=5) as _:
+                        pass
+                except Exception:
+                    pass
+
+            _cloud_executor.submit(_async_s3_worker, s3_url, payload)
+            status = "dispatched_async"
+        else:
+            # Standard synchronous HTTP PUT upload or simulated S3 call
+            try:
+                req = urllib.request.Request(
+                    s3_url,
+                    data=payload,
+                    headers={
+                        "Content-Type": "image/jpeg",
+                        "x-amz-meta-uploader": "AfiVisionBuilder",
+                    },
+                    method="PUT",
+                )
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    status = "uploaded" if resp.status in (200, 201) else "mock_uploaded"
+            except Exception:
+                status = "simulated_uploaded"
     else:
         status = "mock_uploaded"
 
@@ -88,6 +112,7 @@ def dispatch_notification(
     image: Optional[np.ndarray],
     config: Dict[str, Any],
     node_state: Dict[str, Any],
+    async_dispatch: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Dispatch instant notification to configured channel with cooldown throttling.
 
@@ -102,6 +127,7 @@ def dispatch_notification(
     template = str(config.get("messageTemplate") or "🚨 Peringatan: {event.type} pada {event.zoneName}!")
     attach_image = bool(config.get("attachImage", True))
     cooldown = max(1.0, float(config.get("cooldownSeconds", 5.0) or 5.0))
+    is_async = bool(config.get("asyncDispatch", True)) if async_dispatch is None else bool(async_dispatch)
 
     now = time.time()
     last_sent = float(node_state.get("last_notification_time", 0.0))
@@ -119,7 +145,9 @@ def dispatch_notification(
     b64_image = None
     if attach_image and image is not None:
         try:
-            _, buf = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+            # Strictly clamped between 65-75% JPEG quality
+            quality = max(65, min(75, int(config.get("imageQuality", 70) or 70)))
+            _, buf = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
             b64_image = base64.b64encode(buf).decode("ascii")
         except Exception:
             pass
@@ -127,9 +155,55 @@ def dispatch_notification(
     delivery_status = "simulated_delivered"
 
     if destination:
+        # Immediately record timestamp to prevent cooldown racing
+        node_state["last_notification_time"] = now
+
+        if is_async:
+            def _async_notify_worker() -> None:
+                try:
+                    if channel == "telegram":
+                        token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip() or config.get("botToken", "")
+                        if token:
+                            api_url = f"https://api.telegram.org/bot{token}/sendMessage"
+                            payload = {"chat_id": destination, "text": msg}
+                            req = urllib.request.Request(
+                                api_url,
+                                data=json.dumps(payload).encode(),
+                                headers={"Content-Type": "application/json"},
+                                method="POST",
+                            )
+                            with urllib.request.urlopen(req, timeout=4) as _:
+                                pass
+                    elif channel in ("slack", "webhook"):
+                        payload = {
+                            "text": msg,
+                            "event": event,
+                            "image": f"data:image/jpeg;base64,{b64_image}" if b64_image else None,
+                        }
+                        req = urllib.request.Request(
+                            destination,
+                            data=json.dumps(payload).encode(),
+                            headers={"Content-Type": "application/json"},
+                            method="POST",
+                        )
+                        with urllib.request.urlopen(req, timeout=4) as _:
+                            pass
+                except Exception:
+                    pass
+
+            _cloud_executor.submit(_async_notify_worker)
+            return {
+                "status": "dispatched_async",
+                "channel": channel,
+                "destination": destination,
+                "message": msg,
+                "imageAttached": b64_image is not None,
+                "timestamp": now,
+            }
+
+        # Synchronous execution mode
         try:
             if channel == "telegram":
-                # Telegram Bot API: https://api.telegram.org/bot<token>/sendMessage
                 token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip() or config.get("botToken", "")
                 if token:
                     api_url = f"https://api.telegram.org/bot{token}/sendMessage"

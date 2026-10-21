@@ -341,6 +341,7 @@ OBJECT_EVENT_NODE_TYPES = (
     "object_timer",
     "face_detector",
     "face_tracker",
+    "face_crop",
 )
 OUTPUT_NODE_TYPES = (
     "preview",
@@ -830,12 +831,19 @@ NODE_BLUEPRINTS = {
         "x": 620,
         "y": 520,
         "config": {
+            "targetClasses": "",
             "pixelPerMeter": 25.0,
             "speedLimitKmh": 15.0,
             "speedUnit": "kmh",
             "smoothingWindow": 5,
+            "minSpeedKmh": 0.5,
+            "showOverlay": True,
+            "showTrackId": True,
+            "badgePosition": "top",
             "triggerAlarmOnSpeeding": True,
             "alarmCooldownSeconds": 3.0,
+            "normalColor": "#10b981",
+            "alertColor": "#ef4444",
         },
     },
     "path_deviation": {
@@ -966,6 +974,25 @@ NODE_BLUEPRINTS = {
             "nmsThreshold": 0.4,
             "minFaceSize": 20.0,
             "detectLandmarks": True,
+            "enableAntiSpoofing": True,
+            "antiSpoofThreshold": 0.60,
+            "filterSpoof": True,
+        },
+    },
+    "face_crop": {
+        "title": "Face Crop & Quality (UniFace)",
+        "subtitle": "Potong wajah terdeteksi, evaluasi kualitas (eDifFIQA), dan sajikan preview chip",
+        "category": "AI Vision Models",
+        "x": 620,
+        "y": 260,
+        "config": {
+            "alignFaces": True,
+            "paddingPercent": 0.15,
+            "assessQuality": True,
+            "minQualityScore": 0.40,
+            "filterLowQuality": False,
+            "maxCrops": 16,
+            "showQualityChip": True,
         },
     },
     "face_tracker": {

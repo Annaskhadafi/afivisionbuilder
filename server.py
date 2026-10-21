@@ -29,7 +29,8 @@ except Exception:
 
 logger = logging.getLogger("afi.server")
 
-from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
+import asyncio
+from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
@@ -72,6 +73,8 @@ _runner_project_id: str | None = None
 _logs: deque[dict] = deque(maxlen=500)
 _events: deque[dict] = deque(maxlen=500)
 _previews: dict[str, bytes] = {}
+_previews_720p: dict[str, bytes] = {}
+_previews_480p: dict[str, bytes] = {}
 _seq = 0
 _uploads = Path(os.environ["VISONODE_APP_DATA_DIR"]) / "uploads"
 _models = Path(os.environ["VISONODE_APP_DATA_DIR"]) / "models"
@@ -108,19 +111,39 @@ def _event(title: str, detail: str = "") -> None:
         _events.append({"time": time.time(), "title": str(title), "detail": str(detail)})
 
 
+PREVIEW_JPEG_QUALITY_DEFAULT = max(65, min(75, int(os.environ.get("PREVIEW_JPEG_QUALITY", 70))))
+
+
 def _frame(node_id: str, frame: Any, *_: Any) -> None:
     if frame is None or not hasattr(frame, "shape"):
         return
     h, w = frame.shape[:2]
-    max_dim = 1280
-    if max(h, w) > max_dim:
-        scale = max_dim / max(h, w)
-        frame = cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
-    ok, encoded = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
-    if ok:
-        data = encoded.tobytes()
-        with _lock:
-            _previews[str(node_id)] = data
+
+    # 1. 720p preview resolution (max dimension 1280, e.g. 1280x720) with quality clamped 65-75%
+    max_dim_720 = 1280
+    frame_720 = frame
+    if max(h, w) > max_dim_720:
+        scale_720 = max_dim_720 / max(h, w)
+        frame_720 = cv2.resize(frame, (int(w * scale_720), int(h * scale_720)), interpolation=cv2.INTER_AREA)
+    quality_720 = PREVIEW_JPEG_QUALITY_DEFAULT
+    ok_720, encoded_720 = cv2.imencode(".jpg", frame_720, [int(cv2.IMWRITE_JPEG_QUALITY), quality_720])
+
+    # 2. 480p preview resolution (max dimension 854, e.g. 854x480) for low bandwidth / maximum FPS
+    max_dim_480 = 854
+    frame_480 = frame
+    if max(h, w) > max_dim_480:
+        scale_480 = max_dim_480 / max(h, w)
+        frame_480 = cv2.resize(frame, (int(w * scale_480), int(h * scale_480)), interpolation=cv2.INTER_AREA)
+    quality_480 = max(65, PREVIEW_JPEG_QUALITY_DEFAULT - 5)
+    ok_480, encoded_480 = cv2.imencode(".jpg", frame_480, [int(cv2.IMWRITE_JPEG_QUALITY), quality_480])
+
+    with _lock:
+        if ok_720:
+            data_720 = encoded_720.tobytes()
+            _previews[str(node_id)] = data_720
+            _previews_720p[str(node_id)] = data_720
+        if ok_480:
+            _previews_480p[str(node_id)] = encoded_480.tobytes()
 
 
 def _finite(value: Any) -> bool:
@@ -1625,7 +1648,7 @@ def run(request: Request, body: dict) -> dict:
             alive = bool(_runner_thread_ref and _runner_thread_ref.is_alive())
             if _runner is not None and (_runner.is_running() or alive):
                 raise HTTPException(409, "workflow already running")
-            _previews.clear(); _logs.clear(); _events.clear()
+            _previews.clear(); _previews_720p.clear(); _previews_480p.clear(); _logs.clear(); _events.clear()
             _runner = core.WorkflowRunner(on_log=_record, on_event=_event, on_frame=_frame, native_preview=False)
             _runner_project_id = project_id
             try:
@@ -1696,15 +1719,17 @@ def live_update_workflow(request: Request, body: dict) -> dict:
 
 
 @app.get("/api/preview/{node_id}")
-def preview(node_id: str) -> Response:
+def preview(node_id: str, res: str = "720p") -> Response:
     with _lock:
-        data = _previews.get(node_id)
+        bucket = _previews_480p if res == "480p" else _previews
+        data = bucket.get(node_id) or _previews.get(node_id)
         running = _runner.is_running() if _runner else False
     if data is None and running:
         for _ in range(25):
             time.sleep(0.1)
             with _lock:
-                data = _previews.get(node_id)
+                bucket = _previews_480p if res == "480p" else _previews
+                data = bucket.get(node_id) or _previews.get(node_id)
             if data is not None:
                 break
     if data is None:
@@ -1713,29 +1738,32 @@ def preview(node_id: str) -> Response:
 
 
 @app.get("/api/preview/{node_id}/stream")
-def preview_stream(node_id: str):
+def preview_stream(node_id: str, res: str = "720p"):
     def frame_generator():
         last_frame_bytes = None
         start_wait = time.time()
         try:
             while True:
                 with _lock:
-                    frame_bytes = _previews.get(node_id)
+                    bucket = _previews_480p if res == "480p" else _previews
+                    frame_bytes = bucket.get(node_id) or _previews.get(node_id)
                     running = _runner.is_running() if _runner else False
                 if frame_bytes is not None:
+                    if frame_bytes is last_frame_bytes:
+                        time.sleep(0.03)
+                        continue
                     last_frame_bytes = frame_bytes
                     yield (
                         b"--frame\r\n"
                         b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
                     )
                 elif not frame_bytes:
-                    # Wait up to 25 seconds for the first frame if runner is active/starting
                     max_startup_wait = 25.0 if running or _runner else 3.0
                     if time.time() - start_wait > max_startup_wait:
                         break
                 elif not running and (time.time() - start_wait > 5.0):
                     break
-                time.sleep(0.08)
+                time.sleep(0.04)
         except GeneratorExit:
             pass
 
@@ -1744,6 +1772,26 @@ def preview_stream(node_id: str):
         media_type="multipart/x-mixed-replace; boundary=frame",
         headers={"Cache-Control": "no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0"},
     )
+
+
+@app.websocket("/api/preview/{node_id}/ws")
+async def preview_websocket(websocket: WebSocket, node_id: str, res: str = "720p"):
+    """Ultra-low latency WebSocket binary JPEG streaming endpoint."""
+    await websocket.accept()
+    last_frame_bytes = None
+    try:
+        while True:
+            with _lock:
+                bucket = _previews_480p if res == "480p" else _previews
+                frame_bytes = bucket.get(node_id) or _previews.get(node_id)
+            if frame_bytes is not None and frame_bytes is not last_frame_bytes:
+                last_frame_bytes = frame_bytes
+                await websocket.send_bytes(frame_bytes)
+            await asyncio.sleep(0.04)
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
 
 
 @app.post("/api/upload")

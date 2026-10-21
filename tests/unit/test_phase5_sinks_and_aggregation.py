@@ -113,9 +113,9 @@ def test_dispatch_notification_cooldown():
     }
     event = {"type": "fire_hazard", "zoneName": "Paint Shop"}
 
-    # First dispatch -> mock_dispatched, dispatched, or dispatched_local_fallback
+    # First dispatch -> mock_dispatched, dispatched, dispatched_local_fallback, or dispatched_async
     res1 = dispatch_notification(event, None, config, node_state)
-    assert res1["status"] in ("mock_dispatched", "dispatched", "simulated_dispatched", "dispatched_local_fallback")
+    assert res1["status"] in ("mock_dispatched", "dispatched", "simulated_dispatched", "dispatched_local_fallback", "dispatched_async")
     assert res1["channel"] == "telegram"
     assert "fire_hazard" in res1["message"]
 

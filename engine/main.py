@@ -2515,7 +2515,7 @@ def results_for_node(
 
     project_sources = {
         str(node.get("id") or "") for node in workflow.get("nodes", [])
-        if node.get("type") in ("zone_activity_timer", "zone_exit_event", "multi_zone_occupancy", "ocr_reader", "object_timer", "face_tracker")
+        if node.get("type") in ("zone_activity_timer", "zone_exit_event", "multi_zone_occupancy", "ocr_reader", "object_timer", "face_tracker", "velocity_calculator", "path_deviation")
         and node.get("enabled", True)
         and str(node.get("id") or "") != node_id
         and has_active_path(workflow, str(node.get("id") or ""), node_id)
@@ -2524,7 +2524,7 @@ def results_for_node(
         "alert", "webhook_output", "image_output", "database_output", "ai_agent",
     ):
         events = [item for item in detections
-                  if item.get("kind") in ("zone_activity_event", "zone_exit", "zone_occupied", "zone_vacated", "zone_overstay", "ocr_text_read", "text_detected", "object_timer_alert")
+                  if item.get("kind") in ("zone_activity_event", "zone_exit", "zone_occupied", "zone_vacated", "zone_overstay", "ocr_text_read", "text_detected", "object_timer_alert", "overspeed_detected", "path_deviation_detected")
                   and str(item.get("sourceNodeId") or "") in project_sources]
         return filter_project_inputs(workflow, node_id, events, after_sources=project_sources)
     tracker = active_tracking_node(workflow) or active_vlm_box_tracker_node(workflow)
@@ -2572,7 +2572,7 @@ def results_for_node(
         event_kinds = {
             "track_snapshot", "count_event", "line_crossing", "loitering_alert",
             "object_classification", "anomaly", "zone_activity", "zone_activity_event",
-            "zone_exit", "ocr_text_read", "text_detected", "barcode_read", "object_timer_alert", "face_identified"
+            "zone_exit", "ocr_text_read", "text_detected", "barcode_read", "object_timer_alert", "face_identified", "overspeed_detected", "path_deviation_detected"
         }
         results.extend(
             item for item in detections

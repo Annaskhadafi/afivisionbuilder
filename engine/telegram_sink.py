@@ -5,6 +5,7 @@ directly to Telegram chats, groups, or channels via Telegram Bot API (sendPhoto 
 """
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import os
 import time
@@ -12,9 +13,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import numpy as np
+
+# Background thread pool executor for non-blocking asynchronous Telegram dispatches
+_telegram_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="TelegramSinkWorker")
 
 
 def build_multipart_form_data(
@@ -166,8 +170,9 @@ def dispatch_telegram_alert(
     image: Optional[np.ndarray],
     config: Dict[str, Any],
     node_state: Dict[str, Any],
+    async_dispatch: Optional[bool] = None,
 ) -> Dict[str, Any]:
-    """Dispatch alert to Telegram with anti-spam cooldown and dual snapshot support."""
+    """Dispatch alert to Telegram with anti-spam cooldown, dual snapshot support, and non-blocking async execution."""
     bot_token = str(config.get("botToken") or os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip()
     chat_id = str(config.get("chatId") or os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
 
@@ -181,6 +186,8 @@ def dispatch_telegram_alert(
     parse_mode = str(config.get("parseMode", "HTML")).strip()
     cooldown = max(1.0, float(config.get("cooldownSeconds", 5.0) or 5.0))
     disable_notif = bool(config.get("disableNotification", False))
+    # Non-blocking async dispatch by default to keep the main pipeline frame loop fast
+    is_async = bool(config.get("asyncDispatch", True)) if async_dispatch is None else bool(async_dispatch)
 
     now = time.time()
     last_sent = float(node_state.get("last_telegram_time", 0.0))
@@ -198,9 +205,11 @@ def dispatch_telegram_alert(
     photo_bytes = event.get("snapshot_bytes")
 
     # 2. If not, fallback to encoding current frame (dual support)
+    # Strictly enforce JPEG quality 65-75% for fast network transfer
     if not photo_bytes and image is not None and hasattr(image, "shape"):
         try:
-            success, buf = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+            quality = max(65, min(75, int(config.get("jpegQuality", 70) or 70)))
+            success, buf = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
             if success:
                 photo_bytes = buf.tobytes()
         except Exception:
@@ -218,13 +227,34 @@ def dispatch_telegram_alert(
             "timestamp": now,
         }
 
-    # Real dispatch via Telegram API
+    # Immediately lock cooldown timestamp to prevent duplicate firing in high-FPS loop
+    node_state["last_telegram_time"] = now
+
+    # Real dispatch via Telegram API: Non-blocking asynchronous worker or synchronous fallback
+    if is_async:
+        def _worker_send() -> None:
+            try:
+                if photo_bytes:
+                    send_telegram_photo(bot_token, chat_id, photo_bytes, caption, parse_mode, disable_notif)
+                else:
+                    send_telegram_message(bot_token, chat_id, caption, parse_mode, disable_notif)
+            except Exception:
+                pass
+
+        _telegram_executor.submit(_worker_send)
+        return {
+            "status": "dispatched_async",
+            "ok": True,
+            "caption": caption,
+            "hasPhoto": photo_bytes is not None,
+            "timestamp": now,
+        }
+
+    # Synchronous delivery mode
     if photo_bytes:
         res = send_telegram_photo(bot_token, chat_id, photo_bytes, caption, parse_mode, disable_notif)
     else:
         res = send_telegram_message(bot_token, chat_id, caption, parse_mode, disable_notif)
-
-    node_state["last_telegram_time"] = now
 
     return {
         "status": res.get("status", "unknown"),
