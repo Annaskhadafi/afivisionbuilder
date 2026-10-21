@@ -19,6 +19,10 @@ tensorflow>=2.15.0
 timm>=0.9.0
 uniface>=4.0.0
 
+# Industrial Safety & Classical CV Analytics
+# (Dominant Color, Man-Down Fall Detector, LPR / ANPR, Overstack Clearance, Class Replacement)
+# Fully supported via OpenCV, NumPy, and ONNX Runtime
+
 # Tracking & Multi-Object Analytics
 supervision>=0.25.0,<=0.30.9
 trackers==2.5.0.post0

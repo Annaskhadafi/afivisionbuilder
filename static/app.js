@@ -57,6 +57,11 @@
     face_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M10 16c.5.5 1.5 1 2 1s1.5-.5 2-1"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>',
     face_crop: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 10h.01"/><path d="M15 10h.01"/><circle cx="12" cy="12" r="7"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>',
     face_tracker: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M12 14v7"/><polyline points="9 18 12 21 15 18"/></svg>',
+    dominant_color: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2"/></svg>',
+    class_replacement: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/></svg>',
+    man_down_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2"/><path d="m8 18 4-2 3 2 4-2"/><path d="M12 9V3"/><path d="m9 6 3-3 3 3"/></svg>',
+    lpr_license_plate: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="5" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><path d="M8 10h8"/><path d="M8 14h5"/></svg>',
+    overstack_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M2 5h20"/><path d="m12 2 3 3-3 3"/><rect width="16" height="5" x="4" y="10" rx="1"/><rect width="18" height="5" x="3" y="16" rx="1"/></svg>',
 
     // Preprocessing
     slicer: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
@@ -215,11 +220,11 @@
   // --- Category Mapping ---
   function categoryFor(type) {
     if (type === 'input' || type === 'ip_camera') return 'Sources';
-    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison', 'face_detector', 'face_crop'].includes(type)) return 'AI Vision Models';
-    if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller', 'object_timer', 'face_tracker'].includes(type)) return 'Tracking & Analysis';
+    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison', 'face_detector', 'face_crop', 'lpr_license_plate'].includes(type)) return 'AI Vision Models';
+    if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller', 'object_timer', 'face_tracker', 'dominant_color', 'man_down_detector', 'overstack_detector'].includes(type)) return 'Tracking & Analysis';
     if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer', 'camera_focus', 'auto_rotate_edges', 'delta_filter'].includes(type)) return 'Image Preprocessing';
     if (['overlay_annotate', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
-    if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once', 'switch_case'].includes(type)) return 'Logic & Flow Control';
+    if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once', 'switch_case', 'class_replacement'].includes(type)) return 'Logic & Flow Control';
     return 'Outputs & Export';
   }
 
@@ -10315,6 +10320,96 @@
       { "key": "emitEvents", "label": "Kirim Event Teks", "desc": "Picu event ocr_text_read ke alert dan database." }
     ],
     "tips": "Model PP-OCR ONNX mobile bekerja sangat cepat (~10ms pada CPU standar) dan sangat ideal untuk ANPR (Automatic Number Plate Recognition) serta logistik pergudangan."
+  },
+  "dominant_color": {
+    "concept": "Node inspeksi kepatuhan warna objek dan analisis palet warna dominan (RGB & HSV). Mengekstrak persentase warna target (misal: rompi hijau stabilo, oranye K3, atau warna helm) pada sub-region tertentu.",
+    "diagram": "[ Detections / Tracker ] ──▶ [ Dominant Color Inspector ] ──▶ [ Alert / Overlay / Webhook ]",
+    "steps": [
+      "Tentukan Target Kelas (misal: person atau vest).",
+      "Pilih sub-area pemotongan (Torso untuk rompi, Head untuk helm, atau Full bbox).",
+      "Pilih Preset Warna APD (Safety Green, Safety Orange, Helmet White/Yellow/Red) atau gunakan HSV kustom.",
+      "Atur Min Match Percent (default 15%) dan aktifkan Require Match jika ingin memicu alarm saat pekerja tidak mengenakan warna APD wajib."
+    ],
+    "params": [
+      { "key": "targetClass", "label": "Target Kelas Objek", "desc": "Kelas deteksi yang diinspeksi warnanya." },
+      { "key": "subRegion", "label": "Area Sub-Pemotongan", "desc": "Pilihan area inspeksi (torso, head, bottom_half, full)." },
+      { "key": "targetPreset", "label": "Preset Warna APD", "desc": "Pilihan warna standar keselamatan industri." },
+      { "key": "minMatchPercent", "label": "Ambang Persentase Minimum", "desc": "Rasio minimum piksel warna target di dalam area objek." },
+      { "key": "requireMatch", "label": "Wajib Sesuai Warna", "desc": "Picu alarm pelanggaran jika warna target tidak terpenuhi." }
+    ],
+    "tips": "Menggunakan ruang warna HSV yang kebal terhadap bayangan dan intensitas pencahayaan matahari/lampu temaram."
+  },
+  "class_replacement": {
+    "concept": "Node relabeling hierarkis deterministik yang mengganti nama kelas deteksi awal dengan hasil klasifikasi spesifik tingkat dua tanpa merusak track_id dan jejak koordinat.",
+    "diagram": "[ Primary Detector ] ──▶ [ Secondary Classifier ] ──▶ [ Class Replacement ] ──▶ [ Logic / Sinks ]",
+    "steps": [
+      "Tentukan Sumber Kelas Asal (misal: vehicle atau tanda bintang '*' untuk semua).",
+      "Pilih Mode Penggantian (direct_mapping via tabel kamus, attribute_lookup dari metadata, atau secondary_results).",
+      "Tentukan Tabel Mapping (contoh: vehicle:forklift, person:worker).",
+      "Pilih Aksi Fallback (keep_original, set_unknown, atau drop) jika objek tidak cocok dengan aturan."
+    ],
+    "params": [
+      { "key": "sourceClass", "label": "Kelas Asal", "desc": "Nama kelas deteksi awal yang akan di-relabel." },
+      { "key": "replacementMode", "label": "Mode Relabeling", "desc": "Metode pemetaan (direct_mapping, attribute_lookup, secondary_results)." },
+      { "key": "mappingTable", "label": "Tabel Pemetaan", "desc": "Kamus pemetaan kelas lama ke kelas baru." },
+      { "key": "minClassifierConfidence", "label": "Akurasi Minimum", "desc": "Ambang batas kepercayaan classifier sekunder." },
+      { "key": "preserveOriginalClass", "label": "Simpan Kelas Asli", "desc": "Simpan label awal di atribut original_class." }
+    ],
+    "tips": "Sangat ideal untuk pipeline AI bertingkat: detektor cepat mengenali 'vehicle', lalu model sekunder mengidentifikasi model unit spesifik."
+  },
+  "man_down_detector": {
+    "concept": "Node keselamatan kerja K3 darurat yang memantau postur pekerja dan durasi diam untuk mendeteksi pekerja yang terjatuh, pingsan, atau tidak sadarkan diri di area berisiko tinggi.",
+    "diagram": "[ Tracked Persons ] ──▶ [ Man Down & Fall Detector ] ──▶ [ Emergency Alarm / Telegram / S3 ]",
+    "steps": [
+      "Sambungkan deteksi person yang sudah memiliki track_id stabil dari node Tracker.",
+      "Atur Ambang Aspek Rasio (default 0.95: tubuh membujur horizontal di lantai).",
+      "Atur Jeda Konfirmasi Durasi (default 4.0 detik: membedakan orang jongkok sesaat vs orang pingsan tak bergerak).",
+      "Tentukan batas pergerakan mikro (Stillness Max Motion Px) untuk memastikan korban benar-benar diam."
+    ],
+    "params": [
+      { "key": "targetClass", "label": "Target Kelas", "desc": "Kelas pekerja yang dipantau (default person)." },
+      { "key": "aspectRatioThreshold", "label": "Ambang Aspek Rasio (W/H)", "desc": "Rasio lebar terhadap tinggi tubuh saat terbaring." },
+      { "key": "confirmationDurationSeconds", "label": "Durasi Diam Konfirmasi", "desc": "Waktu korban terbaring sebelum alarm darurat ditembakkan." },
+      { "key": "stillnessMaxMotionPx", "label": "Batas Gerak Diam (Px)", "desc": "Toleransi gerakan piksel untuk status motionless." },
+      { "key": "alarmCooldownSeconds", "label": "Jeda Cooldown Alarm", "desc": "Interval pencegahan duplikasi alarm berulang." }
+    ],
+    "tips": "Node ini memicu event darurat CRITICAL yang dapat langsung dihubungkan ke sirine fisik atau dispatch Telegram mandor secara instan."
+  },
+  "lpr_license_plate": {
+    "concept": "Node Dedicated Automatic Number Plate Recognition (ANPR / LPR) khusus kendaraan logistik dan armada workshop dengan pembersihan sintaks plat Indonesia, normalisasi regex, majority voting 5 frame, dan kontrol gerbang Whitelist/Blacklist.",
+    "diagram": "[ Vehicle Detections ] ──▶ [ LPR License Plate ] ──▶ [ Gate Access / Webhook / DB ]",
+    "steps": [
+      "Tentukan kelas kendaraan target (truck, car, pickup, vehicle).",
+      "Daftarkan nomor plat yang diizinkan pada kolom Whitelist (contoh: B1234XYZ, KT8888AA).",
+      "Daftarkan nomor plat bermasalah pada kolom Blacklist untuk alarm keamanan otomatis.",
+      "Atur jendela Temporal Voting (default 5 frame) agar getaran atau silau lampu tidak merusak pembacaan plat nomor."
+    ],
+    "params": [
+      { "key": "vehicleClasses", "label": "Kelas Kendaraan Target", "desc": "Jenis armada yang diperiksa plat nomornya." },
+      { "key": "whitelist", "label": "Daftar Putih (Whitelist)", "desc": "Nomor plat resmi yang diberikan izin akses buka gerbang." },
+      { "key": "blacklist", "label": "Daftar Hitam (Blacklist)", "desc": "Nomor plat yang memicu peringatan kendaraan terlarang." },
+      { "key": "temporalVotingFrames", "label": "Jendela Voting Frame", "desc": "Jumlah frame berurutan untuk konsensus konsistensi karakter plat." },
+      { "key": "gateCooldownSeconds", "label": "Jeda Pemicu Gerbang", "desc": "Cooldown pengiriman event akses kendaraan." }
+    ],
+    "tips": "Dilengkapi normalisasi karakter ambigu (misal angka 0 vs huruf O, angka 1 vs huruf I) yang disesuaikan secara otomatis dengan standar plat nomor RI."
+  },
+  "overstack_detector": {
+    "concept": "Node keselamatan pergudangan yang memantau batas tinggi tumpukan kargo, kardus, pallet, atau ban terhadap garis batas virtual langit-langit (clearance ceiling) untuk mencegah bahaya tumpukan roboh.",
+    "diagram": "[ Pallet / Cargo Stacks ] ──▶ [ Overstack Clearance Detector ] ──▶ [ Warning Hazard / CSV ]",
+    "steps": [
+      "Tentukan kelas tumpukan yang dipantau (pallet, box, cargo, tire, stack).",
+      "Atur koordinat garis batas ketinggian maksimum (Ceiling Y atau Garis Batas Virtual).",
+      "Kalibrasi faktor Pixel Per Meter untuk mengonversi ke satuan meter fisik aktual.",
+      "Atur Durasi Persistensi (default 2.5 detik) agar pergerakan forklift pengangkat sesaat tidak memicu alarm palsu."
+    ],
+    "params": [
+      { "key": "targetClasses", "label": "Kelas Tumpukan Target", "desc": "Objek-objek kargo atau tumpukan yang diukur tingginya." },
+      { "key": "ceilingY", "label": "Garis Batas Langit-langit (Y)", "desc": "Koordinat visual batas ketinggian maksimum." },
+      { "key": "pixelPerMeter", "label": "Kalibrasi Piksel/Meter", "desc": "Jumlah piksel pada gambar per 1 meter ketinggian fisik." },
+      { "key": "persistenceDurationSeconds", "label": "Durasi Persistensi (Detik)", "desc": "Waktu pelanggaran batas harus bertahan sebelum alarm menyala." },
+      { "key": "alarmCooldownSeconds", "label": "Jeda Cooldown Alarm", "desc": "Jeda waktu antar peringatan bahaya overstack." }
+    ],
+    "tips": "Visualisasi overlay otomatis merender garis batas langit-langit oranye dan menghitung kelebihan tinggi (misal: OVERSTACK +0.45m)."
   }
 };
 

@@ -211,6 +211,14 @@
 - **6 Preset Siap Pakai**: Pilihan preset industri instan (Watermark & Timestamp, Color Threshold Masking, Edge Detection Overlay, Draw Crosshair Grid, Speedometer HUD, Dynamic ROI Masking).
 - **Uji 1-Frame Sandbox**: Eksekusi uji kode pada 1 frame visual sintetis dalam lingkungan terisolasi lengkap dengan perbandingan gambar *Before vs After*, metrik latensi eksekusi (ms), dan tangkapan *standard output logs*.
 
+### 🏭 33. 5 Node Khusus Industri Dunia Nyata (Real-World Safety & Industrial Nodes)
+Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, bengkel perawatan armada berat, dan pergudangan logistik:
+- **`dominant_color` (Dominant Color Inspector)**: Inspeksi kepatuhan warna APD (rompi keselamatan high-vis green/orange, pembedaan warna helm kerja sesuai jabatan supervisor/operator/safety officer) dan inspeksi palet warna produk industri menggunakan ruang warna HSV adaptif.
+- **`class_replacement` (Hierarchical Relabeler)**: Menghubungkan detektor umum (YOLO mendeteksi `vehicle` atau `tool`) dengan model klasifikasi spesifik tingkat dua (`forklift_toyota_5t` atau `impact_wrench`) tanpa merusak `track_id` dan riwayat koordinat spasial.
+- **`man_down_detector` (Man Down & Fall Detector)**: Pemantau keselamatan K3 darurat 3 tahap (geometri rasio aspek horizontal, deteksi drop vertikal mendadak, dan buffer ketidaksadaran/stillness > 4 detik tak bergerak) untuk peringatan dini kecelakaan kerja fatal.
+- **`lpr_license_plate` (License Plate Reader / ANPR)**: Ekstraksi plat nomor kendaraan dengan ekualisasi kontras CLAHE, normalisasi regex standar plat nomor Indonesia (RI), koreksi karakter ambigu (0 vs O, 1 vs I), majority voting lintas 5 frame, dan evaluasi gerbang Whitelist/Blacklist.
+- **`overstack_detector` (Overstack Clearance Detector)**: Memantau batas ketinggian aman tumpukan pallet, kardus, atau ban di gudang logistik terhadap garis batas virtual langit-langit (*clearance ceiling*) dengan kalibrasi meter fisik dan filter persistensi pergerakan forklift.
+
 ---
 
 ## 📸 Tur Antarmuka & Showcase Visual
@@ -305,6 +313,36 @@ Node Object Timer melacak waktu keberadaan setiap objek terdeteksi di frame vide
 
 ---
 
+### 16. 5 Node Industri Dunia Nyata di Kanvas Alur Kerja Studio
+Penyusunan alur kerja visual komprehensif menggabungkan kelima node industri: Dominant Color Inspector, Class Replacement, Man Down & Fall Detector, License Plate Reader (LPR), dan Overstack Clearance Detector.
+![5 Node Industri Dunia Nyata](docs/screenshots/22_five_realworld_nodes_canvas.png)
+
+---
+
+### 17. Man Down & Fall Detector Inspector (K3 Keselamatan Kerja)
+Panel inspector konfigurasi deteksi kecelakaan kerja: ambang rasio aspek rebahan horizontal, jeda konfirmasi stillness (detik), dan toleransi pergerakan piksel mikro.
+![Man Down Inspector](docs/screenshots/23_man_down_detector_inspector.png)
+
+---
+
+### 18. License Plate Reader (LPR) & Gate Access Control
+Konfigurasi otomatisasi gerbang logistik: filter kelas armada kendaraan, daftar Whitelist / Blacklist, dan voting konsensus frame stabil.
+![LPR Inspector](docs/screenshots/24_lpr_license_plate_inspector.png)
+
+---
+
+### 19. Dominant Color Inspector (Kepatuhan Warna Rompi & APD)
+Pengaturan inspeksi warna APD: pemotongan area torso untuk rompi, pemilihan preset warna keselamatan (Hi-Vis Green/Orange), dan penegakan ambang persentase wajib.
+![Dominant Color Inspector](docs/screenshots/25_dominant_color_inspector.png)
+
+---
+
+### 20. Overstack Clearance Detector (Batas Ketinggian Tumpukan Gudang)
+Pemantau batas tumpukan kargo aman di koridor gudang: koordinat garis batas virtual langit-langit (Ceiling Y), kalibrasi rasio piksel ke meter, dan waktu persistensi debouncing.
+![Overstack Clearance Inspector](docs/screenshots/26_overstack_clearance_inspector.png)
+
+---
+
 ## ⚡ Instalasi & Eksekusi (1-Click)
 
 ### 🪟 Pengguna Windows (Disarankan)
@@ -345,17 +383,17 @@ AFI Vision Builder dirancang portabel dengan skrip launcher otomatis:
 
 ---
 
-## 🧩 Katalog 72+ Node Lengkap
+## 🧩 Katalog 80+ Node Lengkap
 
 Seluruh node dikelompokkan ke dalam 5 kategori fungsional dengan parameter berlabel Bahasa Indonesia dan panduan interaktif:
 
 | Kategori | Node Siap Pakai | Fungsi & Deskripsi Utama |
 | :--- | :--- | :--- |
 | 📹 **Sources (Input)** | `Web Camera`, `IP Camera (RTSP)`, `Daheng Industrial Camera`, `Video File`, `Static Image`, `YouTube Live Stream (yt-dlp)` | Akuisisi citra/streaming frame dari berbagai tipe kamera fisik, live video URL YouTube, dan berkas multimedia. |
-| 🧠 **AI Vision Models** | `Ultralytics YOLO`, `YOLO-World (Zero-Shot)`, `Roboflow Universe (Model ID)`, `Face Detector (UniFace)`, `RF-DETR Object Detection`, `SAM 3 Segmentation`, `ConvNeXt Classifier`, `EfficientAD Anomaly`, `ONNX Model`, `TFLite Model`, `AI Agent (VLM Multimodal)`, `Detections Consensus`, `Model Comparison Diff`, `OCR Text Reader (ONNX)` | Deteksi objek real-time, zero-shot open-vocabulary text prompt via CLIP, hosted inference Roboflow Universe 50.000+ model, deteksi wajah & 5 facial landmarks UniFace, segmentasi instan, klasifikasi citra, inspeksi anomali cacat visual, analisis multimodal VLM, konsensus multi-model, komparasi dual-model side-by-side & diff overlay, dan OCR ONNX PP-OCRv3/v4. |
-| 🎯 **Tracking, Kinematics & Spatial** | `ByteTrack`, `BoT-SORT`, `OC-SORT`, `Face Re-ID Tracker (UniFace)`, `Object Timer`, `Multi-Zone Occupancy & Table Tracker`, `Zone Activity Timer`, `Zone Exit Event`, `Multi-Line Counter (A↔B)`, `Object Counter`, `Dwell Time Zone`, `ROI Filter (Polygon Area)`, `Distance Measurement`, `Size Measurement`, `Velocity Calculator`, `Path Deviation`, `Detections Difference`, `Dynamic Zone Tracking`, `PTZ Controller (ONVIF)` | Pelacakan ID konsisten objek bergerak, pelacakan & pengenalan identitas wajah terdaftar (ArcFace 512-D), timer durasi visual objek di frame (mm:ss), penghitungan keluar-masuk garis dua arah, timer durasi terisi meja restoran, verifikasi transisi gerbang, kalkulasi jarak fisik & ukuran objek dengan kalibrasi cm, perhitungan kecepatan km/h, koridor deviasi lintasan, komparator selisih status sebelum vs sesudah (baseline comparator), dan auto-following kamera PTZ fisik. |
+| 🧠 **AI Vision Models** | `Ultralytics YOLO`, `YOLO-World (Zero-Shot)`, `Roboflow Universe (Model ID)`, `Face Detector (UniFace)`, `RF-DETR Object Detection`, `SAM 3 Segmentation`, `ConvNeXt Classifier`, `EfficientAD Anomaly`, `ONNX Model`, `TFLite Model`, `AI Agent (VLM Multimodal)`, `Detections Consensus`, `Model Comparison Diff`, `OCR Text Reader (ONNX)`, `License Plate Reader (LPR / ANPR)` | Deteksi objek real-time, zero-shot open-vocabulary text prompt via CLIP, hosted inference Roboflow Universe 50.000+ model, deteksi wajah & 5 facial landmarks UniFace, segmentasi instan, klasifikasi citra, inspeksi anomali cacat visual, analisis multimodal VLM, konsensus multi-model, komparasi dual-model side-by-side & diff overlay, dan OCR ONNX PP-OCRv3/v4. |
+| 🎯 **Tracking, Kinematics & Spatial** | `ByteTrack`, `BoT-SORT`, `OC-SORT`, `Face Re-ID Tracker (UniFace)`, `Object Timer`, `Multi-Zone Occupancy & Table Tracker`, `Zone Activity Timer`, `Zone Exit Event`, `Multi-Line Counter (A↔B)`, `Object Counter`, `Dwell Time Zone`, `ROI Filter (Polygon Area)`, `Distance Measurement`, `Size Measurement`, `Velocity Calculator`, `Path Deviation`, `Detections Difference`, `Dynamic Zone Tracking`, `PTZ Controller (ONVIF)`, `Dominant Color Inspector`, `Man Down & Fall Detector`, `Overstack Clearance Detector` | Pelacakan ID konsisten objek bergerak, pelacakan & pengenalan identitas wajah terdaftar (ArcFace 512-D), timer durasi visual objek di frame (mm:ss), penghitungan keluar-masuk garis dua arah, timer durasi terisi meja restoran, verifikasi transisi gerbang, kalkulasi jarak fisik & ukuran objek dengan kalibrasi cm, perhitungan kecepatan km/h, koridor deviasi lintasan, komparator selisih status sebelum vs sesudah (baseline comparator), dan auto-following kamera PTZ fisik. |
 | 🎨 **Preprocessing, Classical CV & Drawing** | `Overlay / Annotate (Layers)`, `Resize Frame`, `Crop Region`, `Rotate & Flip`, `Color Convert`, `Brightness & Contrast (CLAHE)`, `Blur & Sharpen`, `Perspective Correction`, `Privacy Blur`, `Camera Focus Score`, `Auto Rotate Edges`, `Python Script Editor` | Manipulasi citra, night-vision CLAHE, sensor otomatis wajah/plat nomor, compositing anotasi gambar (termasuk Motion Trail fading dan Halo Glow corner brackets), penilaian ketajaman fokus lensa kamera (Laplacian variance), perataan sudut kemiringan kontur otomatis, dan script Python kustom. |
-| 🔀 **Logic, Flow & Outputs** | `If / Else Branch`, `Compare Value`, `Confidence Threshold`, `Timer Delay`, `Debounce Filter`, `Rate Limiter`, `AND / OR Gate`, `Trigger Once`, `Overlap Analysis`, `Delta Frame Filter`, `Switch-Case Router`, `Live Preview`, `Event Alert Popup`, `Image / Crop Exporter`, `SQLite Database Logger`, `HTTP Webhook`, `Data Aggregator (Rollup)`, `CSV Formatter`, `S3 Cloud Sink`, `Notification Dispatcher` | Percabangan logika alur kerja, gerbang pembanding angka, inspeksi kepatuhan APD (overlap parent-child), penghemat komputasi 70%+ via delta frame, router multi-jalur switch-case, penampil preview real-time, perekaman event ke SQLite database, webhook REST API, akumulasi rollup statistik waktu, ekspor tabular CSV, sink cloud AWS S3/MinIO, dan notifikasi instan Telegram/Slack/WhatsApp. |
+| 🔀 **Logic, Flow & Outputs** | `If / Else Branch`, `Compare Value`, `Confidence Threshold`, `Timer Delay`, `Debounce Filter`, `Rate Limiter`, `AND / OR Gate`, `Trigger Once`, `Overlap Analysis`, `Delta Frame Filter`, `Switch-Case Router`, `Class Replacement (Relabeler)`, `Live Preview`, `Event Alert Popup`, `Image / Crop Exporter`, `SQLite Database Logger`, `HTTP Webhook`, `Data Aggregator (Rollup)`, `CSV Formatter`, `S3 Cloud Sink`, `Notification Dispatcher` | Percabangan logika alur kerja, gerbang pembanding angka, inspeksi kepatuhan APD (overlap parent-child), penghemat komputasi 70%+ via delta frame, router multi-jalur switch-case, penampil preview real-time, perekaman event ke SQLite database, webhook REST API, akumulasi rollup statistik waktu, ekspor tabular CSV, sink cloud AWS S3/MinIO, dan notifikasi instan Telegram/Slack/WhatsApp. |
 
 ---
 
@@ -379,6 +417,11 @@ afivisionbuilder/
 │   ├── data_aggregation.py        # Sliding window metrics rollup & CSV tabular exporter
 │   ├── cloud_sinks.py             # S3 Object Storage sink & multi-channel notification dispatcher
 │   ├── ptz_controller.py          # ONVIF continuous move PTZ auto-follower & deadzone filter
+│   ├── dominant_color.py          # HSV sub-region color inspector & safety vest compliance
+│   ├── class_replacement.py       # Hierarchical cascade relabeler with attribute preservation
+│   ├── man_down_detector.py       # 3-stage worker fall & stillness emergency detector
+│   ├── lpr_license_plate.py       # Dedicated ANPR parser & gate whitelist/blacklist policy
+│   ├── overstack_detector.py      # Warehouse pallet clearance ceiling & stack height telemetry
 │   ├── ocr_engine.py              # Ultra-lightweight ONNX OCR engine (PP-OCRv3/v4)
 │   ├── roboflow_tracker.py        # Track Class Lock & EMA bounding box stabilizer
 │   ├── ai_agent.py                # VLM multimodal agent (Decision, Detector, Strict Classifier)
@@ -404,6 +447,7 @@ afivisionbuilder/
 │   ├── hub_redesign.e2e.ts                # Modern Hub landing page & template cards E2E
 │   ├── ocr_reader.e2e.ts                  # OCR Text Reader ONNX pipeline E2E
 │   ├── phase5_sinks_and_aggregation.e2e.ts # S3 sink, notifications, aggregator, & PTZ E2E
+│   ├── five_realworld_nodes.e2e.ts        # 5 Real-world industrial nodes canvas & guide modal E2E
 │   ├── vlm_and_visualization.e2e.ts        # Model comparison diff & state difference E2E
 │   ├── consensus_and_filter.e2e.ts         # Model consensus & confidence filter E2E
 │   ├── spatial_and_classical_cv.e2e.ts     # Spatial measurement & focus score E2E
@@ -417,6 +461,7 @@ afivisionbuilder/
 │   ├── projects_and_models_hub.e2e.ts      # Hub landing page & Model registry
 │   ├── test_yolo_world_roboflow.py         # Pytest unit tests YOLO-World & Roboflow Universe
 │   └── unit/                               # Pytest Unit Test Suites (157/157 Passed)
+│       ├── test_five_realworld_nodes.py
 │       ├── test_ocr_node.py
 │       ├── test_phase5_sinks_and_aggregation.py
 │       ├── test_vlm_and_visualization.py
@@ -443,8 +488,8 @@ afivisionbuilder/
 
 AFI Vision Builder menerapkan standar rekayasa perangkat lunak ketat dengan pengujian berlapis:
 
-- **168 Unit Tests (100% Passed)**: Pengujian unit menyeluruh via Pytest untuk menguji logika fungsional internal (FSM multi-zone, tracking, konsensus model, kalibrasi jarak, variansi Laplacian, kalkulator kecepatan, throttler delta, komparasi model dual-stream, state comparator, rolling window aggregation, CSV formatting, S3 mock upload, notification cooldown, ONVIF PTZ velocity deadzone, pengenalan teks ONNX OCR, zero-shot YOLO-World text prompting, integrasi Roboflow Universe hosted inference, serta engine kuantisasi model TFLite INT8/FP16 & ONNX Dynamic INT8).
-- **25+ Automated E2E Test Suites**: Menguji seluruh fungsionalitas dari perspektif pengguna nyata menggunakan runner modern `e2e` dengan engine Playwright dan model AI `cx/gpt-5.6-luna`.
+- **219 Unit Tests (100% Passed)**: Pengujian unit menyeluruh via Pytest untuk menguji logika fungsional internal (FSM multi-zone, tracking, konsensus model, kalibrasi jarak, variansi Laplacian, kalkulator kecepatan, throttler delta, komparasi model dual-stream, state comparator, rolling window aggregation, CSV formatting, S3 mock upload, notification cooldown, ONVIF PTZ velocity deadzone, pengenalan teks ONNX OCR, zero-shot YOLO-World text prompting, integrasi Roboflow Universe hosted inference, serta engine kuantisasi model TFLite INT8/FP16 & ONNX Dynamic INT8).
+- **26+ Automated E2E Test Suites**: Menguji seluruh fungsionalitas dari perspektif pengguna nyata menggunakan runner modern `e2e` dengan engine Playwright dan model AI `cx/gpt-5.6-luna`.
 - **Verifikasi Real-Browser & Visual**: Memvalidasi kelayakan kanvas flow, video stream live, modal pengaturan kamera, editor poligon, filter shift, dan ekspor CSV.
 - **Tangkapan Layar Otomatis**: Setiap proses pengujian secara otomatis mendokumentasikan bukti screenshot visual ke folder `.e2e/artifacts/`.
 

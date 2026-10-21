@@ -740,6 +740,8 @@ def _process_track_event_nodes(
         t = n.get("type")
         if t == "face_detector":
             return 0
+        if t == "class_replacement":
+            return 0
         if t == "face_tracker":
             return 1
         if t == "face_crop":
@@ -761,7 +763,8 @@ def _process_track_event_nodes(
             "overlap_analysis", "velocity_calculator", "path_deviation", "delta_filter",
             "detections_difference", "data_aggregator", "csv_formatter", "s3_sink",
             "notification_dispatcher", "ptz_controller", "screenshot_capture", "telegram_notification", "ocr_reader", "object_timer",
-            "face_detector", "face_tracker", "face_crop"
+            "face_detector", "face_tracker", "face_crop",
+            "dominant_color", "class_replacement", "man_down_detector", "lpr_license_plate", "overstack_detector"
         ):
             continue
         project_id = str(project_node.get("id") or "")
@@ -910,6 +913,70 @@ def _process_track_event_nodes(
             if f_crops:
                 crop_batches.setdefault(project_id, []).extend(f_crops)
             extra_results.extend(f_events)
+        elif p_type == "dominant_color":
+            from dominant_color import inspect_dominant_color
+            state = event_runtime.setdefault(project_id, {})
+            augmented_dets, color_events = inspect_dominant_color(
+                frame, tracked or candidates or detections, project_node.get("config", {}), state, now, node_id=project_id
+            )
+            extra_results.extend(color_events)
+            if tracked:
+                tracked[:] = augmented_dets
+            if candidates:
+                candidates[:] = augmented_dets
+            if detections:
+                detections[:] = augmented_dets
+        elif p_type == "class_replacement":
+            from class_replacement import relabel_detections
+            relabeled_dets, relabel_events = relabel_detections(
+                candidates or detections or tracked, project_node.get("config", {})
+            )
+            extra_results.extend(relabel_events)
+            if candidates:
+                candidates[:] = relabeled_dets
+            if detections:
+                detections[:] = relabeled_dets
+            if tracked:
+                tracked[:] = relabeled_dets
+        elif p_type == "man_down_detector":
+            from man_down_detector import detect_man_down
+            state = event_runtime.setdefault(project_id, {})
+            augmented_dets, md_events = detect_man_down(
+                frame, tracked or candidates or detections, project_node.get("config", {}), state, now, node_id=project_id
+            )
+            extra_results.extend(md_events)
+            if tracked:
+                tracked[:] = augmented_dets
+            if candidates:
+                candidates[:] = augmented_dets
+            if detections:
+                detections[:] = augmented_dets
+        elif p_type == "lpr_license_plate":
+            from lpr_license_plate import process_license_plates
+            state = event_runtime.setdefault(project_id, {})
+            augmented_dets, lpr_events = process_license_plates(
+                frame, tracked or candidates or detections, project_node.get("config", {}), state, now, node_id=project_id
+            )
+            extra_results.extend(lpr_events)
+            if tracked:
+                tracked[:] = augmented_dets
+            if candidates:
+                candidates[:] = augmented_dets
+            if detections:
+                detections[:] = augmented_dets
+        elif p_type == "overstack_detector":
+            from overstack_detector import detect_overstack_violations
+            state = event_runtime.setdefault(project_id, {})
+            augmented_dets, overstack_events = detect_overstack_violations(
+                frame, tracked or candidates or detections, project_node.get("config", {}), state, now, node_id=project_id
+            )
+            extra_results.extend(overstack_events)
+            if tracked:
+                tracked[:] = augmented_dets
+            if candidates:
+                candidates[:] = augmented_dets
+            if detections:
+                detections[:] = augmented_dets
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
         if telemetry_callback and project_id:
@@ -1773,6 +1840,13 @@ def _draw_multi_zone_occupancy_overlays(frame, workflow: dict, event_runtime: di
 def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict) -> None:
     _draw_project_zone_overlays(frame, workflow, event_runtime)
     _draw_multi_zone_occupancy_overlays(frame, workflow, event_runtime)
+    for node in workflow.get("nodes", []):
+        if node.get("type") == "overstack_detector" and node.get("enabled", True):
+            try:
+                from overstack_detector import draw_overstack_overlay
+                draw_overstack_overlay(frame, event_runtime.get("_last_detections", []), node.get("config", {}))
+            except Exception:
+                pass
     import cv2
     import math
     import time
@@ -5364,6 +5438,15 @@ class WorkflowRunner:
                                 if "speed_formatted" in det and det.get("showVelocityOverlay", True):
                                     from video_kinematics import draw_single_velocity_badge
                                     draw_single_velocity_badge(display_frame, det)
+                                if "dominantColorPct" in det:
+                                    from dominant_color import draw_dominant_color_badges
+                                    draw_dominant_color_badges(display_frame, [det])
+                                if det.get("isManDown", False):
+                                    from man_down_detector import draw_man_down_overlay
+                                    draw_man_down_overlay(display_frame, [det])
+                                if "plateNumber" in det and det.get("plateNumber"):
+                                    from lpr_license_plate import draw_license_plate_badges
+                                    draw_license_plate_badges(display_frame, [det])
                             from uniface_runtime import draw_face_landmarks_overlay
                             draw_face_landmarks_overlay(display_frame, preview_detections)
                         if not hold_crop_grid:
