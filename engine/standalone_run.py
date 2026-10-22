@@ -147,17 +147,30 @@ def main() -> int:
                     frame_to_show = latest_frame
                     latest_frame = None
 
-            if not args.headless and frame_to_show is not None:
-                try:
-                    cv2.imshow(window_title, frame_to_show)
-                    cv2_window_created = True
+            if not args.headless:
+                if frame_to_show is not None:
+                    try:
+                        if not cv2_window_created:
+                            cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
+                            # Reasonable default window size
+                            h, w = frame_to_show.shape[:2]
+                            target_w = min(1280, max(640, w))
+                            target_h = int(target_w * (h / max(1, w)))
+                            cv2.resizeWindow(window_title, target_w, target_h)
+                            cv2_window_created = True
+
+                        cv2.imshow(window_title, frame_to_show)
+                    except cv2.error as err:
+                        print(f"[Preview] GUI display unavailable ({err}). Continuing in headless mode.", flush=True)
+                        args.headless = True
+
+                if cv2_window_created:
                     key = cv2.waitKey(1) & 0xFF
                     if key in (ord('q'), ord('Q'), 27):  # 'q' or ESC
                         print("\n[Preview] User requested stop. Exiting...", flush=True)
                         break
-                except cv2.error as err:
-                    print(f"[Preview] GUI display unavailable ({err}). Continuing in headless mode.", flush=True)
-                    args.headless = True
+                else:
+                    time.sleep(0.01)
             else:
                 time.sleep(0.01)
 

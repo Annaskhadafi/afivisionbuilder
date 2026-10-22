@@ -17,15 +17,37 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parent
 os.environ["VISONODE_APP_DATA_DIR"] = str(ROOT / "data")
 sys.path.insert(0, str(ROOT / "engine"))
+sys.path.insert(0, str(ROOT))
 
 try:
     import core
-    from standalone_run import load_workflow
 except ImportError:
-    # If running directly inside engine directory
-    sys.path.insert(0, str(ROOT))
-    import core
-    from standalone_run import load_workflow
+    pass
+
+# Resilient import of load_workflow whether packaged as run.py or standalone_run.py
+load_workflow = None
+try:
+    from run import load_workflow as _lw
+    load_workflow = _lw
+except ImportError:
+    try:
+        from standalone_run import load_workflow as _lw
+        load_workflow = _lw
+    except ImportError:
+        import importlib.util
+        for candidate_name in ["run.py", "standalone_run.py"]:
+            candidate_path = ROOT / candidate_name
+            if candidate_path.is_file():
+                spec = importlib.util.spec_from_file_location("runner_module", candidate_path)
+                if spec and spec.loader:
+                    mod = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(mod)
+                    load_workflow = getattr(mod, "load_workflow", None)
+                    if load_workflow:
+                        break
+
+if load_workflow is None:
+    raise ImportError("Tidak dapat menemukan modul 'run.py' atau 'standalone_run.py' untuk memuat workflow.")
 
 
 class StreamlitAppBridge:
@@ -121,6 +143,47 @@ def load_manifest() -> dict:
     return {"name": "Afi Vision Workflow", "version": "1.0.0", "models": [], "environment": []}
 
 
+# Module-level live preview fragment
+@st.fragment(run_every=0.08)
+def live_preview_widget(bridge: StreamlitAppBridge):
+    state = bridge.get_state()
+    if state["is_running"]:
+        # Realtime metrics
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        col_m1.metric("⚡ Pipeline FPS", f"{state['fps']:.1f}")
+        col_m2.metric("🎯 Objek Terdeteksi", f"{state['object_count']}")
+        col_m3.metric("🖼️ Total Frame", f"{state['frame_count']}")
+        col_m4.metric("⏱️ Waktu Berjalan", f"{state['duration']:.1f}s")
+
+        if state["frame"] is not None:
+            st.image(state["frame"], channels="BGR", use_container_width=True)
+        else:
+            st.info("⏳ Menghubungkan ke sumber video... Frame teranotasi pertama sedang diproses.")
+    elif state["error"]:
+        st.error(f"⚠️ Terjadi kendala pada pipeline eksekusi: {state['error']}")
+        st.markdown(
+            """
+            <div style="border: 1px solid #ef4444; border-radius: 8px; padding: 20px; background: rgba(239, 68, 68, 0.1); margin: 10px 0;">
+                <p style="color: #fca5a5; margin-bottom: 0;">Silakan periksa log eksekusi pada tab <b>📋 Realtime Logs</b> di bawah untuk melihat pesan error lengkap.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            """
+            <div style="border: 2px dashed #475569; border-radius: 12px; padding: 50px 20px; text-align: center; background: rgba(30, 41, 59, 0.4); margin: 16px 0;">
+                <div style="font-size: 48px; margin-bottom: 12px;">📹</div>
+                <h3 style="color: #cbd5e1; margin-bottom: 6px;">Live Video Standby</h3>
+                <p style="color: #94a3b8; font-size: 15px; max-width: 600px; margin: 0 auto;">
+                    Klik tombol <b>▶️ Start / Jalankan Stream</b> di atas untuk memulai video streaming dan deteksi AI secara langsung.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
 def main():
     st.set_page_config(
         page_title="Afi Vision — Live Workflow Web App",
@@ -136,13 +199,6 @@ def main():
             .stApp {
                 background-color: #0e1117;
                 color: #e2e8f0;
-            }
-            .metric-card {
-                background: #1e293b;
-                border: 1px solid #334155;
-                border-radius: 8px;
-                padding: 12px 16px;
-                text-align: center;
             }
             .badge-running {
                 display: inline-block;
@@ -174,13 +230,6 @@ def main():
                 font-size: 13px;
                 font-weight: 600;
             }
-            .preview-frame-container {
-                border: 1px solid #334155;
-                border-radius: 12px;
-                overflow: hidden;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-                background: #000;
-            }
         </style>
         """,
         unsafe_allow_html=True,
@@ -190,35 +239,14 @@ def main():
     bridge = get_bridge()
     state = bridge.get_state()
 
-    # Sidebar
-    st.sidebar.markdown(f"## 👁️ {manifest.get('name', 'Workflow')}")
-    st.sidebar.caption(f"Versi {manifest.get('version', '1.0.0')} • Standalone Web Runtime")
-
-    # Status Badge in Sidebar
-    if state["error"]:
-        badge_html = f'<div class="badge-error">⚠️ ERROR: {state["error"][:30]}</div>'
-    elif state["is_running"]:
-        badge_html = '<div class="badge-running">● RUNNING</div>'
-    else:
-        badge_html = '<div class="badge-idle">○ IDLE (STOPPED)</div>'
-    st.sidebar.markdown(badge_html, unsafe_allow_html=True)
-    st.sidebar.markdown("---")
-
-    # Controls
-    st.sidebar.markdown("### 🚀 Kontrol Pipeline")
-    col_btn1, col_btn2 = st.sidebar.columns(2)
-    start_clicked = col_btn1.button("▶️ Start", disabled=state["is_running"], use_container_width=True)
-    stop_clicked = col_btn2.button("⏹️ Stop", disabled=not state["is_running"], use_container_width=True)
-
     # Load workflow config
     try:
         base_workflow = load_workflow()
     except Exception as exc:
-        st.sidebar.error(f"Gagal memuat workflow: {exc}")
+        st.error(f"Gagal memuat workflow: {exc}")
         base_workflow = None
 
-    # Source Configuration
-    st.sidebar.markdown("### 📹 Konfigurasi Sumber Input")
+    # Detect primary source node
     source_node = None
     if base_workflow:
         for node in base_workflow.get("nodes", []):
@@ -226,34 +254,64 @@ def main():
                 source_node = node
                 break
 
-    source_mode = "Default"
+    # Top Header on Main Area
+    col_hdr1, col_hdr2 = st.columns([3, 1])
+    with col_hdr1:
+        st.markdown(f"## 👁️ {manifest.get('name', 'Afi Vision Workflow')}")
+        st.caption(f"Versi {manifest.get('version', '1.0.0')} • Standalone Web Runtime")
+    with col_hdr2:
+        if state["error"]:
+            st.markdown('<div style="text-align: right; margin-top: 10px;"><span class="badge-error">⚠️ ERROR</span></div>', unsafe_allow_html=True)
+        elif state["is_running"]:
+            st.markdown('<div style="text-align: right; margin-top: 10px;"><span class="badge-running">● LIVE STREAMING</span></div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div style="text-align: right; margin-top: 10px;"><span class="badge-idle">○ STANDBY (OFF)</span></div>', unsafe_allow_html=True)
+
+    # Main Action Toolbar (Prominent buttons at the top of the main screen)
+    col_act1, col_act2, col_act3 = st.columns([2, 2, 4])
+    start_clicked = col_act1.button("▶️ Start / Jalankan Stream", disabled=state["is_running"], type="primary", use_container_width=True)
+    stop_clicked = col_act2.button("⏹️ Stop / Hentikan Stream", disabled=not state["is_running"], use_container_width=True)
+
+    # Auto-start on first load if not explicitly stopped
+    if "auto_started" not in st.session_state:
+        st.session_state["auto_started"] = True
+        if not state["is_running"] and base_workflow:
+            bridge.start(copy.deepcopy(base_workflow))
+            st.rerun()
+
+    # Sidebar details (for optional deep adjustments)
+    st.sidebar.markdown(f"### ⚙️ Pengaturan Sumber & Parameter")
     override_source = None
     if source_node:
         s_type = source_node.get("config", {}).get("sourceType", "camera")
-        st.sidebar.caption(f"Tipe Sumber Node: `{s_type}`")
+        st.sidebar.caption(f"Tipe Sumber: `{s_type}`")
         if s_type == "camera":
-            cam_idx = st.sidebar.number_input("Index Webcam / Kamera USB", min_value=0, max_value=10, value=int(source_node.get("config", {}).get("source") or 0))
+            cam_idx = st.sidebar.number_input("Index Kamera USB / Webcam", min_value=0, max_value=10, value=int(source_node.get("config", {}).get("source") or 0))
             override_source = cam_idx
         elif s_type in {"video", "file", "image"}:
             current_path = str(source_node.get("config", {}).get("filePath") or "")
             path_input = st.sidebar.text_input("Path File Video / Gambar", value=current_path)
             override_source = path_input
-            uploaded = st.sidebar.file_uploader("Atau Upload File Lokal", type=["mp4", "avi", "mov", "jpg", "png"])
+            uploaded = st.sidebar.file_uploader("Upload Video / Gambar", type=["mp4", "avi", "mov", "jpg", "png"])
             if uploaded:
                 save_dir = ROOT / "data" / "uploads"
                 save_dir.mkdir(parents=True, exist_ok=True)
                 target_path = save_dir / uploaded.name
                 target_path.write_bytes(uploaded.read())
                 override_source = str(target_path)
-                st.sidebar.success(f"File diupload: {uploaded.name}")
+                st.sidebar.success(f"Uploaded: {uploaded.name}")
+        elif s_type == "youtube":
+            current_url = str(source_node.get("config", {}).get("youtubeUrl") or "")
+            yt_url_input = st.sidebar.text_input("YouTube Stream URL", value=current_url)
+            override_source = yt_url_input
         elif s_type == "rtsp":
             current_url = str(source_node.get("config", {}).get("streamUrl") or source_node.get("config", {}).get("source") or "")
             url_input = st.sidebar.text_input("RTSP Stream URL", value=current_url)
             override_source = url_input
 
-    # Model & Engine info
+    # Model & Engine info in Sidebar
     st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🧠 Info Model & Engine")
+    st.sidebar.markdown("### 🧠 Model AI & Aset")
     models = manifest.get("models", [])
     if models:
         for m in models:
@@ -261,7 +319,7 @@ def main():
     else:
         st.sidebar.caption("Tidak ada model khusus (Classical CV / Default)")
 
-    # Handle Start / Stop
+    # Handle Start / Stop actions
     if start_clicked and base_workflow:
         wf = copy.deepcopy(base_workflow)
         if source_node and override_source is not None:
@@ -272,6 +330,8 @@ def main():
                         node["config"]["source"] = int(override_source)
                     elif s_type in {"video", "file", "image"}:
                         node["config"]["filePath"] = str(override_source)
+                    elif s_type == "youtube":
+                        node["config"]["youtubeUrl"] = str(override_source)
                     elif s_type == "rtsp":
                         node["config"]["streamUrl"] = str(override_source)
         bridge.start(wf)
@@ -281,44 +341,10 @@ def main():
         bridge.stop()
         st.rerun()
 
-    # Main Area
-    st.title(f"👁️ {manifest.get('name', 'Afi Vision Workflow')}")
-    st.caption("Afi Vision Standalone Web Streamlit Interface • Live Preview & Edge Processing")
+    # Render Main Live Preview Widget
+    live_preview_widget(bridge)
 
-    # Fragment for real-time video preview and metrics
-    @st.fragment(run_every="50ms")
-    def render_live_preview():
-        cur = bridge.get_state()
-        if cur["is_running"]:
-            # Metrics
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("⚡ Pipeline FPS", f"{cur['fps']:.1f}")
-            m2.metric("🎯 Object Count", f"{cur['object_count']}")
-            m3.metric("🖼️ Processed Frames", f"{cur['frame_count']}")
-            m4.metric("⏱️ Active Duration", f"{cur['duration']:.1f}s")
-
-            # Video preview
-            if cur["frame"] is not None:
-                st.image(cur["frame"], channels="BGR", use_container_width=True)
-            else:
-                st.info("Sedang menghubungkan ke kamera / membaca sumber video...")
-        else:
-            st.markdown(
-                """
-                <div style="border: 2px dashed #475569; border-radius: 12px; padding: 70px 20px; text-align: center; background: rgba(30, 41, 59, 0.4); margin: 20px 0;">
-                    <div style="font-size: 48px; margin-bottom: 12px;">📹</div>
-                    <h3 style="color: #cbd5e1; margin-bottom: 6px;">Live Preview Standby</h3>
-                    <p style="color: #94a3b8; font-size: 15px; max-width: 600px; margin: 0 auto;">
-                        Workflow siap dijalankan. Klik tombol <b>▶️ Start</b> di panel sidebar untuk memulai deteksi dan streaming langsung dengan preview visual OpenCV.
-                    </p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-    render_live_preview()
-
-    # Tabs for deeper diagnostics
+    # Diagnostic Tabs at the bottom
     tab_logs, tab_events, tab_graph = st.tabs(["📋 Realtime Logs", "🔔 Deteksi & Event", "⚙️ Pipeline Nodes"])
 
     with tab_logs:

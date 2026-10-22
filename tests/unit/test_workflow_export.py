@@ -32,6 +32,17 @@ def test_export_zip_runs_outside_project(tmp_path):
     archive = tmp_path / "package.zip"
     build_zip(graph, manifest, files, ROOT, archive)
     with zipfile.ZipFile(archive) as zipped:
+        namelist = zipped.namelist()
+        assert "run.bat" in namelist
+        assert "run_web.bat" in namelist
+        assert "run_opencv.bat" in namelist
+        assert "install.bat" in namelist
+        run_bat_content = zipped.read("run.bat").decode()
+        assert "AFI VISION RUNNER" in run_bat_content
+        assert "pause" in run_bat_content
+        install_bat_content = zipped.read("install.bat").decode()
+        assert "(~200MB)" not in install_bat_content
+        assert "pause" in install_bat_content
         payload = zipped.read("workflow.json").decode()
         assert "C:/private" not in payload
         assert "do-not-export" not in payload

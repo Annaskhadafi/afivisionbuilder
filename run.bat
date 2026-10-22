@@ -80,7 +80,11 @@ echo   [2] Keluar
 echo.
 set "INSTALL_NOW=1"
 set /p "INSTALL_NOW=Pilihan Anda [1/2, default 1]: "
-if "!INSTALL_NOW!"=="2" exit /b 1
+if "!INSTALL_NOW!"=="2" (
+    echo Instalasi dibatalkan.
+    pause
+    exit /b 1
+)
 
 echo.
 echo Menginstall FastAPI, Uvicorn, dan paket dasar ke %PY_CMD%...
@@ -133,4 +137,5 @@ echo.
 set "USER_ACT="
 set /p "USER_ACT=Pilihan Anda: "
 if /i "!USER_ACT!"=="R" goto :SERVER_LOOP
+pause
 exit /b 0
