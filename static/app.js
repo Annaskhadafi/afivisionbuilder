@@ -4960,9 +4960,10 @@
     featureNotice.innerHTML = `
       <div style="font-weight:600; color:var(--text-primary); margin-bottom:4px;">✨ Termasuk dalam Paket Export:</div>
       <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
-        • <b>Web App (Streamlit)</b>: Dasbor web interaktif dengan live preview (<code>streamlit run app.py</code>)<br>
-        • <b>Desktop Preview (OpenCV)</b>: Jendela visual monitor (<code>python run.py</code>)<br>
-        • <b>Lean Engine Export</b>: Hanya dependensi & engine yang aktif yang disertakan.
+        • <b>Web App (Streamlit)</b>: Dasbor web interaktif dengan live preview (<code>streamlit run app.py</code> atau <code>run_web.bat</code>)<br>
+        • <b>Desktop Preview (OpenCV)</b>: Jendela visual monitor (<code>python run.py</code> atau <code>run_opencv.bat</code>)<br>
+        • <b>Automated Installer</b>: Script <code>install.bat</code> otomatis mendeteksi GPU NVIDIA / CPU & uji mandiri.<br>
+        • <b>Ultra-Lean & Siap Pakai</b>: Model AI langsung disertakan, dependensi hanya yang digunakan workflow.
       </div>
     `;
     body.append(featureNotice);

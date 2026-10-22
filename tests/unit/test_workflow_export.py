@@ -211,3 +211,19 @@ def test_bat_files_syntax_validity(tmp_path):
         assert "pause" in content
         # Ensure no dangerous parentheses patterns like 'echo ... (.venv)' inside parenthesized blocks
         assert "echo [1/4] Membuat Virtual Environment lokal (.venv)" not in content
+
+    # Base workflow without AI should not test for torch/nvidia-smi
+    base_install = (unpacked / "install.bat").read_text(encoding="utf-8")
+    assert "nvidia-smi" not in base_install
+    assert "run.py --check" in base_install
+
+    # AI workflow should include hardware detection and self-test
+    ai_cand = workflow()
+    ai_cand["nodes"].insert(1, {"id": "detector", "type": "detector", "config": {"engine": "yolo", "modelPath": "yolov8n.pt"}})
+    ai_graph, ai_manifest, ai_files = prepare(ai_cand, "AI_Test", ROOT)
+    ai_archive = tmp_path / "ai_pkg.zip"
+    build_zip(ai_graph, ai_manifest, ai_files, ROOT, ai_archive)
+    with zipfile.ZipFile(ai_archive) as zipped:
+        ai_install = zipped.read("install.bat").decode("utf-8")
+        assert "nvidia-smi" in ai_install
+        assert "run.py --check" in ai_install
