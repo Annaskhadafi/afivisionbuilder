@@ -191,3 +191,23 @@ def test_ocr_models_bundled_in_download(tmp_path):
         assert "data/models/ocr/ppocrv3_en_rec.onnx" in names
         assert "data/models/ocr/en_dict.txt" in names
         assert "install.bat" in names
+
+
+def test_bat_files_syntax_validity(tmp_path):
+    cand = workflow()
+    graph, manifest, files = prepare(cand, "Bat_Test", ROOT)
+    archive = tmp_path / "pkg.zip"
+    build_zip(graph, manifest, files, ROOT, archive)
+    unpacked = tmp_path / "unpacked"
+    with zipfile.ZipFile(archive) as zipped:
+        zipped.extractall(unpacked)
+
+    # Check each batch file for fatal syntax errors like ") was unexpected at this time"
+    for bat_name in ["install.bat", "run_web.bat", "run_opencv.bat"]:
+        bat_file = unpacked / bat_name
+        assert bat_file.is_file()
+        content = bat_file.read_text(encoding="utf-8")
+        assert 'cd /d "%~dp0"' in content
+        assert "pause" in content
+        # Ensure no dangerous parentheses patterns like 'echo ... (.venv)' inside parenthesized blocks
+        assert "echo [1/4] Membuat Virtual Environment lokal (.venv)" not in content
