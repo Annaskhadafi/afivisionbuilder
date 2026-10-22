@@ -138,6 +138,8 @@ def test_lean_requirements_and_engine_filtering(tmp_path):
         namelist = zipped.namelist()
         assert "run.py" in namelist
         assert "app.py" in namelist
+        assert "install.bat" in namelist
+        assert "install.sh" in namelist
         assert "run_web.bat" in namelist
         assert "run_opencv.bat" in namelist
         assert "README.md" in namelist
@@ -152,10 +154,12 @@ def test_lean_requirements_and_engine_filtering(tmp_path):
         assert "engine/install_ai_dependencies.py" not in namelist
         assert "engine/workflow_store.py" not in namelist
 
-    # Workflow with YOLO detector only
+    # Workflow with YOLO detector only - models should be bundled directly
     yolo_cand = workflow()
     yolo_cand["nodes"].insert(1, {"id": "detector", "type": "detector", "config": {"engine": "yolo", "modelPath": "yolov8n.pt"}})
     yolo_graph, yolo_manifest, yolo_files = prepare(yolo_cand, "YOLO_Test", ROOT)
+    assert len(yolo_files) >= 1
+    assert any("yolov8n.pt" in name for name in yolo_files)
     yolo_zip = tmp_path / "yolo.zip"
     build_zip(yolo_graph, yolo_manifest, yolo_files, ROOT, yolo_zip)
 
@@ -166,3 +170,24 @@ def test_lean_requirements_and_engine_filtering(tmp_path):
         # RF-DETR and TensorFlow should NOT be bundled
         assert "rfdetr" not in yolo_reqs
         assert "tensorflow" not in yolo_reqs
+
+        # Model file must be in the ZIP download
+        zipped_names = zipped.namelist()
+        assert any("yolov8n.pt" in name for name in zipped_names)
+        assert "install.bat" in zipped_names
+        install_bat_content = zipped.read("install.bat").decode("utf-8")
+        assert "requirements.txt" in install_bat_content
+
+
+def test_ocr_models_bundled_in_download(tmp_path):
+    cand = workflow()
+    cand["nodes"].insert(1, {"id": "ocr", "type": "ocr", "config": {}})
+    graph, manifest, files = prepare(cand, "OCR_Test", ROOT)
+    archive = tmp_path / "ocr.zip"
+    build_zip(graph, manifest, files, ROOT, archive)
+    with zipfile.ZipFile(archive) as zipped:
+        names = zipped.namelist()
+        assert "data/models/ocr/ppocrv3_det.onnx" in names
+        assert "data/models/ocr/ppocrv3_en_rec.onnx" in names
+        assert "data/models/ocr/en_dict.txt" in names
+        assert "install.bat" in names

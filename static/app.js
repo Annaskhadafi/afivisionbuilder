@@ -4944,9 +4944,10 @@
     models.className = 'field-check';
     const include = document.createElement('input');
     include.type = 'checkbox';
-    include.checked = config.includeModels === true;
+    include.checked = config.includeModels !== false;
+    config.includeModels = include.checked;
     include.onchange = () => { config.includeModels = include.checked; markDirty(); };
-    models.append(include, document.createTextNode(' Sertakan model lokal (pastikan hak distribusi)'));
+    models.append(include, document.createTextNode(' Sertakan model lokal & bobot AI (Siap pakai tanpa unduh manual)'));
     body.append(models);
 
     const featureNotice = document.createElement('div');

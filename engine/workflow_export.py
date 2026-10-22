@@ -255,7 +255,7 @@ def prepare(workflow: dict, name: str, root: Path) -> tuple[dict, dict, dict[str
     version = str(options.get("version") or "1.0.0").strip()
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}", version):
         raise ValueError("Export version must use letters, numbers, dots, dashes or underscores")
-    include_models = options.get("includeModels", False)
+    include_models = options.get("includeModels", True)
     if not isinstance(include_models, bool):
         raise ValueError("includeModels must be boolean")
     graph["nodes"] = [node for node in graph["nodes"] if node["id"] != marker["id"] and node.get("enabled", True)]
@@ -286,6 +286,12 @@ def prepare(workflow: dict, name: str, root: Path) -> tuple[dict, dict, dict[str
             engine_id = str(config.get("engine") or {"detector": "rfdetr", "segmenter": "rfdetr", "classifier": "convnext", "efficientad": "efficientad"}[node["type"]])
             if engine_id in {"sam3", "rfdetr_tensorrt"}:
                 raise ValueError(f"{node['id']}: engine {engine_id} requires target-specific assets/runtime and is not supported yet")
+            # Auto-assign default model path if not set so model is bundled directly
+            if engine_id in {"yolo", "ultralytics"}:
+                if not config.get("modelPath") and not config.get("customModelPath"):
+                    default_models = {"detector": "yolov8n.pt", "segmenter": "yolov8n-seg.pt", "classifier": "yolov8n-cls.pt"}
+                    if node["type"] in default_models:
+                        config["modelPath"] = default_models[node["type"]]
             active_model_keys = {
                 "rfdetr": {"rfdetrCheckpoint"}, "rfdetr_onnx": {"rfdetrOnnxModel"},
                 "rfdetr_tensorrt": {"rfdetrTensorRTEngine"}, "sam3": {"samCheckpoint"},
@@ -296,6 +302,12 @@ def prepare(workflow: dict, name: str, root: Path) -> tuple[dict, dict, dict[str
             for model_key in MODEL_KEYS - active_model_keys:
                 if model_key in config:
                     config[model_key] = ""
+        if node["type"] == "ocr" and include_models:
+            ocr_dir = root / "data" / "models" / "ocr"
+            for ocr_name in ["ppocrv3_det.onnx", "ppocrv3_en_rec.onnx", "en_dict.txt"]:
+                ocr_file = ocr_dir / ocr_name
+                if ocr_file.is_file():
+                    files[f"data/models/ocr/{ocr_name}"] = ocr_file
         node_tag = re.sub(r"[^A-Z0-9]+", "_", node["id"].upper()).strip("_")[:32]
         if node["type"] == "input" and config.get("sourceType", "camera") == "camera" and not _sensitive_url(str(config.get("source") or "")):
             variables.append({"name": f"AFI_{node_tag}_SOURCE", "nodeId": node["id"], "field": "source", "required": False})
@@ -348,6 +360,140 @@ def prepare(workflow: dict, name: str, root: Path) -> tuple[dict, dict, dict[str
 
 
 def build_zip(graph: dict, manifest: dict, files: dict[str, Path], root: Path, destination: Path) -> None:
+    install_bat = (
+        "@echo off\r\n"
+        "setlocal enabledelayedexpansion\r\n\r\n"
+        "echo ======================================================================\r\n"
+        "echo   Afi Vision Standalone Runtime Installer\r\n"
+        "echo ======================================================================\r\n"
+        "echo.\r\n\r\n"
+        "where python >nul 2>&1\r\n"
+        "if %errorlevel% neq 0 (\r\n"
+        "    echo [ERROR] Python tidak terdeteksi di PATH sistem Anda!\r\n"
+        "    echo Silakan install Python 3.10, 3.11, atau 3.12 dari https://www.python.org/\r\n"
+        "    echo PENTING: Centang opsi \"Add Python to PATH\" saat proses instalasi.\r\n"
+        "    echo.\r\n"
+        "    pause\r\n"
+        "    exit /b 1\r\n"
+        ")\r\n\r\n"
+        "for /f \"tokens=*\" %%i in ('python --version 2^>^&1') do set PYTHON_VER=%%i\r\n"
+        "echo Menemukan Python: %PYTHON_VER%\r\n"
+        "echo.\r\n\r\n"
+        "if not exist \".venv\\Scripts\\python.exe\" (\r\n"
+        "    echo [1/4] Membuat Virtual Environment lokal (.venv)...\r\n"
+        "    python -m venv .venv\r\n"
+        "    if %errorlevel% neq 0 (\r\n"
+        "        echo [ERROR] Gagal membuat virtual environment.\r\n"
+        "        pause\r\n"
+        "        exit /b 1\r\n"
+        "    )\r\n"
+        "    echo Virtual environment (.venv) berhasil dibuat.\r\n"
+        ") else (\r\n"
+        "    echo [1/4] Virtual Environment (.venv) sudah tersedia.\r\n"
+        ")\r\n\r\n"
+        "echo.\r\n"
+        "echo [2/4] Memperbarui pip...\r\n"
+        ".venv\\Scripts\\python.exe -m pip install --upgrade pip --quiet\r\n\r\n"
+        "echo.\r\n"
+        "echo [3/4] Menginstall seluruh dependensi yang dibutuhkan (requirements.txt)...\r\n"
+        "echo Mohon tunggu sebentar (membutuhkan koneksi internet untuk unduhan pertama)...\r\n"
+        ".venv\\Scripts\\python.exe -m pip install -r requirements.txt\r\n"
+        "if %errorlevel% neq 0 (\r\n"
+        "    echo.\r\n"
+        "    echo [ERROR] Gagal menginstall dependensi via pip.\r\n"
+        "    echo Silakan periksa koneksi internet atau pesan error di atas.\r\n"
+        "    pause\r\n"
+        "    exit /b 1\r\n"
+        ")\r\n\r\n"
+        "echo.\r\n"
+        "echo [4/4] Mempersiapkan konfigurasi (.env)...\r\n"
+        "if not exist \".env\" (\r\n"
+        "    if exist \".env.example\" (\r\n"
+        "        copy .env.example .env >nul\r\n"
+        "        echo Berkas .env berhasil disiapkan dari .env.example.\r\n"
+        "    )\r\n"
+        ") else (\r\n"
+        "    echo Berkas .env sudah siap.\r\n"
+        ")\r\n\r\n"
+        "echo.\r\n"
+        "echo ======================================================================\r\n"
+        "echo   INSTALASI BERHASIL! Seluruh model & modul siap (\"Tinggal Pakai\").\r\n"
+        "echo ======================================================================\r\n"
+        "echo.\r\n"
+        "echo Anda dapat langsung menjalankan:\r\n"
+        "echo   - Double click 'run_web.bat'    (Web App Streamlit + Live Preview)\r\n"
+        "echo   - Double click 'run_opencv.bat' (Desktop OpenCV Preview Window)\r\n"
+        "echo.\r\n"
+        "pause\r\n"
+    )
+
+    install_sh = (
+        "#!/usr/bin/env bash\n"
+        "set -e\n"
+        "echo '======================================================================'\n"
+        "echo '  Afi Vision Standalone Runtime Installer'\n"
+        "echo '======================================================================'\n"
+        "if ! command -v python3 &> /dev/null; then\n"
+        "    echo '[ERROR] python3 could not be found. Please install Python 3.10+.'\n"
+        "    exit 1\n"
+        "fi\n"
+        "if [ ! -f '.venv/bin/python' ]; then\n"
+        "    echo '[1/4] Creating virtual environment (.venv)...'\n"
+        "    python3 -m venv .venv\n"
+        "fi\n"
+        "echo '[2/4] Upgrading pip...'\n"
+        ".venv/bin/python -m pip install --upgrade pip --quiet\n"
+        "echo '[3/4] Installing dependencies from requirements.txt...'\n"
+        ".venv/bin/python -m pip install -r requirements.txt\n"
+        "echo '[4/4] Setting up .env...'\n"
+        "if [ ! -f '.env' ] && [ -f '.env.example' ]; then\n"
+        "    cp .env.example .env\n"
+        "fi\n"
+        "echo '======================================================================'\n"
+        "echo '  Installation Complete! Ready to use.'\n"
+        "echo '  Run web app: .venv/bin/streamlit run app.py'\n"
+        "echo '  Run OpenCV:  .venv/bin/python run.py'\n"
+        "echo '======================================================================'\n"
+    )
+
+    run_web_bat = (
+        "@echo off\r\n"
+        "setlocal\r\n"
+        "if not exist \".venv\\Scripts\\python.exe\" (\r\n"
+        "    echo [INFO] Virtual environment (.venv) belum terpasang.\r\n"
+        "    echo Menjalankan instalasi otomatis terlebih dahulu (install.bat)...\r\n"
+        "    echo.\r\n"
+        "    call install.bat\r\n"
+        "    if not exist \".venv\\Scripts\\python.exe\" (\r\n"
+        "        echo [ERROR] Instalasi dependensi gagal atau dibatalkan.\r\n"
+        "        pause\r\n"
+        "        exit /b 1\r\n"
+        "    )\r\n"
+        ")\r\n"
+        "echo Memulai Afi Vision Web App (Streamlit)...\r\n"
+        ".venv\\Scripts\\python.exe -m streamlit run app.py\r\n"
+        "pause\r\n"
+    )
+
+    run_opencv_bat = (
+        "@echo off\r\n"
+        "setlocal\r\n"
+        "if not exist \".venv\\Scripts\\python.exe\" (\r\n"
+        "    echo [INFO] Virtual environment (.venv) belum terpasang.\r\n"
+        "    echo Menjalankan instalasi otomatis terlebih dahulu (install.bat)...\r\n"
+        "    echo.\r\n"
+        "    call install.bat\r\n"
+        "    if not exist \".venv\\Scripts\\python.exe\" (\r\n"
+        "        echo [ERROR] Instalasi dependensi gagal atau dibatalkan.\r\n"
+        "        pause\r\n"
+        "        exit /b 1\r\n"
+        "    )\r\n"
+        ")\r\n"
+        "echo Memulai Afi Vision Desktop OpenCV Preview...\r\n"
+        ".venv\\Scripts\\python.exe run.py\r\n"
+        "pause\r\n"
+    )
+
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         archive.writestr("workflow.json", json.dumps(graph, indent=2, ensure_ascii=False))
         archive.writestr("manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False))
@@ -356,49 +502,37 @@ def build_zip(graph: dict, manifest: dict, files: dict[str, Path], root: Path, d
             archive.write(root / "engine" / "standalone_app.py", "app.py")
         archive.writestr("requirements.txt", _requirements(root, graph)[0])
         archive.writestr(".env.example", "# Salin menjadi .env; isi nilai pada mesin tujuan. Jangan bagikan .env.\n" + "".join(f"# {item['nodeId']}.{item['field']}\n{item['name']}=\n" for item in manifest["environment"]))
-        archive.writestr("run_web.bat", "@echo off\r\necho Menjalankan Afi Vision Web App (Streamlit)...\r\nstreamlit run app.py\r\npause\r\n")
-        archive.writestr("run_opencv.bat", "@echo off\r\necho Menjalankan Afi Vision Desktop OpenCV Preview...\r\npython run.py\r\npause\r\n")
-        archive.writestr("README.md", f"""# {manifest['name']} {manifest['version']}
+        archive.writestr("install.bat", install_bat)
+        archive.writestr("install.sh", install_sh)
+        archive.writestr("run_web.bat", run_web_bat)
+        archive.writestr("run_opencv.bat", run_opencv_bat)
+        archive.writestr("README.md", f"""# {manifest['name']} {manifest['version']} — Siap Pakai ("Tinggal Pakai")
 
-Paket ini menjalankan snapshot workflow Afi Vision secara mandiri (standalone).
-Tersedia 2 pilihan antarmuka eksekusi: **Web App Interaktif (Streamlit)** dan **Desktop Live Window (OpenCV)**.
+Paket mandiri ini telah menyertakan seluruh bobot model AI, konfigurasi graph, runner desktop, dan web app dashboard.
 
-## Instalasi Dependensi
+## 🚀 Cara Menjalankan Instan (1-Klik)
 
-Gunakan Python {manifest['pythonVersion']}.
+### Langkah 1: Instalasi Dependensi
+Cukup double-click berkas **`install.bat`** (Windows) atau jalankan `bash install.sh` (Linux/macOS).
+Script ini otomatis membuat environment `.venv` lokal dan menginstall paket yang dibutuhkan.
+*(Tips: Jika Anda langsung menjalankan `run_web.bat`, script akan otomatis mendeteksi dan menjalankan instalasi terlebih dahulu!)*
 
-```powershell
-python -m venv .venv
-.venv\\Scripts\\python.exe -m pip install -r requirements.txt
-Copy-Item .env.example .env
-```
-*(Pada Linux/macOS, gunakan `.venv/bin/python -m pip install -r requirements.txt`)*
+### Langkah 2: Jalankan Workflow
 
-## Cara Menjalankan
+#### 🌐 Opsi 1: Web App Streamlit (Rekomendasi)
+Cukup double-click **`run_web.bat`** (atau jalankan `.venv\\Scripts\\python.exe -m streamlit run app.py`).
+Browser akan terbuka otomatis menampilkan:
+- Live streaming video preview teranotasi.
+- Kontrol Start / Stop workflow.
+- Penggantian input sumber kamera / video langsung di browser.
+- Indikator real-time FPS dan jumlah objek terdeteksi.
 
-### 🌐 Opsi 1: Web App Streamlit (Rekomendasi)
-Menampilkan dasbor web modern lengkap dengan kontrol Start/Stop, pemilihan kamera/file video, live video preview, dan grafik metrik performa secara real-time.
-```powershell
-.venv\\Scripts\\streamlit.exe run app.py
-# Atau di Windows cukup double-click: run_web.bat
-```
-Buka browser pada alamat yang muncul (biasanya `http://localhost:8501`).
+#### 🖥️ Opsi 2: Desktop OpenCV Preview
+Cukup double-click **`run_opencv.bat`** (atau jalankan `.venv\\Scripts\\python.exe run.py`).
+Jendela preview desktop OpenCV HighGUI akan langsung muncul di monitor. Tekan **`q`** atau **`ESC`** untuk keluar.
 
-### 🖥️ Opsi 2: Desktop OpenCV Preview
-Membuka jendela preview desktop OpenCV HighGUI langsung di layar monitor.
-```powershell
-.venv\\Scripts\\python.exe run.py
-# Atau di Windows cukup double-click: run_opencv.bat
-```
-Tekan tombol **`q`** atau **`ESC`** pada keyboard untuk menghentikan workflow.
-Gunakan `--headless` jika ingin berjalan di server tanpa monitor:
-```powershell
-.venv\\Scripts\\python.exe run.py --headless
-```
-
-## Catatan
-- Model lokal yang disertakan telah diverifikasi integritasnya via SHA256 checksum di `manifest.json`.
-- File hasil lokal disimpan otomatis di dalam folder `data/`.
+## 🧠 Model AI & Aset
+Semua model AI yang dibutuhkan workflow ini sudah langsung disertakan di dalam folder `models/` dengan verifikasi integritas SHA256. Tidak perlu mengunduh model manual!
 """)
         needed_engine_files = _determine_needed_engine_files(graph)
         for filename in sorted(needed_engine_files):
