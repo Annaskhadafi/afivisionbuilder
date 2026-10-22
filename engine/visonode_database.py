@@ -9,7 +9,11 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from workflow_store import APP_DATA_DIR
+import os
+try:
+    from workflow_store import APP_DATA_DIR
+except ImportError:
+    APP_DATA_DIR = Path(os.environ.get("VISONODE_APP_DATA_DIR", "data")).resolve()
 
 
 DEFAULT_DB_FILENAME = "visonode.db"

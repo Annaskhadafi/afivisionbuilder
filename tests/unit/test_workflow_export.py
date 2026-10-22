@@ -116,3 +116,53 @@ def test_default_detector_adds_its_runtime_dependency():
     candidate["nodes"].insert(1, {"id": "detector", "type": "detector", "config": {}})
     _, manifest, _ = prepare(candidate, "Demo", ROOT)
     assert manifest["dependencyVersions"]["rfdetr"]
+
+
+def test_lean_requirements_and_engine_filtering(tmp_path):
+    # Basic workflow with only input and preview
+    basic_graph, basic_manifest, basic_files = prepare(workflow(), "Basic", ROOT)
+    basic_zip = tmp_path / "basic.zip"
+    build_zip(basic_graph, basic_manifest, basic_files, ROOT, basic_zip)
+
+    with zipfile.ZipFile(basic_zip) as zipped:
+        reqs = zipped.read("requirements.txt").decode()
+        # Should include base runtime + streamlit
+        assert "streamlit==" in reqs or "streamlit>=" in reqs
+        assert "opencv-python" in reqs
+        # Should NOT include heavy deep learning packages not used
+        assert "rfdetr" not in reqs
+        assert "tensorflow" not in reqs
+        assert "uniface" not in reqs
+
+        # App and launchers should exist
+        namelist = zipped.namelist()
+        assert "run.py" in namelist
+        assert "app.py" in namelist
+        assert "run_web.bat" in namelist
+        assert "run_opencv.bat" in namelist
+        assert "README.md" in namelist
+
+        # App.py should be valid Python code
+        app_code = zipped.read("app.py").decode("utf-8")
+        compiled = compile(app_code, "app.py", "exec")
+        assert compiled is not None
+
+        # Excluded studio files should not be present
+        assert "engine/ai_studio_assistant.py" not in namelist
+        assert "engine/install_ai_dependencies.py" not in namelist
+        assert "engine/workflow_store.py" not in namelist
+
+    # Workflow with YOLO detector only
+    yolo_cand = workflow()
+    yolo_cand["nodes"].insert(1, {"id": "detector", "type": "detector", "config": {"engine": "yolo", "modelPath": "yolov8n.pt"}})
+    yolo_graph, yolo_manifest, yolo_files = prepare(yolo_cand, "YOLO_Test", ROOT)
+    yolo_zip = tmp_path / "yolo.zip"
+    build_zip(yolo_graph, yolo_manifest, yolo_files, ROOT, yolo_zip)
+
+    with zipfile.ZipFile(yolo_zip) as zipped:
+        yolo_reqs = zipped.read("requirements.txt").decode()
+        assert "ultralytics" in yolo_reqs
+        assert "torch" in yolo_reqs
+        # RF-DETR and TensorFlow should NOT be bundled
+        assert "rfdetr" not in yolo_reqs
+        assert "tensorflow" not in yolo_reqs

@@ -48,27 +48,173 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+NODE_TYPE_TO_ENGINE_FILES = {
+    "detector": {"custom_model_runtime.py", "rfdetr_onnx_runtime.py"},
+    "segmenter": {"custom_model_runtime.py", "rfdetr_onnx_runtime.py"},
+    "classifier": {"custom_model_runtime.py"},
+    "tracker": {"roboflow_tracker.py"},
+    "distance_measurement": {"spatial_measurement.py"},
+    "size_measurement": {"spatial_measurement.py"},
+    "camera_focus_score": {"classical_cv.py"},
+    "auto_rotate_edges": {"classical_cv.py"},
+    "overlap_analysis": {"advanced_logic.py"},
+    "delta_filter": {"advanced_logic.py"},
+    "switch_case": {"advanced_logic.py"},
+    "velocity_calculator": {"video_kinematics.py"},
+    "path_deviation": {"video_kinematics.py"},
+    "detections_difference": {"detections_difference.py"},
+    "detections_consensus": {"detections_consensus.py"},
+    "data_aggregator": {"data_aggregation.py"},
+    "csv_formatter": {"data_aggregation.py"},
+    "s3_sink": {"cloud_sinks.py"},
+    "notification_dispatcher": {"cloud_sinks.py"},
+    "screenshot": {"screenshot_capture.py"},
+    "telegram_sink": {"telegram_sink.py"},
+    "ptz_controller": {"ptz_controller.py"},
+    "ocr": {"ocr_engine.py"},
+    "object_timer": {"object_timer.py"},
+    "dominant_color": {"dominant_color.py"},
+    "class_replacement": {"class_replacement.py"},
+    "man_down_detector": {"man_down_detector.py"},
+    "lpr_license_plate": {"lpr_license_plate.py"},
+    "overstack_detector": {"overstack_detector.py"},
+    "model_comparison": {"model_comparison.py"},
+    "efficientad": {"efficientad_runtime.py"},
+    "face_detector": {"uniface_runtime.py"},
+    "face_tracker": {"uniface_runtime.py"},
+    "face_crop": {"uniface_runtime.py"},
+    "vlm_box_tracker": {"vlm_box_tracker.py"},
+    "ai_agent": {"ai_agent.py"},
+    "multi_zone_occupancy": {"multi_zone_occupancy.py"},
+    "zone_timer": {"project_nodes.py"},
+    "zone_exit_event": {"project_nodes.py"},
+}
+
+CORE_ENGINE_FILES = {
+    "core.py",
+    "main.py",
+    "node_catalog.py",
+    "app_version.py",
+    "detector_process.py",
+    "python_script_runtime.py",
+    "visonode_database.py",
+    "project_nodes.py",
+}
+
+STUDIO_EXCLUDED_FILES = {
+    "workflow_export.py",
+    "standalone_run.py",
+    "standalone_app.py",
+    "server.py",
+    "ai_studio_assistant.py",
+    "ai_worker.py",
+    "ai_runtime_assets.py",
+    "ai_runtime_profile.py",
+    "install_ai_dependencies.py",
+    "model_optimization.py",
+    "model_quantizer.py",
+    "rfdetr_onnx_optimization.py",
+    "workflow_store.py",
+}
+
+
+def _determine_required_packages(graph: dict) -> set[str]:
+    # Selalu sertakan paket dasar runtime dan Streamlit web app
+    packages = {"opencv-python", "numpy", "pillow", "requests", "pyyaml", "streamlit"}
+    for node in graph.get("nodes", []):
+        ntype = node.get("type", "")
+        config = node.get("config", {})
+        engine = str(config.get("engine") or "").lower()
+        model_path = str(config.get("modelPath") or config.get("customModelPath") or "").lower()
+
+        if ntype in {"detector", "segmenter"}:
+            current_engine = engine or "rfdetr"
+            if current_engine == "rfdetr":
+                packages.update({"rfdetr", "torch", "torchvision"})
+            elif current_engine == "rfdetr_onnx" or model_path.endswith(".onnx"):
+                packages.update({"onnxruntime", "onnx"})
+            elif current_engine in {"yolo", "ultralytics", "roboflow_universe"} or model_path.endswith(".pt") or "yolo" in model_path or "yolo" in current_engine:
+                packages.update({"ultralytics", "torch", "torchvision"})
+            else:
+                if model_path.endswith(".onnx"):
+                    packages.update({"onnxruntime", "onnx"})
+                elif model_path.endswith(".pt"):
+                    packages.update({"ultralytics", "torch", "torchvision"})
+                else:
+                    packages.update({"rfdetr", "torch", "torchvision"})
+
+        elif ntype == "classifier":
+            current_engine = engine or "convnext"
+            if current_engine in {"convnext", "timm"}:
+                packages.update({"timm", "torch", "torchvision"})
+            elif current_engine in {"yolo", "ultralytics"}:
+                packages.update({"ultralytics", "torch", "torchvision"})
+
+        elif ntype == "efficientad":
+            packages.update({"torch", "torchvision", "timm"})
+
+        elif ntype in {"tracker", "zone", "line_counter", "speed_estimator", "zone_timer", "zone_exit_event", "multi_zone_occupancy"}:
+            packages.add("supervision")
+            algorithm = str(config.get("algorithm") or "").lower()
+            if algorithm in {"norfair", "deepsort"} or engine == "trackers":
+                packages.add("trackers")
+
+        elif ntype == "input" and (config.get("sourceType") == "youtube" or config.get("youtubeUrl")):
+            packages.add("yt-dlp")
+
+        elif ntype == "ocr":
+            packages.update({"onnxruntime", "onnx"})
+
+        elif ntype in {"man_down_detector", "lpr_license_plate", "overstack_detector"}:
+            packages.update({"onnxruntime", "onnx"})
+
+    return packages
+
+
+def _determine_needed_engine_files(graph: dict) -> set[str]:
+    needed_files = set(CORE_ENGINE_FILES)
+    for node in graph.get("nodes", []):
+        ntype = node.get("type", "")
+        if ntype in NODE_TYPE_TO_ENGINE_FILES:
+            needed_files.update(NODE_TYPE_TO_ENGINE_FILES[ntype])
+        config = node.get("config", {})
+        if config.get("customModelPath") or config.get("modelPath"):
+            needed_files.add("custom_model_runtime.py")
+    return needed_files - STUDIO_EXCLUDED_FILES
+
+
 def _requirements(root: Path, graph: dict) -> tuple[str, dict[str, str]]:
+    needed = _determine_required_packages(graph)
     lines = []
     versions = {}
-    for raw in (root / "requirements.txt").read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or line.startswith("pytest"):
-            continue
-        name = re.match(r"[A-Za-z0-9_.-]+", line).group()
+    host_reqs = {}
+    req_file = root / "requirements.txt"
+    if req_file.is_file():
+        for raw in req_file.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or line.startswith("pytest"):
+                continue
+            match = re.match(r"[A-Za-z0-9_.-]+", line)
+            if match:
+                host_reqs[match.group().lower()] = line
+
+    for pkg in sorted(needed):
+        pkg_lower = pkg.lower()
         try:
-            version = importlib.metadata.version(name)
+            version = importlib.metadata.version(pkg)
+            versions[pkg] = version
+            if pkg_lower in host_reqs and " @ " in host_reqs[pkg_lower]:
+                lines.append(host_reqs[pkg_lower])
+            else:
+                lines.append(f"{pkg}=={version}")
         except importlib.metadata.PackageNotFoundError as exc:
-            raise ValueError(f"Runtime dependency is not installed: {name}") from exc
-        versions[name] = version
-        lines.append(line if " @ " in line else f"{name}=={version}")
-    if any((node.get("config", {}).get("engine") or ("rfdetr" if node.get("type") in {"detector", "segmenter"} else "")) == "rfdetr" for node in graph["nodes"]):
-        try:
-            version = importlib.metadata.version("rfdetr")
-        except importlib.metadata.PackageNotFoundError as exc:
-            raise ValueError("RF-DETR runtime is not installed on the build server") from exc
-        versions["rfdetr"] = version
-        lines.append(f"rfdetr=={version}")
+            if pkg == "rfdetr":
+                raise ValueError("RF-DETR runtime is not installed on the build server") from exc
+            if pkg_lower in host_reqs:
+                lines.append(host_reqs[pkg_lower])
+            else:
+                lines.append(f"{pkg}>=1.0.0")
+
     return "\n".join(lines) + "\n", versions
 
 
@@ -206,34 +352,59 @@ def build_zip(graph: dict, manifest: dict, files: dict[str, Path], root: Path, d
         archive.writestr("workflow.json", json.dumps(graph, indent=2, ensure_ascii=False))
         archive.writestr("manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False))
         archive.write(root / "engine" / "standalone_run.py", "run.py")
+        if (root / "engine" / "standalone_app.py").is_file():
+            archive.write(root / "engine" / "standalone_app.py", "app.py")
         archive.writestr("requirements.txt", _requirements(root, graph)[0])
         archive.writestr(".env.example", "# Salin menjadi .env; isi nilai pada mesin tujuan. Jangan bagikan .env.\n" + "".join(f"# {item['nodeId']}.{item['field']}\n{item['name']}=\n" for item in manifest["environment"]))
+        archive.writestr("run_web.bat", "@echo off\r\necho Menjalankan Afi Vision Web App (Streamlit)...\r\nstreamlit run app.py\r\npause\r\n")
+        archive.writestr("run_opencv.bat", "@echo off\r\necho Menjalankan Afi Vision Desktop OpenCV Preview...\r\npython run.py\r\npause\r\n")
         archive.writestr("README.md", f"""# {manifest['name']} {manifest['version']}
 
-Paket ini menjalankan satu snapshot workflow Afi Vision secara terpisah dari Studio.
-Gunakan Python {manifest['pythonVersion']} dan simpan seluruh isi folder hasil ekstraksi.
+Paket ini menjalankan snapshot workflow Afi Vision secara mandiri (standalone).
+Tersedia 2 pilihan antarmuka eksekusi: **Web App Interaktif (Streamlit)** dan **Desktop Live Window (OpenCV)**.
 
-## Instalasi Windows
+## Instalasi Dependensi
+
+Gunakan Python {manifest['pythonVersion']}.
 
 ```powershell
 python -m venv .venv
 .venv\\Scripts\\python.exe -m pip install -r requirements.txt
 Copy-Item .env.example .env
-# Isi variabel dalam .env, lalu:
-.venv\\Scripts\\python.exe run.py --check
+```
+*(Pada Linux/macOS, gunakan `.venv/bin/python -m pip install -r requirements.txt`)*
+
+## Cara Menjalankan
+
+### 🌐 Opsi 1: Web App Streamlit (Rekomendasi)
+Menampilkan dasbor web modern lengkap dengan kontrol Start/Stop, pemilihan kamera/file video, live video preview, dan grafik metrik performa secara real-time.
+```powershell
+.venv\\Scripts\\streamlit.exe run app.py
+# Atau di Windows cukup double-click: run_web.bat
+```
+Buka browser pada alamat yang muncul (biasanya `http://localhost:8501`).
+
+### 🖥️ Opsi 2: Desktop OpenCV Preview
+Membuka jendela preview desktop OpenCV HighGUI langsung di layar monitor.
+```powershell
 .venv\\Scripts\\python.exe run.py
+# Atau di Windows cukup double-click: run_opencv.bat
+```
+Tekan tombol **`q`** atau **`ESC`** pada keyboard untuk menghentikan workflow.
+Gunakan `--headless` jika ingin berjalan di server tanpa monitor:
+```powershell
+.venv\\Scripts\\python.exe run.py --headless
 ```
 
-Pada Linux, ganti `.venv\\Scripts\\python.exe` dengan `.venv/bin/python`.
-Gunakan `python run.py --seconds 10` untuk uji singkat. Ctrl+C menghentikan proses.
-Hasil lokal disimpan dalam folder `data/`. Model yang tidak disertakan harus
-disediakan pada path di `.env` dengan checksum yang cocok dengan `manifest.json`.
-Alamat kamera dan layanan eksternal harus dapat dijangkau dari mesin tujuan.
-Jangan memasukkan kredensial ke `workflow.json` atau membagikan `.env`.
+## Catatan
+- Model lokal yang disertakan telah diverifikasi integritasnya via SHA256 checksum di `manifest.json`.
+- File hasil lokal disimpan otomatis di dalam folder `data/`.
 """)
-        for path in sorted((root / "engine").glob("*.py")):
-            if path.name not in {"workflow_export.py", "standalone_run.py", "server.py"}:
-                archive.write(path, f"engine/{path.name}")
+        needed_engine_files = _determine_needed_engine_files(graph)
+        for filename in sorted(needed_engine_files):
+            file_path = root / "engine" / filename
+            if file_path.is_file():
+                archive.write(file_path, f"engine/{filename}")
         for path in sorted((root / "engine").glob("*.json")):
             archive.write(path, f"engine/{path.name}")
         for name, path in files.items():

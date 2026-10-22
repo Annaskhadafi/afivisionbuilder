@@ -4948,6 +4948,23 @@
     include.onchange = () => { config.includeModels = include.checked; markDirty(); };
     models.append(include, document.createTextNode(' Sertakan model lokal (pastikan hak distribusi)'));
     body.append(models);
+
+    const featureNotice = document.createElement('div');
+    featureNotice.className = 'field-help';
+    featureNotice.style.background = 'rgba(37, 99, 235, 0.08)';
+    featureNotice.style.border = '1px solid rgba(59, 130, 246, 0.25)';
+    featureNotice.style.borderRadius = '6px';
+    featureNotice.style.padding = '8px 10px';
+    featureNotice.style.margin = '8px 0';
+    featureNotice.innerHTML = `
+      <div style="font-weight:600; color:var(--text-primary); margin-bottom:4px;">✨ Termasuk dalam Paket Export:</div>
+      <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
+        • <b>Web App (Streamlit)</b>: Dasbor web interaktif dengan live preview (<code>streamlit run app.py</code>)<br>
+        • <b>Desktop Preview (OpenCV)</b>: Jendela visual monitor (<code>python run.py</code>)<br>
+        • <b>Lean Engine Export</b>: Hanya dependensi & engine yang aktif yang disertakan.
+      </div>
+    `;
+    body.append(featureNotice);
     const result = document.createElement('div');
     result.id = 'exportCodeResult';
     result.className = 'field-help';

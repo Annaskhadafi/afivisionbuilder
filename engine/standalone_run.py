@@ -10,6 +10,10 @@ import re
 import sys
 import time
 from pathlib import Path
+from threading import Lock
+
+import cv2
+import numpy as np
 
 ROOT = Path(__file__).resolve().parent
 os.environ["VISONODE_APP_DATA_DIR"] = str(ROOT / "data")
@@ -90,6 +94,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run exported Afi Vision workflow")
     parser.add_argument("--check", action="store_true", help="validate package and configuration without capture")
     parser.add_argument("--seconds", type=float, default=0, help="stop after a duration (0 = until interrupted)")
+    parser.add_argument("--headless", action="store_true", help="run without desktop OpenCV preview window")
+    parser.add_argument("--no-preview", dest="headless", action="store_true", help="alias for --headless")
     args = parser.parse_args()
     try:
         workflow = load_workflow()
@@ -103,20 +109,66 @@ def main() -> int:
                 if len(value) >= 3:
                     result = result.replace(value, "[REDACTED]")
             return result
-        runner = core.WorkflowRunner(on_log=lambda message: print(redact(message), flush=True), on_event=lambda *parts: print("EVENT", *(redact(part) for part in parts), flush=True))
+
+        latest_frame = None
+        frame_lock = Lock()
+
+        def on_frame(preview_id: str, frame: np.ndarray, has_annotation: bool):
+            nonlocal latest_frame
+            with frame_lock:
+                latest_frame = frame
+
+        runner = core.WorkflowRunner(
+            on_log=lambda message: print(redact(message), flush=True),
+            on_event=lambda *parts: print("EVENT", *(redact(part) for part in parts), flush=True),
+            on_frame=on_frame,
+        )
         if args.check:
             print("Package and configuration OK", flush=True)
             return 0
+
         runner.start(workflow)
         started = None
+        cv2_window_created = False
+        window_title = f"Afi Vision Preview — {manifest.get('name', 'Workflow')}"
+
+        if not args.headless:
+            print(f"[Preview] OpenCV window active: '{window_title}'. Press 'q' or 'ESC' to stop.", flush=True)
+
         while runner.is_running():
             if runner.status().get("state") == "running" and started is None:
                 started = time.monotonic()
             if args.seconds > 0 and started is not None and time.monotonic() - started >= args.seconds:
                 break
-            time.sleep(0.2)
+
+            frame_to_show = None
+            with frame_lock:
+                if latest_frame is not None:
+                    frame_to_show = latest_frame
+                    latest_frame = None
+
+            if not args.headless and frame_to_show is not None:
+                try:
+                    cv2.imshow(window_title, frame_to_show)
+                    cv2_window_created = True
+                    key = cv2.waitKey(1) & 0xFF
+                    if key in (ord('q'), ord('Q'), 27):  # 'q' or ESC
+                        print("\n[Preview] User requested stop. Exiting...", flush=True)
+                        break
+                except cv2.error as err:
+                    print(f"[Preview] GUI display unavailable ({err}). Continuing in headless mode.", flush=True)
+                    args.headless = True
+            else:
+                time.sleep(0.01)
+
         error = runner.status().get("error")
         runner.stop()
+        if cv2_window_created:
+            try:
+                cv2.destroyAllWindows()
+            except Exception:
+                pass
+
         if error:
             raise RuntimeError(redact(error))
         return 0
