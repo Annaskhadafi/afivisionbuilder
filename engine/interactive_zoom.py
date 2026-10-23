@@ -39,6 +39,20 @@ def _extract_box(det: dict[str, Any]) -> tuple[int, int, int, int]:
     return 0, 0, 0, 0
 
 
+def _is_person_target(class_name: str, target_det: dict[str, Any] | None = None) -> bool:
+    c = str(class_name or "").lower().strip()
+    if c in ("person", "people", "man", "woman", "pedestrian", "human", "orang", "manusia", "wajah", "face", "0"):
+        return True
+    if target_det:
+        orig = str(target_det.get("originalClass", "")).lower().strip()
+        if orig in ("person", "people", "man", "woman", "pedestrian", "human", "orang", "manusia"):
+            return True
+        tc = str(target_det.get("class", "")).lower().strip()
+        if tc in ("person", "people", "man", "woman", "pedestrian", "human", "orang", "manusia", "wajah", "face", "0"):
+            return True
+    return False
+
+
 class InteractiveZoomRuntime:
     """Manages target lock state and Picture-in-Picture (PiP) rendering for a node."""
 
@@ -177,11 +191,15 @@ class InteractiveZoomRuntime:
 
     def _lock_target_unlocked(self, det: dict[str, Any], track_id: int | str) -> None:
         self.selected_track_id = track_id
-        self.selected_class = str(det.get("class", "object"))
+        cls_name = str(det.get("class", "object"))
+        self.selected_class = cls_name
         self.selected_confidence = float(det.get("confidence", det.get("score", 1.0)) or 1.0)
         self.selected_bbox = list(_extract_box(det))
         self.status = "locked"
         self.last_seen_time = time.time()
+        # Untuk orang: langsung set tampilan penuh 1.0x tanpa zoom
+        if _is_person_target(cls_name, det):
+            self.override_zoom_scale = 1.0
 
     def get_state(self) -> dict[str, Any]:
         with self._lock:
@@ -251,7 +269,12 @@ class InteractiveZoomRuntime:
             configured_size = int(config.get("pipSizePercent", 30) or 30)
             pip_size_pct = self.override_pip_size_pct if self.override_pip_size_pct is not None else configured_size
             pip_size_pct = max(10, min(50, pip_size_pct))
-            zoom_scale = self.override_zoom_scale if self.override_zoom_scale is not None else float(config.get("zoomScale", 1.0) or 1.0)
+            is_person = _is_person_target(self.selected_class, target_det)
+            if is_person:
+                # Khusus orang: DEFAULT FULL VIEW (1.0x Penuh Tanpa Zoom) agar seluruh tubuh tampak utuh
+                zoom_scale = self.override_zoom_scale if self.override_zoom_scale is not None else 1.0
+            else:
+                zoom_scale = self.override_zoom_scale if self.override_zoom_scale is not None else float(config.get("zoomScale", 1.0) or 1.0)
             zoom_scale = max(1.0, min(5.0, zoom_scale))
 
             aspect_choice = (self.override_aspect_ratio or str(config.get("pipAspectRatio", "auto"))).lower()
@@ -293,34 +316,25 @@ class InteractiveZoomRuntime:
                 bh = max(1, y2 - y1)
 
                 if bw > 1 and bh > 1:
-                    # Draw target highlight reticle on the main frame
-                    if show_target_box:
-                        _draw_target_reticle(frame, x1, y1, x2, y2, border_color, self.selected_class, self.selected_track_id, self.selected_confidence, show_class_name, show_confidence)
+                    is_tall_or_person = _is_person_target(self.selected_class, target_det) or (bh > bw * 1.05)
 
-                    # Extract crop with generous headroom padding for head & face
-                    is_tall_or_person = (
-                        (bh > bw * 1.05) or
-                        (self.selected_class.lower() in ("person", "people", "man", "woman", "pedestrian", "human", "orang", "manusia", "wajah", "face", "0")) or
-                        (str(target_det.get("originalClass", "")).lower() in ("person", "people", "man", "woman", "pedestrian", "human", "orang", "manusia"))
-                    )
-                    headroom_config = int(config.get("headroomPercent", 48) or 48)
-                    headroom_pct = self.override_headroom_pct if self.override_headroom_pct is not None else headroom_config
-                    headroom_pct = max(10, min(100, headroom_pct))
-                    headroom_ratio = (headroom_pct / 100.0) if is_tall_or_person else 0.15
-
+                    # 1. Ekstraksi crop BERSIH sebelum gambar reticle (agar tulisan TARGET # tidak masuk ke PiP!)
                     pad_x = int(bw * 0.15)
-                    pad_top = int(bh * headroom_ratio)  # Extra headroom so face, hair, and head are never cut off!
-                    pad_bottom = int(bh * 0.15)
+                    pad_y = int(bh * 0.15)
                     cx1 = max(0, x1 - pad_x)
-                    cy1 = max(0, y1 - pad_top)
+                    cy1 = max(0, y1 - pad_y)
                     cx2 = min(fw, x2 + pad_x)
-                    cy2 = min(fh, y2 + pad_bottom)
+                    cy2 = min(fh, y2 + pad_y)
 
                     if cx2 > cx1 and cy2 > cy1:
                         crop_img = frame[cy1:cy2, cx1:cx2].copy()
                         self.last_crop = crop_img.copy()
                         _, enc = cv2.imencode(".jpg", crop_img, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
                         self.last_crop_jpeg = enc.tobytes()
+
+                    # 2. Gambar target highlight reticle pada frame utama SETELAH crop bersih disimpan
+                    if show_target_box:
+                        _draw_target_reticle(frame, x1, y1, x2, y2, border_color, self.selected_class, self.selected_track_id, self.selected_confidence, show_class_name, show_confidence)
 
             elif self.status == "lost" and self.last_crop is not None:
                 crop_img = self.last_crop.copy()
@@ -443,27 +457,22 @@ class InteractiveZoomRuntime:
 
             # Apply Zoom Scale on sub_crop
             sch, scw = sub_crop.shape[:2]
-            if zoom_scale > 1.0:
+            is_tall_or_person = _is_person_target(self.selected_class, target_det) or (bh > bw * 1.05)
+
+            if is_tall_or_person or zoom_scale <= 1.05:
+                # Untuk orang atau skala 1.0x: TAMPILAN PENUH (Full 100% Fit) tanpa digital zoom memotong tubuh/kepala!
+                zoomed_frame = sub_crop
+            else:
                 zw = max(10, int(scw / zoom_scale))
                 zh = max(10, int(sch / zoom_scale))
                 zx = max(0, (scw - zw) // 2)
-                is_tall_or_person = (
-                    (bh > bw * 1.05) or
-                    (self.selected_class.lower() in ("person", "people", "man", "woman", "pedestrian", "human", "orang", "manusia", "wajah", "face", "0")) or
-                    (str(target_det.get("originalClass", "") if target_det else "").lower() in ("person", "people", "man", "woman", "pedestrian", "human", "orang", "manusia"))
-                )
-                if focus_point == "top" or (focus_point == "auto" and is_tall_or_person):
-                    # Prioritize head & face: start strictly at top edge so head is never cut!
+                if focus_point == "top":
                     zy = 0
-                    if zy + zh > sch:
-                        zy = max(0, sch - zh)
                 elif focus_point == "bottom":
                     zy = max(0, sch - zh)
                 else:
                     zy = max(0, (sch - zh) // 2)
                 zoomed_frame = sub_crop[zy:zy + zh, zx:zx + zw]
-            else:
-                zoomed_frame = sub_crop
 
             if zoomed_frame.size > 0:
                 rendered_pip = cv2.resize(zoomed_frame, (pip_w, pip_h), interpolation=cv2.INTER_LINEAR)

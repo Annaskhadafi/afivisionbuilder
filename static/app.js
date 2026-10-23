@@ -12468,7 +12468,7 @@
       </div>
       <div class="interactive-zoom-zoom-row" title="Ubah Skala Zoom (1.0x Penuh / Fit Anti Muka Kepotong hingga 2.0x)">
         <span class="zoom-label">Zoom:</span>
-        <button type="button" class="btn-pip-zoom ${curZoom <= 1.05 ? 'active' : ''}" data-zoom="1.0" title="1.0x - Tampilkan Seluruh Objek Penuh / Fit (Anti Muka Kepotong)">🔍 1.0x (Penuh)</button>
+        <button type="button" class="btn-pip-zoom ${curZoom <= 1.05 ? 'active' : ''}" data-zoom="1.0" title="1.0x - Tampilan Penuh Utuh Tanpa Zoom (Full View Fit)">🔍 Full (Tanpa Zoom)</button>
         <button type="button" class="btn-pip-zoom ${Math.abs(curZoom - 1.2) < 0.1 ? 'active' : ''}" data-zoom="1.2" title="1.2x - Zoom Ringan">1.2x</button>
         <button type="button" class="btn-pip-zoom ${Math.abs(curZoom - 1.5) < 0.1 ? 'active' : ''}" data-zoom="1.5" title="1.5x - Zoom Sedang">1.5x</button>
         <button type="button" class="btn-pip-zoom ${curZoom >= 1.9 ? 'active' : ''}" data-zoom="2.0" title="2.0x - Zoom Dekat">2.0x</button>

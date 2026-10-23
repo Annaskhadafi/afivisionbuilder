@@ -138,3 +138,29 @@ def test_interactive_zoom_headroom_anti_cut_face():
     # Test set_headroom
     rt.set_headroom(65)
     assert rt.get_state()["headroomPercent"] == 65
+
+
+def test_interactive_zoom_clean_crop_no_burned_reticle():
+    rt = InteractiveZoomRuntime("test_clean_crop")
+    frame = np.full((720, 1280, 3), 120, dtype=np.uint8)
+    detections = [
+        {"class": "orang", "originalClass": "person", "confidence": 0.85, "track_id": 5, "box": [400, 200, 500, 500]}
+    ]
+    rt.apply(frame, detections, {})
+    rt.select_by_track_id(5)
+
+    # Frame before apply
+    clean_frame = np.full((720, 1280, 3), 120, dtype=np.uint8)
+    # Target reticle color is Cyan (255, 229, 0)
+    out = rt.apply(clean_frame, detections, {"showTargetBox": True, "pipSizeMode": "dynamic"})
+
+    # Check that clean_frame has the reticle
+    # But last_crop MUST be from the clean frame before reticle was drawn!
+    crop = rt.last_crop
+    assert crop is not None
+    # All pixels in crop must be roughly the original background color (120, 120, 120), NOT cyan reticle!
+    is_pure_background = np.all(crop == 120)
+    assert is_pure_background, "Reticle or text was burned into the crop!"
+
+    # And verify zoomScale for person is strictly 1.0 (Full View)
+    assert rt.override_zoom_scale == 1.0
