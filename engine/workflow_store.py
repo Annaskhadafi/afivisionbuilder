@@ -135,7 +135,17 @@ def default_workflow() -> dict:
     return {
         "nodes": [
             make_node("input", x=80, y=180),
-            make_node("detector", x=390, y=180),
+            make_node(
+                "detector",
+                x=390,
+                y=180,
+                config={
+                    "engine": "ultralytics_yolo",
+                    "modelPath": "yolov8n.pt",
+                    "customModelPath": "yolov8n.pt",
+                    "threshold": 0.45,
+                },
+            ),
             make_node("preview", x=700, y=180),
         ],
         "edges": [
@@ -146,7 +156,7 @@ def default_workflow() -> dict:
 
 
 def detection_demo_workflow(source_type: str) -> dict:
-    """Build the three-node RF-DETR Nano detection demo for an input source."""
+    """Build the three-node YOLOv8n detection demo for an input source."""
     if source_type not in ("camera", "video"):
         raise ValueError(f"Unsupported detection demo source type: {source_type}")
 
@@ -161,7 +171,12 @@ def detection_demo_workflow(source_type: str) -> dict:
                 "detector",
                 x=390,
                 y=180,
-                config={"engine": "rfdetr", "rfdetrModel": "rfdetr-nano"},
+                config={
+                    "engine": "ultralytics_yolo",
+                    "modelPath": "yolov8n.pt",
+                    "customModelPath": "yolov8n.pt",
+                    "threshold": 0.45,
+                },
             ),
             make_node("preview", x=700, y=180),
         ],
@@ -227,11 +242,16 @@ def normalize_workflow(workflow: dict) -> dict:
         if node.get("type") == "detector":
             config = node.setdefault("config", {})
             valid_detector_engines = (
-                "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx",
-                "ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"
+                "ultralytics_yolo", "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx",
+                "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"
             )
             if config.get("engine") not in valid_detector_engines:
-                config["engine"] = "rfdetr"
+                config["engine"] = "ultralytics_yolo"
+            config.setdefault("engine", "ultralytics_yolo")
+            if config.get("engine") == "ultralytics_yolo":
+                config.setdefault("modelPath", "yolov8n.pt")
+                config.setdefault("customModelPath", "yolov8n.pt")
+                config.setdefault("threshold", 0.45)
             config.setdefault("rfdetrModel", "rfdetr-nano")
             config.setdefault("rfdetrCheckpoint", "")
             config.setdefault("rfdetrImageSize", RFDETR_NATIVE_IMAGE_SIZE)

@@ -253,12 +253,22 @@ def _parse_class_remap(val) -> dict[str, str]:
         return {str(k).strip().lower(): str(v).strip() for k, v in val.items()}
     if not isinstance(val, str) or not val.strip():
         return {}
+    import re
     res = {}
-    for part in val.split(","):
-        sep = "->" if "->" in part else (":" if ":" in part else None)
-        if sep:
-            k, v = part.split(sep, 1)
-            res[k.strip().lower()] = v.strip()
+    parts = re.split(r"[,;]+|\r?\n", val)
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        for delim in ("->", "=>", ":", "="):
+            if delim in part:
+                k, v = part.split(delim, 1)
+                k_clean = k.strip().lower()
+                v_clean = v.strip()
+                if k_clean and v_clean:
+                    res[k_clean] = v_clean
+                break
     return res
 
 
@@ -277,20 +287,24 @@ def _filter_and_remap_detections(
         if raw_item.get("kind") == "anomaly":
             kept.append(raw_item)
             continue
-        c_label = str(raw_item.get("class", "")).strip().lower()
-        if allowed_classes and c_label not in allowed_classes:
-            continue
-        req_thresh = per_class_map.get(c_label, default_threshold)
-        score = float(raw_item.get("score", 0))
+
+        raw_label = str(raw_item.get("originalClass") or raw_item.get("class", "")).strip().lower()
+        remapped_label = class_remap_map.get(raw_label, raw_label).strip().lower()
+
+        # Check allowed_classes against both raw class and remapped class
+        if allowed_classes:
+            if raw_label not in allowed_classes and remapped_label not in allowed_classes:
+                continue
 
         item = raw_item
-        if c_label in class_remap_map:
+        if raw_label in class_remap_map:
             item = dict(raw_item)
-            item["originalClass"] = item.get("class")
-            item["class"] = class_remap_map[c_label]
-            c_label = item["class"].strip().lower()
-            if allowed_classes and c_label not in allowed_classes:
-                continue
+            item["originalClass"] = raw_item.get("originalClass") or raw_item.get("class")
+            item["class"] = class_remap_map[raw_label]
+
+        current_label = str(item.get("class", "")).strip().lower()
+        req_thresh = per_class_map.get(current_label, per_class_map.get(raw_label, default_threshold))
+        score = float(raw_item.get("score", 0))
 
         if score >= req_thresh:
             kept.append(item)
@@ -1847,6 +1861,7 @@ def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict)
                 draw_overstack_overlay(frame, event_runtime.get("_last_detections", []), node.get("config", {}))
             except Exception:
                 pass
+
     import cv2
     import math
     import time

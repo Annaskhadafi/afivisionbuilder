@@ -90,3 +90,65 @@ def test_class_detected_condition_filters_classes():
     # Condition passed, and only person should be passed through
     assert len(passed_dets) == 1
     assert passed_dets[0]["class"] == "person"
+
+
+def test_class_remap_parsing_and_filtering():
+    from engine.core import _parse_class_remap
+
+    # 1. Parsing formats
+    assert _parse_class_remap("car->mobil") == {"car": "mobil"}
+    assert _parse_class_remap("car -> mobil") == {"car": "mobil"}
+    assert _parse_class_remap("car:mobil") == {"car": "mobil"}
+    assert _parse_class_remap("car: mobil") == {"car": "mobil"}
+    assert _parse_class_remap("car=>mobil") == {"car": "mobil"}
+    assert _parse_class_remap("car=mobil") == {"car": "mobil"}
+    assert _parse_class_remap("car->mobil, truck->truk") == {"car": "mobil", "truck": "truk"}
+    assert _parse_class_remap("car->mobil; truck:truk\nperson=>orang") == {
+        "car": "mobil",
+        "truck": "truk",
+        "person": "orang",
+    }
+
+    # 2. Remap with allowed_classes matching raw class
+    dets = [
+        {"class": "car", "score": 0.85, "bbox": [30, 30, 40, 40]},
+        {"class": "person", "score": 0.90, "bbox": [10, 10, 20, 20]},
+    ]
+    remap_map = _parse_class_remap("car->mobil")
+    kept, _ = _filter_and_remap_detections(
+        dets,
+        default_threshold=0.5,
+        tracking_threshold=0.3,
+        is_tracking_eligible=True,
+        per_class_map={},
+        class_remap_map=remap_map,
+        allowed_classes={"car"},
+    )
+    assert len(kept) == 1
+    assert kept[0]["class"] == "mobil"
+    assert kept[0]["originalClass"] == "car"
+
+    # 3. Remap with allowed_classes matching target class
+    kept2, _ = _filter_and_remap_detections(
+        dets,
+        default_threshold=0.5,
+        tracking_threshold=0.3,
+        is_tracking_eligible=True,
+        per_class_map={},
+        class_remap_map=remap_map,
+        allowed_classes={"mobil"},
+    )
+    assert len(kept2) == 1
+    assert kept2[0]["class"] == "mobil"
+    assert kept2[0]["originalClass"] == "car"
+
+    # 4. Downstream filter accepts either original or remapped class
+    workflow = {
+        "nodes": [
+            {"id": "filter", "type": "filter", "enabled": True, "config": {"classes": "mobil"}}
+        ]
+    }
+    filtered = filter_detections(workflow, kept)
+    assert len(filtered) == 1
+    assert filtered[0]["class"] == "mobil"
+

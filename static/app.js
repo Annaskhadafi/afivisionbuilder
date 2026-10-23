@@ -80,6 +80,7 @@
 
     // Drawing & Annotation
     overlay_annotate: '<svg class="icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+    interactive_zoom: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>',
     draw_boxes: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>',
     draw_text: '<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>',
 
@@ -223,7 +224,7 @@
     if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison', 'face_detector', 'face_crop', 'lpr_license_plate'].includes(type)) return 'AI Vision Models';
     if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller', 'object_timer', 'face_tracker', 'dominant_color', 'man_down_detector', 'overstack_detector'].includes(type)) return 'Tracking & Analysis';
     if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer', 'camera_focus', 'auto_rotate_edges', 'delta_filter'].includes(type)) return 'Image Preprocessing';
-    if (['overlay_annotate', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
+    if (['overlay_annotate', 'interactive_zoom', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
     if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once', 'switch_case', 'class_replacement'].includes(type)) return 'Logic & Flow Control';
     return 'Outputs & Export';
   }
@@ -1697,6 +1698,16 @@
   };
 
   const INDO_FIELD_LABELS = {
+    headroomPercent: 'Ruang Kepala Ekstra (Headroom %)',
+    pipSizeMode: 'Mode Ukuran PiP (Dinamis / Tetap)',
+    pipSizePercent: 'Ukuran PiP (% Lebar Video)',
+    pipPosition: 'Posisi Sudut PiP Video',
+    pipAspectRatio: 'Rasio Aspek Kotak PiP (Portrait / Landscape)',
+    focusPoint: 'Titik Fokus Zoom (Muka / Tengah)',
+    zoomScale: 'Tingkat Pembesaran Zoom',
+    showClassName: 'Tampilkan Nama Objek / Kelas',
+    showConfidence: 'Tampilkan Persentase Confidence',
+    showDownloadButton: 'Tampilkan Tombol Download Snapshot',
     recModelPath: 'Path Model Pengenal Teks (Rec ONNX)',
     detModelPath: 'Path Model Pendeteksi Teks (Det ONNX)',
     dictPath: 'Path Berkas Kamus Karakter CTC',
@@ -5154,10 +5165,15 @@
     // Ensure customModelPath and customClasses exist if custom engine is selected
     if (['detector', 'segmenter', 'classifier'].includes(n.type)) {
       if (!n.config) n.config = {};
-      const eng = n.config.engine || (n.type === 'classifier' ? 'convnext' : 'rfdetr');
+      const eng = n.config.engine || (n.type === 'classifier' ? 'convnext' : (n.type === 'detector' ? 'ultralytics_yolo' : 'rfdetr'));
       if (['ultralytics_yolo', 'yolo_world', 'roboflow_universe', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(eng)) {
-        if (n.config.modelPath === undefined) n.config.modelPath = n.config.customModelPath || (eng === 'onnx_custom' ? n.config.rfdetrOnnxModel : n.config.rfdetrCheckpoint) || n.config.convnextCheckpoint || '';
-        if (n.config.customModelPath === undefined) n.config.customModelPath = '';
+        const defaultYoloModel = (eng === 'ultralytics_yolo' && n.type === 'detector') ? 'yolov8n.pt' : '';
+        if (n.config.modelPath === undefined || (eng === 'ultralytics_yolo' && !n.config.modelPath)) {
+          n.config.modelPath = n.config.customModelPath || defaultYoloModel || (eng === 'onnx_custom' ? n.config.rfdetrOnnxModel : n.config.rfdetrCheckpoint) || n.config.convnextCheckpoint || '';
+        }
+        if (n.config.customModelPath === undefined || (eng === 'ultralytics_yolo' && !n.config.customModelPath)) {
+          n.config.customModelPath = n.config.modelPath || defaultYoloModel;
+        }
         if (n.config.customClasses === undefined) n.config.customClasses = '';
         if (eng === 'roboflow_universe' && n.config.roboflowApiKey === undefined) n.config.roboflowApiKey = '';
       }
@@ -5777,6 +5793,8 @@
     fontScale: { min: 0.2, max: 4.0, step: 0.05, isSlider: true, unit: 'x' },
     thickness: { min: 1, max: 12, step: 1, isSlider: true, unit: 'px' },
     lineWidth: { min: 1, max: 12, step: 1, isSlider: true, unit: 'px' },
+    pipSizePercent: { min: 10, max: 50, step: 1, isSlider: true, unit: '%' },
+    zoomScale: { min: 1.0, max: 6.0, step: 0.1, isSlider: true, unit: 'x' },
     size: { min: 0.2, max: 3.0, step: 0.05, isSlider: true, unit: 'x' },
 
     // Time & Delays
@@ -5831,6 +5849,88 @@
     maxCapacity: { min: 0, max: 10000, step: 1 },
     count: { min: 0, max: 10000, step: 1 }
   };
+
+  const COCO_80_CLASSES = [
+    'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
+    'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat',
+    'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack',
+    'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball',
+    'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket',
+    'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+    'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake',
+    'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop',
+    'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink',
+    'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+  ];
+
+  const INDUSTRIAL_SAFETY_CLASSES = [
+    'helmet', 'vest', 'safety_vest', 'gloves', 'boots', 'forklift', 'pallet',
+    'cargo', 'box', 'package', 'container', 'tire', 'license_plate', 'face',
+    'smoke', 'fire', 'defect', 'scratch', 'crack', 'dent', 'oil_leak',
+    'worker', 'visitor', 'mechanic', 'driver', 'truck_bed', 'stack'
+  ];
+
+  function getAutoDetectedModelClasses(currentNode, existingSelected = []) {
+    const classSet = new Set();
+    
+    // 1. Always include standard COCO 80 & Industrial/K3 classes
+    COCO_80_CLASSES.forEach(c => classSet.add(c.toLowerCase()));
+    INDUSTRIAL_SAFETY_CLASSES.forEach(c => classSet.add(c.toLowerCase()));
+
+    // 2. Add classes from all nodes in current workflow
+    if (state.workflow && Array.isArray(state.workflow.nodes)) {
+      state.workflow.nodes.forEach(n => {
+        if (!n || !n.config) return;
+        ['customClasses', 'classes', 'targetClasses', 'filterClasses', 'vehicleClasses', 'triggerClasses', 'requiredClasses', 'passClasses', 'rfdetrOnnxClasses', 'rfdetrTensorRTClasses', 'convnextClasses'].forEach(f => {
+          const val = n.config[f];
+          if (typeof val === 'string' && val.trim()) {
+            val.split(',').forEach(item => {
+              const clean = item.trim().toLowerCase();
+              if (clean && clean !== '*' && clean !== 'all') classSet.add(clean);
+            });
+          }
+        });
+      });
+    }
+
+    // 3. Add classes from inspected models cache if available
+    if (state._modelClassesCache) {
+      Object.values(state._modelClassesCache).forEach(arr => {
+        if (Array.isArray(arr)) arr.forEach(c => classSet.add(String(c).toLowerCase().trim()));
+      });
+    }
+
+    // 4. Add any already selected classes so user custom entries are preserved
+    if (Array.isArray(existingSelected)) {
+      existingSelected.forEach(c => {
+        const clean = String(c).toLowerCase().trim();
+        if (clean) classSet.add(clean);
+      });
+    }
+
+    return Array.from(classSet).sort((a, b) => a.localeCompare(b));
+  }
+
+  function isClassMultiSelectKey(key) {
+    const exact = [
+      'classes', 'customClasses', 'targetClasses', 'filterClasses',
+      'vehicleClasses', 'triggerClasses', 'requiredClasses', 'passClasses',
+      'rfdetrOnnxClasses', 'rfdetrTensorRTClasses', 'convnextClasses'
+    ];
+    if (exact.includes(key)) return true;
+    if (key.endsWith('Classes') && key !== 'perClassThresholds') return true;
+    return false;
+  }
+
+  function isClassSingleSelectKey(key) {
+    const exact = [
+      'targetClass', 'sourceClass', 'parentClass', 'childClass',
+      'objectAClass', 'objectBClass'
+    ];
+    if (exact.includes(key)) return true;
+    if (key.endsWith('Class') && !key.endsWith('Classes') && key !== 'classAware' && key !== 'classAgnostic') return true;
+    return false;
+  }
 
   let _drawTextEditNodeId = null;
 
@@ -5964,6 +6064,30 @@
         ['bottom', 'Di Bawah Kotak (Bottom / Below Box)'],
         ['inside', 'Di Dalam Kotak (Inside Box)']
       ],
+      pipPosition: [
+        ['top-right', 'Pojok Kanan Atas (Top-Right)'],
+        ['top-left', 'Pojok Kiri Atas (Top-Left)'],
+        ['bottom-right', 'Pojok Kanan Bawah (Bottom-Right)'],
+        ['bottom-left', 'Pojok Kiri Bawah (Bottom-Left)']
+      ],
+      pipSizeMode: [
+        ['dynamic', '🎯 Dinamis (Ukuran & Rasio Mengikuti Bounding Box Objek)'],
+        ['fixed', '📏 Tetap (Persentase Ukuran S / M / L / XL)']
+      ],
+      pipAspectRatio: [
+        ['auto', '✨ Auto (Otomatis Sesuai Bentuk Target)'],
+        ['3:4', '📱 Portrait 3:4 (Vertikal / Orang Berdiri - Anti Muka Kepotong)'],
+        ['9:16', '📱 Portrait 9:16 (Vertikal Penuh / Full Body)'],
+        ['1:1', '⏹️ Persegi 1:1 (Square)'],
+        ['4:3', '🖥️ Landscape 4:3 (Standar Horizontal)'],
+        ['16:9', '🖥️ Landscape 16:9 (Lebar Widescreen)']
+      ],
+      focusPoint: [
+        ['auto', '✨ Auto (Prioritas Kepala/Muka jika Objek Orang)'],
+        ['top', '⬆️ Atas / Kepala & Wajah (Anti Muka Kepotong)'],
+        ['center', '⏺️ Tengah (Center)'],
+        ['bottom', '⬇️ Bawah (Kaki / Roda)']
+      ],
       speedUnit: [
         ['kmh', 'km/h (Kilometer per Jam)'],
         ['mps', 'm/s (Meter per Detik)'],
@@ -6014,10 +6138,10 @@
         ['1080p', '1080p (Full HD)']
       ],
       engine: [
+        ['ultralytics_yolo', 'Ultralytics YOLOv8n (Bawaan Siap Pakai)'],
         ['rfdetr', 'RF-DETR (PyTorch Engine)'],
         ['rfdetr_onnx', 'RF-DETR ONNX Runtime'],
         ['rfdetr_tensorrt', 'RF-DETR TensorRT (CUDA Accelerated)'],
-        ['ultralytics_yolo', 'Ultralytics YOLO (best.pt / yolov8)'],
         ['yolo_world', 'YOLO-World (Zero-Shot Text Prompt)'],
         ['roboflow_universe', 'Roboflow Universe (Model ID)'],
         ['onnx_custom', 'Custom ONNX Runtime (.onnx)'],
@@ -6537,10 +6661,10 @@
       if (key === 'engine') {
         if (node.type === 'detector') {
           options = [
+            ['ultralytics_yolo', 'Ultralytics YOLOv8n (Bawaan Siap Pakai)'],
             ['rfdetr', 'RF-DETR (PyTorch Engine)'],
             ['rfdetr_onnx', 'RF-DETR ONNX Runtime'],
             ['rfdetr_tensorrt', 'RF-DETR TensorRT (CUDA Accelerated)'],
-            ['ultralytics_yolo', 'Ultralytics YOLO (best.pt / yolov8)'],
             ['yolo_world', 'YOLO-World (Zero-Shot Text Prompt)'],
             ['roboflow_universe', 'Roboflow Universe (Model ID)'],
             ['onnx_custom', 'Custom ONNX Runtime (.onnx)'],
@@ -6581,7 +6705,13 @@
       select.onchange = () => {
         node.config[key] = select.value;
         if (key === 'engine' && ['ultralytics_yolo', 'yolo_world', 'roboflow_universe', 'onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto'].includes(select.value)) {
-          if (node.config.customModelPath === undefined) node.config.customModelPath = '';
+          if (select.value === 'ultralytics_yolo' && node.type === 'detector') {
+            if (!node.config.modelPath) node.config.modelPath = 'yolov8n.pt';
+            if (!node.config.customModelPath) node.config.customModelPath = 'yolov8n.pt';
+          } else {
+            if (node.config.customModelPath === undefined) node.config.customModelPath = '';
+            if (node.config.modelPath === undefined) node.config.modelPath = '';
+          }
           if (node.config.customClasses === undefined) node.config.customClasses = '';
           if (select.value === 'roboflow_universe' && node.config.roboflowApiKey === undefined) node.config.roboflowApiKey = '';
         }
@@ -6783,17 +6913,22 @@
     if (['rfdetrCheckpoint', 'rfdetrOnnxModel', 'rfdetrTensorRTEngine', 'samCheckpoint', 'convnextCheckpoint', 'efficientadModel', 'customModelPath', 'modelPath'].includes(key)) {
       const isRoboflow = node.config && node.config.engine === 'roboflow_universe';
       const isYoloWorld = node.config && node.config.engine === 'yolo_world';
+      const isUltralytics = node.type === 'detector' && (node.config?.engine === 'ultralytics_yolo' || !node.config?.engine);
 
       const row = document.createElement('div');
       row.className = 'field-row';
       const input = document.createElement('input');
       input.type = 'text';
-      input.value = value ?? '';
+      input.value = (isUltralytics && !value) ? 'yolov8n.pt' : (value ?? '');
       input.placeholder = isRoboflow 
         ? 'Contoh: warehouse-safety/3 atau workspace/project/1'
-        : (isYoloWorld ? 'Blank = yolov8s-worldv2.pt (default resmi otomatis unduh)' : 'Blank = default model, or custom file');
+        : (isYoloWorld ? 'Blank = yolov8s-worldv2.pt (default resmi otomatis unduh)' : (isUltralytics ? 'yolov8n.pt (Model default bawaan COCO 80 kelas - Siap Pakai)' : 'Blank = default model, or custom file'));
       input.onchange = async () => {
         node.config[key] = input.value;
+        if (isUltralytics) {
+          node.config.modelPath = input.value;
+          node.config.customModelPath = input.value;
+        }
         markDirty();
         if (input.value && !isRoboflow && !isYoloWorld) {
           await inspectAndApplyModel(node, input.value);
@@ -6811,6 +6946,14 @@
         row.append(input);
       }
       wrap.append(row);
+
+      if (isUltralytics) {
+        const yoloBadge = document.createElement('div');
+        yoloBadge.className = 'yolo-quickstart-badge';
+        yoloBadge.style.cssText = 'margin-top:6px; padding:8px 10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; font-size:11px; color:#166534; display:flex; align-items:flex-start; gap:6px; line-height:1.4;';
+        yoloBadge.innerHTML = '<span style="font-size:14px; flex-shrink:0;">🚀</span><span><b>YOLOv8n Siap Pakai:</b> Model <code>yolov8n.pt</code> sudah otomatis aktif mendeteksi 80 kelas objek COCO (orang, mobil, motor, tas, botol, dsb) secara instan tanpa perlu pengaturan apa pun!</span>';
+        wrap.append(yoloBadge);
+      }
 
       if (isRoboflow) {
         const roboflowHelp = document.createElement('small');
@@ -6875,59 +7018,312 @@
       return wrap;
     }
 
-    // 3b. Classes filter and label import (.txt / .json)
-    if (['classes', 'customClasses', 'rfdetrOnnxClasses', 'rfdetrTensorRTClasses', 'convnextClasses'].includes(key)) {
+    // 3b. Classes filter with Minimalist Multi-Select Dropdown List (No large box, sleek compact dropdown)
+    if (isClassMultiSelectKey(key)) {
+      const rawVal = node.config[key] ?? value ?? '';
+      let selected = typeof rawVal === 'string'
+        ? rawVal.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+        : (Array.isArray(rawVal) ? rawVal.map(s => String(s).trim().toLowerCase()).filter(Boolean) : []);
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'class-dropdown-wrapper';
+
+      // 1. The compact dropdown trigger button (standard form input height ~36px)
+      const trigger = document.createElement('button');
+      trigger.type = 'button';
+      trigger.className = 'class-dropdown-trigger';
+      trigger.setAttribute('aria-haspopup', 'listbox');
+      trigger.setAttribute('aria-expanded', 'false');
+
+      const triggerText = document.createElement('span');
+      triggerText.className = 'class-trigger-text';
+
+      const triggerBadge = document.createElement('span');
+      triggerBadge.className = 'class-trigger-badge';
+      triggerBadge.style.display = 'none';
+
+      const triggerArrow = document.createElement('span');
+      triggerArrow.className = 'class-trigger-arrow';
+      triggerArrow.textContent = '▾';
+
+      trigger.append(triggerText, triggerBadge, triggerArrow);
+
+      // 2. The floating popover dropdown list (appears floating below trigger when open)
+      const popover = document.createElement('div');
+      popover.className = 'class-dropdown-popover';
+      popover.style.display = 'none';
+
+      // Header with mini search & quick actions
+      const popoverHeader = document.createElement('div');
+      popoverHeader.className = 'class-popover-header';
+
+      const miniSearch = document.createElement('input');
+      miniSearch.type = 'text';
+      miniSearch.className = 'class-mini-search';
+      miniSearch.placeholder = 'Cari kelas...';
+
+      const miniActions = document.createElement('div');
+      miniActions.className = 'class-mini-actions';
+
+      const selectAllBtn = document.createElement('button');
+      selectAllBtn.type = 'button';
+      selectAllBtn.className = 'class-mini-btn';
+      selectAllBtn.textContent = 'Pilih Semua';
+
+      const sep = document.createElement('span');
+      sep.style.cssText = 'color:#cbd5e1; user-select:none;';
+      sep.textContent = '·';
+
+      const clearAllBtn = document.createElement('button');
+      clearAllBtn.type = 'button';
+      clearAllBtn.className = 'class-mini-btn';
+      clearAllBtn.textContent = 'Bersihkan';
+
+      miniActions.append(selectAllBtn, sep, clearAllBtn);
+      popoverHeader.append(miniSearch, miniActions);
+
+      // Checklist container
+      const listContainer = document.createElement('div');
+      listContainer.className = 'class-popover-list';
+
+      // Add custom class action
+      const addCustomBtn = document.createElement('div');
+      addCustomBtn.className = 'class-popover-custom';
+      addCustomBtn.style.display = 'none';
+
+      popover.append(popoverHeader, listContainer, addCustomBtn);
+      wrapper.append(trigger, popover);
+      wrap.append(wrapper);
+      appendHelp(wrap, key);
+
+      let isOpen = false;
+      let searchQuery = '';
+
+      function updateTriggerLabel() {
+        if (selected.length === 0) {
+          triggerText.textContent = 'Semua kelas diizinkan (default)';
+          triggerText.className = 'class-trigger-text placeholder';
+          triggerBadge.style.display = 'none';
+          trigger.title = 'Semua kelas diizinkan';
+        } else {
+          triggerText.className = 'class-trigger-text';
+          triggerText.textContent = selected.join(', ');
+          triggerBadge.textContent = selected.length;
+          triggerBadge.style.display = 'inline-flex';
+          trigger.title = `${selected.length} kelas dipilih: ${selected.join(', ')}`;
+        }
+      }
+
+      function toggleDropdown(open) {
+        if (open === undefined) isOpen = !isOpen;
+        else isOpen = Boolean(open);
+
+        if (isOpen) {
+          popover.style.display = 'flex';
+          trigger.classList.add('open');
+          trigger.setAttribute('aria-expanded', 'true');
+
+          // Auto-flip upward if not enough space below in viewport
+          const rect = trigger.getBoundingClientRect();
+          const spaceBelow = window.innerHeight - rect.bottom;
+          if (spaceBelow < 240 && rect.top > 240) {
+            popover.style.top = 'auto';
+            popover.style.bottom = 'calc(100% + 4px)';
+          } else {
+            popover.style.top = 'calc(100% + 4px)';
+            popover.style.bottom = 'auto';
+          }
+
+          miniSearch.focus();
+        } else {
+          popover.style.display = 'none';
+          trigger.classList.remove('open');
+          trigger.setAttribute('aria-expanded', 'false');
+        }
+      }
+
+      trigger.onclick = (e) => {
+        e.stopPropagation();
+        toggleDropdown();
+      };
+
+      // Close popover when clicking anywhere outside
+      const onDocClick = (e) => {
+        if (!wrapper.contains(e.target)) {
+          toggleDropdown(false);
+        }
+      };
+      document.addEventListener('click', onDocClick);
+
+      function syncValue() {
+        const formatted = selected.join(', ');
+        node.config[key] = formatted;
+        markDirty();
+        updateTriggerLabel();
+        renderList();
+      }
+
+      function getFilteredClasses() {
+        const allAvailable = getAutoDetectedModelClasses(node, selected);
+        if (!searchQuery) return allAvailable;
+        const q = searchQuery.toLowerCase();
+        return allAvailable.filter(cls => cls.toLowerCase().includes(q));
+      }
+
+      function renderList() {
+        listContainer.replaceChildren();
+        const filtered = getFilteredClasses();
+
+        if (filtered.length === 0) {
+          const emptyMsg = document.createElement('div');
+          emptyMsg.style.cssText = 'padding:10px; font-size:11.5px; color:#94a3b8; text-align:center; font-style:italic;';
+          emptyMsg.textContent = searchQuery ? `Tidak ada kelas cocok dengan "${searchQuery}"` : 'Tidak ada kelas tersedia.';
+          listContainer.append(emptyMsg);
+        } else {
+          filtered.forEach(cls => {
+            const isChecked = selected.includes(cls);
+            const item = document.createElement('label');
+            item.className = 'class-popover-item' + (isChecked ? ' checked' : '');
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'class-popover-checkbox';
+            cb.checked = isChecked;
+
+            const label = document.createElement('span');
+            label.className = 'class-popover-label';
+            label.textContent = cls;
+
+            item.append(cb, label);
+
+            item.onclick = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (selected.includes(cls)) {
+                selected = selected.filter(c => c !== cls);
+              } else {
+                selected.push(cls);
+              }
+              syncValue();
+            };
+
+            listContainer.append(item);
+          });
+        }
+
+        const q = searchQuery.trim().toLowerCase();
+        if (q && !selected.includes(q)) {
+          addCustomBtn.style.display = 'block';
+          addCustomBtn.textContent = `+ Tambahkan "${q}" sebagai kelas baru`;
+          addCustomBtn.onclick = (e) => {
+            e.stopPropagation();
+            selected.push(q);
+            miniSearch.value = '';
+            searchQuery = '';
+            addCustomBtn.style.display = 'none';
+            syncValue();
+          };
+        } else {
+          addCustomBtn.style.display = 'none';
+        }
+      }
+
+      miniSearch.oninput = () => {
+        searchQuery = miniSearch.value.trim();
+        renderList();
+      };
+
+      miniSearch.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const q = miniSearch.value.trim().toLowerCase();
+          if (q) {
+            if (!selected.includes(q)) selected.push(q);
+            else selected = selected.filter(c => c !== q);
+            miniSearch.value = '';
+            searchQuery = '';
+            syncValue();
+          }
+        }
+      };
+
+      selectAllBtn.onclick = (e) => {
+        e.stopPropagation();
+        const filtered = getFilteredClasses();
+        filtered.forEach(c => {
+          if (!selected.includes(c)) selected.push(c);
+        });
+        syncValue();
+      };
+
+      clearAllBtn.onclick = (e) => {
+        e.stopPropagation();
+        selected = [];
+        syncValue();
+      };
+
+      updateTriggerLabel();
+      renderList();
+
+      return wrap;
+    }
+
+    // 3c. Single Class selector with Auto-Detected Model Classes (Minimalist Flat Select)
+    if (isClassSingleSelectKey(key)) {
+      const rawVal = String(node.config[key] ?? value ?? '').trim();
+      const allAvailable = getAutoDetectedModelClasses(node, rawVal ? [rawVal] : []);
+
       const row = document.createElement('div');
       row.className = 'field-row';
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = value ?? '';
-      input.placeholder = 'e.g. person, car, dog (or load labels.txt)';
-      input.onchange = () => {
-        node.config[key] = input.value;
+
+      const select = document.createElement('select');
+      select.className = 'class-single-select';
+
+      const emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = '-- Semua Kelas / Bebas --';
+      select.append(emptyOpt);
+
+      allAvailable.forEach(cls => {
+        const opt = document.createElement('option');
+        opt.value = cls;
+        opt.textContent = cls;
+        if (cls.toLowerCase() === rawVal.toLowerCase()) opt.selected = true;
+        select.append(opt);
+      });
+
+      // Add manual custom option
+      const manualOpt = document.createElement('option');
+      manualOpt.value = '__custom__';
+      manualOpt.textContent = 'Ketik Kelas Kustom Manual...';
+      select.append(manualOpt);
+
+      select.value = rawVal;
+      if (rawVal && !select.value) {
+        const customOpt = document.createElement('option');
+        customOpt.value = rawVal;
+        customOpt.textContent = `${rawVal} (Kustom)`;
+        customOpt.selected = true;
+        select.prepend(customOpt);
+      }
+
+      select.onchange = () => {
+        if (select.value === '__custom__') {
+          const customPrompt = prompt('Masukkan nama kelas kustom:', rawVal || '');
+          if (customPrompt?.trim()) {
+            node.config[key] = customPrompt.trim().toLowerCase();
+            markDirty();
+            renderInspector();
+          } else {
+            select.value = rawVal;
+          }
+          return;
+        }
+        node.config[key] = select.value;
         markDirty();
       };
 
-      const loadLabelsBtn = document.createElement('button');
-      loadLabelsBtn.type = 'button';
-      loadLabelsBtn.className = 'button ghost';
-      loadLabelsBtn.title = 'Import labels from labels.txt / classes.json';
-      loadLabelsBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Load .txt';
-
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = '.txt,.json,.yaml';
-      fileInput.style.display = 'none';
-      fileInput.onchange = (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          try {
-            const text = evt.target.result;
-            let classList = [];
-            if (file.name.endsWith('.json')) {
-              const parsed = JSON.parse(text);
-              classList = Array.isArray(parsed) ? parsed : Object.values(parsed);
-            } else {
-              classList = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-            }
-            if (classList.length > 0) {
-              const joined = classList.join(', ');
-              input.value = joined;
-              node.config[key] = joined;
-              markDirty();
-              toast(`Loaded ${classList.length} classes from ${file.name}`);
-            }
-          } catch (err) {
-            toast('Failed to parse label file: ' + err.message, true);
-          }
-        };
-        reader.readAsText(file);
-      };
-
-      loadLabelsBtn.onclick = () => fileInput.click();
-      row.append(input, loadLabelsBtn, fileInput);
+      row.append(select);
       wrap.append(row);
       appendHelp(wrap, key);
       return wrap;
@@ -8705,16 +9101,16 @@
     "concept": "Model AI Vision untuk mendeteksi lokasi dan klasifikasi kotak pembatas (bounding box) objek secara realtime dalam frame video.",
     "diagram": "[ Input Kamera ] ──▶ [ Object Detection ] ──▶ [ Object Tracking ]",
     "steps": [
-      "Pilih arsitektur model pada Engine: RF-DETR (rekomendasi kecepatan & akurasi tinggi), Ultralytics YOLOv8, atau ONNX kustom.",
-      "Atur Threshold akurasi keyakinan minimal: biasanya antara 0.40 hingga 0.60.",
-      "Jika menggunakan model latih sendiri (.pt / .onnx), masukkan path file model pada kolom Custom Model Path.",
-      "Hubungkan output node ini ke node Object Tracking untuk pelacakan objek yang stabil."
+      "Secara default, Ultralytics YOLOv8n (yolov8n.pt) sudah langsung terpilih dan siap mendeteksi 80 kelas objek tanpa konfigurasi tambahan.",
+      "Atur Threshold akurasi keyakinan minimal: default 0.45 (antara 0.35 hingga 0.60).",
+      "Jika ingin menggunakan model lain atau kustom (.pt / .onnx), Anda dapat mengganti Engine atau mengunggah bobot model kustom.",
+      "Hubungkan output node ini ke node Object Tracking atau Preview untuk pelacakan objek yang stabil."
     ],
     "params": [
       {
         "key": "engine",
         "label": "Mesin Model AI",
-        "desc": "Pilihan engine AI: rfdetr, ultralytics_yolo, yolo_world (zero-shot prompt), roboflow_universe, onnx_custom, tflite."
+        "desc": "Pilihan engine AI: Ultralytics YOLOv8n (default siap pakai), RF-DETR, YOLO-World, Roboflow Universe, atau Custom ONNX."
       },
       {
         "key": "threshold",
@@ -11908,6 +12304,383 @@
     }
   }
 
+  // --- Interactive Object Zoom (Click -> Crop -> Zoom) ---
+  let _interactiveZoomPollTimer = null;
+
+  function initInteractiveZoomUI() {
+    const previewImg = $('#previewImage');
+    const modalImg = $('#modalPreviewImage');
+
+    function getActiveZoomNode() {
+      if (!state.workflow?.nodes) return null;
+      return state.workflow.nodes.find(n => n.type === 'interactive_zoom' && n.enabled !== false);
+    }
+
+    async function handlePreviewClick(e, imgEl) {
+      const zoomNode = getActiveZoomNode();
+      if (!zoomNode) return;
+      if (!state.status?.running) {
+        toast('Alur kerja belum berjalan. Tekan tombol [Run] hijau di topbar terlebih dahulu.');
+        return;
+      }
+
+      const rect = imgEl.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const naturalWidth = imgEl.naturalWidth || imgEl.videoWidth || rect.width;
+      const naturalHeight = imgEl.naturalHeight || imgEl.videoHeight || rect.height;
+
+      const imgAspect = naturalWidth / naturalHeight;
+      const boxAspect = rect.width / rect.height;
+
+      let renderWidth = rect.width;
+      let renderHeight = rect.height;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (boxAspect > imgAspect) {
+        renderHeight = rect.height;
+        renderWidth = renderHeight * imgAspect;
+        offsetX = (rect.width - renderWidth) / 2;
+      } else {
+        renderWidth = rect.width;
+        renderHeight = renderWidth / imgAspect;
+        offsetY = (rect.height - renderHeight) / 2;
+      }
+
+      const clickX = e.clientX - rect.left - offsetX;
+      const clickY = e.clientY - rect.top - offsetY;
+
+      if (clickX < 0 || clickX > renderWidth || clickY < 0 || clickY > renderHeight) {
+        return;
+      }
+
+      const normX = Math.max(0, Math.min(1, clickX / renderWidth));
+      const normY = Math.max(0, Math.min(1, clickY / renderHeight));
+
+      try {
+        const res = await api(`/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/select`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ normX, normY }),
+        });
+        if (res?.state?.status === 'locked') {
+          toast(`Locked Target #${res.state.trackId} (${(res.state.className || 'Object').toUpperCase()})`);
+          renderInteractiveZoomPopup(zoomNode, res.state);
+        } else if (res?.state?.status === 'idle') {
+          const wasLocked = Boolean($('#interactiveZoomCard'));
+          await api(`/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/reset`, { method: 'POST' });
+          hideInteractiveZoomPopup();
+          if (wasLocked) {
+            toast('Kuncian target dilepas (Target unlocked)');
+          } else {
+            toast('Tidak ada objek di titik klik. Klik tepat di dalam kotak deteksi objek (bounding box).');
+          }
+        }
+      } catch (err) {
+        console.warn('Interactive zoom select failed:', err);
+      }
+    }
+
+    function handlePreviewHover(e, imgEl) {
+      const zoomNode = getActiveZoomNode();
+      if (zoomNode && state.status?.running) {
+        imgEl.style.cursor = 'crosshair';
+      } else {
+        imgEl.style.cursor = '';
+      }
+    }
+
+    if (previewImg) {
+      previewImg.addEventListener('click', (e) => handlePreviewClick(e, previewImg));
+      previewImg.addEventListener('mousemove', (e) => handlePreviewHover(e, previewImg));
+    }
+    if (modalImg) {
+      modalImg.addEventListener('click', (e) => handlePreviewClick(e, modalImg));
+      modalImg.addEventListener('mousemove', (e) => handlePreviewHover(e, modalImg));
+    }
+  }
+
+  function hideInteractiveZoomPopup() {
+    $('#interactiveZoomCard')?.remove();
+    if (_interactiveZoomPollTimer) {
+      clearInterval(_interactiveZoomPollTimer);
+      _interactiveZoomPollTimer = null;
+    }
+  }
+  window.hideInteractiveZoomPopup = hideInteractiveZoomPopup;
+  window.renderInteractiveZoomPopup = renderInteractiveZoomPopup;
+
+  function renderInteractiveZoomPopup(zoomNode, targetState) {
+    let card = $('#interactiveZoomCard');
+    const container = $('#previewContainer');
+    if (!container) return;
+
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'interactiveZoomCard';
+      card.className = 'interactive-zoom-card';
+      container.append(card);
+    }
+
+    const trackId = targetState.trackId ?? 'N/A';
+    const className = (targetState.className || 'Object').toUpperCase();
+    const conf = Math.round((targetState.confidence || 1.0) * 100);
+
+    const showClassName = zoomNode?.config?.showClassName !== false && targetState?.showClassName !== false;
+    const showConfidence = zoomNode?.config?.showConfidence !== false && targetState?.showConfidence !== false;
+    const showDownload = zoomNode?.config?.showDownloadButton !== false && targetState?.showDownloadButton !== false;
+
+    let classConfidenceHtml = '';
+    if (showClassName && showConfidence) {
+      classConfidenceHtml = `<div><strong>Class:</strong> ${className} (${conf}%)</div>`;
+    } else if (showClassName) {
+      classConfidenceHtml = `<div><strong>Class:</strong> ${className}</div>`;
+    } else if (showConfidence) {
+      classConfidenceHtml = `<div><strong>Confidence:</strong> ${conf}%</div>`;
+    }
+
+    const downloadBtnHtml = showDownload ? `
+        <button class="interactive-zoom-btn" id="zoomDownloadBtn" type="button" title="Download High-Res Snapshot">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Snapshot
+        </button>` : '';
+
+    const curAspect = zoomNode?.config?.pipAspectRatio || targetState?.pipAspectRatio || 'auto';
+    const curSizeMode = zoomNode?.config?.pipSizeMode || targetState?.pipSizeMode || 'dynamic';
+    const curSize = zoomNode?.config?.pipSizePercent || targetState?.pipSizePercent || 30;
+    const curZoom = Number(zoomNode?.config?.zoomScale || targetState?.zoomScale || 1.0);
+    const curHeadroom = Number(zoomNode?.config?.headroomPercent || targetState?.headroomPercent || 48);
+    card.innerHTML = `
+      <div class="interactive-zoom-header">
+        <div class="interactive-zoom-badge">
+          <span class="dot"></span>
+          <span>TARGET #${trackId}</span>
+        </div>
+        <div class="interactive-zoom-sizes" title="Ubah Ukuran Zoom PiP (Dinamis Sesuai Objek atau Tetap S/M/L/XL)">
+          <button type="button" class="btn-pip-size ${curSizeMode === 'dynamic' ? 'active' : ''}" data-size="dynamic" title="Dinamis Mengikuti Ukuran & Rasio Bounding Box Objek">🎯 Dinamis</button>
+          <button type="button" class="btn-pip-size ${curSizeMode === 'fixed' && curSize === 20 ? 'active' : ''}" data-size="20" title="Kecil (20%)">S</button>
+          <button type="button" class="btn-pip-size ${curSizeMode === 'fixed' && curSize === 30 ? 'active' : ''}" data-size="30" title="Sedang (30%)">M</button>
+          <button type="button" class="btn-pip-size ${curSizeMode === 'fixed' && curSize === 40 ? 'active' : ''}" data-size="40" title="Besar (40%)">L</button>
+          <button type="button" class="btn-pip-size ${curSizeMode === 'fixed' && curSize === 50 ? 'active' : ''}" data-size="50" title="Maksimal Setengah Preview (50%)">XL</button>
+        </div>
+        <button class="interactive-zoom-close" title="Clear Target Lock" type="button">✕</button>
+      </div>
+      <div class="interactive-zoom-zoom-row" title="Ubah Skala Zoom (1.0x Penuh / Fit Anti Muka Kepotong hingga 2.0x)">
+        <span class="zoom-label">Zoom:</span>
+        <button type="button" class="btn-pip-zoom ${curZoom <= 1.05 ? 'active' : ''}" data-zoom="1.0" title="1.0x - Tampilkan Seluruh Objek Penuh / Fit (Anti Muka Kepotong)">🔍 1.0x (Penuh)</button>
+        <button type="button" class="btn-pip-zoom ${Math.abs(curZoom - 1.2) < 0.1 ? 'active' : ''}" data-zoom="1.2" title="1.2x - Zoom Ringan">1.2x</button>
+        <button type="button" class="btn-pip-zoom ${Math.abs(curZoom - 1.5) < 0.1 ? 'active' : ''}" data-zoom="1.5" title="1.5x - Zoom Sedang">1.5x</button>
+        <button type="button" class="btn-pip-zoom ${curZoom >= 1.9 ? 'active' : ''}" data-zoom="2.0" title="2.0x - Zoom Dekat">2.0x</button>
+      </div>
+      <div class="interactive-zoom-aspect-row" title="Ubah Rasio PiP (Portrait / Auto / Square / Landscape)">
+        <span class="aspect-label">Rasio:</span>
+        <button type="button" class="btn-pip-aspect ${curAspect === 'auto' ? 'active' : ''}" data-aspect="auto" title="Auto (Sesuai Bentuk Objek)">✨ Auto</button>
+        <button type="button" class="btn-pip-aspect ${curAspect === '3:4' ? 'active' : ''}" data-aspect="3:4" title="Portrait 3:4 (Orang - Anti Muka Kepotong)">📱 3:4</button>
+        <button type="button" class="btn-pip-aspect ${curAspect === '9:16' ? 'active' : ''}" data-aspect="9:16" title="Portrait 9:16 (Tinggi)">📱 9:16</button>
+        <button type="button" class="btn-pip-aspect ${curAspect === '1:1' ? 'active' : ''}" data-aspect="1:1" title="Persegi 1:1">⏹️ 1:1</button>
+        <button type="button" class="btn-pip-aspect ${curAspect === '4:3' ? 'active' : ''}" data-aspect="4:3" title="Landscape 4:3">🖥️ 4:3</button>
+      </div>
+      <div class="interactive-zoom-headroom-row" title="Atur Ruang Kepala (Headroom) agar muka/rambut/topi tidak kepotong pada objek orang/manusia">
+        <span class="headroom-label">Kepala:</span>
+        <button type="button" class="btn-pip-headroom ${curHeadroom <= 30 ? 'active' : ''}" data-headroom="25" title="Standar (+25%)">+25%</button>
+        <button type="button" class="btn-pip-headroom ${curHeadroom > 30 && curHeadroom <= 55 ? 'active' : ''}" data-headroom="48" title="Aman (+48% - Direkomendasikan untuk Orang/CCTV Night)">🛡️ +48% Aman</button>
+        <button type="button" class="btn-pip-headroom ${curHeadroom > 55 ? 'active' : ''}" data-headroom="65" title="Lega (+65% - Ekstra Longgar)">👑 +65% Lega</button>
+      </div>
+      <div class="interactive-zoom-body">
+        <img class="interactive-zoom-crop-img" id="zoomCropLiveImg" src="/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/crop?t=${Date.now()}" alt="Target Crop" />
+      </div>
+      <div class="interactive-zoom-meta">
+        ${classConfidenceHtml}
+        <div><strong>Status:</strong> ${targetState.status === 'locked' ? '🟢 Tracking Locked' : '🟠 Lost / Searching'}</div>
+      </div>
+      <div class="interactive-zoom-actions">
+        ${downloadBtnHtml}
+        <button class="interactive-zoom-btn btn-unlock" id="zoomUnlockBtn" type="button" title="Release Target Lock">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24" style="width:12px;height:12px"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+          Unlock
+        </button>
+      </div>
+    `;
+
+    card.querySelectorAll('.btn-pip-size').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        card.querySelectorAll('.btn-pip-size').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        if (btn.dataset.size === 'dynamic') {
+          card.style.width = '290px';
+          const b = card.querySelector('.interactive-zoom-body');
+          if (b) b.style.height = '180px';
+          try {
+            await api(`/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/config`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pipSizeMode: 'dynamic' })
+            });
+          } catch {}
+          if (zoomNode.config) {
+            zoomNode.config.pipSizeMode = 'dynamic';
+            markDirty();
+          }
+          toast('Ukuran & rasio PiP diubah: Dinamis mengikuti bounding box objek');
+          return;
+        }
+
+        const size = Number(btn.dataset.size);
+        if (size <= 20) {
+          card.style.width = '200px';
+          const b = card.querySelector('.interactive-zoom-body');
+          if (b) b.style.height = '115px';
+        } else if (size <= 30) {
+          card.style.width = '280px';
+          const b = card.querySelector('.interactive-zoom-body');
+          if (b) b.style.height = '165px';
+        } else if (size <= 40) {
+          card.style.width = '350px';
+          const b = card.querySelector('.interactive-zoom-body');
+          if (b) b.style.height = '210px';
+        } else {
+          card.style.width = '420px';
+          const b = card.querySelector('.interactive-zoom-body');
+          if (b) b.style.height = '250px';
+        }
+
+        try {
+          await api(`/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/resize`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sizePercent: size, pipSizeMode: 'fixed' })
+          });
+        } catch {}
+        if (zoomNode.config) {
+          zoomNode.config.pipSizeMode = 'fixed';
+          zoomNode.config.pipSizePercent = size;
+          markDirty();
+        }
+        toast(`Ukuran PiP diubah ke Tetap (${size}%)`);
+      };
+    });
+
+    card.querySelectorAll('.btn-pip-zoom').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const zoom = Number(btn.dataset.zoom);
+        card.querySelectorAll('.btn-pip-zoom').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        try {
+          await api(`/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ zoomScale: zoom })
+          });
+        } catch {}
+        if (zoomNode.config) {
+          zoomNode.config.zoomScale = zoom;
+          markDirty();
+        }
+        toast(`Skala Zoom diubah ke ${zoom}x ${zoom <= 1.0 ? '(Tampilan Penuh / Fit)' : ''}`);
+      };
+    });
+
+    card.querySelectorAll('.btn-pip-aspect').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const aspect = btn.dataset.aspect;
+        card.querySelectorAll('.btn-pip-aspect').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        try {
+          await api(`/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pipAspectRatio: aspect, focusPoint: 'auto' })
+          });
+        } catch {}
+        if (zoomNode.config) {
+          zoomNode.config.pipAspectRatio = aspect;
+          markDirty();
+        }
+        const label = aspect === 'auto' ? 'Auto (Sesuai Objek)' : aspect === '3:4' ? 'Portrait 3:4' : aspect === '9:16' ? 'Portrait 9:16' : aspect;
+        toast(`Rasio PiP diubah ke ${label}`);
+      };
+    });
+
+    card.querySelectorAll('.btn-pip-headroom').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const hr = Number(btn.dataset.headroom);
+        card.querySelectorAll('.btn-pip-headroom').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        try {
+          await api(`/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ headroomPercent: hr })
+          });
+        } catch {}
+        if (zoomNode.config) {
+          zoomNode.config.headroomPercent = hr;
+          markDirty();
+        }
+        toast(`Ruang kepala (Headroom) diubah ke +${hr}% (Anti Muka Kepotong)`);
+      };
+    });
+
+    card.querySelector('.interactive-zoom-close').onclick = async () => {
+      try {
+        await api(`/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/reset`, { method: 'POST' });
+      } catch {}
+      hideInteractiveZoomPopup();
+    };
+
+    card.querySelector('#zoomUnlockBtn').onclick = async () => {
+      try {
+        await api(`/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/reset`, { method: 'POST' });
+      } catch {}
+      hideInteractiveZoomPopup();
+      toast('Target unlocked');
+    };
+
+    const dlBtn = card.querySelector('#zoomDownloadBtn');
+    if (dlBtn) {
+      dlBtn.onclick = () => {
+        const liveImg = $('#zoomCropLiveImg');
+        if (!liveImg || !liveImg.src) return;
+        const a = document.createElement('a');
+        a.href = liveImg.src;
+        a.download = `target_${trackId}_${className.toLowerCase()}_${Date.now()}.jpg`;
+        a.click();
+        toast('Target snapshot downloaded');
+      };
+    }
+
+    if (state.status?.running && !_interactiveZoomPollTimer) {
+      _interactiveZoomPollTimer = setInterval(async () => {
+        if (!state.status?.running) {
+          hideInteractiveZoomPopup();
+          return;
+        }
+        try {
+          const res = await api(`/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/target`);
+          if (res?.state?.status === 'locked' || res?.state?.status === 'lost') {
+            const cropImg = $('#zoomCropLiveImg');
+            if (cropImg) {
+              cropImg.src = `/api/interactive-zoom/${encodeURIComponent(zoomNode.id)}/crop?t=${Date.now()}`;
+            }
+          } else {
+            hideInteractiveZoomPopup();
+          }
+        } catch {
+          // ignore transient poll error
+        }
+      }, 500);
+    }
+  }
+
   // --- Event Wireup ---
   function wireEvents() {
     const shell = $('.app-shell');
@@ -12254,6 +13027,7 @@
     $('#snapshotBtn')?.addEventListener('click', captureSnapshot);
     $('#fullscreenBtn')?.addEventListener('click', toggleFullscreenPreview);
     $('#closePreviewModal')?.addEventListener('click', () => $('#previewModal')?.close());
+    initInteractiveZoomUI();
 
     // Logs actions
     $('#clearLogs')?.addEventListener('click', () => {

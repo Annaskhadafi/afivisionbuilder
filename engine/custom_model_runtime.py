@@ -40,6 +40,8 @@ def custom_model_path(config: dict) -> str:
         value = str(config.get(key) or "").strip().strip('"')
         if value:
             return value
+    if engine == "ultralytics_yolo":
+        return "yolov8n.pt"
     return ""
 
 
@@ -170,7 +172,11 @@ def _resolve_labels(config: dict, model_path: str) -> list[str]:
     # Keep compatibility with old workflows where classes was a label list;
     # when metadata exists it is only a filter (applied by the caller).
     legacy = str(config.get("classes") or "").strip()
-    return [c.strip() for c in legacy.split(",") if c.strip()] if legacy else []
+    if legacy:
+        return [c.strip() for c in legacy.split(",") if c.strip()]
+    if "yolo" in str(model_path).lower():
+        return list(COCO_CLASSES)
+    return []
 
 
 class ModelRunnerHandle:
@@ -293,6 +299,9 @@ class CustomModelRunner:
                 classes_str = str(config.get("classes") or config.get("customClasses") or "").strip()
                 classes = [c.strip() for c in classes_str.split(",") if c.strip()]
                 return ModelRunnerHandle(engine, model_path, raw_model, classes)
+
+            if engine == "ultralytics_yolo" and not raw_path:
+                raw_path = "yolov8n.pt"
 
             model_path_obj = resolve_model_file(raw_path)
             model_path = str(model_path_obj)
@@ -531,7 +540,14 @@ class CustomModelRunner:
                     if score < threshold:
                         continue
                     cls_idx = int(classes[i])
-                    cls_name = custom_names[cls_idx] if cls_idx < len(custom_names) else model.names.get(cls_idx, labels[cls_idx] if cls_idx < len(labels) else f"class_{cls_idx}")
+                    if hasattr(model, "names") and isinstance(model.names, dict) and cls_idx in model.names:
+                        cls_name = model.names[cls_idx]
+                    elif labels and cls_idx < len(labels):
+                        cls_name = labels[cls_idx]
+                    elif custom_names and cls_idx < len(custom_names):
+                        cls_name = custom_names[cls_idx]
+                    else:
+                        cls_name = f"class_{cls_idx}"
                     if configured_classes and str(cls_name).casefold() not in configured_classes:
                         continue
                     x1, y1, x2, y2 = [float(v) for v in box]

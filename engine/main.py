@@ -1475,7 +1475,10 @@ def active_drawing_nodes_for_target(workflow: dict, target_id: str) -> list[dict
             node.get("type") in DRAWING_NODE_TYPES
             and node.get("enabled", True)
             and has_active_path(workflow, input_id, str(node.get("id") or ""))
-            and has_active_path(workflow, str(node.get("id") or ""), target_id)
+            and (
+                node.get("type") == "interactive_zoom"
+                or has_active_path(workflow, str(node.get("id") or ""), target_id)
+            )
         )
     ]
     return _ordered_image_processing_nodes(workflow, nodes)
@@ -5576,7 +5579,8 @@ def filter_detections(workflow: dict, detections: list[dict], frame_size: tuple[
     for raw_item in detections:
         item = dict(raw_item)
         item_class = str(item.get("class", "")).lower()
-        if classes and item_class not in classes:
+        orig_class = str(item.get("originalClass", "")).lower()
+        if classes and item_class not in classes and (not orig_class or orig_class not in classes):
             continue
 
         item_score = float(item.get("score", 0.0) or 0.0)
@@ -6315,6 +6319,10 @@ def apply_drawing_nodes(frame, workflow: dict, target_id: str, detections: list[
                         -1,
                     )
                     cv2.putText(output, label, (x + 5, label_y - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2, cv2.LINE_AA)
+        elif node.get("type") == "interactive_zoom":
+            from interactive_zoom import get_interactive_zoom_runtime
+            rt = get_interactive_zoom_runtime(node_id)
+            output = rt.apply(output, node_detections, config)
     return output
 
 

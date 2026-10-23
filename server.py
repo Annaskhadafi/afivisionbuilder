@@ -300,6 +300,12 @@ def projects() -> dict:
     return {"projects": store.list_projects()}
 
 
+@app.get("/api/models/classes")
+def available_classes() -> dict:
+    from custom_model_runtime import COCO_CLASSES
+    return {"classes": list(COCO_CLASSES), "count": len(COCO_CLASSES)}
+
+
 @app.post("/api/projects")
 def create_project(request: Request, body: dict) -> dict:
     _write_allowed(request)
@@ -911,7 +917,7 @@ def _templates() -> list[dict]:
             "workflow": {
                 "nodes": [
                     store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=1EiC9bvVGnk", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
-                    store.make_node("detector", id="detector", x=280, y=140, config={"threshold": 0.35, "modelPath": "yolov8n.pt", "classes": "car,motorcycle,bus,truck"}),
+                    store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt", "classes": "car,motorcycle,bus,truck"}),
                     store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
                     store.make_node(
                         "multi_zone_occupancy",
@@ -1546,6 +1552,7 @@ def _preflight_models(workflow: dict) -> None:
             continue
         if not raw and engine_id == "ultralytics_yolo":
             config["customModelPath"] = "yolov8n.pt"
+            config["modelPath"] = "yolov8n.pt"
             raw = "yolov8n.pt"
         if not raw:
             raise HTTPException(400, f"node '{node['id']}' requires a model file in 'customModelPath' for engine '{engine_id}'")
@@ -1716,6 +1723,84 @@ def live_update_workflow(request: Request, body: dict) -> dict:
                 runner.update_workflow(wf)
                 return {"ok": True, "updated": True, "projectId": bound_project_id}
     return {"ok": True, "updated": False}
+
+
+@app.post("/api/interactive-zoom/{node_id}/select")
+def interactive_zoom_select(node_id: str, body: dict) -> dict:
+    from interactive_zoom import get_interactive_zoom_runtime
+    rt = get_interactive_zoom_runtime(node_id)
+    if "point" in body or "normX" in body:
+        norm_x = float(body.get("normX", body.get("point", [0, 0])[0]))
+        norm_y = float(body.get("normY", body.get("point", [0, 0])[1]))
+        state = rt.select_by_point(norm_x, norm_y)
+        return {"ok": True, "state": state or rt.get_state()}
+    elif "trackId" in body:
+        rt.select_by_track_id(body["trackId"])
+        return {"ok": True, "state": rt.get_state()}
+    return {"ok": False, "error": "Invalid payload"}
+
+
+@app.post("/api/interactive-zoom/{node_id}/resize")
+def interactive_zoom_resize(node_id: str, body: dict) -> dict:
+    from interactive_zoom import get_interactive_zoom_runtime
+    rt = get_interactive_zoom_runtime(node_id)
+    new_size = None
+    if "pipSizeMode" in body or "sizeMode" in body:
+        rt.set_size_mode(body.get("pipSizeMode", body.get("sizeMode", "dynamic")))
+    if "sizePercent" in body or "pipSizePercent" in body:
+        size_pct = int(body.get("sizePercent", body.get("pipSizePercent", 30)))
+        new_size = rt.set_pip_size(size_pct)
+    if "aspectRatio" in body or "pipAspectRatio" in body:
+        rt.set_aspect_ratio(body.get("aspectRatio", body.get("pipAspectRatio", "auto")))
+    if "focusPoint" in body:
+        rt.set_focus_point(body.get("focusPoint", "auto"))
+    if "zoomScale" in body:
+        rt.set_zoom_scale(float(body["zoomScale"]))
+    return {"ok": True, "pipSizePercent": new_size, "state": rt.get_state()}
+
+
+@app.post("/api/interactive-zoom/{node_id}/config")
+def interactive_zoom_config(node_id: str, body: dict) -> dict:
+    from interactive_zoom import get_interactive_zoom_runtime
+    rt = get_interactive_zoom_runtime(node_id)
+    if "pipSizeMode" in body or "sizeMode" in body:
+        rt.set_size_mode(body.get("pipSizeMode", body.get("sizeMode", "dynamic")))
+    if "aspectRatio" in body or "pipAspectRatio" in body:
+        rt.set_aspect_ratio(body.get("aspectRatio", body.get("pipAspectRatio", "auto")))
+    if "focusPoint" in body:
+        rt.set_focus_point(body.get("focusPoint", "auto"))
+    if "zoomScale" in body:
+        rt.set_zoom_scale(float(body["zoomScale"]))
+    if "sizePercent" in body or "pipSizePercent" in body:
+        rt.set_pip_size(int(body.get("sizePercent", body.get("pipSizePercent", 30))))
+    if "headroomPercent" in body or "headroom" in body:
+        rt.set_headroom(int(body.get("headroomPercent", body.get("headroom", 48))))
+    return {"ok": True, "state": rt.get_state()}
+
+
+@app.post("/api/interactive-zoom/{node_id}/reset")
+def interactive_zoom_reset(node_id: str) -> dict:
+    from interactive_zoom import get_interactive_zoom_runtime
+    rt = get_interactive_zoom_runtime(node_id)
+    rt.reset_target()
+    return {"ok": True, "state": rt.get_state()}
+
+
+@app.get("/api/interactive-zoom/{node_id}/target")
+def interactive_zoom_target(node_id: str) -> dict:
+    from interactive_zoom import get_interactive_zoom_runtime
+    rt = get_interactive_zoom_runtime(node_id)
+    return {"ok": True, "state": rt.get_state()}
+
+
+@app.get("/api/interactive-zoom/{node_id}/crop")
+def interactive_zoom_crop(node_id: str) -> Response:
+    from interactive_zoom import get_interactive_zoom_runtime
+    rt = get_interactive_zoom_runtime(node_id)
+    data = rt.get_latest_crop_jpeg()
+    if data is None:
+        raise HTTPException(404, "Crop image not available")
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "no-store, must-revalidate"})
 
 
 @app.get("/api/preview/{node_id}")

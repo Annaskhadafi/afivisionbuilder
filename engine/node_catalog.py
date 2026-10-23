@@ -43,7 +43,7 @@ IMAGE_PROCESSING_NODE_TYPES = (
     "background_subtract",
     "python_script",
 )
-DRAWING_NODE_TYPES = ("overlay_annotate",)
+DRAWING_NODE_TYPES = ("overlay_annotate", "interactive_zoom")
 LEGACY_DRAWING_NODE_TYPES = ("draw_text", "draw_boxes")
 ALL_DRAWING_NODE_TYPES = DRAWING_NODE_TYPES + LEGACY_DRAWING_NODE_TYPES
 
@@ -300,6 +300,14 @@ def available_output_labels(workflow: dict, target_id: str) -> list[tuple[str, s
                 labels = _configured_output_labels(config.get("rfdetrTensorRTClasses", ""))
             elif engine in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                 labels = _configured_output_labels(config.get("classes", config.get("customClasses", "")))
+                if not labels and engine == "ultralytics_yolo":
+                    model_path = str(config.get("modelPath") or config.get("customModelPath") or "yolov8n.pt")
+                    if "yolo" in model_path.lower():
+                        try:
+                            from .custom_model_runtime import COCO_CLASSES
+                        except ImportError:
+                            from custom_model_runtime import COCO_CLASSES
+                        labels = list(COCO_CLASSES)
         elif node_type == "filter":
             labels = _configured_output_labels(config.get("classes", ""))
 
@@ -542,13 +550,21 @@ NODE_BLUEPRINTS = {
     },
     "detector": {
         "title": "Object Detection",
-        "subtitle": "Deteksi objek dengan model RF-DETR PyTorch, TensorRT, atau YOLO",
+        "subtitle": "Deteksi objek real-time dengan Ultralytics YOLOv8n (siap pakai) atau RF-DETR",
         "category": "AI Vision Models",
         "x": 330,
         "y": 60,
         "config": {
-            "engine": "rfdetr",
-            "threshold": 0.55,
+            "engine": "ultralytics_yolo",
+            "modelPath": "yolov8n.pt",
+            "customModelPath": "yolov8n.pt",
+            "threshold": 0.45,
+            "iouThreshold": 0.45,
+            "device": "auto",
+            "customClasses": "",
+            "detectEveryNFrames": 1,
+            "maxDetectionFps": 0,
+            "batchSize": 1,
             "rfdetrModel": "rfdetr-nano",
             "rfdetrCheckpoint": "",
             "rfdetrImageSize": RFDETR_NATIVE_IMAGE_SIZE,
@@ -559,13 +575,6 @@ NODE_BLUEPRINTS = {
             "rfdetrTensorRTProcess": False,
             "rfdetrOnnxModel": "",
             "rfdetrOnnxClasses": "",
-            "detectEveryNFrames": 1,
-            "maxDetectionFps": 0,
-            "batchSize": 1,
-            "iouThreshold": 0.45,
-            "device": "auto",
-            "customModelPath": "",
-            "customClasses": "",
             "perClassThresholds": "",
             "classRemap": "",
         },
@@ -1291,6 +1300,31 @@ NODE_BLUEPRINTS = {
         "x": 620,
         "y": 570,
         "config": {"layers": default_overlay_layers()},
+    },
+    "interactive_zoom": {
+        "title": "Interactive Object Zoom",
+        "subtitle": "Klik objek pada live video untuk zoom crop interaktif & Picture-in-Picture (PiP)",
+        "category": "Annotations & Drawing",
+        "x": 620,
+        "y": 640,
+        "config": {
+            "pipSizeMode": "dynamic",
+            "pipPosition": "top-right",
+            "pipSizePercent": 30,
+            "pipAspectRatio": "auto",
+            "focusPoint": "auto",
+            "zoomScale": 1.0,
+            "headroomPercent": 48,
+            "borderColor": "#00e5ff",
+            "borderThickness": 2,
+            "showCrosshair": True,
+            "showLabel": True,
+            "showClassName": True,
+            "showConfidence": True,
+            "showDownloadButton": True,
+            "showTargetBox": True,
+            "targetLostHoldSeconds": 5.0,
+        },
     },
     "database_output": {
         "title": "Database Output",
