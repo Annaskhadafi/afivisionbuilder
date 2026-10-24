@@ -54,8 +54,110 @@ class SupervisionByteTrackAdapter:
         self.tracker.reset()
 
 
+class UltralyticsTrackerAdapter:
+    """Adapter for Ultralytics native trackers (TrackTrack, FastTracker, Deep OC-SORT)."""
+
+    def __init__(self, tracker_type: str = "tracktrack", config: dict | None = None, **kwargs):
+        from ultralytics.utils import YAML, IterableSimpleNamespace
+        from ultralytics.utils.checks import check_yaml
+        from ultralytics.trackers.track import TRACKER_MAP
+
+        config = config or {}
+        normalized_type = str(tracker_type).lower()
+        if normalized_type not in TRACKER_MAP:
+            normalized_type = "tracktrack"
+
+        yaml_name = f"{normalized_type}.yaml"
+        args_dict = YAML.load(check_yaml(yaml_name))
+
+        # Override thresholds with VisoNode tracker configuration if available
+        if "trackHighThreshold" in config:
+            args_dict["track_high_thresh"] = float(config["trackHighThreshold"])
+        if "trackLowThreshold" in config:
+            args_dict["track_low_thresh"] = float(config["trackLowThreshold"])
+        if "newTrackThreshold" in config:
+            args_dict["new_track_thresh"] = float(config["newTrackThreshold"])
+        if "trackBuffer" in config:
+            args_dict["track_buffer"] = int(config["trackBuffer"])
+        if "matchThreshold" in config:
+            val = float(config["matchThreshold"])
+            # If passed as IoU threshold (< 0.5), convert to distance cost (>= 0.5)
+            args_dict["match_thresh"] = (1.0 - val) if val <= 0.5 else val
+        if "min_track_len" in args_dict:
+            args_dict["min_track_len"] = 1
+
+        args = IterableSimpleNamespace(**args_dict)
+        tracker_cls = TRACKER_MAP[normalized_type]
+        self.tracker = tracker_cls(args)
+        self.tracker_type = normalized_type
+
+    def update(self, detections: sv.Detections, frame=None):
+        if len(detections) == 0:
+            return sv.Detections.empty()
+
+        source_indices = detections.data.get(SOURCE_INDEX_KEY)
+        if source_indices is None:
+            source_indices = np.arange(len(detections), dtype=np.int64)
+
+        confs = detections.confidence if detections.confidence is not None else np.ones(len(detections), dtype=np.float32)
+        clss = detections.class_id if detections.class_id is not None else np.zeros(len(detections), dtype=np.float32)
+
+        class Container:
+            def __init__(self, xyxy, conf, cls, src_idx):
+                self.xyxy = np.asarray(xyxy, dtype=np.float32).reshape(-1, 4)
+                self.conf = np.asarray(conf, dtype=np.float32).reshape(-1)
+                self.cls = np.asarray(cls, dtype=np.float32).reshape(-1)
+                self.src_idx = np.asarray(src_idx, dtype=np.int64).reshape(-1)
+                if len(self.xyxy) > 0:
+                    w = self.xyxy[:, 2] - self.xyxy[:, 0]
+                    h = self.xyxy[:, 3] - self.xyxy[:, 1]
+                    x = self.xyxy[:, 0] + w / 2
+                    y = self.xyxy[:, 1] + h / 2
+                    self.xywh = np.stack([x, y, w, h], axis=1)
+                    self.data = np.hstack([self.xyxy, self.conf[:, None], self.cls[:, None]])
+                else:
+                    self.xywh = np.empty((0, 4), dtype=np.float32)
+                    self.data = np.empty((0, 6), dtype=np.float32)
+
+            def __getitem__(self, idx):
+                return Container(self.xyxy[idx], self.conf[idx], self.cls[idx], self.src_idx[idx])
+
+            def __len__(self):
+                return len(self.xyxy)
+
+        container = Container(detections.xyxy, confs, clss, source_indices)
+        tracks = self.tracker.update(container, img=frame)
+        if len(tracks) == 0 or not hasattr(tracks, "shape") or len(tracks.shape) != 2:
+            return sv.Detections.empty()
+
+        tracked_xyxy = tracks[:, :4].astype(np.float32)
+        tracked_ids = tracks[:, 4].astype(int)
+        tracked_confs = tracks[:, 5].astype(np.float32)
+        tracked_orig_indices = tracks[:, 7].astype(int)
+        matched_source_indices = source_indices[tracked_orig_indices]
+
+        return sv.Detections(
+            xyxy=tracked_xyxy,
+            confidence=tracked_confs,
+            tracker_id=tracked_ids,
+            data={SOURCE_INDEX_KEY: matched_source_indices}
+        )
+
+    def reset(self):
+        if hasattr(self.tracker, "reset"):
+            self.tracker.reset()
+
+
 SOURCE_INDEX_KEY = "visonode_source_index"
-SUPPORTED_ALGORITHMS = ("bytetrack", "botsort", "ocsort", "cbiou")
+SUPPORTED_ALGORITHMS = (
+    "tracktrack",
+    "fasttrack",
+    "deepocsort",
+    "bytetrack",
+    "botsort",
+    "ocsort",
+    "cbiou",
+)
 CMC_METHODS = ("orb", "sift", "sparseOptFlow", "ecc")
 EXPECTED_TRACKERS_VERSION = "2.5.0.post0"
 ROBOFLOW_TRACKER_CLASSES = {
@@ -127,6 +229,8 @@ class RoboflowTracker:
         )
 
     def status_label(self) -> str:
+        if self.algorithm in ("tracktrack", "fasttrack", "deepocsort"):
+            return f"{self.algorithm} · Ultralytics native tracker"
         detail = " + CMC" if (
             self.algorithm == "botsort"
             and bool(self.config.get("botSortGmc", True))
@@ -199,6 +303,8 @@ class RoboflowTracker:
         self._last_timestamp = None
 
     def _create_runtime(self):
+        if self.algorithm in ("tracktrack", "fasttrack", "deepocsort"):
+            return UltralyticsTrackerAdapter(self.algorithm, self.config)
         if self.algorithm == "botsort":
             cmc_method = str(
                 self.config.get("botSortCmcMethod", "sparseOptFlow")

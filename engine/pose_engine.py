@@ -36,12 +36,15 @@ COCO_KEYPOINT_NAMES = [
 
 # Anatomical Limb Groups with Distinct Colors (BGR format)
 # (pt1_idx, pt2_idx, color_bgr)
-SKELETON_LIMBS = [
+FACE_LIMBS = [
     # Head / Face (Golden Yellow: 0, 215, 255)
     (0, 1, (0, 220, 255)),
     (0, 2, (0, 220, 255)),
     (1, 3, (0, 200, 240)),
     (2, 4, (0, 200, 240)),
+]
+
+BODY_LIMBS = [
     # Torso / Spine (Neon Green: 0, 255, 128)
     (5, 6, (0, 255, 140)),
     (5, 11, (0, 240, 120)),
@@ -60,6 +63,9 @@ SKELETON_LIMBS = [
     (12, 14, (70, 70, 255)),
     (14, 16, (90, 90, 255)),
 ]
+
+# Default skeleton limbs (body only by default; face features use clean dots without crossing lines)
+SKELETON_LIMBS = BODY_LIMBS
 
 # Joint colors (BGR) for keypoint dots
 JOINT_COLORS = {
@@ -179,6 +185,7 @@ def draw_human_skeleton(
     cfg = config or {}
     show_bones = cfg.get("showSkeleton", True) is not False
     show_joints = cfg.get("showJoints", True) is not False
+    show_face_lines = bool(cfg.get("showFaceLines", False))
     show_posture = cfg.get("showPostureBadge", True) is not False
     kpt_thresh = float(cfg.get("keypointThreshold", 0.35) or 0.35)
     thickness = max(1, min(6, int(cfg.get("skeletonThickness", 2) or 2)))
@@ -188,8 +195,10 @@ def draw_human_skeleton(
     fh, fw = frame.shape[:2]
 
     # 1. Draw Skeleton Bones (connecting lines)
+    # By default, face lines are omitted so facial identity, eyes, and expressions stay clearly visible.
     if show_bones:
-        for idx1, idx2, color in SKELETON_LIMBS:
+        draw_limbs = (BODY_LIMBS + FACE_LIMBS) if show_face_lines else BODY_LIMBS
+        for idx1, idx2, color in draw_limbs:
             if idx1 >= len(kpts) or idx2 >= len(kpts):
                 continue
             p1, p2 = kpts[idx1], kpts[idx2]
@@ -202,8 +211,8 @@ def draw_human_skeleton(
                 if 0 <= x1 < fw and 0 <= y1 < fh and 0 <= x2 < fw and 0 <= y2 < fh:
                     cv2.line(frame, (x1, y1), (x2, y2), color, thickness, cv2.LINE_AA)
 
-        # Draw neck connecting line from mid-shoulders to nose if confident
-        if len(kpts) > 6:
+        # Draw neck connecting line only when show_face_lines is explicitly requested
+        if show_face_lines and len(kpts) > 6:
             p_nose = kpts[0]
             p_ls, p_rs = kpts[5], kpts[6]
             if float(p_nose[2]) >= kpt_thresh and float(p_ls[2]) >= kpt_thresh and float(p_rs[2]) >= kpt_thresh:
@@ -212,7 +221,7 @@ def draw_human_skeleton(
                 nx, ny = int(round(p_nose[0])), int(round(p_nose[1]))
                 cv2.line(frame, (mid_sx, mid_sy), (nx, ny), (0, 255, 140), max(1, thickness - 1), cv2.LINE_AA)
 
-    # 2. Draw Glowing Joint Dots
+    # 2. Draw Glowing Joint Dots (face features use clean subtle dots without crossing lines)
     if show_joints:
         for i in range(min(17, len(kpts))):
             p = kpts[i]
@@ -221,12 +230,15 @@ def draw_human_skeleton(
                 x, y = int(round(p[0])), int(round(p[1]))
                 if 0 <= x < fw and 0 <= y < fh:
                     joint_color = JOINT_COLORS.get(i, (0, 255, 255))
-                    # Outer halo ring
-                    cv2.circle(frame, (x, y), radius + 2, (0, 0, 0), 1, cv2.LINE_AA)
+                    is_face = i < 5
+                    cur_radius = max(2, radius - 1) if is_face else radius
+                    # Outer halo ring for body joints
+                    if not is_face:
+                        cv2.circle(frame, (x, y), cur_radius + 2, (0, 0, 0), 1, cv2.LINE_AA)
                     # Colored circle
-                    cv2.circle(frame, (x, y), radius, joint_color, -1, cv2.LINE_AA)
+                    cv2.circle(frame, (x, y), cur_radius, joint_color, -1, cv2.LINE_AA)
                     # Inner bright white center dot
-                    cv2.circle(frame, (x, y), max(1, radius // 2), (255, 255, 255), -1, cv2.LINE_AA)
+                    cv2.circle(frame, (x, y), max(1, cur_radius // 2), (255, 255, 255), -1, cv2.LINE_AA)
 
     # 3. Draw Posture State Badge (near neck or head)
     if show_posture and posture_label:

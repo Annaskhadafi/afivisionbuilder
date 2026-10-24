@@ -390,8 +390,19 @@ CONVNEXT_MODEL_OPTIONS = [
     ("convnext_base.fb_in22k_ft_in1k", "ConvNeXt Base"),
     ("convnext_large.fb_in22k_ft_in1k", "ConvNeXt Large"),
 ]
-TRACKING_ALGORITHMS = ("bytetrack", "botsort", "ocsort", "cbiou")
+TRACKING_ALGORITHMS = (
+    "tracktrack",
+    "fasttrack",
+    "deepocsort",
+    "bytetrack",
+    "botsort",
+    "ocsort",
+    "cbiou",
+)
 TRACKING_ALGORITHM_OPTIONS = [
+    ("tracktrack", "TrackTrack (CVPR — Multi-Cue & TAI, Default Baru)"),
+    ("fasttrack", "FastTracker (Anti-Oklusi & Rollback Kalman, Hemat CPU)"),
+    ("deepocsort", "Deep OC-SORT (Observation-Centric + ReID & GMC)"),
     ("bytetrack", "ByteTrack"),
     ("botsort", "BoT-SORT"),
     ("ocsort", "OC-SORT"),
@@ -574,6 +585,7 @@ NODE_BLUEPRINTS = {
             "device": "auto",
             "showSkeleton": True,
             "showJoints": True,
+            "showFaceLines": False,
             "showBoundingBox": False,
             "showPostureBadge": True,
             "skeletonThickness": 2,
@@ -803,7 +815,7 @@ NODE_BLUEPRINTS = {
     },
     "tracker": {
         "title": "Object Tracking",
-        "subtitle": "Pelacakan identitas objek secara konsisten memakai ByteTrack, BoT-SORT, OC-SORT, atau C-BIoU",
+        "subtitle": "Pelacakan identitas objek secara konsisten memakai TrackTrack, FastTracker (anti-oklusi), ByteTrack, atau BoT-SORT",
         "category": "Tracking & Analysis",
         "x": 620,
         "y": 230,

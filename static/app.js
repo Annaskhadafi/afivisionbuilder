@@ -723,7 +723,7 @@
     // Pelacakan Objek (Tracking & Analysis)
     algorithm: {
       text: 'Algoritma asosiasi pelacakan objek (Object Tracking).',
-      guide: 'ByteTrack: ringan untuk kamera statis. BoT-SORT: kompensasi gerak kamera. OC-SORT: arah gerak objek. C-BIoU: area pencocokan lebih luas untuk gerakan mendadak atau frame yang disampling.'
+      guide: 'TrackTrack: standar bawaan baru Ultralytics (multi-cue & TAI, presisi tinggi). FastTracker: khusus oklusi dengan Kalman rollback & hemat CPU. ByteTrack: cepat untuk kamera statis. BoT-SORT: kompensasi gerak kamera. OC-SORT: pergerakan non-linear.'
     },
     trackHighThreshold: {
       text: 'Pisahkan deteksi kuat untuk pencocokan utama dari deteksi lemah untuk pemulihan track.',
@@ -1709,6 +1709,7 @@
     ageGrouping: 'Model Pengelompokan Usia',
     showSkeleton: 'Garis Kerangka Skeleton (Bones)',
     showJoints: 'Titik Sendi Bercahaya (Joint Dots)',
+    showFaceLines: 'Tarik Garis di Wajah (Hidung - Mata - Telinga)',
     showPostureBadge: 'Badge Status Postur Tubuh',
     keypointThreshold: 'Ambang Batas Keypoint Confidence',
     skeletonThickness: 'Ketebalan Garis Kerangka',
@@ -6263,6 +6264,9 @@
         ['mph', 'mph (Mil per Jam)']
       ],
       algorithm: [
+        ['tracktrack', 'TrackTrack (CVPR — Multi-Cue & TAI, Default Baru Ultralytics)'],
+        ['fasttrack', 'FastTracker (Anti-Oklusi & Rollback Kalman, Hemat CPU)'],
+        ['deepocsort', 'Deep OC-SORT (Observation-Centric + ReID & GMC)'],
         ['bytetrack', 'ByteTrack (Fastest, High/Low Match)'],
         ['botsort', 'BoT-SORT (Camera Motion Compensation)'],
         ['ocsort', 'OC-SORT (Observation-Centric, Occlusion Robust)'],
