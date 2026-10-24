@@ -14705,6 +14705,98 @@
     renderNotifications();
   }
 
+  // --- 1-Click Use-Case Wizard (Solusi Cepat) ---
+  async function applyWizardTemplate(templateId) {
+    if (!state.templates || !state.templates.length) {
+      await loadTemplates();
+    }
+
+    let tpl = (state.templates || []).find(t => t.id === templateId);
+    if (!tpl) {
+      const aliasMap = {
+        'traffic_flow_counter': 'traffic_flow_counter',
+        'restaurant_table_tracker': 'restaurant_table_occupancy',
+        'warehouse_forklift_guard': 'warehouse_forklift_safety_guard',
+        'assembly_cycle_timer': 'assembly_workshop_cycle_timer',
+      };
+      const mappedId = aliasMap[templateId];
+      if (mappedId) {
+        tpl = (state.templates || []).find(t => t.id === mappedId);
+      }
+    }
+
+    if (!tpl) {
+      toast('Template solusi tidak ditemukan: ' + templateId, true);
+      return;
+    }
+
+    const wizardModal = $('#useCaseWizardModal');
+    if (wizardModal) wizardModal.close();
+
+    switchMainView('studio');
+    switchProjectRailTab('workflow');
+
+    state.workflow = JSON.parse(JSON.stringify(tpl.workflow));
+    state.selected = null;
+    state.selectedEdge = null;
+    markDirty();
+
+    renderCanvas();
+    renderInspector();
+    updatePreviewSelect();
+    $('#fitBtn')?.click();
+
+    if (state.project) {
+      await save();
+    }
+
+    toast(`⚡ Solusi "${tpl.name}" berhasil dipasang ke kanvas!`);
+  }
+
+  function initUseCaseWizard() {
+    const wizardModal = $('#useCaseWizardModal');
+    const openBtn = $('#openUseCaseWizardBtn');
+    const closeBtn = $('#closeWizardModalBtn');
+
+    if (openBtn && wizardModal) {
+      openBtn.addEventListener('click', async () => {
+        if (!state.templates || !state.templates.length) {
+          await loadTemplates();
+        }
+        wizardModal.showModal();
+      });
+    }
+
+    if (closeBtn && wizardModal) {
+      closeBtn.addEventListener('click', () => {
+        wizardModal.close();
+      });
+    }
+
+    if (wizardModal) {
+      wizardModal.addEventListener('click', (e) => {
+        const rect = wizardModal.getBoundingClientRect();
+        const isInDialog = (
+          rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+          rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+        );
+        if (!isInDialog) {
+          wizardModal.close();
+        }
+      });
+    }
+
+    const cards = document.querySelectorAll('.wizard-card');
+    cards.forEach(card => {
+      card.addEventListener('click', async () => {
+        const templateId = card.getAttribute('data-wizard-template');
+        if (templateId) {
+          await applyWizardTemplate(templateId);
+        }
+      });
+    });
+  }
+
   // --- Bootstrap ---
   (async () => {
     try {
@@ -14712,6 +14804,7 @@
       initSystemSettings();
       initHeaderActions();
       initAiStudioCopilot();
+      initUseCaseWizard();
       switchMainView('projectsHub');
 
       const catalog = await api('/api/catalog');
