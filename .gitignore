@@ -68,4 +68,6 @@ node_modules/
 .e2e/failures/
 .e2e/logs/
 .e2e/videos/
+.pytest_cache/
+tests/
 weights/
