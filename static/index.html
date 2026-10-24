@@ -286,7 +286,7 @@
           <span>Computer Vision Studio Engine · v1.0.5</span>
         </div>
         <h1 class="hub-hero-title">Computer Vision Workflows</h1>
-        <p class="hub-hero-desc">Platform otomasi visual modular — rancang pipeline AI, hubungkan kamera industri, dan bangun analitik video cerdas dalam satu antarmuka visual.</p>
+        <p class="hub-hero-desc">Platform visual modular untuk merancang alur kerja AI, menghubungkan kamera industri, dan membangun analitik video cerdas dalam satu antarmuka terpadu.</p>
         <div class="hub-hero-actions">
           <button class="button primary hub-action-btn" id="hubNewProjectBtn" type="button">
             <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -350,7 +350,7 @@
       <div class="hub-section-head flex-col-sm">
         <div>
           <h2>Template Solusi Industri</h2>
-          <p class="hub-section-sub">Pilih workflow siap pakai yang dirancang untuk kebutuhan nyata — tanpa perlu merakit dari nol.</p>
+          <p class="hub-section-sub">Pilih alur kerja siap pakai untuk kebutuhan lapangan tanpa perlu merakit dari awal.</p>
         </div>
         <div class="hub-section-controls">
           <div class="hub-search-input-wrap wide">
@@ -397,10 +397,10 @@
     <main class="app-shell" id="studioWorkflowArea">
       <aside class="sidebar panel" id="studioSidebar">
       <div class="side-section library">
-        <div class="section-label"><span>NODE LIBRARY</span><small id="nodeCount" class="library-count">0 nodes</small></div>
+        <div class="section-label"><span>KATALOG NODE</span><small id="nodeCount" class="library-count">0 nodes</small></div>
         <label class="search">
           <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input id="nodeSearch" placeholder="Search vision nodes…" aria-label="Search node library">
+          <input id="nodeSearch" placeholder="Cari node alur kerja…" aria-label="Search node library">
         </label>
         <div id="library" class="library-list"></div>
       </div>
@@ -438,6 +438,10 @@
             <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
           </button>
           <div class="canvas-tool-divider"></div>
+          <button class="button wizard-btn" id="openUseCaseWizardBtn" type="button" title="✨ Panduan Solusi Siap Pakai (1-Klik)">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>✨ Solusi Cepat</span>
+          </button>
           <label class="toggle-switch-compact" title="Mode Auto-Connect: Otomatis menghubungkan node saat ditambah/dihapus">
             <input type="checkbox" id="autoConnectToggle" checked>
             <span class="toggle-slider"></span>
@@ -471,8 +475,12 @@
         <div id="nodes"></div>
         <div id="emptyCanvas" class="empty-state" hidden>
           <svg class="icon-svg icon-lg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/></svg>
-          <strong>Start a workflow</strong>
-          <small>Add a node from the library or load a preset template to begin.</small>
+          <strong>Mulai Alur Kerja</strong>
+          <small>Tambahkan node dari katalog atau pilih solusi siap pakai untuk memulai.</small>
+          <button class="button wizard-btn" id="emptyCanvasWizardBtn" type="button" style="margin-top: 14px; padding: 8px 16px; border-radius: 8px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px;">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>✨ Buka Panduan Solusi Siap Pakai</span>
+          </button>
         </div>
       </div>
 
@@ -533,7 +541,7 @@
           <div class="panel-heading">
             <div>
               <span class="eyebrow">LIVE PREVIEW</span>
-              <strong id="previewTitle">Waiting for a run</strong>
+              <strong id="previewTitle">Menunggu alur kerja dijalankan</strong>
             </div>
             <div class="metrics-bar" id="metricsBar">
               <span class="metric-tag" id="statFps" title="Framerate">0.0 FPS</span>
@@ -542,17 +550,21 @@
               <span class="metric-tag" id="statDevice" title="Inference Device">CPU</span>
             </div>
             <div class="preview-tools">
+              <div class="preview-quick-slider" id="previewQuickSlider" title="Sesuaikan ambang batas akurasi (confidence) model deteksi secara langsung">
+                <span class="quick-slider-label">Ambang: <b id="quickSliderVal">45%</b></span>
+                <input type="range" id="quickSliderInput" min="0.05" max="0.95" step="0.01" value="0.45" aria-label="Ambang Akurasi Deteksi">
+              </div>
               <select id="previewSelect" aria-label="Preview output">
                 <option value="">Auto preview</option>
               </select>
-              <select id="previewResSelect" aria-label="Stream Resolution" title="Preview Resolution & JPEG Compression (720p / 480p)" class="icon-btn-sm" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border);">
+              <select id="previewResSelect" aria-label="Stream Resolution" title="Resolusi Pratinjau & Kompresi JPEG (720p / 480p)" class="icon-btn-sm" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border);">
                 <option value="720p">720p (70%)</option>
                 <option value="480p">480p (65%)</option>
               </select>
-              <button class="icon-button icon-btn-sm" id="snapshotBtn" title="Save snapshot image" aria-label="Save snapshot">
+              <button class="icon-button icon-btn-sm" id="snapshotBtn" title="Simpan tangkapan bingkai" aria-label="Simpan tangkapan bingkai">
                 <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
               </button>
-              <button class="icon-button icon-btn-sm" id="fullscreenBtn" title="Expand preview" aria-label="Expand preview">
+              <button class="icon-button icon-btn-sm" id="fullscreenBtn" title="Perbesar layar pratinjau" aria-label="Perbesar layar pratinjau">
                 <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
               </button>
               <span class="status-pill" id="runState">Idle</span>
@@ -562,7 +574,7 @@
             <img id="previewImage" alt="Live workflow preview" hidden>
             <div id="previewEmpty">
               <svg class="icon-svg icon-lg" viewBox="0 0 24 24"><rect width="18" height="14" x="3" y="5" rx="2"/><polygon points="10 9 15 12 10 15 10 9"/></svg>
-              <p>Run the workflow to see frames here.</p>
+              <p>Jalankan alur kerja untuk melihat aliran bingkai di sini.</p>
             </div>
           </div>
         </section>
@@ -570,18 +582,18 @@
         <section class="logs panel">
           <div class="panel-heading">
             <div>
-              <span class="eyebrow">RUN LOG</span>
-              <strong>Runtime events</strong>
+              <span class="eyebrow">LOG EKSEKUSI</span>
+              <strong>Aktivitas Alur Kerja</strong>
             </div>
             <div class="log-actions">
-              <input type="text" id="logSearchInput" placeholder="Search logs…" class="log-search-input" aria-label="Search logs">
-              <button class="text-button" id="filterLogsBtn" title="Filter: All / Events / Errors">All</button>
-              <button class="text-button" id="copyLogsBtn" title="Copy all logs to clipboard">Copy</button>
-              <button class="text-button" id="clearLogs" title="Clear console output">Clear</button>
+              <input type="text" id="logSearchInput" placeholder="Cari catatan log…" class="log-search-input" aria-label="Cari catatan log">
+              <button class="text-button" id="filterLogsBtn" title="Penyaring: Semua / Kejadian / Masalah">Semua</button>
+              <button class="text-button" id="copyLogsBtn" title="Salin seluruh log ke papan klip">Salin</button>
+              <button class="text-button" id="clearLogs" title="Bersihkan tampilan log">Bersihkan</button>
             </div>
           </div>
           <div id="logList" class="log-list">
-            <div class="log-empty">No runtime events yet.</div>
+            <div class="log-empty">Belum ada aktivitas tercatat.</div>
           </div>
         </section>
       </div>
@@ -593,17 +605,17 @@
     <aside class="inspector panel">
       <div class="inspector-heading">
         <div>
-          <span class="eyebrow">INSPECTOR</span>
-          <h2 id="inspectorTitle">Nothing selected</h2>
+          <span class="eyebrow">INSPEKTOR</span>
+          <h2 id="inspectorTitle">Pilih Node</h2>
         </div>
-        <button class="icon-button" id="closeInspector" title="Clear selection">
+        <button class="icon-button" id="closeInspector" title="Tutup pemilihan node">
           <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <div id="inspectorBody" class="inspector-body">
         <div class="inspector-empty">
           <svg class="icon-svg icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
-          <p>Select a node on the canvas to edit its configuration.</p>
+          <p>Pilih salah satu node pada kanvas untuk mengubah pengaturannya.</p>
         </div>
       </div>
     </aside>
@@ -613,17 +625,17 @@
   <section class="models-manager-panel" id="viewModelManager" hidden>
     <div class="models-panel-head">
       <div class="models-panel-title">
-        <h2>Models</h2>
-        <p>Manage the models available in Afi Vision Builder. Download default models or import your own for your workflows.</p>
+        <h2>Repositori Model AI</h2>
+        <p>Kelola seluruh bobot model AI yang tersedia di AFI Vision Builder. Pasang model bawaan seperti YOLO26 NMS-Free atau unggah model kustom Anda.</p>
       </div>
       <div class="models-panel-actions">
         <button class="button secondary" id="modelsQuantizeBtn" type="button" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
           <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          <span>⚡ Quantize / Optimize Model</span>
+          <span>⚡ Kuantisasi & Optimasi Model</span>
         </button>
         <button class="button primary" id="modelsAddBtn" type="button">
           <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span>Add model</span>
+          <span>Tambah Model</span>
         </button>
       </div>
     </div>
@@ -633,22 +645,22 @@
         <table class="data-table models-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Version</th>
-              <th>Size</th>
+              <th>Nama Model</th>
+              <th>Tipe Tugas</th>
+              <th>Versi</th>
+              <th>Ukuran</th>
               <th>Status</th>
-              <th>Added</th>
+              <th>Waktu Ditambahkan</th>
               <th>Engine</th>
               <th>Format</th>
-              <th>Actions</th>
+              <th>Aksi</th>
             </tr>
           </thead>
           <tbody id="modelsTableBody"></tbody>
         </table>
       </div>
       <div class="models-empty-state" id="modelsEmptyState" hidden>
-        <p>No models imported yet. Add a model to use it in Detection, Segmentation, Visual Inspection, or Classification nodes.</p>
+        <p>Belum ada model kustom yang ditambahkan. Tambahkan model untuk menggunakannya pada node Deteksi, Segmentasi, atau Klasifikasi.</p>
       </div>
     </div>
   </section>
@@ -1564,6 +1576,73 @@
 
       <div class="modal-actions-right" style="padding:14px 20px;border-top:1px solid #e2e8f0;background:#f8fafc">
         <button class="button secondary" id="closeHelpFooterBtn" type="button">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal: 1-Click Use-Case Wizard -->
+  <dialog class="modal-dialog use-case-wizard-modal" id="useCaseWizardModal">
+    <div class="modal-content use-case-wizard-content">
+      <div class="modal-head">
+        <div>
+          <div class="wizard-badge">✨ PANDUAN CEPAT 1-KLIK</div>
+          <h2 style="margin: 4px 0 0; font-size: 18px; font-weight: 700;">Pilih Kebutuhan Pemantauan Anda</h2>
+          <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--text-muted, #94a3b8);">Sistem akan langsung merangkai seluruh alur kerja dan menghubungkan kabel yang dibutuhkan ke kanvas.</p>
+        </div>
+        <button type="button" class="icon-button" id="closeWizardModalBtn" aria-label="Tutup" style="color: #94a3b8; font-size: 16px;">✕</button>
+      </div>
+      <div class="modal-body wizard-grid">
+        <!-- Card 1: Traffic Flow -->
+        <div class="wizard-card" data-wizard-template="traffic_flow_counter">
+          <div>
+            <div class="wizard-card-icon">🚗</div>
+            <div class="wizard-card-title">Hitung Trafik & Kendaraan</div>
+            <div class="wizard-card-desc">Mendeteksi mobil, motor, bus, dan truk di jalan raya atau area parkir dengan penghitungan arah lajur dua arah secara otomatis.</div>
+          </div>
+          <div>
+            <div class="wizard-card-pipeline">Input ➔ YOLO26 NMS-Free ➔ ByteTrack ➔ Garis Hitung ➔ Visual HUD</div>
+            <button class="wizard-card-btn" type="button" style="margin-top: 10px;">⚡ Pasang Alur Ini</button>
+          </div>
+        </div>
+
+        <!-- Card 2: Restaurant Dwell Time -->
+        <div class="wizard-card" data-wizard-template="restaurant_table_tracker">
+          <div>
+            <div class="wizard-card-icon">🍽️</div>
+            <div class="wizard-card-title">Pantau Meja & Durasi Restoran</div>
+            <div class="wizard-card-desc">Memantau status keterisian meja kafe/resto (Kosong ➔ Terisi) dengan stopwatch durasi duduk tamu tepat di titik tengah meja.</div>
+          </div>
+          <div>
+            <div class="wizard-card-pipeline">Input ➔ YOLO26 NMS-Free ➔ Poligon Meja ➔ Timer Sesi ➔ Pratinjau</div>
+            <button class="wizard-card-btn" type="button" style="margin-top: 10px;">⚡ Pasang Alur Ini</button>
+          </div>
+        </div>
+
+        <!-- Card 3: Warehouse Gate Exit -->
+        <div class="wizard-card" data-wizard-template="warehouse_forklift_guard">
+          <div>
+            <div class="wizard-card-icon">🚪</div>
+            <div class="wizard-card-title">Deteksi Keluar-Masuk Gudang</div>
+            <div class="wizard-card-desc">Memverifikasi pergerakan forklift dan barang melintasi gerbang logistik dengan pencatatan status kejadian ke database/ERP.</div>
+          </div>
+          <div>
+            <div class="wizard-card-pipeline">Input ➔ YOLO26 NMS-Free ➔ ByteTrack ➔ Zona Transisi ➔ Database Log</div>
+            <button class="wizard-card-btn" type="button" style="margin-top: 10px;">⚡ Pasang Alur Ini</button>
+          </div>
+        </div>
+
+        <!-- Card 4: Worker Safety / APD -->
+        <div class="wizard-card" data-wizard-template="assembly_cycle_timer">
+          <div>
+            <div class="wizard-card-icon">🛡️</div>
+            <div class="wizard-card-title">Inspeksi Keselamatan K3 & Helm APD</div>
+            <div class="wizard-card-desc">Memverifikasi kelengkapan alat pelindung diri (helm & rompi) pada pekerja di area bahaya serta memicu alarm otomatis jika melanggar.</div>
+          </div>
+          <div>
+            <div class="wizard-card-pipeline">Input ➔ YOLO26 NMS-Free ➔ Filter APD ➔ Dispatcher Alarm ➔ Pratinjau</div>
+            <button class="wizard-card-btn" type="button" style="margin-top: 10px;">⚡ Pasang Alur Ini</button>
+          </div>
+        </div>
       </div>
     </div>
   </dialog>

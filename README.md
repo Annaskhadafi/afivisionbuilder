@@ -1,7 +1,7 @@
 # AFI Vision Builder 🚀
 
 <p align="center">
-  <b>Enterprise Visual Node-Graph Platform for Real-Time AI Computer Vision Pipelines, Multi-Camera CCTV Analytics & Operational Dashboards</b>
+  <b>Platform Grafis Visual Terpadu untuk Alur Kerja Computer Vision Real-Time, Analitik Multi-Kamera CCTV, dan Dasbor Operasional Industri</b>
 </p>
 
 <p align="center">
@@ -9,9 +9,9 @@
   <img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch" />
   <img src="https://img.shields.io/badge/OpenCV-4.8+-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white" alt="OpenCV" />
-  <img src="https://img.shields.io/badge/Ultralytics-YOLOv8%20%2F%20v11-00FFFF?style=for-the-badge&logo=yolo&logoColor=black" alt="YOLO" />
-  <img src="https://img.shields.io/badge/Nodes%20Catalog-72%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
-  <img src="https://img.shields.io/badge/Unit%20Tests-171%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
+  <img src="https://img.shields.io/badge/Ultralytics-YOLO26%20%7C%20v11%20%7C%20v8-00FFFF?style=for-the-badge&logo=yolo&logoColor=black" alt="YOLO" />
+  <img src="https://img.shields.io/badge/Nodes%20Catalog-80%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
+  <img src="https://img.shields.io/badge/Unit%20Tests-242%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
   <img src="https://img.shields.io/badge/E2E%20Tests-29%2B%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
 </p>
 
@@ -19,7 +19,7 @@
   <a href="#-fitur-unggulan-terbaru">Fitur Unggulan</a> •
   <a href="#-tur-antarmuka--showcase-visual">Tur Antarmuka</a> •
   <a href="#-instalasi--eksekusi-1-click">Instalasi Cepat</a> •
-  <a href="#-katalog-70-node-lengkap">Katalog 70+ Node</a> •
+  <a href="#-katalog-80-node-lengkap">Katalog 80+ Node</a> •
   <a href="#-arsitektur-sistem">Arsitektur</a> •
   <a href="#-pengujian-kualitas-unit--e2e">Pengujian Kualitas</a> •
   <a href="#-lisensi--pengembang">Lisensi</a>
@@ -27,9 +27,9 @@
 
 ---
 
-## 🌟 Overview Aplikasi
+## 🌟 Gambaran Umum Aplikasi
 
-**AFI Vision Builder** adalah platform visual tanpa coding (*low-code / zero-code*) untuk merancang, menguji, dan mendeploy pipeline Computer Vision & AI secara real-time. Dengan antarmuka node-graph berbasis kabel kurva Bézier yang intuitif, Anda dapat menyambungkan input video/kamera industri, inferensi model AI (YOLO, RF-DETR, SAM 3, VLM), pelacakan objek, analitik poligon multi-zona, hingga dashboard operasional multi-kamera CCTV secara terpadu.
+**AFI Vision Builder** memfasilitasi perancangan, pengujian, dan penerapan alur kerja *computer vision* tanpa kode secara visual. Melalui kanvas diagram alir berbasis kabel kurva Bézier yang intuitif, pengguna dapat memadukan umpan kamera industri, inferensi model AI (YOLO26 NMS-Free, RF-DETR, SAM 3, VLM), pelacakan objek, analitik poligon multi-area, hingga dasbor pemantauan operasional multi-kamera CCTV secara terpadu.
 
 ![Hero Showcase - Live Restaurant Table Occupancy Tracking](docs/screenshots/03_restaurant_live_tracking.png)
 
@@ -38,32 +38,32 @@
 ## ✨ Fitur Unggulan Terbaru
 
 ### 🍽️ 1. Restaurant Table Occupancy & Dining Dwell Time Tracker
-- **Pemantauan Meja Restoran/Kafe Real-Time**: Deteksi otomatis status keterisian meja (`VACANT` ➔ `CONFIRMING` ➔ `OCCUPIED` ➔ `PENDING_VACANT`).
-- **Compact Centroid Timer Overlay**: Indikator durasi duduk tamu (`1s`, `4m 12s`) diletakkan tepat di titik tengah meja dengan kartu glassmorphism semi-transparan, tidak menghalangi tampilan makanan/tamu.
-- **Tahan Terhadap Flicker & Video Loop**: State Machine tangguh dengan toleransi *grace period* saat tamu bergerak atau terhalang sejenak.
-- **Template Siap Pakai**: Tersedia template alur kerja 4 meja restoran (VIP, 4-seat, 2-seat) di Projects Hub.
+- **Pemantauan Meja Restoran dan Kafe Real-Time**: Mendeteksi otomatis status keterisian meja (`VACANT` ➔ `CONFIRMING` ➔ `OCCUPIED` ➔ `PENDING_VACANT`).
+- **Indikator Durasi Terpusat (Centroid Timer)**: Durasi duduk tamu (`1s`, `4m 12s`) diletakkan tepat di titik tengah meja dengan kartu transparan bersih, sehingga tidak menghalangi tampilan makanan atau aktivitas tamu.
+- **Tahan Kedipan dan Perulangan Video**: Mesin status yang andal dengan tenggang waktu toleransi (*grace period*) saat tamu bergerak atau terhalang sejenak.
+- **Template Siap Pakai**: Tersedia alur kerja siap pakai untuk 4 meja restoran (VIP, 4 kursi, 2 kursi) di Projects Hub.
 
 ### 📐 2. Interactive In-Canvas Multi-Zone & Polygon Editor
-- **Gambar Poligon Area Langsung di Atas Video**: Buat area ROI (*Region of Interest*) langsung dari frame live preview atau grid kalibrasi.
-- **Draggable Vertex Handles**: Geser titik sudut, tambah titik baru di garis tepi, atau hapus titik sudut poligon dengan interaksi klik visual.
-- **Multi-Area Management**: Kelola banyak area sekaligus (misal: Meja 1-4, Bay Workshop 1-5, Pintu Gerbang) lengkap dengan kapasitas maksimum dan batas waktu overstay.
+- **Menggambar Area Poligon Langsung pada Video**: Membuat area pantau ROI (*Region of Interest*) langsung dari bingkai pratinjau atau kisi kalibrasi.
+- **Titik Sudut Interaktif (Draggable Handles)**: Menggeser titik sudut, menambah titik baru di sepanjang garis batas, atau menghapus titik poligon dengan klik visual.
+- **Manajemen Multi-Area**: Mengelola banyak area sekaligus (misalnya Meja 1-4, Bay Workshop 1-5, Pintu Gerbang) lengkap dengan kapasitas maksimal dan batas durasi tinggal (*overstay*).
 
 ### 📹 3. Multi-Camera Operations Matrix (8-Stream CCTV Grid)
-- **Monitoring Simultan 8 Kamera RTSP**: Menampilkan streaming langsung 5 Workshop Bays (`WS-01` s/d `WS-05`) dan 3 Warehouse Gates (`WH-01` s/d `WH-03`).
-- **Grid Layout Switcher**: Ganti tampilan dalam 1 klik antara mode **1 Fokus**, **4 Grid (2x2)**, atau **9 Matrix (3x3)**.
-- **Filter Kategori Kamera**: Filter cepat tampilan berdasarkan area (*All*, *Workshop Bays*, *Warehouse Gates*).
-- **Direct Workflow Binding**: Setiap kartu kamera dilengkapi status koneksi workflow dan tombol cepat untuk membuka alur kerja terkait di Studio.
+- **Pemantauan Simultan 8 Kamera RTSP**: Menampilkan siaran langsung 5 Workshop Bay (`WS-01` hingga `WS-05`) dan 3 Gerbang Gudang (`WH-01` hingga `WH-03`).
+- **Pengalih Tata Letak Grid**: Mengganti tampilan dalam satu klik antara mode **1 Fokus**, **4 Grid (2x2)**, atau **9 Matriks (3x3)**.
+- **Penyaring Kategori Kamera**: Menyaring tampilan dengan cepat berdasarkan area (*Semua*, *Workshop Bay*, *Gerbang Gudang*).
+- **Tautan Alur Kerja Langsung**: Setiap kartu kamera dilengkapi status koneksi alur kerja dan tombol cepat untuk membuka kanvas terkait di Studio.
 
 ### ⏱️ 4. Workshop Work Duration Sessions Dashboard
-- **Rekap Durasi Kerja Otomatis**: Menghitung waktu mulai, waktu selesai, dan durasi efektif kerja di setiap bay workshop tanpa bergantung pada tracking ID transien.
-- **KPI Metrics Card**: Ringkasan Total Sesi, Total Jam Kerja, Rata-rata Durasi/Sesi, dan Jumlah Ban/Objek terproses.
-- **Filter Shift Kerja**: Filter data berdasarkan Shift Pagi, Shift Siang, Shift Malam, atau seluruh shift dengan pencarian live bay.
-- **Ekspor CSV 1-Klik**: Unduh seluruh riwayat sesi kerja ke format spreadsheet CSV.
+- **Rekap Durasi Kerja Otomatis**: Menghitung waktu mulai, waktu selesai, dan durasi efektif kerja di setiap bay bengkel tanpa bergantung pada identitas lacak transien.
+- **Kartu Metrik KPI**: Ringkasan total sesi, akumulasi jam kerja, rata-rata durasi per sesi, dan jumlah objek yang selesai diproses.
+- **Penyaring Shift Kerja**: Menyaring data berdasarkan Shift Pagi, Shift Siang, Shift Malam, atau seluruh shift disertai pencarian langsung nama bay.
+- **Ekspor CSV 1-Klik**: Mengunduh seluruh riwayat sesi kerja ke berkas lembar sebar CSV.
 
 ### 🚪 5. Warehouse Gate Exit Events & ERP Sync Logs
-- **Deteksi Transisi Keluar Sah (Inside-to-Outside)**: Memverifikasi pergerakan fisik objek dari dalam gudang melintasi gerbang ke luar, mencegah *false alarm* akibat objek yang sekadar hilang dari pandangan kamera.
-- **Status Integrasi ERP**: Pelacakan status sinkronisasi kejadian (*Delivered*, *Queued*, *Failed*) dengan nomor referensi DO/SJ.
-- **Filter Gerbang & Status**: Filter log berdasarkan gerbang spesifik (`WH-01`, `WH-02`, `WH-03`) dan ekspor rekaman kejadian ke CSV.
+- **Deteksi Transisi Keluar Sah (Inside-to-Outside)**: Memverifikasi perpindahan fisik objek dari dalam gudang melintasi gerbang ke luar, sehingga meniadakan alarm palsu akibat objek yang sekadar hilang dari sorotan kamera.
+- **Status Integrasi ERP**: Pelacakan status sinkronisasi kejadian (*Delivered*, *Queued*, *Failed*) lengkap dengan nomor referensi DO atau surat jalan.
+- **Penyaring Gerbang dan Status**: Menyaring log berdasarkan gerbang spesifik (`WH-01`, `WH-02`, `WH-03`) dan mengekspor catatan kejadian ke format CSV.
 
 ### 🎨 6. Roboflow-Style Overlay / Annotate Inspector
 - **Manajemen Layer Anotasi Terpadu**: Kendalikan seluruh tampilan visual di satu node inspector modern.
@@ -222,7 +222,7 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 ### 🔍 34. Interactive Object Zoom & Picture-in-Picture (PiP)
 - **Klik-ke-Zoom Interaktif**: Klik langsung objek apa saja pada video live preview untuk mengunci target pelacakan dan menampilkan jendela Picture-in-Picture (PiP) beresolusi tinggi di sudut layar.
 - **Mode Ukuran Dinamis (`pipSizeMode: "dynamic"`)**: Ukuran dan rasio aspek jendela PiP otomatis beradaptasi mengikuti ukuran bounding box dan proporsi objek secara real-time tanpa distorsi visual.
-- **Sistem Anti-Muka Kepotong (*Smart Headroom Padding* +48% s/d +65%)**: Dirancang khusus untuk rekaman CCTV malam / low-light di mana detektor AI sering mendeteksi orang mulai dari leher/kerah kemeja ke bawah; margin kepala ekstra memastikan seluruh dahi, mata, rambut, dan topi tetap tampil utuh 100%.
+- **Sistem Perlindungan Area Wajah (*Smart Headroom Padding* +48% s/d +65%)**: Dirancang khusus untuk rekaman CCTV malam atau kondisi temaram saat detektor AI mendeteksi tubuh mulai dari kerah kemeja ke bawah. Margin kepala ekstra memastikan seluruh dahi, mata, rambut, dan topi tetap tampil utuh 100%.
 - **Top-Anchoring Fit 1.0x (Penuh)**: Default tampilan penuh 1.0x dengan penguncian jangkar atas (`zy = 0`) sehingga saat diperbesar (1.2x, 1.5x, 2.0x), area kepala tetap menjadi fokus utama pandangan operator.
 - **Pilihan Rasio Aspek Lengkap**: Mode Auto (sesuai bentuk objek), Portrait 3:4 (standar orang berdiri), Portrait 9:16 (tinggi full-body), Persegi 1:1, Landscape 4:3, dan Landscape 16:9.
 - **Floating Inspector Card Interaktif**: Kartu mengambang di atas preview dengan tombol 1-klik untuk ganti Ukuran (`[🎯 Dinamis]` / `[S]` / `[M]` / `[L]` / `[XL]`), Zoom (`[🔍 1.0x (Penuh)]` / `[1.2x]` / `[1.5x]` / `[2.0x]`), Rasio Aspek (`[✨ Auto]` / `[📱 3:4]` / `[📱 9:16]` / `[⏹️ 1:1]` / `[🖥️ 4:3]`), Ruang Kepala (`[+25%]` / `[🛡️ +48% Aman]` / `[👑 +65% Lega]`), unduh snapshot resolusi penuh, dan pelepasan kuncian target (*Target Unlock*).
@@ -231,6 +231,22 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 - **Dropdown Multi-Select Minimalis**: Pemilih kelas deteksi yang ramping, modern, dan hemat ruang tanpa kotak kartu atau thumbnail besar yang memakan tempat.
 - **Pencarian Live & Aksi Batch Cepat**: Filter pencarian instan dengan tombol cepat *Pilih Semua* dan *Kosongkan*, serta badge hitung jumlah kelas yang aktif.
 - **Pemetaan Ulang Nama Kelas (Class Remap)**: Ubah nama kelas bawaan model AI ke bahasa lokal (contoh: `person` ➔ `orang`, `car` ➔ `mobil`, `truck` ➔ `truk`, `motorcycle` ➔ `motor`) secara langsung di inspector alur kerja tanpa merusak metadata detektor upstream.
+
+### 🏃 36. Human Pose Estimator & Anatomical Multi-Color Skeleton Visualizer
+- **Estimasi Pose Manusia Real-Time (YOLOv8 Pose)**: Node AI Vision mandiri Human Pose Estimator (pose_detector) yang mendeteksi 17 titik sendi tubuh manusia (*COCO keypoints*: hidung, mata, telinga, bahu, siku, pergelangan tangan, pinggul, lutut, dan pergelangan kaki).
+- **Kerangka Skeleton Multi-Warna Anatomis**: Menggambar 16 garis tulang penghubung sendi dengan kode warna anatomis spesifik per kelompok anggota badan (Kepala/Wajah = Kuning, Badan/Torso = Hijau, Lengan Kiri = Cyan, Lengan Kanan = Magenta, Kaki Kiri = Oranye, Kaki Kanan = Merah Koral).
+- **Titik Sendi Glowing & White Core**: Visualisasi titik sendi estetik dengan lingkaran bercahaya transparan (*outer glow circle*) dan titik tengah putih (*solid white core*), tebal garis dan ukuran radius titik dapat diatur langsung di inspector.
+- **Engine Analisis Postur Tubuh Otomatis**: Klasifikasi geometris postur tubuh manusia secara otomatis tanpa beban komputasi tambahan:
+  - STANDING (Berdiri Tegak): Rasio tinggi terhadap lebar > 1.35 dan sudut lutut-pinggul vertikal.
+  - SITTING (Duduk): Bending pinggul dan lutut mendekati 90 derajat atau proporsi badan seimbang.
+  - BENDING (Membungkuk): Sudut torso miring signifikan terhadap garis vertikal.
+  - LYING_DOWN / FALLEN (Terlentang / Jatuh): Rasio aspek horizontal lebar dengan sudut torso mendatar (dapat digabung dengan sistem alarm K3).
+- **Badge Postur & Data Downstream Kaya**: Opsi menampilkan badge postur tubuh di atas kepala subjek (STANDING (92%)) dan meneruskan array keypoints `[x, y, conf]` serta kamus nama sendi (`nose`, `left_shoulder`, dll.) ke node downstream.
+
+### ⚡ 37. Ultralytics YOLO26 NMS-Free End-to-End Engine
+- **Inferensi Bebas NMS di CPU**: Memanfaatkan arsitektur dual-head `one2one` bawaan YOLO26 resmi untuk mengeliminasi beban loop *Non-Maximum Suppression* (IoU clustering) pada CPU.
+- **Ukuran Model Super Ringkas**: Bobot `yolo26n.pt` hanya berukuran 5.3 MB dengan performa deteksi dan akurasi setara atau melampaui generasi sebelumnya.
+- **1-Klik Switch di Inspector**: Tombol pintas sekali klik untuk berpindah langsung antara model standar YOLOv8n dan model hemat daya YOLO26n tanpa perlu mengetik ulang konfigurasi alur kerja.
 
 ---
 

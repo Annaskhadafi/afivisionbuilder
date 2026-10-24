@@ -190,6 +190,13 @@ DRAWING_VARIABLES_BY_NODE_TYPE = {
         ("{image.width}", "Image width"),
         ("{image.height}", "Image height"),
     ),
+    "pose_detector": (
+        ("{detection.count}", "Person count"),
+        ("{detection.posture}", "Detected posture (Berdiri/Duduk/Jatuh)"),
+        ("{detection.confidence}", "Best detection confidence"),
+        ("{detection.x}", "Detection left position"),
+        ("{detection.y}", "Detection top position"),
+    ),
     "detector": (
         ("{detection.count}", "Detection count"),
         ("{detection.class}", "Best detection class"),
@@ -290,6 +297,8 @@ def available_output_labels(workflow: dict, target_id: str) -> list[tuple[str, s
             labels = ["OK", "NG"]
         elif node_type == "classifier":
             labels = _configured_output_labels(config.get("classes", config.get("customClasses", config.get("convnextClasses", ""))))
+        elif node_type == "pose_detector":
+            labels = ["person"]
         elif node_type in ("detector", "segmenter"):
             engine = str(config.get("engine") or "")
             if engine == "sam3":
@@ -491,7 +500,7 @@ RFDETR_NATIVE_IMAGE_SIZE = 0
 NODE_BLUEPRINTS = {
     "export_code": {
         "title": "Export Code",
-        "subtitle": "Build paket Python mandiri dari seluruh workflow aktif",
+        "subtitle": "Menghasilkan paket Python mandiri dari alur kerja aktif",
         "category": "Outputs & Export",
         "x": 910,
         "y": 740,
@@ -527,7 +536,7 @@ NODE_BLUEPRINTS = {
     },
     "ip_camera": {
         "title": "IP Camera / CCTV",
-        "subtitle": "Streaming RTSP atau HTTP CCTV dengan rekoneksi otomatis",
+        "subtitle": "Menerima aliran RTSP atau HTTP CCTV dengan penyambungan ulang otomatis",
         "category": "Sources",
         "x": 40,
         "y": 180,
@@ -548,9 +557,33 @@ NODE_BLUEPRINTS = {
             "asyncPreview": True,
         },
     },
+    "pose_detector": {
+        "title": "Human Pose Estimator",
+        "subtitle": "Mendeteksi pose tubuh manusia, 17 titik sendi, dan kerangka visual langsung memakai YOLO Pose",
+        "category": "AI Vision Models",
+        "x": 330,
+        "y": 140,
+        "config": {
+            "engine": "ultralytics_yolo",
+            "modelPath": "yolov8n-pose.pt",
+            "customModelPath": "yolov8n-pose.pt",
+            "threshold": 0.45,
+            "keypointThreshold": 0.35,
+            "iouThreshold": 0.45,
+            "device": "auto",
+            "showSkeleton": True,
+            "showJoints": True,
+            "showBoundingBox": False,
+            "showPostureBadge": True,
+            "skeletonThickness": 2,
+            "jointRadius": 4,
+            "detectEveryNFrames": 1,
+            "maxDetectionFps": 0,
+        },
+    },
     "detector": {
         "title": "Object Detection",
-        "subtitle": "Deteksi objek real-time dengan Ultralytics YOLOv8n (siap pakai) atau RF-DETR",
+        "subtitle": "Mendeteksi objek langsung memakai YOLO26 NMS-Free (hemat CPU), YOLOv8n, atau RF-DETR",
         "category": "AI Vision Models",
         "x": 330,
         "y": 60,
@@ -594,7 +627,7 @@ NODE_BLUEPRINTS = {
     },
     "camera_focus": {
         "title": "Camera Focus Health",
-        "subtitle": "Pantau ketajaman lensa kamera via Laplacian Variance dan deteksi blur",
+        "subtitle": "Memantau ketajaman fokus lensa kamera memakai varians Laplacian",
         "category": "Image Preprocessing",
         "x": 330,
         "y": 230,
@@ -607,7 +640,7 @@ NODE_BLUEPRINTS = {
     },
     "auto_rotate_edges": {
         "title": "Auto Rotate Edges",
-        "subtitle": "Deteksi sudut kemiringan dominan dan rotasi frame tegak lurus otomatis",
+        "subtitle": "Mendeteksi sudut kemiringan dominan dan meluruskan orientasi bingkai otomatis",
         "category": "Image Preprocessing",
         "x": 330,
         "y": 315,
@@ -619,7 +652,7 @@ NODE_BLUEPRINTS = {
     },
     "delta_filter": {
         "title": "Delta Motion Filter",
-        "subtitle": "Penghemat komputasi AI dengan memotong frame saat pemandangan visual diam",
+        "subtitle": "Menghemat beban komputasi dengan melewati bingkai ketika area pantau diam",
         "category": "Image Preprocessing",
         "x": 330,
         "y": 400,
@@ -631,7 +664,7 @@ NODE_BLUEPRINTS = {
     },
     "segmenter": {
         "title": "Object Segmentation",
-        "subtitle": "Segmentasi dan masking piksel objek YOLOv8, RF-DETR, atau SAM 3",
+        "subtitle": "Segmentasi dan penopengan piksel objek memakai YOLO, RF-DETR, atau SAM 3",
         "category": "AI Vision Models",
         "x": 620,
         "y": 60,
@@ -743,7 +776,7 @@ NODE_BLUEPRINTS = {
     },
     "ai_agent": {
         "title": "AI Agent",
-        "subtitle": "Penalaran AI multimodal mirip n8n (OpenAI, OpenRouter, Ollama) untuk analisis visual & audit insiden",
+        "subtitle": "Penalaran multimodal cerdas (OpenAI, OpenRouter, Ollama) untuk verifikasi SOP dan analisis visual",
         "category": "AI Vision Models",
         "x": 620,
         "y": 315,
@@ -769,7 +802,7 @@ NODE_BLUEPRINTS = {
     },
     "tracker": {
         "title": "Object Tracking",
-        "subtitle": "Pelacakan ID dengan ByteTrack, BoT-SORT, OC-SORT, atau C-BIoU",
+        "subtitle": "Pelacakan identitas objek secara konsisten memakai ByteTrack, BoT-SORT, OC-SORT, atau C-BIoU",
         "category": "Tracking & Analysis",
         "x": 620,
         "y": 230,
@@ -777,7 +810,7 @@ NODE_BLUEPRINTS = {
     },
     "detections_consensus": {
         "title": "Detections Consensus",
-        "subtitle": "Ensemble multi-model voting dengan IoU untuk memangkas false positive",
+        "subtitle": "Konsensus beberapa model AI untuk menekan deteksi positif palsu di area industri",
         "category": "Tracking & Analysis",
         "x": 620,
         "y": 280,
@@ -791,7 +824,7 @@ NODE_BLUEPRINTS = {
     },
     "distance_measurement": {
         "title": "Distance Measurement",
-        "subtitle": "Ukur jarak 2D antar objek pada bidang visual dan alarm batas aman",
+        "subtitle": "Mengukur jarak fisik dua dimensi antar-objek dan membunyikan alarm batas aman",
         "category": "Tracking & Analysis",
         "x": 620,
         "y": 340,

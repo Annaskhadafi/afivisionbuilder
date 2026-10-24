@@ -179,6 +179,45 @@ def _resolve_labels(config: dict, model_path: str) -> list[str]:
     return []
 
 
+def configure_nms_free(model: Any, nms_free: bool | None = None, model_path: str = "") -> bool:
+    """Detect and configure NMS-Free end2end mode for YOLO26 / YOLOv10 models.
+
+    If the model has a detection head with an 'end2end' attribute:
+    - If nms_free is explicitly provided (bool), sets head.end2end to that boolean.
+    - If nms_free is None:
+        - If model_path contains 'yolo26' or 'v10', or head has 'end2end',
+          defaults head.end2end = True to eliminate NMS loop overhead on CPU.
+    Returns True if end2end is currently active, False otherwise.
+    """
+    head = None
+    if hasattr(model, "model") and hasattr(model.model, "model") and len(model.model.model) > 0:
+        head = model.model.model[-1]
+    elif hasattr(model, "model") and hasattr(model.model, "head"):
+        head = model.model.head
+    elif hasattr(model, "model") and hasattr(model.model, "modules"):
+        for m in model.model.modules():
+            if hasattr(m, "end2end"):
+                head = m
+                break
+
+    if head is None or not hasattr(head, "end2end"):
+        return False
+
+    is_yolo26_or_v10 = "yolo26" in str(model_path).lower() or "v10" in str(model_path).lower()
+
+    if nms_free is not None:
+        enabled = bool(nms_free)
+    else:
+        # Default True if model is YOLO26 / v10 or head has end2end
+        enabled = True if (is_yolo26_or_v10 or hasattr(head, "end2end")) else False
+
+    head.end2end = enabled
+    if hasattr(model, "model") and hasattr(model.model, "end2end"):
+        model.model.end2end = enabled
+    setattr(model, "_nms_free", enabled)
+    return enabled
+
+
 class ModelRunnerHandle:
     """Container for preloaded model metadata returned to core pipeline."""
     def __init__(self, engine_type: str, model_path: str, raw_model: Any, classes: list[str]):
@@ -300,14 +339,17 @@ class CustomModelRunner:
                 classes = [c.strip() for c in classes_str.split(",") if c.strip()]
                 return ModelRunnerHandle(engine, model_path, raw_model, classes)
 
-            if engine == "ultralytics_yolo" and not raw_path:
-                raw_path = "yolov8n.pt"
+            node_type = str(config.get("type") or "")
+            if (engine == "ultralytics_yolo" or node_type == "pose_detector") and not raw_path:
+                raw_path = "yolov8n-pose.pt" if node_type == "pose_detector" else "yolov8n.pt"
 
             model_path_obj = resolve_model_file(raw_path)
             model_path = str(model_path_obj)
             if engine in ("custom_auto", "rfdetr") and model_path_obj.is_file():
                 engine = detect_model_engine(model_path)
             raw_model = cls._load_raw(engine, model_path, device=device)
+            if engine == "ultralytics_yolo":
+                configure_nms_free(raw_model, nms_free=config.get("nmsFree"), model_path=model_path)
             classes = _resolve_labels(config, model_path)
             return ModelRunnerHandle(engine, model_path, raw_model, classes)
         else:
@@ -353,6 +395,7 @@ class CustomModelRunner:
         if engine_type == "ultralytics_yolo":
             from ultralytics import YOLO
             model = YOLO(str(path))
+            configure_nms_free(model, nms_free=None, model_path=str(path))
         elif engine_type == "onnx_custom":
             import onnxruntime as ort
             providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if "cuda" in device.lower() else ["CPUExecutionProvider"]
@@ -476,10 +519,16 @@ class CustomModelRunner:
             threshold = float(config.get("threshold", 0.4))
             return _run_roboflow_universe(frame, model_id, api_key, threshold, node_id, node_type, config)
 
+        if node_type == "pose_detector":
+            engine_type = "ultralytics_yolo"
+
         # Standard file-based custom model execution
         raw_path = custom_model_path(config)
         if not raw_path:
-            raise RuntimeError(f"Node '{node_id}' requires a custom model file path.")
+            if node_type == "pose_detector":
+                raw_path = "yolov8n-pose.pt"
+            else:
+                raise RuntimeError(f"Node '{node_id}' requires a custom model file path.")
 
         path = resolve_model_file(raw_path)
         if not path.is_file():
@@ -494,6 +543,7 @@ class CustomModelRunner:
         # 1. Ultralytics YOLO inference (.pt, .pth)
         if engine_type == "ultralytics_yolo":
             model = cls.get_or_load(engine_type, str(path), device=device)
+            configure_nms_free(model, nms_free=config.get("nmsFree"), model_path=str(path))
             iou_threshold = float(config.get("iouThreshold", config.get("nmsThreshold", 0.7)) or 0.7)
             imgsz_val = int(config.get("imageSize", config.get("imgsz", config.get("rfdetrImageSize", 0))) or 0)
             predict_kwargs: dict[str, Any] = {
@@ -566,9 +616,32 @@ class CustomModelRunner:
                         mask_resized = cv2.resize(mask, (frame.shape[1], frame.shape[0]))
                         contours, _ = cv2.findContours(mask_resized, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                         if contours:
-                            c = max(contours, key=cv2.contourArea).reshape(-1, 2)
-                            if len(c) >= 3:
-                                item["mask"] = [[float(p[0]), float(p[1])] for p in c]
+                            c_poly = max(contours, key=cv2.contourArea).reshape(-1, 2)
+                            if len(c_poly) >= 3:
+                                item["mask"] = [[float(p[0]), float(p[1])] for p in c_poly]
+
+                    # Extract 17 Keypoints (Human Pose Estimation)
+                    kpts_data = res.keypoints.data.cpu().numpy() if (hasattr(res, "keypoints") and res.keypoints is not None and hasattr(res.keypoints, "data")) else None
+                    if kpts_data is not None and i < len(kpts_data):
+                        person_kpts = kpts_data[i].tolist()
+                        item["keypoints"] = person_kpts
+                        try:
+                            from .pose_engine import COCO_KEYPOINT_NAMES, classify_human_posture, draw_human_skeleton
+                        except Exception:
+                            from pose_engine import COCO_KEYPOINT_NAMES, classify_human_posture, draw_human_skeleton
+
+                        item["keypoints_dict"] = {
+                            COCO_KEYPOINT_NAMES[idx]: person_kpts[idx]
+                            for idx in range(min(len(COCO_KEYPOINT_NAMES), len(person_kpts)))
+                        }
+                        pkey, plabel, pconf = classify_human_posture(person_kpts)
+                        item["posture"] = pkey
+                        item["posture_label"] = plabel
+                        item["posture_confidence"] = pconf
+
+                        # Render colorful skeleton bones and glowing joint dots onto frame
+                        if (node_type == "pose_detector" or config.get("showSkeleton", True)) and config.get("showSkeleton", True) is not False:
+                            draw_human_skeleton(frame, person_kpts, config, plabel if config.get("showPostureBadge", True) else "")
 
                     detections.append(item)
                 return detections

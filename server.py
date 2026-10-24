@@ -82,6 +82,8 @@ _MAX_UPLOAD = 200 * 1024 * 1024
 _MAX_MODEL_UPLOAD = int(os.getenv("VISONODE_MODEL_UPLOAD_MAX_BYTES", str(1024 ** 3)))
 _EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".mp4", ".avi", ".mov", ".mkv", ".m4v"}
 _MODEL_EXTENSIONS = {".pt", ".pth", ".ckpt", ".onnx", ".engine", ".plan", ".tflite", ".keras", ".h5"}
+_OPTIONAL_YOLO26_MODEL = "yolo26n.pt"
+_OPTIONAL_YOLO26_RELEASE = "v8.4.0"
 _MODEL_ENGINES = (
     {"id": "rfdetr", "label": "RF-DETR", "nodeTypes": ["detector", "segmenter"], "configKey": "rfdetrCheckpoint", "extensions": [".pt", ".pth", ".ckpt"], "requirement": "rfdetr and PyTorch; blank checkpoint uses the selected pretrained model."},
     {"id": "rfdetr_onnx", "label": "RF-DETR ONNX", "nodeTypes": ["detector", "segmenter"], "configKey": "rfdetrOnnxModel", "extensions": [".onnx"], "requirement": "rfdetr-onnx runtime and an ONNX model."},
@@ -89,11 +91,11 @@ _MODEL_ENGINES = (
     {"id": "sam3", "label": "SAM 3", "nodeTypes": ["segmenter"], "configKey": "samCheckpoint", "extensions": [".pt", ".pth", ".ckpt"], "requirement": "SAM 3 runtime and a checkpoint, or the managed/default checkpoint."},
     {"id": "convnext", "label": "ConvNeXt", "nodeTypes": ["classifier"], "configKey": "convnextCheckpoint", "extensions": [".pt", ".pth", ".ckpt"], "requirement": "PyTorch; blank checkpoint uses the selected pretrained model."},
     {"id": "efficientad", "label": "EfficientAD", "nodeTypes": ["efficientad"], "configKey": "efficientadModel", "extensions": [".pt"], "requirement": "PyTorch and a trained EfficientAD deployment export."},
-    {"id": "ultralytics_yolo", "label": "Ultralytics YOLO (best.pt)", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "modelPath", "extensions": [".pt", ".pth"], "requirement": "Ultralytics YOLO PyTorch checkpoint."},
+    {"id": "ultralytics_yolo", "label": "Ultralytics YOLO (best.pt)", "nodeTypes": ["detector", "segmenter", "classifier", "pose_detector"], "configKey": "modelPath", "extensions": [".pt", ".pth"], "requirement": "Ultralytics YOLO PyTorch checkpoint."},
     {"id": "yolo_world", "label": "YOLO-World (Zero-Shot Text Prompt)", "nodeTypes": ["detector"], "configKey": "modelPath", "extensions": [".pt", ""], "requirement": "Zero-shot open-vocabulary detection using Ultralytics YOLO-World."},
     {"id": "roboflow_universe", "label": "Roboflow Universe (Model ID)", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "modelPath", "extensions": [""], "requirement": "Roboflow Universe model ID via Roboflow Inference API."},
-    {"id": "onnx_custom", "label": "Custom ONNX Runtime", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "modelPath", "extensions": [".onnx"], "requirement": "ONNX Runtime model file; segmentation requires a YOLO export."},
-    {"id": "custom_auto", "label": "Custom model (auto)", "nodeTypes": ["detector", "segmenter", "classifier"], "configKey": "modelPath", "extensions": [".pt", ".pth", ".onnx", ".tflite", ".keras", ".h5"], "requirement": "Runtime for the selected model format."},
+    {"id": "onnx_custom", "label": "Custom ONNX Runtime", "nodeTypes": ["detector", "segmenter", "classifier", "pose_detector"], "configKey": "modelPath", "extensions": [".onnx"], "requirement": "ONNX Runtime model file; segmentation requires a YOLO export."},
+    {"id": "custom_auto", "label": "Custom model (auto)", "nodeTypes": ["detector", "segmenter", "classifier", "pose_detector"], "configKey": "modelPath", "extensions": [".pt", ".pth", ".onnx", ".tflite", ".keras", ".h5"], "requirement": "Runtime for the selected model format."},
     {"id": "tflite", "label": "TensorFlow Lite", "nodeTypes": ["detector", "classifier"], "configKey": "rfdetrCheckpoint", "extensions": [".tflite"], "requirement": "TensorFlow Lite model file."},
     {"id": "tensorflow_keras", "label": "TensorFlow / Keras", "nodeTypes": ["classifier", "detector"], "configKey": "rfdetrCheckpoint", "extensions": [".keras", ".h5"], "requirement": "TensorFlow/Keras model file."},
 )
@@ -668,6 +670,8 @@ def _infer_model_engine(name: str, format_str: str) -> str:
 
 def _infer_model_version(name: str) -> str:
     lower = name.lower()
+    if "yolo26" in lower:
+        return "v26.0"
     if "yolo11" in lower:
         return "v11.0"
     if "yolov8" in lower:
@@ -696,10 +700,18 @@ def _model_entry(path: Path, *, name: str | None = None, sha256: str | None = No
         except Exception:
             mtime_str = "Recent"
 
+    label = f"{human_name} · {fingerprint}" if fingerprint else human_name
+    if human_name.lower() in ("yolo26n.pt", "yolo26n") or path.name.lower() == "yolo26n.pt":
+        label = "YOLO26n (NMS-Free CPU)"
+    elif "yolo26n-seg" in human_name.lower():
+        label = "YOLO26n-Seg (NMS-Free CPU)"
+    elif "yolo26n-pose" in human_name.lower():
+        label = "YOLO26n-Pose (NMS-Free CPU)"
+
     return {
         "id": sha256 or human_name,
         "name": human_name,
-        "label": f"{human_name} · {fingerprint}" if fingerprint else human_name,
+        "label": label,
         "path": str(path),
         "format": format_str,
         "sizeBytes": size_bytes,
@@ -720,14 +732,30 @@ def _system_models_listing() -> list[dict]:
     result = []
     seen_names = set()
 
-    # 1. Built-in models in project root directory (yolov8n.pt, yolov8s.pt, etc.)
-    root_dir = ROOT
-    if root_dir.is_dir():
-        for path in root_dir.iterdir():
+    # 1. Built-in models in project root directory and data/models (yolo26n.pt, yolov8n.pt, etc.)
+    candidate_dirs = [ROOT]
+    if _models.is_dir():
+        candidate_dirs.append(_models)
+    data_models = ROOT / "data" / "models"
+    if data_models.is_dir() and data_models not in candidate_dirs:
+        candidate_dirs.append(data_models)
+
+    for cdir in candidate_dirs:
+        if not cdir.is_dir():
+            continue
+        for path in cdir.iterdir():
             if path.is_file() and path.suffix.lower() in _MODEL_EXTENSIONS and "yolo" in path.name.lower():
                 if path.name not in seen_names:
-                    result.append(_model_entry(path, is_custom=False))
-                    seen_names.add(path.name)
+                    is_yolo26 = "yolo26" in path.name.lower()
+                    if is_yolo26 or cdir == ROOT:
+                        result.append(_model_entry(path, is_custom=False))
+                        seen_names.add(path.name)
+            elif path.is_dir():
+                for subpath in path.iterdir():
+                    if subpath.is_file() and subpath.suffix.lower() in _MODEL_EXTENSIONS and "yolo26" in subpath.name.lower():
+                        if subpath.name not in seen_names:
+                            result.append(_model_entry(subpath, is_custom=False))
+                            seen_names.add(subpath.name)
 
     # 2. RF-DETR Pretrained foundation models (registered available defaults)
     rfdetr_defaults = [
@@ -861,6 +889,101 @@ async def upload_model(request: Request, file: UploadFile = File(...)) -> dict:
             Path(temporary_name).unlink(missing_ok=True)
         raise
     return {"path": str(target), "name": clean_name, "format": suffix.lstrip("."), "sizeBytes": size, "sha256": sha256, "contentId": sha256}
+
+
+def _optional_yolo26_cached_path(model_name: str) -> Path | None:
+    if model_name != _OPTIONAL_YOLO26_MODEL:
+        return None
+    marker = _models / ".official-models.json"
+    try:
+        record = json.loads(marker.read_text(encoding="utf-8")).get(model_name, {})
+        digest = str(record.get("sha256") or "")
+    except (OSError, ValueError, AttributeError):
+        return None
+    if not re.fullmatch(r"[0-9a-f]{64}", digest):
+        return None
+    path = _models / digest / model_name
+    if not path.is_file():
+        return None
+    try:
+        return path if _file_sha256(path) == digest else None
+    except OSError:
+        return None
+
+
+def _record_official_model(model_name: str, digest: str) -> None:
+    marker = _models / ".official-models.json"
+    try:
+        records = json.loads(marker.read_text(encoding="utf-8"))
+        if not isinstance(records, dict):
+            records = {}
+    except (OSError, ValueError):
+        records = {}
+    records[model_name] = {"sha256": digest}
+    temporary = marker.with_name(f"{marker.name}.{uuid.uuid4().hex}.tmp")
+    temporary.write_text(json.dumps(records, indent=2), encoding="utf-8")
+    os.replace(temporary, marker)
+
+
+def _optional_model_payload(path: Path) -> dict:
+    digest = _file_sha256(path)
+    return {
+        "path": str(path),
+        "name": path.name,
+        "format": path.suffix.lstrip("."),
+        "sizeBytes": path.stat().st_size,
+        "sha256": digest,
+        "contentId": digest,
+    }
+
+
+@app.post("/api/models/download-yolo26")
+def download_optional_yolo26(request: Request, payload: dict = Body(...)) -> dict:
+    _write_allowed(request)
+    model_name = payload.get("model")
+    if model_name != _OPTIONAL_YOLO26_MODEL:
+        raise HTTPException(400, f"Only the optional {_OPTIONAL_YOLO26_MODEL} checkpoint is supported")
+
+    _models.mkdir(parents=True, exist_ok=True)
+    cached = _optional_yolo26_cached_path(model_name)
+    if cached:
+        return _optional_model_payload(cached)
+
+    try:
+        from ultralytics.utils.downloads import attempt_download_asset
+    except ImportError as exc:
+        raise HTTPException(503, "Install ultralytics>=8.4.0 to download YOLO26n") from exc
+
+    try:
+        with tempfile.TemporaryDirectory(prefix=".yolo26-download-", dir=str(_models)) as staging_dir:
+            staged_path = Path(staging_dir) / model_name
+            attempt_download_asset(
+                str(staged_path),
+                repo="ultralytics/assets",
+                release=_OPTIONAL_YOLO26_RELEASE,
+            )
+            if not staged_path.is_file():
+                raise HTTPException(502, "Ultralytics did not provide the YOLO26n checkpoint")
+            size = staged_path.stat().st_size
+            if size <= 0:
+                raise HTTPException(502, "Downloaded YOLO26n checkpoint is empty")
+            if size > _MAX_MODEL_UPLOAD:
+                raise HTTPException(413, "YOLO26n checkpoint exceeds the configured model size limit")
+            digest = _file_sha256(staged_path)
+            target = _models / digest / model_name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists():
+                if _file_sha256(target) != digest:
+                    raise HTTPException(409, "model content address collision")
+            else:
+                os.replace(staged_path, target)
+            _record_official_model(model_name, digest)
+        return _optional_model_payload(target)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Optional YOLO26n download failed: %s", exc)
+        raise HTTPException(502, "YOLO26n download failed; check the network and retry") from exc
 
 
 @app.post("/api/models/quantize")
@@ -1529,7 +1652,7 @@ def _preflight_models(workflow: dict) -> None:
         is_custom = engine_id in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "custom_auto", "tflite", "tensorflow_keras")
         raw = custom_model_path(config) if is_custom else str(config.get(spec["configKey"]) or config.get("modelPath") or config.get("customModelPath") or "").strip().strip('"')
         if not raw and engine_id == "rfdetr":
-            if node["type"] in ("detector", "segmenter"):
+            if node["type"] in ("detector", "segmenter", "pose_detector"):
                 resolved_labels[node["id"]] = {label.lower() for label in COCO_CLASSES}
             continue
         if not raw and engine_id == "convnext":
@@ -1551,9 +1674,10 @@ def _preflight_models(workflow: dict) -> None:
             resolved_labels[node["id"]] = labels
             continue
         if not raw and engine_id == "ultralytics_yolo":
-            config["customModelPath"] = "yolov8n.pt"
-            config["modelPath"] = "yolov8n.pt"
-            raw = "yolov8n.pt"
+            default_m = "yolov8n-pose.pt" if node.get("type") == "pose_detector" else "yolov8n.pt"
+            config["customModelPath"] = default_m
+            config["modelPath"] = default_m
+            raw = default_m
         if not raw:
             raise HTTPException(400, f"node '{node['id']}' requires a model file in 'customModelPath' for engine '{engine_id}'")
         path = resolve_model_file(raw) if is_custom else Path(raw).expanduser()
@@ -1573,7 +1697,7 @@ def _preflight_models(workflow: dict) -> None:
             raise HTTPException(400, f"node '{node['id']}' {spec['configKey']} must use {', '.join(spec['extensions'])}")
         if not path.is_file():
             raise HTTPException(400, f"node '{node['id']}' model file was not found: {path}")
-        if node["type"] in ("detector", "segmenter"):
+        if node["type"] in ("detector", "segmenter", "pose_detector"):
             resolved_models[node["id"]] = path
 
     if not any(node.get("type") in ("zone_activity_timer", "zone_exit_event") and node.get("enabled", True) for node in workflow["nodes"]):

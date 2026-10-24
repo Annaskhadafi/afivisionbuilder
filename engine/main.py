@@ -71,7 +71,7 @@ SAM3_DEFAULT_THRESHOLD = 0.1
 RFDETR_NATIVE_IMAGE_SIZE = 0
 INPUT_NODE_ID = "input"
 LEGACY_CAMERA_NODE_ID = "camera"
-INFERENCE_NODE_IDS = ("detector", "segmenter", "classifier", "efficientad")
+INFERENCE_NODE_IDS = ("detector", "segmenter", "classifier", "efficientad", "pose_detector")
 FRAME_SAMPLER_NODE_TYPE = "frame_sampler"
 IMAGE_PROCESSING_NODE_TYPES = (
     "resize", "crop", "rotate_flip", "color_convert", "brightness_contrast",
@@ -1893,7 +1893,7 @@ def active_detection_crop_nodes(workflow: dict) -> list[dict]:
     input_id = source_node_id(workflow)
     detection_sources = [
         node for node in active_inference_nodes(workflow)
-        if node.get("type") in ("detector", "segmenter")
+        if node.get("type") in ("detector", "segmenter", "pose_detector")
     ]
     return [
         node for node in workflow.get("nodes", [])
@@ -3147,12 +3147,12 @@ def _logic_signal(node: dict, detections: list[dict], runtime: dict, now: float)
         else:
             state.pop("started_at", None)
     elif node_type == "debounce":
-        previous = state.get("input", signal)
-        if previous != signal:
+        previous = state.get("input")
+        if previous is None or previous != signal:
             state["input"] = signal
             state["changed_at"] = now
-        state.setdefault("changed_at", now)
-        signal = signal and now - state["changed_at"] >= max(0.0, float(config.get("seconds", 0.5)))
+        delay_seconds = max(0.0, float(config.get("seconds", 0.5)))
+        signal = signal and now - state["changed_at"] + 1e-9 >= delay_seconds
     elif node_type == "rate_limiter":
         if signal and now - state.get("last_pass_at", float("-inf")) >= max(0.0, float(config.get("seconds", 5.0))):
             state["last_pass_at"] = now

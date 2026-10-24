@@ -54,6 +54,7 @@
     ptz_controller: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>',
     ocr_reader: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><rect width="20" height="16" x="2" y="4" rx="2" stroke-dasharray="2 2"/></svg>',
     object_timer: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    pose_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="4" r="2"/><path d="m9 9 3-1 3 1"/><path d="M12 8v7"/><path d="m9 20 3-5 3 5"/><path d="m6 12 3-4"/><path d="m18 12-3-4"/></svg>',
     face_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M10 16c.5.5 1.5 1 2 1s1.5-.5 2-1"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>',
     face_crop: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 10h.01"/><path d="M15 10h.01"/><circle cx="12" cy="12" r="7"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>',
     face_tracker: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M12 14v7"/><polyline points="9 18 12 21 15 18"/></svg>',
@@ -1698,6 +1699,12 @@
   };
 
   const INDO_FIELD_LABELS = {
+    showSkeleton: 'Garis Kerangka Skeleton (Bones)',
+    showJoints: 'Titik Sendi Bercahaya (Joint Dots)',
+    showPostureBadge: 'Badge Status Postur Tubuh',
+    keypointThreshold: 'Ambang Batas Keypoint Confidence',
+    skeletonThickness: 'Ketebalan Garis Kerangka',
+    jointRadius: 'Ukuran Radius Titik Sendi',
     headroomPercent: 'Ruang Kepala Ekstra (Headroom %)',
     pipSizeMode: 'Mode Ukuran PiP (Dinamis / Tetap)',
     pipSizePercent: 'Ukuran PiP (% Lebar Video)',
@@ -3172,8 +3179,10 @@
       if (state.connecting) {
         if (n.id === state.connecting.from) {
           card.classList.add('connecting-source');
+        } else if (n.type === 'export_code' || (state.workflow?.edges || []).some(e => e[0] === state.connecting.from && e[1] === n.id)) {
+          card.classList.add('dimmed-during-connect');
         } else {
-          card.classList.add('connecting-target');
+          card.classList.add('connecting-target', 'highlight-target-connect');
         }
       }
 
@@ -3571,6 +3580,139 @@
     renderInspector();
   }
 
+  const NEXT_NODE_RECOMMENDATIONS = {
+    input: [
+      { type: 'detector', label: 'Object Detection (YOLO26)', icon: '⚡' },
+      { type: 'pose_detector', label: 'Pose Estimator', icon: '🏃' },
+      { type: 'segmenter', label: 'Object Segmentation', icon: '✂️' },
+      { type: 'ocr_reader', label: 'OCR Text Reader', icon: '🔤' }
+    ],
+    ip_camera: [
+      { type: 'detector', label: 'Object Detection (YOLO26)', icon: '⚡' },
+      { type: 'pose_detector', label: 'Pose Estimator', icon: '🏃' },
+      { type: 'segmenter', label: 'Object Segmentation', icon: '✂️' }
+    ],
+    detector: [
+      { type: 'tracker', label: 'Object Tracking', icon: '🎯' },
+      { type: 'filter', label: 'Geometry Filter', icon: '🔍' },
+      { type: 'visual_annotate', label: 'Overlay / Annotate', icon: '🎨' },
+      { type: 'object_timer', label: 'Object Timer', icon: '⏱️' }
+    ],
+    pose_detector: [
+      { type: 'tracker', label: 'Object Tracking', icon: '🎯' },
+      { type: 'visual_annotate', label: 'Overlay / Annotate', icon: '🎨' }
+    ],
+    segmenter: [
+      { type: 'visual_annotate', label: 'Overlay / Annotate', icon: '🎨' },
+      { type: 'tracker', label: 'Object Tracking', icon: '🎯' }
+    ],
+    tracker: [
+      { type: 'multi_zone_occupancy', label: 'Multi-Zone Occupancy', icon: '📐' },
+      { type: 'line_counter', label: 'Multi-Line Counter', icon: '📊' },
+      { type: 'object_timer', label: 'Object Timer', icon: '⏱️' },
+      { type: 'zone_exit_event', label: 'Zone Exit Event', icon: '🚪' },
+      { type: 'velocity_calculator', label: 'Velocity Calculator', icon: '⚡' },
+      { type: 'visual_annotate', label: 'Overlay / Annotate', icon: '🎨' }
+    ],
+    filter: [
+      { type: 'tracker', label: 'Object Tracking', icon: '🎯' },
+      { type: 'visual_annotate', label: 'Overlay / Annotate', icon: '🎨' },
+      { type: 'preview', label: 'Live Preview', icon: '👁️' }
+    ],
+    zone_activity_timer: [
+      { type: 'alert', label: 'Event Alert Popup', icon: '🔔' },
+      { type: 'database_output', label: 'Database Logger', icon: '💾' },
+      { type: 'webhook_output', label: 'HTTP Webhook', icon: '🌐' },
+      { type: 'preview', label: 'Live Preview', icon: '👁️' }
+    ],
+    multi_zone_occupancy: [
+      { type: 'visual_annotate', label: 'Overlay / Annotate', icon: '🎨' },
+      { type: 'alert', label: 'Event Alert Popup', icon: '🔔' },
+      { type: 'database_output', label: 'Database Logger', icon: '💾' }
+    ],
+    visual_annotate: [
+      { type: 'preview', label: 'Live Preview', icon: '👁️' },
+      { type: 'image_output', label: 'Image Exporter', icon: '🖼️' },
+      { type: 's3_sink', label: 'S3 Cloud Storage', icon: '☁️' }
+    ]
+  };
+
+  function removeNextNodesBar() {
+    const existing = document.getElementById('quickNextNodesBar');
+    if (existing) existing.remove();
+  }
+
+  function showNextNodeRecommendations(fromNodeId) {
+    removeNextNodesBar();
+    const fromNode = nodeFor(fromNodeId);
+    if (!fromNode) return;
+    const recs = NEXT_NODE_RECOMMENDATIONS[fromNode.type];
+    if (!recs || recs.length === 0) return;
+
+    const p = getNodePortPos(fromNodeId, 'output');
+    const bar = document.createElement('div');
+    bar.id = 'quickNextNodesBar';
+    bar.className = 'quick-next-nodes-bar';
+    bar.style.left = (p.x + 18) + 'px';
+    bar.style.top = (p.y - 18) + 'px';
+
+    bar.innerHTML = '<span class="quick-next-label">⚡ Rekomendasi:</span>';
+
+    recs.forEach(r => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'quick-node-chip';
+      chip.innerHTML = '<span>' + r.icon + '</span> <span>' + r.label + '</span>';
+      chip.onpointerdown = (e) => e.stopPropagation();
+      chip.onclick = (e) => {
+        e.stopPropagation();
+        addAndConnectRecommendedNode(fromNodeId, r.type);
+      };
+      bar.append(chip);
+    });
+
+    $('#canvas')?.append(bar);
+  }
+
+  function addAndConnectRecommendedNode(fromNodeId, toNodeType) {
+    removeNextNodesBar();
+    const fromNode = nodeFor(fromNodeId);
+    if (!fromNode) return;
+
+    const bp = state.catalog?.[toNodeType] || nodeBlueprintFor(toNodeType) || {};
+    const newId = toNodeType + '_' + Math.random().toString(36).substr(2, 6);
+
+    const newX = (fromNode.x || 100) + 260;
+    const newY = (fromNode.y || 100);
+
+    const cfg = JSON.parse(JSON.stringify(bp.config || {}));
+    if (toNodeType === 'detector') {
+      cfg.engine = 'ultralytics_yolo';
+      cfg.modelPath = 'yolo26n.pt';
+      cfg.customModelPath = 'yolo26n.pt';
+      cfg.nmsFree = true;
+    }
+
+    const newNode = {
+      id: newId,
+      type: toNodeType,
+      title: bp.title || titleFor(toNodeType),
+      x: newX,
+      y: newY,
+      config: cfg,
+      enabled: true
+    };
+
+    state.workflow.nodes.push(newNode);
+    state.workflow.edges.push([fromNodeId, newId]);
+    state.connecting = null;
+    markDirty();
+    renderCanvas();
+    selectNode(newId);
+    toast('⚡ Terhubung otomatis: ' + (fromNode.title || fromNodeId) + ' ➔ ' + newNode.title);
+    liveUpdateWorkflow();
+  }
+
   function connectFrom(id) {
     const fromNode = nodeFor(id);
     if (fromNode?.type === 'export_code') return;
@@ -3581,11 +3723,14 @@
       mouseY: p1.y,
       targetHoverId: null
     };
-    $('#canvasHint').innerHTML = `⚡ <b>Sedang menarik garis dari "${fromNode?.title || id}":</b> Klik kartu node tujuan untuk menghubungkan cabang (atau tekan Esc untuk batal)`;
+    const titleVal = fromNode?.title || id;
+    $('#canvasHint').innerHTML = '⚡ <b>Sedang menarik garis dari "' + titleVal + '":</b> Klik kartu node tujuan untuk menghubungkan cabang (atau tekan Esc untuk batal)';
     renderCanvas();
+    showNextNodeRecommendations(id);
   }
 
   function connectTo(id) {
+    removeNextNodesBar();
     if (!state.connecting || state.connecting.from === id) {
       state.connecting = null;
       renderCanvas();
@@ -3611,7 +3756,7 @@
 
     state.workflow.edges.push(edge);
     markDirty();
-    toast(`Tersambung: ${fromNode?.title || fromId} ➔ ${toNode?.title || id}`);
+    toast('Tersambung: ' + (fromNode?.title || fromId) + ' ➔ ' + (toNode?.title || id));
     state.connecting = null;
     $('#canvasHint').textContent = 'Pilih node untuk konfigurasi · geser untuk atur posisi · klik port untuk sambungkan garis';
     renderCanvas();
@@ -6951,8 +7096,91 @@
         const yoloBadge = document.createElement('div');
         yoloBadge.className = 'yolo-quickstart-badge';
         yoloBadge.style.cssText = 'margin-top:6px; padding:8px 10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; font-size:11px; color:#166534; display:flex; align-items:flex-start; gap:6px; line-height:1.4;';
-        yoloBadge.innerHTML = '<span style="font-size:14px; flex-shrink:0;">🚀</span><span><b>YOLOv8n Siap Pakai:</b> Model <code>yolov8n.pt</code> sudah otomatis aktif mendeteksi 80 kelas objek COCO (orang, mobil, motor, tas, botol, dsb) secara instan tanpa perlu pengaturan apa pun!</span>';
+        const selectedModelPath = String(node.config?.modelPath || input.value || '').toLowerCase();
+        const yolo26Selected = selectedModelPath.includes('yolo26');
+        const yolo8DefaultSelected = !selectedModelPath || selectedModelPath.includes('yolov8n.pt');
+        yoloBadge.innerHTML = yolo26Selected
+          ? '<span style="font-size:14px; flex-shrink:0;">⚡</span><span><b>YOLO26n dipilih (NMS-Free Aktif):</b> Mode inferensi End-to-End aktif tanpa loop NMS di CPU. Deteksi lebih ringan & hemat komputasi.</span>'
+          : yolo8DefaultSelected
+            ? '<span style="font-size:14px; flex-shrink:0;">🚀</span><span><b>YOLOv8n Siap Pakai:</b> Model <code>yolov8n.pt</code> aktif. Tersedia opsi YOLO26n untuk inferensi NMS-Free di CPU.</span>'
+            : '<span style="font-size:14px; flex-shrink:0;">🧠</span><span><b>Model kustom dipilih:</b> Mode standar aktif.</span>';
         wrap.append(yoloBadge);
+
+        if (node.type === 'detector' && key === 'modelPath') {
+          const quickSwitchBtn = document.createElement('button');
+          quickSwitchBtn.type = 'button';
+          quickSwitchBtn.className = 'button ghost yolo26-switch-btn';
+          quickSwitchBtn.style.marginTop = '8px';
+          quickSwitchBtn.style.marginRight = '6px';
+          if (yolo26Selected) {
+            quickSwitchBtn.textContent = '🔄 Kembali ke YOLOv8n';
+            quickSwitchBtn.onclick = () => {
+              node.config.engine = 'ultralytics_yolo';
+              node.config.modelPath = 'yolov8n.pt';
+              node.config.customModelPath = 'yolov8n.pt';
+              node.config.nmsFree = false;
+              markDirty();
+              input.value = 'yolov8n.pt';
+              renderInspector();
+              toast('Beralih kembali ke model YOLOv8n.');
+              liveUpdateWorkflow();
+            };
+          } else {
+            quickSwitchBtn.textContent = '⚡ Beralih ke YOLO26n (NMS-Free CPU)';
+            quickSwitchBtn.onclick = () => {
+              node.config.engine = 'ultralytics_yolo';
+              node.config.modelPath = 'yolo26n.pt';
+              node.config.customModelPath = 'yolo26n.pt';
+              node.config.nmsFree = true;
+              markDirty();
+              input.value = 'yolo26n.pt';
+              renderInspector();
+              toast('YOLO26n NMS-Free berhasil diterapkan ke node ini.');
+              liveUpdateWorkflow();
+            };
+          }
+          wrap.append(quickSwitchBtn);
+
+          const downloadBtn = document.createElement('button');
+          downloadBtn.type = 'button';
+          downloadBtn.className = 'button ghost yolo26-download-btn';
+          downloadBtn.style.marginTop = '8px';
+          downloadBtn.textContent = '⬇ Unduh Ulang YOLO26n';
+          downloadBtn.onclick = async () => {
+            const accepted = window.confirm('Unduh bobot resmi YOLO26n dari Ultralytics? File hanya diunduh setelah kamu menyetujui. Kalau batal, YOLOv8n/default yang sekarang tetap dipakai.');
+            if (!accepted) return;
+            downloadBtn.disabled = true;
+            downloadBtn.textContent = 'Mengunduh YOLO26n…';
+            try {
+              const downloaded = await api('/api/models/download-yolo26', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: 'yolo26n.pt' })
+              });
+              if (!downloaded?.path) throw new Error('Path bobot YOLO26n tidak diterima');
+              node.config.engine = 'ultralytics_yolo';
+              node.config.modelPath = downloaded.path;
+              node.config.customModelPath = downloaded.path;
+              markDirty();
+              input.value = downloaded.path;
+              renderInspector();
+              toast('YOLO26n berhasil diunduh dan dipilih untuk node ini.');
+            } catch (err) {
+              toast('Unduhan YOLO26n gagal: ' + err.message, true);
+            } finally {
+              if (downloadBtn.isConnected) {
+                downloadBtn.disabled = false;
+                downloadBtn.textContent = '⬇ Unduh YOLO26n (opsional)';
+              }
+            }
+          };
+          wrap.append(downloadBtn);
+
+          const optionalHelp = document.createElement('small');
+          optionalHelp.className = 'model-upload-help yolo26-download-help';
+          optionalHelp.textContent = 'Opsional; tidak termasuk paket aplikasi dan tidak diunduh saat startup. Perlu internet hanya saat tombol dipilih. Cek lisensi Ultralytics untuk penggunaanmu.';
+          wrap.append(optionalHelp);
+        }
       }
 
       if (isRoboflow) {
@@ -8868,6 +9096,16 @@
   }
 
   const NODE_GUIDES_ID = {
+  "pose_detector": {
+    "concept": "Human Pose Estimator mendeteksi pose tubuh manusia dan mengekstrak 17 titik sendi (COCO Keypoints) serta menggambar kerangka skeleton multi-warna anatomis dan menganalisis status postur (Berdiri, Duduk, Membungkuk, Jatuh).",
+    "diagram": "[ Input Kamera / Video ] --> [ Human Pose Estimator ] --> [ Output Keypoints & Skeleton ]",
+    "steps": [
+      "Tarik node Human Pose Estimator dari kategori AI Vision Models ke kanvas.",
+      "Hubungkan kabel dari node Input ke node Human Pose Estimator.",
+      "Atur ambang batas keypoint dan opsi tampilan kerangka/sendi di panel Inspector.",
+      "Hubungkan ke node Tracker atau Visual Annotate untuk pemrosesan lanjutan."
+    ]
+  },
   "export_code": {
     "concept": "Export Code membuat ZIP Python yang menjalankan snapshot seluruh workflow aktif di folder terpisah. Node ini tidak diproses per frame dan tidak memakai kabel.",
     "diagram": "[ Workflow tersimpan ] → [ Periksa Paket ] → [ ZIP ] → [ run.py ]",

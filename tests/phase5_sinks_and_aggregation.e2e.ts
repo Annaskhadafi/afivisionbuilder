@@ -7,7 +7,7 @@ test('verify Phase 5 nodes: Cloud Sinks, Aggregation, and PTZ Controller', async
   await expect(browser.locator('.brand')).toBeVisible();
 
   // Open workflow from Projects Hub if visible
-  const openProjBtn = browser.locator('button:has-text("Open workflow →")').first();
+  const openProjBtn = browser.locator('.hub-open-workflow-btn').first();
   if (await openProjBtn.isVisible()) {
     await openProjBtn.click();
   }

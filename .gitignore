@@ -18,6 +18,14 @@ data/outputs/*
 !data/outputs/.gitkeep
 data/uploads/*
 !data/uploads/.gitkeep
+data/projects/*
+!data/projects/097960d9099c4027940e9dc1aa4c8b43/
+!data/projects/4369ad1a672f456f974c75a20773b824/
+!data/projects/4e7780ea7707421cad18ba0f7b817a0b/
+!data/projects/5c45d44113dc4321b6abc96e5807a9af/
+!data/projects/733240f514454a71bc65ae45f3fd9245/
+!data/projects/b72cd324917c4d78b1f876e470920485/
+.e2e/screenshots/
 
 # Logs & temp files
 *.log

@@ -6936,3 +6936,193 @@ kbd {
   border: 1px solid var(--border-color, #cbd5e1) !important;
   border-radius: 6px !important;
 }
+
+/* 1. Live Interactive Confidence Slider */
+.preview-quick-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  font-size: 11px;
+}
+.preview-quick-slider input[type="range"] {
+  width: 75px;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--teal, #0ea5e9);
+}
+.quick-slider-label {
+  color: var(--text-muted, #94a3b8);
+  white-space: nowrap;
+}
+.quick-slider-label b {
+  color: var(--teal, #38bdf8);
+}
+
+/* 2. 1-Click Use-Case Wizard */
+.wizard-btn {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.15), rgba(168, 85, 247, 0.15)) !important;
+  border: 1px solid rgba(14, 165, 233, 0.4) !important;
+  color: #38bdf8 !important;
+  font-weight: 600 !important;
+}
+.wizard-btn:hover {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.25), rgba(168, 85, 247, 0.25)) !important;
+}
+.use-case-wizard-modal {
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 14px;
+  max-width: 820px;
+  width: 90vw;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  padding: 0;
+}
+.use-case-wizard-content .modal-head {
+  padding: 18px 24px;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.wizard-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #38bdf8;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+.wizard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding: 24px;
+}
+@media (max-width: 640px) {
+  .wizard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.wizard-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+.wizard-card:hover {
+  border-color: #38bdf8;
+  background: #243447;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.5);
+}
+.wizard-card-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+.wizard-card-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 4px;
+}
+.wizard-card-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+.wizard-card-pipeline {
+  font-size: 10.5px;
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: #38bdf8;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.wizard-card-btn {
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #0284c7;
+  color: white;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.12s ease;
+}
+.wizard-card:hover .wizard-card-btn {
+  background: #0ea5e9;
+}
+
+/* 3. Smart Wire & Next-Node Recommendations */
+.quick-next-nodes-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #0f172a;
+  border: 1px solid #38bdf8;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7);
+  position: absolute;
+  z-index: 1000;
+  pointer-events: auto;
+  animation: edgeMenuFadeIn 0.15s ease-out;
+}
+.quick-next-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.quick-node-chip {
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #1e293b;
+  border: 1px solid #475569;
+  color: #f1f5f9;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.quick-node-chip:hover {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #fff;
+  transform: scale(1.04);
+}
+.node-card.dimmed-during-connect {
+  opacity: 0.35;
+  filter: grayscale(0.5);
+  transition: opacity 0.15s ease;
+}
+.node-card.highlight-target-connect {
+  box-shadow: 0 0 0 2px #38bdf8, 0 0 16px rgba(56, 189, 248, 0.5) !important;
+}

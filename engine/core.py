@@ -3285,7 +3285,7 @@ class WorkflowRunner:
                         )
                     model_name = engine.inference_model_name(inference_node)
                     device, device_label = engine.resolve_inference_device(config)
-                    task_labels = {"segmenter": "segmentation", "classifier": "classification", "efficientad": "EfficientAD anomaly inspection"}
+                    task_labels = {"segmenter": "segmentation", "classifier": "classification", "efficientad": "EfficientAD anomaly inspection", "pose_detector": "Human Pose Estimation"}
                     task_label = task_labels.get(inference_node.get("type"), "detector")
                     if eng == "sam3":
                         task_label = f"SAM 3 {task_label}"
@@ -3770,7 +3770,7 @@ class WorkflowRunner:
                         inf_cfg = inference_node.get("config", {})
                         per_class_map = _parse_per_class_thresholds(inf_cfg.get("perClassThresholds", ""))
                         class_remap_map = _parse_class_remap(inf_cfg.get("classRemap", ""))
-                        is_track_elig = inference_node.get("type") in ("detector", "segmenter")
+                        is_track_elig = inference_node.get("type") in ("detector", "segmenter", "pose_detector")
                         raw_classes = str(inf_cfg.get("customClasses") or inf_cfg.get("classes") or "").strip()
                         allowed_classes = {c.strip().lower() for c in raw_classes.split(",") if c.strip()} if raw_classes else None
                         for result_index, packet_index in enumerate(eligible_indices):
@@ -4836,7 +4836,7 @@ class WorkflowRunner:
                         )
                     model_name = engine.inference_model_name(inference_node)
                     device, device_label = engine.resolve_inference_device(config)
-                    task_labels = {"segmenter": "segmentation", "classifier": "classification", "efficientad": "EfficientAD anomaly inspection"}
+                    task_labels = {"segmenter": "segmentation", "classifier": "classification", "efficientad": "EfficientAD anomaly inspection", "pose_detector": "Human Pose Estimation"}
                     task_label = task_labels.get(inference_node.get("type"), "detector")
                     if eng == "sam3":
                         task_label = f"SAM 3 {task_label}"
@@ -5137,7 +5137,7 @@ class WorkflowRunner:
                         inf_cfg = inference_node.get("config", {})
                         per_class_map = _parse_per_class_thresholds(inf_cfg.get("perClassThresholds", ""))
                         class_remap_map = _parse_class_remap(inf_cfg.get("classRemap", ""))
-                        is_track_elig = inference_node.get("type") in ("detector", "segmenter")
+                        is_track_elig = inference_node.get("type") in ("detector", "segmenter", "pose_detector")
                         raw_classes = str(inf_cfg.get("customClasses") or inf_cfg.get("classes") or "").strip()
                         allowed_classes = {c.strip().lower() for c in raw_classes.split(",") if c.strip()} if raw_classes else None
                         kept_detections, track_dets = _filter_and_remap_detections(
