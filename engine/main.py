@@ -2063,6 +2063,7 @@ def active_analysis_pipeline(workflow: dict) -> bool:
         "ptz_controller",
         "object_timer",
         "face_detector",
+        "face_analyzer",
         "face_tracker",
         "object_counter",
         "line_counter",
@@ -3013,7 +3014,7 @@ def active_logic_nodes_for_target(workflow: dict, target_id: str) -> list[dict]:
     if input_id:
         sources.append(input_id)
     for n in workflow.get("nodes", []):
-        if n.get("type") in ("line_counter", "object_counter", "dwell_time", "barcode_reader", "crop", "roi_filter", "zone_activity_timer", "zone_exit_event", "object_timer", "face_detector", "face_tracker") and n.get("enabled", True):
+        if n.get("type") in ("line_counter", "object_counter", "dwell_time", "barcode_reader", "crop", "roi_filter", "zone_activity_timer", "zone_exit_event", "object_timer", "face_detector", "face_analyzer", "face_tracker") and n.get("enabled", True):
             sources.append(str(n.get("id", "")))
 
     nodes = [

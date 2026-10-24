@@ -56,6 +56,7 @@
     object_timer: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
     pose_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="4" r="2"/><path d="m9 9 3-1 3 1"/><path d="M12 8v7"/><path d="m9 20 3-5 3 5"/><path d="m6 12 3-4"/><path d="m18 12-3-4"/></svg>',
     face_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M10 16c.5.5 1.5 1 2 1s1.5-.5 2-1"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>',
+    face_analyzer: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>',
     face_crop: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 10h.01"/><path d="M15 10h.01"/><circle cx="12" cy="12" r="7"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>',
     face_tracker: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M12 14v7"/><polyline points="9 18 12 21 15 18"/></svg>',
     dominant_color: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2"/></svg>',
@@ -222,7 +223,7 @@
   // --- Category Mapping ---
   function categoryFor(type) {
     if (type === 'input' || type === 'ip_camera') return 'Sources';
-    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison', 'face_detector', 'face_crop', 'lpr_license_plate'].includes(type)) return 'AI Vision Models';
+    if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison', 'face_detector', 'face_analyzer', 'face_crop', 'lpr_license_plate'].includes(type)) return 'AI Vision Models';
     if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller', 'object_timer', 'face_tracker', 'dominant_color', 'man_down_detector', 'overstack_detector'].includes(type)) return 'Tracking & Analysis';
     if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer', 'camera_focus', 'auto_rotate_edges', 'delta_filter'].includes(type)) return 'Image Preprocessing';
     if (['overlay_annotate', 'interactive_zoom', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
@@ -1699,6 +1700,13 @@
   };
 
   const INDO_FIELD_LABELS = {
+    detectLandmarks: 'Deteksi 5-Titik Facial Landmark',
+    estimateAgeGender: 'Estimasi Umur & Jenis Kelamin',
+    classifyEmotion: 'Klasifikasi Ekspresi & Emosi Wajah',
+    showFaceBadges: 'Tampilkan Badge Label di Atas Wajah',
+    showCornerHUD: 'Tampilkan Ringkasan Statistik di Pojok Layar (HUD)',
+    hudPosition: 'Posisi Panel Ringkasan (HUD)',
+    ageGrouping: 'Model Pengelompokan Usia',
     showSkeleton: 'Garis Kerangka Skeleton (Bones)',
     showJoints: 'Titik Sendi Bercahaya (Joint Dots)',
     showPostureBadge: 'Badge Status Postur Tubuh',
@@ -3591,6 +3599,12 @@
       { type: 'detector', label: 'Object Detection (YOLO26)', icon: '⚡' },
       { type: 'pose_detector', label: 'Pose Estimator', icon: '🏃' },
       { type: 'segmenter', label: 'Object Segmentation', icon: '✂️' }
+    ],
+    face_analyzer: [
+      { type: 'visual_annotate', label: 'Overlay / Annotate', icon: '🎨' },
+      { type: 'preview', label: 'Live Preview', icon: '👁️' },
+      { type: 'alert', label: 'Event Alert Popup', icon: '🔔' },
+      { type: 'database_output', label: 'Database Logger', icon: '💾' }
     ],
     detector: [
       { type: 'tracker', label: 'Object Tracking', icon: '🎯' },
@@ -6199,6 +6213,16 @@
 
     // Dropdown mappings
     const OPTION_MAPS = {
+      hudPosition: [
+        ['top-left', 'Pojok Kiri Atas (Top-Left)'],
+        ['top-right', 'Pojok Kanan Atas (Top-Right)'],
+        ['bottom-left', 'Pojok Kiri Bawah (Bottom-Left)'],
+        ['bottom-right', 'Pojok Kanan Bawah (Bottom-Right)']
+      ],
+      ageGrouping: [
+        ['bracket', 'Rentang Kelompok Usia (Remaja, Dewasa, Lansia)'],
+        ['exact', 'Usia Spesifik (Menampilkan Umur Persis)']
+      ],
       timerFormat: [
         ['mm:ss', 'Menit : Detik (00:15)'],
         ['seconds', 'Detik Desimal (15.2s)'],

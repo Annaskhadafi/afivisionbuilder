@@ -81,6 +81,7 @@ NODE_TYPE_TO_ENGINE_FILES = {
     "model_comparison": {"model_comparison.py"},
     "efficientad": {"efficientad_runtime.py"},
     "face_detector": {"uniface_runtime.py"},
+    "face_analyzer": {"uniface_runtime.py"},
     "face_tracker": {"uniface_runtime.py"},
     "face_crop": {"uniface_runtime.py"},
     "vlm_box_tracker": {"vlm_box_tracker.py"},
@@ -164,6 +165,9 @@ def _determine_required_packages(graph: dict) -> set[str]:
 
         elif ntype in {"man_down_detector", "lpr_license_plate", "overstack_detector"}:
             packages.update({"onnxruntime", "onnx"})
+
+        elif ntype in {"face_detector", "face_analyzer", "face_tracker", "face_crop"}:
+            packages.update({"uniface", "onnxruntime", "torch", "torchvision"})
 
     return packages
 
@@ -271,7 +275,7 @@ def prepare(workflow: dict, name: str, root: Path) -> tuple[dict, dict, dict[str
     warnings = []
     for node in graph["nodes"]:
         config = node.setdefault("config", {})
-        if node["type"] in {"face_detector", "face_tracker"}:
+        if node["type"] in {"face_detector", "face_analyzer", "face_tracker"}:
             raise ValueError(f"{node['id']}: face model/registry assets are not supported by standalone export yet")
         if node["type"] == "database_output" and not config.get("databasePath"):
             config["databasePath"] = PACKAGE_PREFIX + "data/visonode.db"

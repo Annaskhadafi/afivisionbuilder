@@ -752,7 +752,7 @@ def _process_track_event_nodes(
 
     def _node_priority(n):
         t = n.get("type")
-        if t == "face_detector":
+        if t in ("face_detector", "face_analyzer"):
             return 0
         if t == "class_replacement":
             return 0
@@ -777,7 +777,7 @@ def _process_track_event_nodes(
             "overlap_analysis", "velocity_calculator", "path_deviation", "delta_filter",
             "detections_difference", "data_aggregator", "csv_formatter", "s3_sink",
             "notification_dispatcher", "ptz_controller", "screenshot_capture", "telegram_notification", "ocr_reader", "object_timer",
-            "face_detector", "face_tracker", "face_crop",
+            "face_detector", "face_analyzer", "face_tracker", "face_crop",
             "dominant_color", "class_replacement", "man_down_detector", "lpr_license_plate", "overstack_detector"
         ):
             continue
@@ -913,6 +913,15 @@ def _process_track_event_nodes(
                 extra_results.extend(spoof_events)
             else:
                 detections.extend(face_res)
+        elif p_type == "face_analyzer":
+            from uniface_runtime import process_face_analyzer_node
+            analyzer_res = process_face_analyzer_node(project_node, frame, candidates or detections)
+            if isinstance(analyzer_res, tuple):
+                a_dets, a_events = analyzer_res
+                detections.extend(a_dets)
+                extra_results.extend(a_events)
+            else:
+                detections.extend(analyzer_res)
         elif p_type == "face_tracker":
             from uniface_runtime import process_face_tracker_node
             state = event_runtime.setdefault(project_id, {})
@@ -5462,8 +5471,9 @@ class WorkflowRunner:
                                 if "plateNumber" in det and det.get("plateNumber"):
                                     from lpr_license_plate import draw_license_plate_badges
                                     draw_license_plate_badges(display_frame, [det])
-                            from uniface_runtime import draw_face_landmarks_overlay
+                            from uniface_runtime import draw_face_landmarks_overlay, draw_face_analyzer_overlay
                             draw_face_landmarks_overlay(display_frame, preview_detections)
+                            draw_face_analyzer_overlay(display_frame, preview_detections)
                         if not hold_crop_grid:
                             display_frame = engine.apply_drawing_nodes(
                                 display_frame, workflow, preview_id, drawing_detections,

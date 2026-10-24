@@ -17,6 +17,7 @@ onnx>=1.15.0
 onnxruntime>=1.17.0
 tensorflow>=2.15.0
 timm>=0.9.0
+# Face Detection, Demographics & Emotion (UniFace: RetinaFace, ArcFace, AgeGender, Emotion, MiniFASNet, eDifFIQA)
 uniface>=4.0.0
 
 # Industrial Safety & Classical CV Analytics
