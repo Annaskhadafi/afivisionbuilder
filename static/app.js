@@ -12671,22 +12671,16 @@
     };
   }
 
-  // --- Dashboard & Multi-Camera Operations (Fase D, E, F, G PRD) ---
+  // --- Dashboard & Navigation ---
   function switchMainView(viewName) {
     state.activeView = viewName;
     const views = {
       projectsHub: $('#viewProjectsHub'),
       studio: $('#viewStudio'),
-      cameras: $('#viewLiveCameras'),
-      sessions: $('#viewWorkshopSessions'),
-      warehouse: $('#viewWarehouseEvents'),
       dashboard: $('#viewDashboardBuilder')
     };
     const tabs = {
       studio: $('#tabStudio'),
-      cameras: $('#tabLiveCameras'),
-      sessions: $('#tabSessions'),
-      warehouse: $('#tabWarehouse'),
       dashboard: $('#tabDashboardBuilder')
     };
 
@@ -12729,12 +12723,6 @@
       renderProjectsHub();
     } else if (viewName === 'studio') {
       switchProjectRailTab(state.activeRailTab || 'workflow');
-    } else if (viewName === 'cameras') {
-      loadDashboardCameras();
-    } else if (viewName === 'sessions') {
-      loadDashboardSessions();
-    } else if (viewName === 'warehouse') {
-      loadDashboardWarehouse();
     } else if (viewName === 'dashboard') {
       if (typeof window.initOrRefreshDashboardBuilder === 'function') {
         window.initOrRefreshDashboardBuilder();
@@ -13559,9 +13547,6 @@
 
     // Topbar Main Navigation Tabs
     $('#tabStudio')?.addEventListener('click', () => switchMainView('studio'));
-    $('#tabLiveCameras')?.addEventListener('click', () => switchMainView('cameras'));
-    $('#tabSessions')?.addEventListener('click', () => switchMainView('sessions'));
-    $('#tabWarehouse')?.addEventListener('click', () => switchMainView('warehouse'));
     $('#tabDashboardBuilder')?.addEventListener('click', () => switchMainView('dashboard'));
 
     // Camera Grid Switchers

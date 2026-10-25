@@ -48,84 +48,74 @@
 - **Titik Sudut Interaktif (Draggable Handles)**: Menggeser titik sudut, menambah titik baru di sepanjang garis batas, atau menghapus titik poligon dengan klik visual.
 - **Manajemen Multi-Area**: Mengelola banyak area sekaligus (misalnya Meja 1-4, Bay Workshop 1-5, Pintu Gerbang) lengkap dengan kapasitas maksimal dan batas durasi tinggal (*overstay*).
 
-### 📹 3. Multi-Camera Operations Matrix (8-Stream CCTV Grid)
-- **Pemantauan Simultan 8 Kamera RTSP**: Menampilkan siaran langsung 5 Workshop Bay (`WS-01` hingga `WS-05`) dan 3 Gerbang Gudang (`WH-01` hingga `WH-03`).
-- **Pengalih Tata Letak Grid**: Mengganti tampilan dalam satu klik antara mode **1 Fokus**, **4 Grid (2x2)**, atau **9 Matriks (3x3)**.
-- **Penyaring Kategori Kamera**: Menyaring tampilan dengan cepat berdasarkan area (*Semua*, *Workshop Bay*, *Gerbang Gudang*).
-- **Tautan Alur Kerja Langsung**: Setiap kartu kamera dilengkapi status koneksi alur kerja dan tombol cepat untuk membuka kanvas terkait di Studio.
+### 🎨 3. No-Code Web Dashboard Builder (Elementor & Google Looker Style)
+- **Konsolidasi Dasbor Terpadu (Menggantikan Tab Terpisah Live Camera, Session & Warehouse)**: Seluruh pemantauan CCTV multi-kamera, rekap durasi sesi kerja workshop, dan log pergerakan gudang kini terintegrasi secara modular dalam satu antarmuka dasbor visual tanpa-kode. Navigasi utama atas disederhanakan menjadi **Studio**, **Dashboard (Builder)**, dan **Fleet Hub**.
+- **Widget Live CCTV Player Modular**: Menampilkan siaran langsung kamera industri dengan pengalih saluran instan (dropdown selector), pita thumbnail kamera (*scrollable filmstrip*), dan mode patroli otomatis (*auto-patrol*).
+- **Kartu Metrik KPI & Durasi Sesi**: Ringkasan total sesi kerja, akumulasi jam kerja aktif, efisiensi rata-rata, dan status operasional real-time langsung terhubung ke telemetri nyata (*DataBus*).
+- **Tabel Log Kejadian & Integrasi Logistik**: Rekap kejadian keluar-masuk gerbang, verifikasi status pengiriman ERP (*Delivered*, *Queued*), filter interaktif, dan ekspor data CSV/Excel 1-klik.
+- **Desain Bebas Drag-and-Drop**: Pengaturan tata letak visual dengan snap-to-grid, panel inspektur 3 tab (Konten, Gaya, Lanjutan), efek Glassmorphism, kustomisasi tipografi, dan tema modern.
 
-### ⏱️ 4. Workshop Work Duration Sessions Dashboard
-- **Rekap Durasi Kerja Otomatis**: Menghitung waktu mulai, waktu selesai, dan durasi efektif kerja di setiap bay bengkel tanpa bergantung pada identitas lacak transien.
-- **Kartu Metrik KPI**: Ringkasan total sesi, akumulasi jam kerja, rata-rata durasi per sesi, dan jumlah objek yang selesai diproses.
-- **Penyaring Shift Kerja**: Menyaring data berdasarkan Shift Pagi, Shift Siang, Shift Malam, atau seluruh shift disertai pencarian langsung nama bay.
-- **Ekspor CSV 1-Klik**: Mengunduh seluruh riwayat sesi kerja ke berkas lembar sebar CSV.
-
-### 🚪 5. Warehouse Gate Exit Events & ERP Sync Logs
-- **Deteksi Transisi Keluar Sah (Inside-to-Outside)**: Memverifikasi perpindahan fisik objek dari dalam gudang melintasi gerbang ke luar, sehingga meniadakan alarm palsu akibat objek yang sekadar hilang dari sorotan kamera.
-- **Status Integrasi ERP**: Pelacakan status sinkronisasi kejadian (*Delivered*, *Queued*, *Failed*) lengkap dengan nomor referensi DO atau surat jalan.
-- **Penyaring Gerbang dan Status**: Menyaring log berdasarkan gerbang spesifik (`WH-01`, `WH-02`, `WH-03`) dan mengekspor catatan kejadian ke format CSV.
-
-### 🎨 6. Roboflow-Style Overlay / Annotate Inspector
+### 🎨 4. Roboflow-Style Overlay / Annotate Inspector
 - **Manajemen Layer Anotasi Terpadu**: Kendalikan seluruh tampilan visual di satu node inspector modern.
 - **Pilihan Layer Lengkap**: Bounding box (warna & ketebalan kustom), Label dinamis (`{class} {confidence}`), Confidence score, Status badge, Custom text, Heatmap, dan Panah arah gerak (*Direction Arrow*).
 - **Layer Reorder & Toggle**: Urutkan tumpukan layer ke atas/bawah, sembunyikan/tampilkan per layer, serta hapus layer dengan cepat.
 
-### 🧠 7. Central Model Registry & Hub
+### 🧠 5. Central Model Registry & Hub
 - **Repositori Model Terpusat**: Manajemen seluruh bobot model AI yang terpasang di sistem (`.pt`, `.onnx`, `.engine`, `.tflite`).
 - **Tabel Metadata Lengkap**: Menampilkan informasi Engine inferensi, Format, Task, Versi, Ukuran file, dan Status ketersediaan.
 - **Upload Modal Drag-and-Drop**: Unggah custom model buatan sendiri langsung dari peramban web.
 
-### 🤖 8. AI Agent & Vision-Language Model (VLM)
+### 🤖 6. AI Agent & Vision-Language Model (VLM)
 - **Penalaran Multimodal Tingkat Lanjut**: Kirim frame tangkapan kamera ke model VLM (OpenAI GPT-4o/5, 9router, atau OpenRouter) untuk analisis visual mendalam, deteksi cacat kompleks, dan inspeksi SOP industri.
 - **Keamanan Kredensial**: API Key disanitasi secara otomatis dan dapat dimuat aman dari environment server (`.env`).
 
-### 🎯 9. Multi-Model Consensus & Tracking Stability Enhancements
+### 🎯 7. Multi-Model Consensus & Tracking Stability Enhancements
 - **Detections Consensus**: Menggabungkan prediksi dari 2 atau lebih model AI (misal: YOLOv8 + RF-DETR) dengan teknik *IoU Clustering & Agreement Ratio Voting* untuk memangkas *false positive* pada lingkungan industri ekstrem.
 - **Track Class Lock**: Mengunci kelas dominan dari suatu track ID setelah diverifikasi beberapa frame, mengeliminasi flicker kelas (*label jittering*).
 - **EMA Bounding Box Stabilizer**: Penghalusan posisi koordinat bounding box menggunakan *Exponential Moving Average* untuk visualisasi yang kokoh tanpa jitter.
 - **Per-Class Confidence Thresholding**: Ambang batas akurasi per kelas (misal: `person:0.80, helmet:0.40, tire:0.50`) untuk deteksi presisi tinggi.
 
-### 📏 10. Spatial Measurement & Physical Dimension Calibration
+### 📏 8. Spatial Measurement & Physical Dimension Calibration
 - **Real-World Distance Measurement**: Mengukur jarak spasial Euclidean antar pasangan objek (misal: jarak antar pekerja atau kendaraan) dengan kalibrasi *pixel-to-metric* (cm, meter, inch) serta alarm kedekatan (*proximity alert*).
 - **Size Measurement**: Menghitung lebar, tinggi, dan luas fisik objek secara presisi dengan toleransi batas minimum/maksimum untuk *quality control* dimensi produk.
 
-### 🔬 11. Classical Computer Vision & Camera Health Monitoring
+### 🔬 9. Classical Computer Vision & Camera Health Monitoring
 - **Camera Focus Score**: Penilaian ketajaman fokus lensa kamera industri secara real-time berbasis variansi operator Laplacian (mendukung pemantauan ROI spesifik) dengan alarm otomatis saat lensa buram atau kotor.
 - **Auto Rotate Edges**: Deteksi otomatis kemiringan sudut objek dominan menggunakan kontur OpenCV (`minAreaRect`) dan perataan sudut frame/crop otomatis (*deskewing*).
 
-### ⚡ 12. Video Kinematics & Velocity Calculation
+### ⚡ 10. Video Kinematics & Velocity Calculation
 - **Real-Time Velocity Calculator**: Menghitung kecepatan fisik objek bergerak ($v = \frac{\Delta s}{\Delta t}$) dalam satuan **km/h**, **m/s**, atau **mph** dari lintasan centroid historis lengkap dengan batas alarm kecepatan berlebih (*overspeed alarm*).
 - **Path Deviation Monitoring**: Memantau lintasan pergerakan objek terhadap koridor virtual (garis polyline panduan) dengan ambang toleransi deviasi maksimum (*cross-track error*).
 
-### 🧠 13. Advanced Spatial Logic & Compute Optimization
+### 🧠 11. Advanced Spatial Logic & Compute Optimization
 - **Overlap Analysis**: Pengecekan spasial parent-child (apakah objek anak berada di dalam objek induk, misal: Helm pada bagian atas tubuh pekerja) dengan syarat minimal rasio overlap dan alarm APD/K3.
 - **Delta Frame Filter (Compute Throttler)**: Penghematan beban CPU/GPU hingga **70%+** pada pemantauan area statis dengan memblokir pemrosesan saat tidak ada pergerakan signifikan dan fallback heartbeat otomatis.
 - **Switch-Case Dynamic Router**: Percabangan alur kerja multi-jalur berdasarkan kelas objek atau atribut untuk arsitektur pipeline kompleks.
 - **Dynamic Zone Tracking**: Poligon zona ROI otomatis bergeser mengikuti pergerakan unit anchor (misal: bak truk atau forklift yang berpindah posisi).
 
-### 🔍 14. Dual-Model Evaluation & State Difference Comparator
+### 🔍 12. Dual-Model Evaluation & State Difference Comparator
 - **Model Comparison Diff**: Membandingkan hasil inferensi 2 model AI sekaligus dalam mode **Side-by-Side** (2 layar berdampingan) atau **Diff Overlay** (1 layar dengan pewarnaan diferensial: hijau = konsensus/sepakat, cyan = Model A, magenta = Model B) lengkap dengan skor Agreement Ratio.
 - **Detections Difference (State Comparator)**: Membandingkan kondisi objek saat ini terhadap snapshot baseline acuan untuk mendeteksi barang yang hilang (*removed/theft*), barang baru ditambahkan (*added/unauthorized*), atau aset tetap (*unchanged*) lengkap dengan alarm selisih otomatis.
 
-### 🎨 15. Motion Trail & Sci-Fi Halo Glow Corner Brackets
+### 🎨 13. Motion Trail & Sci-Fi Halo Glow Corner Brackets
 - **Motion Trace (Track Tail)**: Menggambar ekor lintasan pergerakan objek selama $N$ frame terakhir dengan efek *fade alpha* gradasi elegan.
 - **Corner Brackets & Halo Glow**: Gaya visual kotak pembatas modern ala Roboflow dengan siku sudut presisi dan bayangan berpendar semi-transparan (*halo glow*).
 
-### 📊 16. Operational Rollup & Tabular Data Formatter
+### 📊 14. Operational Rollup & Tabular Data Formatter
 - **Data Aggregator (Rolling Window Rollup)**: Akumulasi statistik metrik operasional (*count*, *sum duration*, *avg duration*, *max occupancy*) dalam rentang jendela waktu dinamis (misal: per 15 menit, per jam, atau per shift kerja).
 - **CSV Formatter**: Ekspor data tabular kejadian dan pelacakan ke format CSV terstruktur dengan dukungan alias kolom, pilihan delimiter kustom, serta penyimpanan otomatis ke disk lokal.
 
-### ☁️ 17. Cloud Object Sinks, Multi-Channel Alerts & Hardware PTZ
+### ☁️ 15. Cloud Object Sinks, Multi-Channel Alerts & Hardware PTZ
 - **S3 Cloud Storage Sink**: Pengunggahan foto bukti kejadian atau crop deteksi langsung ke bucket AWS S3, MinIO, atau Ceph Object Storage dengan kompresi JPEG terkalibrasi dan URL publik aman.
 - **Notification Dispatcher**: Penyebaran pesan peringatan dan foto frame kejadian multi-kanal ke Telegram Bot, Slack Incoming Webhooks, WhatsApp Business API, atau REST Webhook dengan jeda *cooldown throttling* anti-spam.
 - **PTZ Camera Controller (ONVIF Continuous Move)**: Pengendali motor kamera PTZ fisik jaringan LAN (*Auto-Following*) untuk mengarahkan kamera mengikuti pergerakan target (person, forklift, unit) dengan filter *deadzone* anti-getar.
 
-### 🔤 18. Ultra-Lightweight ONNX Optical Character Recognition (OCR)
+### 🔤 16. Ultra-Lightweight ONNX Optical Character Recognition (OCR)
 - **Model Ultra-Ringan & Cepat (~10 MB Total)**: Mengintegrasikan model ONNX mobile DBNet text detection (`ppocrv3_det.onnx` ~2.4 MB) dan MobileNetV3 CTC text recognition (`ppocrv3_en_rec.onnx` ~7.8 MB) yang berjalan ultra-cepat pada CPU (~5-15ms) tanpa dependensi runtime besar.
 - **Dual-Mode Text Extraction**: Mendukung pemindaian teks di seluruh frame (*Full-frame*) atau hanya membaca teks di dalam bounding box objek downstream (misal: kotak nomor plat kendaraan `license_plate`, barcode/resi, atau kemasan).
 - **Character Whitelist Filtering**: Penguncian karakter spesifik (misal: hanya angka `0-9` atau huruf kapital & angka) untuk pembacaan plat nomor otomatis (ANPR), kode serial suku cadang, dan nomor peti kemas tanpa noise.
 
-### ⚡ 19. n8n-Style Node Activation (1-Click Toggle Switch) & Live Execution Logs
+### ⚡ 17. n8n-Style Node Activation (1-Click Toggle Switch) & Live Execution Logs
 - **1-Click Toggle Switch di Kanvas**: Aktifkan atau nonaktifkan (bypass) node secara instan melalui sakelar toggle visual di header setiap kartu node kanvas maupun di panel Inspector, tanpa perlu menghapus node atau mencabut kabel edge.
 - **Bypass / Pass-Through Mode (Wire)**: Node yang dinonaktifkan (`enabled: false`) otomatis berubah gaya visual (translucent semi-transparan dengan garis putus-putus dan badge `[BYPASSED]`), namun **tetap meneruskan data aliran frame/deteksi** ke node downstream sehingga pipeline alur kerja tidak terputus.
 - **Tab Inspector "Data & Logs"**: Tab inspeksi khusus ala n8n yang menampilkan:
@@ -135,12 +125,12 @@
   - **Tombol Salin & Refresh 1-Klik**: Tombol `📋 Copy Full JSON Payload` untuk menyalin struktur data lengkap ke clipboard pengembang dan tombol `🔄 Refresh`.
 - **Live Node Status Bar Footer**: Setiap kartu node di kanvas dilengkapi footer status bar real-time yang menampilkan indikator status hidup (`● ACTIVE 12.4ms`, `● BYPASSED`, atau `● ERROR`) tanpa membebani performa browser.
 
-### 🎥 20. Live YouTube CCTV & Video Stream Input (`yt-dlp`)
+### 🎥 18. Live YouTube CCTV & Video Stream Input (`yt-dlp`)
 - **Streaming YouTube Langsung di Node Input**: Masukkan URL YouTube (video rekaman CCTV, live camera, maupun YouTube Shorts) langsung ke node `Input` via mesin integrasi `yt-dlp`.
 - **Pemilihan Resolusi Stream Dinamis**: Pilihan resolusi yang fleksibel (`Auto`, `360p`, `480p`, `720p`, `1080p`) untuk menyesuaikan dengan bandwidth jaringan dan kemampuan CPU/GPU.
 - **Auto-Reconnect & Auto-Loop**: Otomatis menyambung kembali jika koneksi internet terputus dan mengulang video dari awal jika rekaman telah selesai.
 
-### 🏭 21. 5 Template Produksi Nyata Industri (Production-Ready Templates)
+### 🏭 19. 5 Template Produksi Nyata Industri (Production-Ready Templates)
 - **1-Click Siap Pakai di Projects Hub**: Tersedia 5 template alur kerja lengkap dengan video stream nyata dan penjelasan praktis *"🎯 Fungsi & Kegunaan"*:
   1. **Smart Traffic Flow & Vehicle Counter**: Deteksi mobil, motor, bus, truk; pemisahan lajur arah (Utara/Selatan), HUD volume, dan logging database.
   2. **Restaurant Table Occupancy & Dining Dwell Tracker**: Pemantauan meja F&B, timer keterisian meja terpusat, dan alert overstay.
@@ -315,43 +305,31 @@ Panel inspector modern bergaya Roboflow untuk menambahkan layer anotasi (kotak p
 
 ---
 
-### 6. Multi-Camera Operations Matrix (8-Bay CCTV Grid)
-Matriks pemantauan terpusat untuk 8 kamera CCTV industri (5 Bay Workshop + 3 Gerbang Warehouse) dengan opsi tampilan 1 Fokus, 4 Grid, dan 9 Matrix lengkap dengan FPS live meter.
-![Live CCTV Matrix](docs/screenshots/06_live_cctv_matrix.png)
+### 6. No-Code Web Dashboard Builder (Elementor & Looker Style)
+Pengganti terpadu untuk monitoring multi-kamera CCTV, rekap sesi durasi kerja, dan log pergerakan gudang dalam satu kanvas no-code interaktif dengan widget CCTV Player, KPI stat cards, charts, dan event tables yang dapat dikonfigurasi bebas.
+![Dashboard Builder Light Mode](docs/screenshots/001-01_dashboard_redesigned_light_mode.png)
 
 ---
 
 ### 7. Modern Camera Settings & Workflow Auto-Binding
-Dialog konfigurasi kamera CCTV kontras tinggi dengan fitur *Auto-generate Workflow* dari template industri dan tombol shortcut langsung `[📐 Gambar Poligon Area]`.
+Dialog konfigurasi kamera CCTV kontras tinggi dengan fitur *Auto-generate Workflow* dari template industri dan tombol shortcut langsung [📐 Gambar Poligon Area].
 ![Camera Settings Modal](docs/screenshots/07_camera_settings_modal.png)
 
 ---
 
-### 8. Workshop Work Duration Sessions Dashboard
-Dashboard analitik sesi kerja bengkel/workshop: kartu ringkasan KPI, filter shift (Pagi, Siang, Malam), pencarian live bay, dan tombol ekspor CSV untuk integrasi laporan.
-![Workshop Sessions Dashboard](docs/screenshots/08_workshop_sessions.png)
-
----
-
-### 9. Warehouse Gate Exit Events & ERP Logs
-Log kejadian keluar gerbang gudang dengan verifikasi transisi fisik dari dalam ke luar gerbang, status pengiriman ERP (*Delivered* / *Queued*), filter pintu gerbang, dan ekspor CSV.
-![Warehouse Events Log](docs/screenshots/09_warehouse_events.png)
-
----
-
-### 10. Central Model Registry Manager
+### 8. Central Model Registry Manager
 Panel manajemen model AI terpusat dengan tabel metadata terstruktur (YOLOv8, YOLOv11, ONNX, TensorRT, RF-DETR), status aktif, serta modal upload model baru.
 ![Models Registry Manager](docs/screenshots/10_models_registry.png)
 
 ---
 
-### 11. Model Quantizer & Optimizer Tool (TFLite & ONNX)
+### 9. Model Quantizer & Optimizer Tool (TFLite & ONNX)
 Alat visual terintegrasi di Model Registry untuk mengompresi model AI ke presisi INT8 / FP16 dengan kalibrasi sintetis otomatis, menampilkan rasio kompresi, unduh file, dan tombol 1-klik terapkan ke node aktif.
 ![Model Quantizer & Optimizer](docs/screenshots/11_model_quantizer.png)
 
 ---
 
-### 12. Database Wajah Terdaftar (Face Gallery) & UniFace Integration
+### 10. Database Wajah Terdaftar (Face Gallery) & UniFace Integration
 Halaman manajemen identitas profil wajah terpadu di Left Rail navigasi untuk melihat daftar wajah terdaftar, status ArcFace embedding, live search pencarian nama/role, dan penghapusan profil.
 ![Face Registry Gallery](docs/screenshots/16_face_registry_gallery.png)
 
@@ -546,7 +524,7 @@ afivisionbuilder/
 │   ├── advanced_logic_and_kinematics.e2e.ts # Kinematics, overlap, delta filter E2E
 │   ├── restaurant_cafe_running.e2e.ts      # Video pipeline & live table dwell time tracking
 │   ├── template_restaurant_table.e2e.ts    # Template instansiasi meja restoran
-│   ├── dashboard_operations.e2e.ts         # 8-camera matrix, workshop sessions, & warehouse events
+│   ├── dashboard_operations.e2e.ts         # Topbar navigation (Studio, Dashboard Builder, Fleet Hub)
 │   ├── camera_settings_workflow.e2e.ts     # Camera modal, auto-binding, & polygon drawing
 │   ├── multi_zone_occupancy.e2e.ts         # Visual polygon editor & inspector verification
 │   ├── node_overlay_annotate.e2e.ts        # Overlay layers inspector verification
