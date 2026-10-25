@@ -11593,6 +11593,10 @@
     const updateUrlPreview = () => {
       const b = brandSel.value;
       const h = (hostInput.value || '').trim() || '192.168.1.100';
+      if (h.startsWith('http://') || h.startsWith('https://') || h.startsWith('rtsp://') || h.startsWith('rtsps://')) {
+        urlPreview.textContent = h;
+        return;
+      }
       const p = portInput.value || 554;
       const u = (userInput.value || 'admin').trim();
       const pw = (passInput.value || '').trim();
@@ -11651,15 +11655,17 @@
       `;
 
       try {
-        const payload = {
-          brand: brandSel.value,
-          host: h,
-          port: parseInt(portInput.value || 554, 10),
-          username: (userInput.value || 'admin').trim(),
-          password: (passInput.value || '').trim(),
-          quality: qualitySel.value,
-          timeout: 5.0
-        };
+        const payload = (h.startsWith('http://') || h.startsWith('https://') || h.startsWith('rtsp://') || h.startsWith('rtsps://'))
+          ? { url: h, timeout: 5.0 }
+          : {
+              brand: brandSel.value,
+              host: h,
+              port: parseInt(portInput.value || 554, 10),
+              username: (userInput.value || 'admin').trim(),
+              password: (passInput.value || '').trim(),
+              quality: qualitySel.value,
+              timeout: 5.0
+            };
 
         const res = await api('/api/gateway/test-camera', {
           method: 'POST',
@@ -11668,6 +11674,9 @@
         });
 
         if (res && res.success) {
+          if (res.resolved_url) {
+            urlPreview.textContent = res.resolved_url;
+          }
           testResultBox.innerHTML = `
             <div class="test-result-banner success">
               <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -13816,7 +13825,19 @@
     // Preview actions
     $('#snapshotBtn')?.addEventListener('click', captureSnapshot);
     $('#fullscreenBtn')?.addEventListener('click', toggleFullscreenPreview);
-    $('#closePreviewModal')?.addEventListener('click', () => $('#previewModal')?.close());
+    $('#closePreviewModal')?.addEventListener('click', () => {
+      const modal = $('#previewModal');
+      if (modal) {
+        modal.classList.remove('is-fullscreen');
+        modal.close();
+      }
+    });
+    $('#toggleFullscreenPreviewBtn')?.addEventListener('click', () => {
+      const modal = $('#previewModal');
+      if (modal) {
+        modal.classList.toggle('is-fullscreen');
+      }
+    });
     initInteractiveZoomUI();
 
     // Logs actions

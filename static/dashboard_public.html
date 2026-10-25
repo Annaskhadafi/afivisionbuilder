@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Afi Vision — Public Live Dashboard</title>
+  <link rel="icon" href="/static/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=Poppins:wght@400;600;700&family=Roboto:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=4.5">
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #090d16;
+      font-family: 'Inter', -apple-system, sans-serif;
+    }
+    .public-viewport {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: #090d16;
+      overflow: hidden;
+    }
+    .public-canvas-wrapper {
+      position: relative;
+      transform-origin: center center;
+      transition: transform 0.15s ease-out;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+    }
+    .public-canvas {
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+    }
+    /* Floating topbar on hover */
+    .public-floating-bar {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-60px);
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 30px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 99999;
+      color: #ffffff;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .public-viewport:hover .public-floating-bar,
+    .public-floating-bar:hover,
+    .public-floating-bar.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .public-dash-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #38bdf8;
+    }
+    .public-dash-badge .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+      display: inline-block;
+    }
+    .public-action-btn {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.12s ease;
+      text-decoration: none;
+    }
+    .public-action-btn:hover {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: #ffffff;
+    }
+    .public-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(50px);
+      background: #0284c7;
+      color: #ffffff;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      z-index: 100000;
+      opacity: 0;
+      transition: all 0.2s ease;
+      pointer-events: none;
+    }
+    .public-toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="public-viewport" id="publicViewport">
+    <!-- Floating Bar on Hover -->
+    <div class="public-floating-bar" id="publicFloatingBar">
+      <div class="public-dash-badge">
+        <span class="status-dot"></span>
+        <span id="publicDashTitle">Afi Vision Live Dashboard</span>
+      </div>
+      <button class="public-action-btn" id="btnCopyPublicLink" type="button" title="Salin tautan dashboard publik ke clipboard">
+        📋 Salin Tautan
+      </button>
+      <button class="public-action-btn" id="btnToggleFullscreen" type="button" title="Mode Layar Penuh">
+        ⛶ Layar Penuh
+      </button>
+      <a class="public-action-btn" id="linkBackToEditor" href="/" title="Buka dan edit dashboard ini di Studio Editor">
+        ⚙️ Buka di Editor
+      </a>
+    </div>
+
+    <!-- Scaled Canvas Container -->
+    <div class="public-canvas-wrapper" id="publicCanvasWrapper">
+      <div class="builder-canvas public-canvas" id="publicCanvas"></div>
+    </div>
+  </div>
+
+  <div class="public-toast" id="publicToast">Tautan publik berhasil disalin ke clipboard!</div>
+
+  <script>
+    (function() {
+      // 1. Dapatkan Dashboard ID dari URL
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      let dashId = 'default';
+      const pubIdx = pathParts.indexOf('public');
+      if (pubIdx !== -1 && pathParts[pubIdx + 1]) {
+        dashId = pathParts[pubIdx + 1];
+      } else if (pathParts.length > 0) {
+        dashId = pathParts[pathParts.length - 1];
+      }
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('id')) dashId = urlParams.get('id');
+
+      // Tautkan tombol kembali ke editor
+      const linkEditor = document.getElementById('linkBackToEditor');
+      if (linkEditor) linkEditor.href = `/?tab=dashboard&dash=${dashId}`;
+
+      let currentLayout = null;
+      const canvas = document.getElementById('publicCanvas');
+      const wrapper = document.getElementById('publicCanvasWrapper');
+      const viewport = document.getElementById('publicViewport');
+
+      // 2. Fetch layout
+      async function loadLayout() {
+        try {
+          const res = await fetch(`/api/dashboard/builder/layout?project_id=${encodeURIComponent(dashId)}`);
+          if (!res.ok) throw new Error('Gagal memuat layout');
+          currentLayout = await res.json();
+          renderDashboard();
+          startTelemetryPolling();
+        } catch (err) {
+          console.error(err);
+          canvas.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444;"><h3>Gagal memuat dashboard '${dashId}'</h3><p>${err.message}</p></div>`;
+        }
+      }
+
+      function renderDashboard() {
+        if (!currentLayout) return;
+        const c = currentLayout.canvas || {};
+        const cw = c.width || 1440;
+        const ch = c.height || 960;
+        canvas.style.width = `${cw}px`;
+        canvas.style.height = `${ch}px`;
+
+        // Update Title
+        const titleEl = document.getElementById('publicDashTitle');
+        if (titleEl && (currentLayout.name || currentLayout.title)) {
+          titleEl.textContent = currentLayout.name || currentLayout.title;
+          document.title = `${currentLayout.name || currentLayout.title} — Afi Vision Live`;
+        }
+
+        // Apply Background Color
+        if (c.bgColor) {
+          canvas.style.backgroundColor = c.bgColor;
+        } else {
+          canvas.style.backgroundColor = '#0f172a';
+        }
+
+        // Apply Background Image & Opacity
+        if (c.bgImage) {
+          const mode = c.bgImageMode || 'cover';
+          canvas.style.backgroundImage = `url("${c.bgImage}")`;
+          if (mode === 'cover') {
+            canvas.style.backgroundSize = 'cover';
+            canvas.style.backgroundRepeat = 'no-repeat';
+            canvas.style.backgroundPosition = 'center';
+          } else if (mode === 'contain') {
+            canvas.style.backgroundSize = 'contain';
+            canvas.style.backgroundRepeat = 'no-repeat';
+            canvas.style.backgroundPosition = 'center';
+          } else if (mode === 'repeat') {
+            canvas.style.backgroundSize = 'auto';
+            canvas.style.backgroundRepeat = 'repeat';
+            canvas.style.backgroundPosition = 'top left';
+          } else {
+            canvas.style.backgroundSize = 'auto';
+            canvas.style.backgroundRepeat = 'no-repeat';
+            canvas.style.backgroundPosition = 'center';
+          }
+        } else {
+          canvas.style.backgroundImage = '';
+        }
+
+        // Apply Font Family
+        const cFont = c.fontFamily || currentLayout.fontFamily || "'Inter', -apple-system, sans-serif";
+        canvas.style.fontFamily = cFont;
+
+        // Render widgets HTML
+        canvas.innerHTML = '';
+        (currentLayout.widgets || []).forEach(w => {
+          const el = document.createElement('div');
+          el.className = `builder-widget-item widget-type-${w.type}`;
+          el.id = `widget_${w.id}`;
+          el.style.left = `${w.x}px`;
+          el.style.top = `${w.y}px`;
+          el.style.width = `${w.w}px`;
+          el.style.height = `${w.h}px`;
+          if (w.config?.zIndex) el.style.zIndex = w.config.zIndex;
+
+          const card = document.createElement('div');
+          card.className = 'widget-inner-card';
+          if (w.config?.glassmorphic) card.classList.add('glassmorphic');
+          if (w.config?.bgColor) card.style.backgroundColor = w.config.bgColor;
+          if (w.config?.textColor) card.style.color = w.config.textColor;
+          if (w.config?.borderColor) card.style.borderColor = w.config.borderColor;
+          if (w.config?.borderRadius !== undefined) card.style.borderRadius = `${w.config.borderRadius}px`;
+          if (w.config?.boxShadow) card.classList.add(w.config.boxShadow);
+
+          card.innerHTML = getWidgetContentHTML(w);
+          el.appendChild(card);
+          canvas.appendChild(el);
+        });
+
+        autoFitCanvas();
+      }
+
+      function getWidgetContentHTML(w) {
+        const cfg = w.config || {};
+        switch (w.type) {
+          case 'cctv_player':
+            return `
+              <div class="widget-cctv-card">
+                <div class="cctv-card-header">
+                  <div class="cctv-card-title">
+                    <span class="live-dot"></span>
+                    <strong style="font-size:12px;">${cfg.cameraLabel || 'Live CCTV Feed'}</strong>
+                  </div>
+                  <span class="cctv-card-fps" style="font-size:11px;color:#22c55e;">● 25 FPS</span>
+                </div>
+                <div class="cctv-video-container" style="position:relative;background:#000;flex:1;overflow:hidden;border-radius:4px;">
+                  <img src="/api/preview/preview/stream?res=720p" style="width:100%;height:100%;object-fit:cover;" alt="CCTV Stream" onerror="this.onerror=null;this.src='/static/logo.png';" />
+                  <div style="position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,0.65);padding:2px 8px;border-radius:4px;font-size:10px;color:#cbd5e1;">
+                    ${cfg.workflowName || 'Live Video Stream'}
+                  </div>
+                </div>
+              </div>
+            `;
+          case 'scorecard':
+            return `
+              <div class="widget-scorecard-card" style="padding:14px;height:100%;display:flex;flex-direction:column;justify-content:space-between;">
+                <span class="scorecard-label" style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">${cfg.title || 'Metrik'}</span>
+                <div style="display:flex;align-items:baseline;gap:6px;margin:8px 0;">
+                  <span class="scorecard-val" id="scorecard_val_${w.id}" style="font-size:32px;font-weight:800;color:#f8fafc;">0</span>
+                  <span class="scorecard-unit" style="font-size:13px;color:#64748b;">${cfg.unit || ''}</span>
+                </div>
+                <div class="scorecard-bottom" style="font-size:10.5px;color:#64748b;">Ambang Batas: W:${cfg.warningThreshold || 10} / D:${cfg.dangerThreshold || 20}</div>
+              </div>
+            `;
+          case 'excel_export_btn':
+            return `
+              <button class="widget-excel-btn" type="button" onclick="downloadExcelReport('${cfg.cameraLabel || ''}', '${cfg.filename || ''}')" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:6px;cursor:pointer;background:#15803d;color:#fff;font-weight:600;font-size:13px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+                <span>${cfg.label || 'Unduh Rekap Excel (.xlsx)'}</span>
+              </button>
+            `;
+          case 'custom_text':
+            return `
+              <div class="widget-text-card" style="padding:8px 12px;">
+                <h2 style="margin:0;font-size:${cfg.fontSize || 22}px;color:${cfg.color || '#F8FAFC'};font-weight:700;">
+                  ${cfg.text || 'Judul Teks'}
+                </h2>
+                ${cfg.subtitle ? `<div style="font-size:12px;color:#94a3b8;margin-top:4px;">${cfg.subtitle}</div>` : ''}
+              </div>
+            `;
+          case 'dashboard_navbar':
+            return `
+              <div class="widget-dashboard-navbar" style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;height:100%;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:18px;">🏢</span>
+                  <strong style="font-size:14px;color:#f8fafc;">${cfg.brandText || 'Afi Vision Enterprise'}</strong>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <span style="background:#1e293b;padding:3px 8px;border-radius:4px;font-size:11px;color:#38bdf8;">${cfg.shiftText || 'Shift 1: Operasional'}</span>
+                  <span class="live-clock-badge" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#f8fafc;">12:00:00</span>
+                </div>
+              </div>
+            `;
+          default:
+            return `<div style="padding:10px;font-size:11px;color:#94a3b8;">Widget (${w.type})</div>`;
+        }
+      }
+
+      function autoFitCanvas() {
+        if (!currentLayout?.canvas) return;
+        const cw = currentLayout.canvas.width || 1440;
+        const ch = currentLayout.canvas.height || 960;
+        const vw = viewport.clientWidth;
+        const vh = viewport.clientHeight;
+        const scaleX = vw / cw;
+        const scaleY = vh / ch;
+        const scale = Math.min(scaleX, scaleY); // fit contain
+        wrapper.style.transform = `scale(${scale})`;
+      }
+
+      window.addEventListener('resize', autoFitCanvas);
+
+      // 3. Telemetry Updates
+      function startTelemetryPolling() {
+        setInterval(async () => {
+          try {
+            const res = await fetch('/api/dashboard/builder/snapshot');
+            if (res.ok) {
+              const data = await res.json();
+              updateTelemetryDOM(data);
+            }
+          } catch(e) {}
+        }, 2000);
+      }
+
+      function updateTelemetryDOM(snap) {
+        if (!currentLayout?.widgets) return;
+        const metrics = snap.metrics || {};
+        currentLayout.widgets.forEach(w => {
+          if (w.type === 'scorecard') {
+            const el = document.getElementById(`scorecard_val_${w.id}`);
+            if (el && w.config?.metricKey) {
+              const val = metrics[w.config.metricKey] ?? 0;
+              el.textContent = typeof val === 'number' ? val.toLocaleString() : val;
+            }
+          }
+        });
+      }
+
+      // 4. Excel Download
+      window.downloadExcelReport = function(cameraLabel, filename) {
+        let url = `/api/dashboard/builder/export-excel?t=${Date.now()}`;
+        if (cameraLabel) url += `&camera_label=${encodeURIComponent(cameraLabel)}`;
+        if (filename) url += `&filename=${encodeURIComponent(filename)}`;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename || 'laporan_dashboard'}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast('Laporan Excel sedang diunduh...');
+      };
+
+      // 5. Actions (Copy Link & Fullscreen)
+      document.getElementById('btnCopyPublicLink')?.addEventListener('click', () => {
+        navigator.clipboard.writeText(window.location.href);
+        showToast('Tautan publik berhasil disalin ke clipboard!');
+      });
+
+      document.getElementById('btnToggleFullscreen')?.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+
+      function showToast(msg) {
+        const t = document.getElementById('publicToast');
+        if (!t) return;
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+      }
+
+      // Initial Load
+      loadLayout();
+    })();
+  </script>
+</body>
+</html>

@@ -36,10 +36,14 @@ def build_camera_rtsp_url(
     quality: str = "main",  # "main" | "sub"
     custom_path: str = "",
 ) -> str:
-    """Build standardized RTSP URL for consumer IP cameras (Ezviz, Tapo, Dahua, Generic).
+    """Build standardized RTSP/HLS URL for consumer IP cameras (Ezviz, Tapo, Dahua, Generic).
 
-    Supports Local LAN IPs, Public IPs, and DDNS hostnames with custom ports.
+    Supports Local LAN IPs, Public IPs, DDNS hostnames with custom ports, and full HTTP/HTTPS/HLS stream URLs.
     """
+    raw_host = (host or "").strip()
+    if raw_host.startswith(("http://", "https://", "rtsp://", "rtsps://")):
+        return resolve_stream_url(raw_host)
+
     clean_host = sanitize_host(host)
     if not clean_host:
         raise ValueError("Host/IP kamera tidak boleh kosong.")
@@ -84,6 +88,49 @@ def build_camera_rtsp_url(
         return f"rtsp://{auth}{clean_host}:{port_num}/{path}"
 
 
+def resolve_stream_url(url: str) -> str:
+    """Resolve camera URLs to direct playable media streams.
+
+    If the user inputs an HTML web player page (e.g. Dishub ATCS, MediaMTX web player,
+    such as 'https://itscctv-dishub.bogorkab.go.id/stream/SENTUL2/'),
+    this automatically resolves it to the underlying HLS stream ('.../index.m3u8').
+    """
+    url = (url or "").strip()
+    if not url:
+        return ""
+    if url.startswith(("http://", "https://")):
+        if url.endswith((".m3u8", ".flv", ".mp4", ".ts", ".mjpeg", ".cgi")):
+            return url
+        # Check {url}/index.m3u8 directly first (MediaMTX standard used by Dishub/ATCS)
+        candidate = f"{url.rstrip('/')}/index.m3u8"
+        try:
+            import urllib.request
+            req = urllib.request.Request(candidate, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
+                if resp.status == 200:
+                    ct = str(resp.headers.get("Content-Type", "")).lower()
+                    if "mpegurl" in ct or "apple" in ct or True:
+                        return candidate
+        except Exception:
+            pass
+
+        # Check HTML content for HLS source references
+        try:
+            import urllib.request
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
+                html = resp.read().decode("utf-8", errors="ignore")
+                m = re.search(r"loadSource\(['\"]([^'\"?]+)", html)
+                if m:
+                    return urllib.parse.urljoin(url, m.group(1))
+                m_src = re.search(r"<source[^>]+src=['\"]([^'\"]+\.m3u8)", html)
+                if m_src:
+                    return urllib.parse.urljoin(url, m_src.group(1))
+        except Exception:
+            pass
+    return url
+
+
 def test_camera_connection(rtsp_url: str, timeout_seconds: float = 4.0) -> Dict[str, Any]:
     """Probe an RTSP or HTTP camera stream to verify reachability and credentials."""
     import os
@@ -92,6 +139,9 @@ def test_camera_connection(rtsp_url: str, timeout_seconds: float = 4.0) -> Dict[
     if not rtsp_url:
         return {"success": False, "error": "URL kamera kosong."}
 
+    # Automatically resolve web CCTV player pages (e.g. Dishub / MediaMTX HLS)
+    resolved_url = resolve_stream_url(rtsp_url)
+
     # Force TCP transport for reliable testing through firewalls/WAN/IP Public
     prev_opts = os.environ.get("OPENCV_FFMPEG_CAPTURE_OPTIONS")
     os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
@@ -99,7 +149,7 @@ def test_camera_connection(rtsp_url: str, timeout_seconds: float = 4.0) -> Dict[
     cap = None
     start_time = time.monotonic()
     try:
-        cap = cv2.VideoCapture(rtsp_url)
+        cap = cv2.VideoCapture(resolved_url)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         # Attempt to read a frame
@@ -108,12 +158,16 @@ def test_camera_connection(rtsp_url: str, timeout_seconds: float = 4.0) -> Dict[
 
         if ret and frame is not None and frame.size > 0:
             h, w = frame.shape[:2]
+            msg = f"Koneksi berhasil! Resolusi {w}x{h} ({elapsed}s)"
+            if resolved_url != rtsp_url:
+                msg += f" [Auto-resolved: {resolved_url}]"
             return {
                 "success": True,
                 "width": int(w),
                 "height": int(h),
                 "latency_seconds": elapsed,
-                "message": f"Koneksi berhasil! Resolusi {w}x{h} ({elapsed}s)",
+                "message": msg,
+                "resolved_url": resolved_url,
             }
         else:
             return {

@@ -1764,7 +1764,7 @@ def run(request: Request, body: dict) -> dict:
     try:
         workflow = validate_workflow(body.get("workflow"))
         _preflight_models(workflow)
-        input_nodes = [node for node in workflow["nodes"] if node.get("type") == "input" and node.get("enabled", True)]
+        input_nodes = [node for node in workflow["nodes"] if node.get("type") in ("input", "ip_camera") and node.get("enabled", True)]
         if not input_nodes:
             raise HTTPException(400, "workflow needs an enabled input node")
         input_config = input_nodes[0].get("config", {})
@@ -2819,6 +2819,71 @@ async def save_dashboard_layout(request: Request, project_id: str = "default") -
         raise HTTPException(status_code=400, detail=f"Gagal menyimpan layout dashboard: {e}")
 
 
+@app.get("/api/dashboard/builder/list")
+def list_dashboards() -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    return {"ok": True, "dashboards": bus.list_dashboards()}
+
+
+@app.post("/api/dashboard/builder/new")
+async def create_new_dashboard(request: Request) -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    body = await request.json()
+    name = body.get("name", "Dashboard Baru")
+    template_id = body.get("template_id")
+    result = bus.create_dashboard(name=name, template_id=template_id)
+    return {"ok": True, **result}
+
+
+@app.post("/api/dashboard/builder/rename")
+async def rename_dashboard(request: Request) -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    body = await request.json()
+    dash_id = body.get("id") or body.get("dashboard_id")
+    new_name = body.get("name") or body.get("new_name")
+    if not dash_id or not new_name:
+        raise HTTPException(status_code=400, detail="id dan name wajib diisi.")
+    success = bus.rename_dashboard(dash_id, new_name)
+    return {"ok": success}
+
+
+@app.post("/api/dashboard/builder/duplicate")
+async def duplicate_dashboard(request: Request) -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    body = await request.json()
+    dash_id = body.get("id") or body.get("dashboard_id")
+    new_name = body.get("name") or body.get("new_name")
+    if not dash_id:
+        raise HTTPException(status_code=400, detail="id wajib diisi.")
+    result = bus.duplicate_dashboard(dash_id, new_name)
+    return {"ok": True, **result}
+
+
+@app.delete("/api/dashboard/builder/{dashboard_id}")
+def delete_dashboard(dashboard_id: str) -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    try:
+        success = bus.delete_dashboard(dashboard_id)
+        return {"ok": success}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+
+
+@app.get("/dashboard/public/{dashboard_id}")
+@app.get("/public/dashboard/{dashboard_id}")
+def public_dashboard_view(dashboard_id: str) -> Response:
+    """Serve standalone full-screen public dashboard view."""
+    path = ROOT / "static" / "dashboard_public.html"
+    if path.exists():
+        return FileResponse(path)
+    return Response(f"Public Dashboard '{dashboard_id}'", media_type="text/html")
+
+
 @app.get("/api/dashboard/builder/templates")
 def get_dashboard_templates() -> dict:
     from dashboard_bus import DashboardDataBus
@@ -2878,18 +2943,25 @@ def get_dashboard_events(
 def export_dashboard_excel(
     camera_label: Optional[str] = None,
     start_time: Optional[float] = None,
-    end_time: Optional[float] = None
+    end_time: Optional[float] = None,
+    filename: Optional[str] = None
 ) -> Response:
     from dashboard_bus import DashboardDataBus
     bus = DashboardDataBus.get_instance(_data_dir)
     content = bus.export_excel(camera_label=camera_label, start_time=start_time, end_time=end_time)
     ts = int(time.time())
-    cam_slug = "".join(c for c in (camera_label or "semua") if c.isalnum() or c in ("-", "_"))
-    filename = f"afivision_report_{cam_slug}_{ts}.xlsx"
+    if filename:
+        clean_name = "".join(c for c in filename if c.isalnum() or c in ("-", "_")).strip()
+        if not clean_name.endswith(".xlsx"):
+            clean_name += f"_{ts}.xlsx"
+        dl_filename = clean_name
+    else:
+        cam_slug = "".join(c for c in (camera_label or "semua") if c.isalnum() or c in ("-", "_"))
+        dl_filename = f"afivision_report_{cam_slug}_{ts}.xlsx"
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f"attachment; filename={dl_filename}"}
     )
 
 

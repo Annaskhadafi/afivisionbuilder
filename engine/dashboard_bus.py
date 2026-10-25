@@ -7,7 +7,9 @@ import os
 import sqlite3
 import threading
 import time
+import uuid
 from collections import deque
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -618,6 +620,136 @@ class DashboardDataBus:
 
         # Return default starter layout
         return self._generate_default_layout(clean_id)
+
+    def list_dashboards(self) -> list[dict[str, Any]]:
+        """Return a list of all saved dashboard layouts."""
+        results: list[dict[str, Any]] = []
+        if not self.dashboards_dir.exists():
+            self.dashboards_dir.mkdir(parents=True, exist_ok=True)
+
+        # Make sure default exists
+        default_file = self.dashboards_dir / "default.json"
+        if not default_file.exists():
+            self.save_layout("default", self._generate_default_layout("default"))
+
+        for json_file in sorted(self.dashboards_dir.glob("*.json")):
+            dash_id = json_file.stem
+            try:
+                with open(json_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                name = data.get("name") or data.get("title")
+                if not name:
+                    if dash_id == "default":
+                        name = "Dashboard Utama (Default)"
+                    elif dash_id == "demo_proj":
+                        name = "Demo Project Dashboard"
+                    else:
+                        name = dash_id.replace("_", " ").title()
+
+                mtime = os.path.getmtime(json_file)
+                mtime_iso = datetime.fromtimestamp(mtime).isoformat()
+                widgets = data.get("widgets", [])
+                cw = data.get("canvas", {}).get("width", 1440)
+                ch = data.get("canvas", {}).get("height", 960)
+
+                results.append({
+                    "id": dash_id,
+                    "name": name,
+                    "modified_at": mtime_iso,
+                    "widget_count": len(widgets),
+                    "resolution": f"{cw} × {ch}",
+                    "is_default": dash_id == "default",
+                })
+            except Exception as e:
+                logger.warning(f"Error reading dashboard file {json_file}: {e}")
+
+        # Put default first, then sort by modified_at desc
+        results.sort(key=lambda d: (not d["is_default"], d.get("modified_at", "")), reverse=True)
+        return results
+
+    def create_dashboard(self, name: str, template_id: Optional[str] = None) -> dict[str, Any]:
+        """Create a new dashboard layout and return its metadata and data."""
+        name = (name or "").strip() or "Dashboard Baru"
+        short_id = uuid.uuid4().hex[:8]
+        slug = "".join(c for c in name.lower().replace(" ", "_") if c.isalnum() or c == "_")
+        slug = slug[:16].strip("_") or "dash"
+        clean_id = f"{slug}_{short_id}"
+
+        if template_id:
+            layout = self._build_template_layout(template_id, clean_id)
+        else:
+            layout = {
+                "id": clean_id,
+                "name": name,
+                "canvas": {
+                    "width": 1440,
+                    "height": 960,
+                    "bgColor": "#ffffff",
+                    "fontFamily": "'Inter', -apple-system, sans-serif"
+                },
+                "widgets": []
+            }
+
+        layout["id"] = clean_id
+        layout["name"] = name
+        self.save_layout(clean_id, layout)
+        return {
+            "id": clean_id,
+            "name": name,
+            "layout": layout,
+            "message": f"Dashboard '{name}' berhasil dibuat."
+        }
+
+    def rename_dashboard(self, dashboard_id: str, new_name: str) -> bool:
+        """Rename an existing dashboard."""
+        clean_id = "".join(c for c in dashboard_id if c.isalnum() or c in ("-", "_")).strip()
+        new_name = (new_name or "").strip()
+        if not clean_id or not new_name:
+            return False
+
+        layout = self.load_layout(clean_id)
+        layout["name"] = new_name
+        self.save_layout(clean_id, layout)
+        return True
+
+    def duplicate_dashboard(self, dashboard_id: str, new_name: Optional[str] = None) -> dict[str, Any]:
+        """Duplicate an existing dashboard with a new ID."""
+        clean_id = "".join(c for c in dashboard_id if c.isalnum() or c in ("-", "_")).strip()
+        source_layout = self.load_layout(clean_id)
+
+        short_id = uuid.uuid4().hex[:8]
+        new_id = f"{clean_id}_copy_{short_id}"
+        orig_name = source_layout.get("name") or clean_id
+        target_name = (new_name or "").strip() or f"{orig_name} (Salinan)"
+
+        new_layout = json.loads(json.dumps(source_layout))
+        new_layout["id"] = new_id
+        new_layout["name"] = target_name
+
+        self.save_layout(new_id, new_layout)
+        return {
+            "id": new_id,
+            "name": target_name,
+            "layout": new_layout,
+            "message": f"Dashboard berhasil digandakan sebagai '{target_name}'."
+        }
+
+    def delete_dashboard(self, dashboard_id: str) -> bool:
+        """Delete a dashboard by ID, preventing deletion of default or the only remaining dashboard."""
+        clean_id = "".join(c for c in dashboard_id if c.isalnum() or c in ("-", "_")).strip()
+        if clean_id == "default":
+            return False
+
+        file_path = self.dashboards_dir / f"{clean_id}.json"
+        if not file_path.exists():
+            return False
+
+        all_files = list(self.dashboards_dir.glob("*.json"))
+        if len(all_files) <= 1:
+            raise ValueError("Tidak dapat menghapus dashboard terakhir.")
+
+        file_path.unlink()
+        return True
 
     def _generate_default_layout(self, project_id: str) -> dict[str, Any]:
         """Generate default modern dashboard based on flagship AI CCTV PRO."""

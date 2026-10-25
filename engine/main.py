@@ -21,6 +21,7 @@ import urllib.parse
 from urllib.parse import urlsplit
 
 from app_version import APP_NAME, VERSION as APP_VERSION
+from media_gateway import resolve_stream_url
 from node_catalog import (
     ALL_DRAWING_NODE_TYPES,
     TRACKER_CONFIG_VERSION,
@@ -3719,6 +3720,7 @@ class OpenCVInputSource:
             stream_url = str(self.config.get("streamUrl") or "").strip()
 
         if stream_url:
+            stream_url = resolve_stream_url(stream_url)
             username = str(self.config.get("username") or "").strip()
             password = str(self.config.get("password") or "").strip()
             if username and "@" not in stream_url:

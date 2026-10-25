@@ -77,7 +77,7 @@ class WorkflowFleetManager:
             workflow = store.load_project_workflow(project_id)
             input_nodes = [
                 n for n in workflow.get("nodes", [])
-                if n.get("type") == "input" and n.get("enabled", True)
+                if n.get("type") in ("input", "ip_camera") and n.get("enabled", True)
             ]
             if not input_nodes:
                 raise ValueError(

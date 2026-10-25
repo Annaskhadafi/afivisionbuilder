@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=Poppins:wght@400;600;700&family=Roboto:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=4.3">
+  <link rel="stylesheet" href="/static/style.css?v=4.5">
   <script defer src="/static/app.js?v=4.3"></script>
-  <script defer src="/static/dashboard_builder.js?v=2.7"></script>
+  <script defer src="/static/dashboard_builder.js?v=2.8"></script>
 </head>
 <body>
   <header class="topbar">
@@ -985,8 +985,23 @@
     <div class="builder-toolbar">
       <div class="builder-toolbar-left">
         <div class="builder-title-badge">
-          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
           <span id="builderProjectTitleText">Dashboard Builder</span>
+        </div>
+        <!-- Dashboard Multi-Switcher Dropdown -->
+        <div class="builder-dashboard-switcher-wrap" id="builderDashboardSwitcherWrap">
+          <button class="button ghost builder-dash-switcher-btn" id="btnBuilderDashboardSwitcher" type="button" title="Pilih atau kelola dashboard">
+            <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+            <span id="builderCurrentDashboardName">Dashboard Utama</span>
+            <span class="chevron-mini">▾</span>
+          </button>
+          <div class="builder-dash-dropdown-menu" id="builderDashDropdownMenu" hidden>
+            <input type="text" class="builder-dash-search-input" id="inpBuilderDashSearch" placeholder="Cari dashboard..." />
+            <div class="builder-dash-list" id="builderDashListContainer"></div>
+            <div class="builder-dash-dropdown-footer">
+              <button class="btn-create-new-dashboard" id="btnBuilderCreateNewDash" type="button">+ Buat Dashboard Baru</button>
+            </div>
+          </div>
         </div>
         <div class="builder-mode-switcher" role="group" aria-label="Mode Builder">
           <button class="builder-mode-btn active" id="btnBuilderModeEdit" type="button" title="Mode Desain / Tata Letak">
@@ -1055,6 +1070,10 @@
         <button class="button primary" id="btnBuilderSaveLayout" type="button" title="Simpan tata letak dashboard">
           <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           <span>Simpan</span>
+        </button>
+        <button class="button" id="btnBuilderOpenPublic" type="button" title="Buka Dashboard Layar Penuh Mandiri (Mode TV / Display)">
+          <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span>Open Publik</span>
         </button>
         <button class="button success" id="btnBuilderExportDocker" type="button" title="Ekspor Web & Workflow Mandiri ke Docker Compose">
           <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1546,9 +1565,14 @@
           <span class="eyebrow">EXPANDED VIEW</span>
           <h2 id="modalPreviewTitle">Live Preview</h2>
         </div>
-        <button class="icon-button" id="closePreviewModal">
-          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button class="icon-button" id="toggleFullscreenPreviewBtn" title="Perbesar / Layar Penuh">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          </button>
+          <button class="icon-button" id="closePreviewModal" title="Tutup">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
       </div>
       <div class="expanded-preview-wrap">
         <img id="modalPreviewImage" alt="Expanded preview">

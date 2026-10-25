@@ -6,7 +6,8 @@
   "canvas": {
     "width": 1440,
     "height": 960,
-    "background": "#0B0F19"
+    "background": "#0B0F19",
+    "bgColor": "#064e3b"
   },
   "widgets": [
     {
@@ -116,9 +117,11 @@
       "h": 50,
       "z": 2,
       "config": {
-        "label": "Unduh Audit K3 (.xlsx)",
+        "label": "Unduh Laporan Shift Pagi (.xlsx)",
         "includeEvents": true,
-        "includeMetrics": true
+        "includeMetrics": true,
+        "filename": "Laporan_Shift_Pagi.xlsx",
+        "icon": "table"
       }
     },
     {

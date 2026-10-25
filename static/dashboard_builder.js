@@ -8,6 +8,7 @@
   const DashboardBuilder = {
     state: {
       projectId: 'default',
+      dashboardsList: [],
       mode: 'edit', // 'edit' | 'preview'
       theme: 'dark', // 'dark' | 'light'
       zoom: 1.0,
@@ -52,6 +53,7 @@
       await this.loadRegisteredCameras();
       await this.loadProjects();
       await this.loadRealtimeContext();
+      await this.loadDashboardList();
       await this.loadLayout();
       this.startLivePolling();
     },
@@ -197,6 +199,251 @@
       }
     },
 
+    async loadDashboardList() {
+      try {
+        const res = await fetch('/api/dashboard/builder/list');
+        if (res.ok) {
+          const data = await res.json();
+          this.state.dashboardsList = data.dashboards || [];
+          const cur = this.state.dashboardsList.find(d => d.id === this.state.projectId) || this.state.dashboardsList[0];
+          const nameSpan = document.getElementById('builderCurrentDashboardName');
+          if (nameSpan && cur) {
+            nameSpan.textContent = cur.name || cur.id;
+          }
+          this.renderDashboardDropdownList();
+        }
+      } catch (e) {
+        console.error('[DashboardBuilder] Gagal memuat daftar dashboard:', e);
+      }
+    },
+
+    renderDashboardDropdownList(filterText = '') {
+      const container = document.getElementById('builderDashListContainer');
+      if (!container) return;
+      const q = (filterText || '').toLowerCase().trim();
+      const list = this.state.dashboardsList.filter(d => {
+        if (!q) return true;
+        return (d.name || '').toLowerCase().includes(q) || (d.id || '').toLowerCase().includes(q);
+      });
+
+      if (!list.length) {
+        container.innerHTML = `<div style="padding:12px;font-size:12px;color:#94a3b8;text-align:center;">Tidak ada dashboard ditemukan</div>`;
+        return;
+      }
+
+      container.innerHTML = list.map(d => {
+        const isActive = d.id === this.state.projectId;
+        const count = d.widget_count ?? (d.widgets ? d.widgets.length : 0);
+        const resText = d.resolution ? `${d.resolution.w}×${d.resolution.h}` : '1440×960';
+        return `
+          <div class="builder-dash-item ${isActive ? 'active' : ''}" data-dash-id="${d.id}">
+            <div class="builder-dash-item-main">
+              <div class="builder-dash-item-title">
+                <span>${d.name || d.id}</span>
+                ${d.is_default ? '<span class="builder-dash-badge default">Utama</span>' : ''}
+                ${isActive ? '<span class="builder-dash-badge active">Aktif</span>' : ''}
+              </div>
+              <div class="builder-dash-item-meta">${count} Komponen &bull; ${resText}</div>
+            </div>
+            <div class="builder-dash-item-actions">
+              <button class="dash-action-btn btn-rename-dash" type="button" title="Ubah Nama" data-id="${d.id}" data-name="${d.name || d.id}">✏️</button>
+              <button class="dash-action-btn btn-duplicate-dash" type="button" title="Duplikasi" data-id="${d.id}">📄</button>
+              ${!d.is_default && this.state.dashboardsList.length > 1 ? `<button class="dash-action-btn btn-delete-dash" type="button" title="Hapus" data-id="${d.id}" data-name="${d.name || d.id}">🗑️</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.builder-dash-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('.builder-dash-item-actions')) return;
+          const dashId = item.dataset.dashId;
+          if (dashId) this.switchDashboard(dashId);
+        });
+      });
+
+      container.querySelectorAll('.btn-rename-dash').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.renameDashboard(btn.dataset.id, btn.dataset.name);
+        });
+      });
+
+      container.querySelectorAll('.btn-duplicate-dash').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.duplicateDashboard(btn.dataset.id);
+        });
+      });
+
+      container.querySelectorAll('.btn-delete-dash').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.deleteDashboard(btn.dataset.id, btn.dataset.name);
+        });
+      });
+    },
+
+    async switchDashboard(dashId) {
+      if (!dashId) return;
+      this.state.projectId = dashId;
+      const menu = document.getElementById('builderDashDropdownMenu');
+      if (menu) menu.hidden = true;
+
+      const target = this.state.dashboardsList.find(d => d.id === dashId);
+      const nameSpan = document.getElementById('builderCurrentDashboardName');
+      if (nameSpan && target) {
+        nameSpan.textContent = target.name || target.id;
+      }
+
+      await this.loadLayout();
+      this.renderDashboardDropdownList();
+      if (window.toast) {
+        window.toast(`Beralih ke dashboard: ${target ? target.name : dashId}`, false);
+      }
+    },
+
+    async createNewDashboard(suggestedName) {
+      const name = suggestedName || prompt('Masukkan nama rancangan dashboard baru:', 'Dashboard Baru');
+      if (!name || !name.trim()) return;
+
+      try {
+        const res = await fetch('/api/dashboard/builder/new', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name.trim() })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          await this.loadDashboardList();
+          const targetId = data.id || data.dashboard?.id || data.layout?.id;
+          if (targetId) {
+            await this.switchDashboard(targetId);
+          }
+          if (window.toast) window.toast('Dashboard baru berhasil dibuat!', false);
+        } else {
+          alert('Gagal membuat dashboard baru');
+        }
+      } catch (err) {
+        console.error('[DashboardBuilder] Error create dashboard:', err);
+      }
+    },
+
+    async renameDashboard(dashboardId, currentName) {
+      const newName = prompt('Ubah nama dashboard:', currentName || '');
+      if (!newName || !newName.trim() || newName.trim() === currentName) return;
+
+      try {
+        const res = await fetch('/api/dashboard/builder/rename', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dashboard_id: dashboardId, new_name: newName.trim() })
+        });
+        if (res.ok) {
+          await this.loadDashboardList();
+          if (this.state.projectId === dashboardId) {
+            const nameSpan = document.getElementById('builderCurrentDashboardName');
+            if (nameSpan) nameSpan.textContent = newName.trim();
+          }
+          if (window.toast) window.toast('Nama dashboard berhasil diperbarui!', false);
+        }
+      } catch (err) {
+        console.error('[DashboardBuilder] Error rename dashboard:', err);
+      }
+    },
+
+    async duplicateDashboard(dashboardId) {
+      try {
+        const res = await fetch('/api/dashboard/builder/duplicate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dashboard_id: dashboardId })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          await this.loadDashboardList();
+          const targetId = data.id || data.dashboard?.id || data.layout?.id;
+          if (targetId) {
+            await this.switchDashboard(targetId);
+          }
+          if (window.toast) window.toast('Dashboard berhasil digandakan!', false);
+        }
+      } catch (err) {
+        console.error('[DashboardBuilder] Error duplicate dashboard:', err);
+      }
+    },
+
+    async deleteDashboard(dashboardId, name) {
+      if (!confirm(`Hapus dashboard "${name || dashboardId}"?\nTindakan ini tidak dapat dibatalkan.`)) return;
+
+      try {
+        const res = await fetch(`/api/dashboard/builder/${encodeURIComponent(dashboardId)}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          await this.loadDashboardList();
+          if (this.state.projectId === dashboardId) {
+            const first = this.state.dashboardsList[0];
+            if (first) await this.switchDashboard(first.id);
+          }
+          if (window.toast) window.toast('Dashboard berhasil dihapus!', false);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          alert(errData.detail || 'Gagal menghapus dashboard');
+        }
+      } catch (err) {
+        console.error('[DashboardBuilder] Error delete dashboard:', err);
+      }
+    },
+
+    showSaveShareNotification(publicUrl) {
+      let modal = document.getElementById('dashSaveShareModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'dashSaveShareModal';
+        modal.style.cssText = `
+          position: fixed; bottom: 24px; right: 24px; z-index: 99999;
+          background: #1e293b; color: #f8fafc; border: 1px solid #3b82f6;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.5); border-radius: 8px;
+          padding: 16px 20px; max-width: 420px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        `;
+        document.body.appendChild(modal);
+      }
+      modal.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <strong style="display:flex;align-items:center;gap:6px;font-size:13px;color:#60a5fa;">
+            <span>💾</span> Dashboard Tersimpan
+          </strong>
+          <button type="button" id="btnCloseSaveShareModal" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;">✕</button>
+        </div>
+        <p style="margin:0 0 10px;font-size:12px;color:#cbd5e1;">Rancangan aktif dapat dibuka secara publik atau layar penuh monitor TV:</p>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="text" id="inpSaveShareLink" readonly value="${publicUrl}" style="flex:1;background:#0f172a;border:1px solid #334155;color:#93c5fd;font-size:11px;padding:6px 8px;border-radius:4px;outline:none;" />
+          <button type="button" id="btnCopySaveShareLink" class="button primary" style="font-size:11px;padding:6px 10px;white-space:nowrap;">📋 Salin</button>
+          <a href="${publicUrl}" target="_blank" class="button" style="font-size:11px;padding:6px 10px;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;">↗️ Buka</a>
+        </div>
+      `;
+      modal.hidden = false;
+
+      document.getElementById('btnCloseSaveShareModal')?.addEventListener('click', () => {
+        modal.hidden = true;
+      });
+
+      document.getElementById('btnCopySaveShareLink')?.addEventListener('click', () => {
+        const inp = document.getElementById('inpSaveShareLink');
+        if (inp) {
+          inp.select();
+          navigator.clipboard.writeText(publicUrl).then(() => {
+            if (window.toast) window.toast('Tautan publik disalin ke clipboard!', false);
+          });
+        }
+      });
+
+      setTimeout(() => {
+        if (modal) modal.hidden = true;
+      }, 8000);
+    },
+
     async saveLayout() {
       if (!this.state.layout) return;
       try {
@@ -206,11 +453,14 @@
           body: JSON.stringify(this.state.layout)
         });
         if (res.ok) {
+          const publicUrl = `${window.location.origin}/dashboard/public/${encodeURIComponent(this.state.projectId || 'default')}`;
           if (window.toast) {
             window.toast('Tata letak dashboard berhasil disimpan!', false);
           } else {
             alert('Tata letak dashboard berhasil disimpan!');
           }
+          this.showSaveShareNotification(publicUrl);
+          await this.loadDashboardList();
         }
       } catch (err) {
         console.error('[DashboardBuilder] Gagal menyimpan layout:', err);
@@ -258,6 +508,46 @@
       const btnCloseNav = document.getElementById('btnCloseNavigator');
       const btnToggleCopilot = document.getElementById('btnBuilderToggleCopilot');
       const btnCloseCopilot = document.getElementById('btnCloseCopilotDrawer');
+      const btnOpenPublic = document.getElementById('btnBuilderOpenPublic');
+
+      // Dashboard switcher dropdown elements
+      const btnDashSwitcher = document.getElementById('btnBuilderDashboardSwitcher');
+      const menuDashSwitcher = document.getElementById('builderDashDropdownMenu');
+      const inpDashSearch = document.getElementById('inpBuilderDashSearch');
+      const btnCreateNewDash = document.getElementById('btnBuilderCreateNewDash');
+
+      btnDashSwitcher?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (menuDashSwitcher) {
+          menuDashSwitcher.hidden = !menuDashSwitcher.hidden;
+          if (!menuDashSwitcher.hidden) {
+            if (inpDashSearch) {
+              inpDashSearch.value = '';
+              inpDashSearch.focus();
+            }
+            this.renderDashboardDropdownList();
+          }
+        }
+      });
+
+      inpDashSearch?.addEventListener('input', (e) => {
+        this.renderDashboardDropdownList(e.target.value);
+      });
+
+      btnCreateNewDash?.addEventListener('click', () => {
+        this.createNewDashboard();
+      });
+
+      btnOpenPublic?.addEventListener('click', () => {
+        const publicUrl = `/dashboard/public/${encodeURIComponent(this.state.projectId || 'default')}`;
+        window.open(publicUrl, '_blank');
+      });
+
+      window.addEventListener('click', (e) => {
+        if (!e.target.closest('#builderDashboardSwitcherWrap')) {
+          if (menuDashSwitcher) menuDashSwitcher.hidden = true;
+        }
+      });
 
       btnToggleCopilot?.addEventListener('click', () => this.toggleCopilotDrawer());
       btnCloseCopilot?.addEventListener('click', () => this.toggleCopilotDrawer(false));
@@ -324,14 +614,60 @@
       this.zoomFit();
     },
 
+    applyCanvasBackground() {
+      const canvas = document.getElementById('builderCanvas');
+      if (!canvas || !this.state.layout) return;
+      const c = this.state.layout.canvas || {};
+
+      // 1. Solid / Base Color
+      if (c.bgColor) {
+        canvas.style.backgroundColor = c.bgColor;
+      } else {
+        canvas.style.backgroundColor = '';
+      }
+
+      // 2. Background Image (Cover, Contain, Repeat + Opacity blending)
+      if (c.bgImage) {
+        const mode = c.bgImageMode || 'cover';
+        const opacity = c.bgImageOpacity !== undefined ? parseFloat(c.bgImageOpacity) : 1.0;
+
+        if (mode === 'contain') {
+          canvas.style.backgroundSize = 'contain';
+          canvas.style.backgroundRepeat = 'no-repeat';
+          canvas.style.backgroundPosition = 'center';
+        } else if (mode === 'repeat') {
+          canvas.style.backgroundSize = 'auto';
+          canvas.style.backgroundRepeat = 'repeat';
+          canvas.style.backgroundPosition = 'top left';
+        } else { // cover
+          canvas.style.backgroundSize = 'cover';
+          canvas.style.backgroundRepeat = 'no-repeat';
+          canvas.style.backgroundPosition = 'center';
+        }
+
+        if (opacity < 1.0) {
+          const hex = c.bgColor || '#0f172a';
+          let r = 15, g = 23, b = 42;
+          if (hex.startsWith('#') && hex.length >= 7) {
+            r = parseInt(hex.slice(1, 3), 16) || 15;
+            g = parseInt(hex.slice(3, 5), 16) || 23;
+            b = parseInt(hex.slice(5, 7), 16) || 42;
+          }
+          const alpha = (1.0 - opacity).toFixed(2);
+          canvas.style.backgroundImage = `linear-gradient(rgba(${r}, ${g}, ${b}, ${alpha}), rgba(${r}, ${g}, ${b}, ${alpha})), url("${c.bgImage}")`;
+        } else {
+          canvas.style.backgroundImage = `url("${c.bgImage}")`;
+        }
+      } else {
+        canvas.style.backgroundImage = '';
+      }
+    },
+
     setCanvasBackground(bgColor) {
       if (!this.state.layout) return;
       if (!this.state.layout.canvas) this.state.layout.canvas = {};
       this.state.layout.canvas.bgColor = bgColor;
-      const canvas = document.getElementById('builderCanvas');
-      if (canvas) {
-        canvas.style.backgroundColor = bgColor;
-      }
+      this.applyCanvasBackground();
     },
 
     setCanvasFontFamily(fontFamily) {
@@ -654,11 +990,7 @@
       canvas.style.width = `${cw}px`;
       canvas.style.height = `${ch}px`;
 
-      if (this.state.layout.canvas?.bgColor) {
-        canvas.style.backgroundColor = this.state.layout.canvas.bgColor;
-      } else {
-        canvas.style.backgroundColor = '';
-      }
+      this.applyCanvasBackground();
 
       const cFont = this.state.layout.canvas?.fontFamily || this.state.layout.fontFamily || "'Inter', -apple-system, sans-serif";
       canvas.style.fontFamily = cFont;
@@ -974,9 +1306,17 @@
           `;
         }
         case 'excel_export_btn': {
+          const iconType = cfg.icon || 'spreadsheet';
+          const iconSvg = iconType === 'file' 
+            ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`
+            : iconType === 'table'
+            ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>`
+            : iconType === 'analytics'
+            ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`
+            : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>`;
           return `
-            <button class="widget-excel-btn" type="button">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+            <button class="widget-excel-btn" type="button" data-filename="${cfg.filename || ''}">
+              ${iconSvg}
               <span>${cfg.label || 'Unduh Rekap Excel (.xlsx)'}</span>
             </button>
           `;
@@ -1478,7 +1818,7 @@
       // Excel Download Button
       const btnExcel = el.querySelector('.widget-excel-btn');
       btnExcel?.addEventListener('click', () => {
-        this.downloadExcelReport(this.state.filterCamera);
+        this.downloadExcelReport(this.state.filterCamera, w.config?.filename);
       });
     },
 
@@ -1704,6 +2044,9 @@
       const cw = this.state.layout?.canvas?.width || 1440;
       const ch = this.state.layout?.canvas?.height || 960;
       const cBg = this.state.layout?.canvas?.bgColor || (this.state.theme === 'light' ? '#ffffff' : '#0f172a');
+      const cBgImage = this.state.layout?.canvas?.bgImage || '';
+      const cBgMode = this.state.layout?.canvas?.bgImageMode || 'cover';
+      const cBgOpacity = this.state.layout?.canvas?.bgImageOpacity !== undefined ? parseFloat(this.state.layout?.canvas?.bgImageOpacity) : 1.0;
       const cFont = this.state.layout?.canvas?.fontFamily || this.state.layout?.fontFamily || "'Inter', -apple-system, sans-serif";
 
       container.innerHTML = `
@@ -1775,6 +2118,42 @@
               <button class="color-swatch-btn" type="button" data-canvas-bg="#064e3b" style="background:#064e3b;" title="Forest Dark"></button>
             </div>
           </div>
+
+          <div class="inspector-field" style="margin-top:14px;border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;">
+            <label>Gambar Latar Kanvas (Background Image)</label>
+            <input type="file" id="inp_canvas_bg_file" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" />
+            <button class="button" id="btnUploadCanvasBg" type="button" style="width:100%;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px;">
+              🖼️ Unggah Gambar Latar
+            </button>
+            <small style="font-size:10.5px;color:#94a3b8;display:block;margin-bottom:8px;">Format JPG, PNG, atau WebP. Disimpan permanen di server.</small>
+
+            <div id="preview_canvas_bg_wrap" style="${cBgImage ? '' : 'display:none;'}">
+              <div style="display:flex;align-items:center;gap:10px;background:rgba(0,0,0,0.25);border:1px solid #334155;border-radius:6px;padding:6px 8px;margin-bottom:8px;">
+                <img src="${cBgImage || ''}" id="preview_canvas_bg_thumb" style="width:48px;height:36px;object-fit:cover;border-radius:4px;border:1px solid #475569;" />
+                <div style="flex:1;overflow:hidden;">
+                  <span id="preview_canvas_bg_name" style="font-size:11px;color:#cbd5e1;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${cBgImage || ''}</span>
+                  <button type="button" id="btnRemoveCanvasBg" style="background:none;border:none;color:#ef4444;font-size:11px;cursor:pointer;padding:0;text-decoration:underline;">Hapus Gambar</button>
+                </div>
+              </div>
+
+              <div class="inspector-field" style="margin-top:8px;">
+                <label>Mode Tampilan Gambar</label>
+                <select id="sel_canvas_bg_mode">
+                  <option value="cover" ${cBgMode === 'cover' ? 'selected' : ''}>Penuhi Kanvas (Cover)</option>
+                  <option value="contain" ${cBgMode === 'contain' ? 'selected' : ''}>Muat Utuh (Contain)</option>
+                  <option value="repeat" ${cBgMode === 'repeat' ? 'selected' : ''}>Pola / Ubin (Repeat)</option>
+                </select>
+              </div>
+
+              <div class="inspector-field" style="margin-top:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <label>Transparansi Gambar</label>
+                  <span id="txt_canvas_bg_opacity_val" style="font-size:11px;color:#94a3b8;">${Math.round(cBgOpacity * 100)}%</span>
+                </div>
+                <input type="range" id="rng_canvas_bg_opacity" min="0.1" max="1.0" step="0.05" value="${cBgOpacity}" style="width:100%;cursor:pointer;" />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="inspector-section" style="margin-top:8px;">
@@ -1838,18 +2217,95 @@
       inpW?.addEventListener('change', applyManualSize);
       inpH?.addEventListener('change', applyManualSize);
 
-      inpBg?.addEventListener('input', () => {
-        if (txtBg) txtBg.textContent = inpBg.value;
-        this.setCanvasBackground(inpBg.value);
-      });
+      const onBgChange = (val) => {
+        if (txtBg) txtBg.textContent = val;
+        this.setCanvasBackground(val);
+      };
+      inpBg?.addEventListener('input', () => onBgChange(inpBg.value));
+      inpBg?.addEventListener('change', () => onBgChange(inpBg.value));
 
       container.querySelectorAll('.color-swatch-btn[data-canvas-bg]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const col = btn.dataset.canvasBg;
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const col = btn.getAttribute('data-canvas-bg') || btn.dataset.canvasBg;
           if (inpBg) inpBg.value = col;
-          if (txtBg) txtBg.textContent = col;
-          this.setCanvasBackground(col);
+          onBgChange(col);
         });
+      });
+
+      // Background Image upload wiring
+      const btnUploadBg = document.getElementById('btnUploadCanvasBg');
+      const fileInpBg = document.getElementById('inp_canvas_bg_file');
+      const previewBgWrap = document.getElementById('preview_canvas_bg_wrap');
+      const previewBgThumb = document.getElementById('preview_canvas_bg_thumb');
+      const previewBgName = document.getElementById('preview_canvas_bg_name');
+      const btnRemoveBg = document.getElementById('btnRemoveCanvasBg');
+      const selBgMode = document.getElementById('sel_canvas_bg_mode');
+      const rngBgOpacity = document.getElementById('rng_canvas_bg_opacity');
+      const txtBgOpacityVal = document.getElementById('txt_canvas_bg_opacity_val');
+
+      btnUploadBg?.addEventListener('click', () => fileInpBg?.click());
+
+      fileInpBg?.addEventListener('change', async () => {
+        const file = fileInpBg.files?.[0];
+        if (!file) return;
+
+        // Instant local preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target.result;
+          if (!this.state.layout.canvas) this.state.layout.canvas = {};
+          this.state.layout.canvas.bgImage = dataUrl;
+          if (previewBgThumb) previewBgThumb.src = dataUrl;
+          if (previewBgName) previewBgName.textContent = file.name;
+          if (previewBgWrap) previewBgWrap.style.display = '';
+          this.applyCanvasBackground();
+        };
+        reader.readAsDataURL(file);
+
+        // Upload to /api/upload
+        try {
+          const fd = new FormData();
+          fd.append('file', file);
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            body: fd
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.url) {
+              this.state.layout.canvas.bgImage = data.url;
+              if (previewBgName) previewBgName.textContent = data.url;
+              if (window.toast) window.toast('Gambar latar berhasil diunggah ke server!', false);
+              this.applyCanvasBackground();
+            }
+          }
+        } catch (err) {
+          console.warn('[DashboardBuilder] Upload gambar latar gagal:', err);
+        }
+      });
+
+      btnRemoveBg?.addEventListener('click', () => {
+        if (!this.state.layout.canvas) return;
+        delete this.state.layout.canvas.bgImage;
+        if (previewBgWrap) previewBgWrap.style.display = 'none';
+        if (fileInpBg) fileInpBg.value = '';
+        this.applyCanvasBackground();
+        if (window.toast) window.toast('Gambar latar kanvas dihapus', false);
+      });
+
+      selBgMode?.addEventListener('change', () => {
+        if (!this.state.layout.canvas) this.state.layout.canvas = {};
+        this.state.layout.canvas.bgImageMode = selBgMode.value;
+        this.applyCanvasBackground();
+      });
+
+      rngBgOpacity?.addEventListener('input', () => {
+        const op = parseFloat(rngBgOpacity.value) || 1.0;
+        if (!this.state.layout.canvas) this.state.layout.canvas = {};
+        this.state.layout.canvas.bgImageOpacity = op;
+        if (txtBgOpacityVal) txtBgOpacityVal.textContent = `${Math.round(op * 100)}%`;
+        this.applyCanvasBackground();
       });
 
       document.getElementById('btnInspectorZoomFit')?.addEventListener('click', () => this.zoomFit());
@@ -2172,6 +2628,40 @@
                 <label>Pratinjau Logo Saat Ini</label>
                 <div style="background:#090d16;border:1px solid #334155;border-radius:6px;padding:8px;text-align:center;min-height:50px;display:flex;align-items:center;justify-content:center;">
                   <img src="${cfg.url || cfg.dataUrl || '/static/logo.png'}" id="preview_logo_thumb" style="max-height:55px;max-width:100%;object-fit:contain;" />
+                </div>
+              </div>
+            ` : ''}
+
+            ${w.type === 'excel_export_btn' ? `
+              <div class="inspector-field">
+                <label>Teks / Label Tombol Unduh</label>
+                <input type="text" id="inp_excel_label" value="${cfg.label || 'Unduh Rekap Excel (.xlsx)'}" placeholder="Unduh Laporan Kerja (.xlsx)" />
+              </div>
+              <div class="inspector-field">
+                <label>Nama Berkas Spreadsheet Saat Diunduh</label>
+                <input type="text" id="inp_excel_filename" value="${cfg.filename || 'Laporan_Aktivitas.xlsx'}" placeholder="Laporan_Workshop.xlsx" />
+                <small style="font-size:10.5px;color:#94a3b8;display:block;margin-top:3px;">Otomatis ditambahkan ekstensi .xlsx</small>
+              </div>
+              <div class="inspector-field">
+                <label>Ikon Tombol</label>
+                <select id="inp_excel_icon">
+                  <option value="spreadsheet" ${!cfg.icon || cfg.icon === 'spreadsheet' ? 'selected' : ''}>📊 Lembar Sebar (Spreadsheet)</option>
+                  <option value="file" ${cfg.icon === 'file' ? 'selected' : ''}>📄 Dokumen (File)</option>
+                  <option value="table" ${cfg.icon === 'table' ? 'selected' : ''}>📋 Tabel Data (Data Table)</option>
+                  <option value="analytics" ${cfg.icon === 'analytics' ? 'selected' : ''}>📈 Grafik & Analitik</option>
+                </select>
+              </div>
+              <div class="inspector-field" style="margin-top:10px;">
+                <label>Lembar yang Disertakan dalam Berkas</label>
+                <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;cursor:pointer;">
+                    <input type="checkbox" id="chk_excel_events" ${cfg.includeEvents !== false ? 'checked' : ''} />
+                    <span>Lembar Log Kejadian (Event Records)</span>
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;cursor:pointer;">
+                    <input type="checkbox" id="chk_excel_metrics" ${cfg.includeMetrics !== false ? 'checked' : ''} />
+                    <span>Lembar Metrik KPI (Metrics Aggregation)</span>
+                  </label>
                 </div>
               </div>
             ` : ''}
@@ -2583,6 +3073,33 @@
           fitInp?.addEventListener('change', () => {
             cfg.objectFit = fitInp.value;
             this.reRenderWidgetBody(w);
+          });
+        }
+
+        if (w.type === 'excel_export_btn') {
+          const inpLabel = document.getElementById('inp_excel_label');
+          const inpFilename = document.getElementById('inp_excel_filename');
+          const selIcon = document.getElementById('inp_excel_icon');
+          const chkEvents = document.getElementById('chk_excel_events');
+          const chkMetrics = document.getElementById('chk_excel_metrics');
+
+          inpLabel?.addEventListener('input', () => {
+            cfg.label = inpLabel.value;
+            this.reRenderWidgetBody(w);
+          });
+          inpFilename?.addEventListener('input', () => {
+            cfg.filename = inpFilename.value;
+            this.reRenderWidgetBody(w);
+          });
+          selIcon?.addEventListener('change', () => {
+            cfg.icon = selIcon.value;
+            this.reRenderWidgetBody(w);
+          });
+          chkEvents?.addEventListener('change', () => {
+            cfg.includeEvents = chkEvents.checked;
+          });
+          chkMetrics?.addEventListener('change', () => {
+            cfg.includeMetrics = chkMetrics.checked;
           });
         }
       }
@@ -3525,14 +4042,15 @@
     // ------------------------------------------------------------------------
     // Action Utilities (Excel, Snapshot, Fullscreen, Docker)
     // ------------------------------------------------------------------------
-    downloadExcelReport(cameraLabel) {
+    downloadExcelReport(cameraLabel, customFilename) {
       let url = '/api/dashboard/builder/export-excel';
-      if (cameraLabel) {
-        url += `?camera_label=${encodeURIComponent(cameraLabel)}`;
-      }
+      const params = [];
+      if (cameraLabel) params.push(`camera_label=${encodeURIComponent(cameraLabel)}`);
+      if (customFilename) params.push(`filename=${encodeURIComponent(customFilename)}`);
+      if (params.length) url += `?${params.join('&')}`;
       const a = document.createElement('a');
       a.href = url;
-      a.download = `afivision_report_${Date.now()}.xlsx`;
+      a.download = customFilename || `afivision_report_${Date.now()}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
