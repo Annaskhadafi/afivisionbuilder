@@ -150,17 +150,44 @@ def classify_human_posture(keypoints: list[list[float]] | np.ndarray) -> tuple[s
         mid_knee_y = (lk_y + rk_y) / 2.0 if (lk_c > min_c and rk_c > min_c) else (lk_y if lk_c > min_c else rk_y)
         thigh_dy = abs(mid_knee_y - mid_hip_y)
 
-        # 2. Check Sitting: Thigh is horizontal (hip y is close to knee y) while torso is upright
-        if thigh_dy < (torso_dy * 0.45) and torso_dy > 30:
+        # Torso angle from vertical
+        torso_angle = math.degrees(math.atan2(torso_dx, max(1.0, torso_dy)))
+
+        # 2. Check Sitting:
+        # a) Thigh is relatively horizontal from CCTV angle (hip y close to knee y) while torso is upright
+        is_sitting_thigh = (thigh_dy < (torso_dy * 0.65) and torso_dy > 25 and torso_angle < 35.0)
+
+        # b) Check Knee Bending Angle when hip, knee, and ankle are all visible
+        has_ankles = (la_c > min_c or ra_c > min_c)
+        is_sitting_knee_angle = False
+        if has_ankles:
+            # Measure knee angle on the side with best confidence
+            left_valid = (lh_c > min_c and lk_c > min_c and la_c > min_c)
+            right_valid = (rh_c > min_c and rk_c > min_c and ra_c > min_c)
+            if left_valid or right_valid:
+                h_pt = (lh_x, lh_y) if left_valid else (rh_x, rh_y)
+                k_pt = (lk_x, lk_y) if left_valid else (rk_x, rk_y)
+                a_pt = (la_x, la_y) if left_valid else (ra_x, ra_y)
+
+                v1 = (h_pt[0] - k_pt[0], h_pt[1] - k_pt[1])
+                v2 = (a_pt[0] - k_pt[0], a_pt[1] - k_pt[1])
+                mag1 = math.hypot(*v1)
+                mag2 = math.hypot(*v2)
+                if mag1 > 8 and mag2 > 8:
+                    cos_k = max(-1.0, min(1.0, (v1[0] * v2[0] + v1[1] * v2[1]) / (mag1 * mag2)))
+                    knee_deg = math.degrees(math.acos(cos_k))
+                    # Standing knee is ~160-180 deg; sitting knee is typically 60-135 deg
+                    if knee_deg < 135.0 and torso_angle < 35.0:
+                        is_sitting_knee_angle = True
+
+        if is_sitting_thigh or is_sitting_knee_angle:
             return "sitting", "Duduk", 0.88
 
         # 3. Check Bending: Torso bent forward (torso angle with vertical > 40 deg)
-        torso_angle = math.degrees(math.atan2(torso_dx, max(1.0, torso_dy)))
         if torso_angle > 40.0:
             return "bending", "Membungkuk", 0.85
 
         # Check Ankle distance to knee for full standing check
-        has_ankles = (la_c > min_c or ra_c > min_c)
         if has_ankles:
             mid_ankle_y = (la_y + ra_y) / 2.0 if (la_c > min_c and ra_c > min_c) else (la_y if la_c > min_c else ra_y)
             shin_dy = abs(mid_ankle_y - mid_knee_y)
@@ -257,19 +284,30 @@ def draw_human_skeleton(
                     break
 
         if badge_x > 0 and badge_y > 0:
-            badge_text = f"● {posture_label.upper()}"
+            badge_text = posture_label.upper()
             font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 0.42
+            font_scale = 0.40
             font_thick = 1
             (tw, th), _ = cv2.getTextSize(badge_text, font, font_scale, font_thick)
-            bx1 = max(4, badge_x - (tw // 2) - 4)
-            by1 = max(4, badge_y - th - 4)
-            bx2 = min(fw - 4, bx1 + tw + 8)
+            dot_radius = 3
+            dot_spacing = 10  # space for dot indicator + gap
+            total_content_w = tw + dot_spacing
+            bx1 = max(4, badge_x - (total_content_w // 2) - 6)
+            by1 = max(4, badge_y - th - 6)
+            bx2 = min(fw - 4, bx1 + total_content_w + 12)
             by2 = min(fh - 4, by1 + th + 6)
 
-            # Badge background
+            # Badge dark translucent background
             cv2.rectangle(frame, (bx1, by1), (bx2, by2), (15, 23, 42), -1)
-            # Posture accent border
+
+            # Posture accent border & indicator dot
             posture_color = (0, 255, 128) if "BERDIRI" in badge_text else (0, 200, 255) if "DUDUK" in badge_text else (0, 80, 255)
             cv2.rectangle(frame, (bx1, by1), (bx2, by2), posture_color, 1)
-            cv2.putText(frame, badge_text, (bx1 + 4, by1 + th + 2), font, font_scale, (255, 255, 255), font_thick, cv2.LINE_AA)
+
+            # Draw glowing status dot with cv2.circle (avoids Hershey font Unicode '???' glyph bug)
+            dot_cx = bx1 + 6 + dot_radius
+            dot_cy = by1 + ((by2 - by1) // 2)
+            cv2.circle(frame, (dot_cx, dot_cy), dot_radius, posture_color, -1, cv2.LINE_AA)
+
+            # Render ASCII text cleanly
+            cv2.putText(frame, badge_text, (dot_cx + dot_radius + 4, by1 + th + 2), font, font_scale, (255, 255, 255), font_thick, cv2.LINE_AA)
