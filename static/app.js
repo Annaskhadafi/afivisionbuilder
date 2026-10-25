@@ -271,6 +271,22 @@
   ]);
 
   const FIELD_HELP = {
+    connectionMode: {
+      text: 'Mode integrasi aliran video kamera (Direct RTSP langsung atau lewat Media Gateway go2rtc).',
+      guide: 'Pilih Media Gateway jika menghubungkan Ezviz, Tapo, atau banyak kamera untuk mencegah stream drop dan menghemat bandwidth.'
+    },
+    gatewayUrl: {
+      text: 'Alamat REST API service Media Gateway (go2rtc).',
+      guide: 'Default lokal: http://127.0.0.1:1984.'
+    },
+    gatewayRtspBase: {
+      text: 'Base URL RTSP output dari Media Gateway.',
+      guide: 'Default: rtsp://127.0.0.1:8554.'
+    },
+    selectedStream: {
+      text: 'Nama stream/channel kamera yang aktif di Media Gateway.',
+      guide: 'Gunakan tombol Refresh atau Setup Wizard untuk mendeteksi stream secara otomatis.'
+    },
     // Logika Tingkat Lanjut & Kinematika Video (Fase 3)
     parentClass: {
       text: 'Label nama kelas objek induk yang akan diperiksa kelengkapannya.',
@@ -1700,6 +1716,10 @@
   };
 
   const INDO_FIELD_LABELS = {
+    connectionMode: 'Mode Koneksi Kamera',
+    gatewayUrl: 'URL REST API Media Gateway (go2rtc)',
+    gatewayRtspBase: 'Base RTSP URL Gateway',
+    selectedStream: 'Channel / Stream Aktif di Gateway',
     detectLandmarks: 'Deteksi 5-Titik Facial Landmark',
     estimateAgeGender: 'Estimasi Umur & Jenis Kelamin',
     classifyEmotion: 'Klasifikasi Ekspresi & Emosi Wajah',
@@ -5385,6 +5405,34 @@
         section.append(shortcutBox);
       }
 
+      if (n.type === 'ip_camera') {
+        const camBox = document.createElement('div');
+        camBox.className = 'ip-camera-assistant-card';
+        camBox.style.cssText = 'background: linear-gradient(135deg, rgba(14,165,233,0.06), rgba(99,102,241,0.06)); border: 1px solid rgba(14,165,233,0.25); border-radius: 9px; padding: 10px 12px; margin: 0 0 14px 0; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;';
+        
+        const isGw = (n.config.connectionMode || 'direct') === 'gateway';
+        camBox.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; color: #0369a1;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: #e0f2fe; color: #0284c7;">
+                <svg class="icon-svg icon-xs" viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              </span>
+              <span>Ezviz, Tapo &amp; IP Cam</span>
+            </div>
+            <span class="gateway-badge" id="gwStatusBadge" style="font-size: 10px; padding: 2px 7px; border-radius: 10px; background: ${isGw ? '#e0f2fe' : '#f1f5f9'}; color: ${isGw ? '#0284c7' : '#64748b'}; font-weight: 700; white-space: nowrap;">
+              ${isGw ? '🏢 Gateway' : '📡 Direct'}
+            </span>
+          </div>
+          <button type="button" class="button primary" id="openCameraWizardBtn" style="width: 100%; min-height: 32px; height: 32px; padding: 0 10px; font-size: 11.5px; font-weight: 600; background: #0284c7; color: #ffffff; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0;">
+            <span>✨ Buka Setup Wizard Kamera</span>
+          </button>
+        `;
+        camBox.querySelector('#openCameraWizardBtn').onclick = () => {
+          showCameraSetupWizard(n);
+        };
+        section.append(camBox);
+      }
+
       // Primary / Basic config fields (filtered conditionally)
       Object.entries(n.config || {}).forEach(([key, value]) => {
         if (!ADVANCED_KEYS.has(key) && shouldShowField(n, key)) {
@@ -5868,8 +5916,16 @@
       if (!cfg.square && key === 'padColor') return false;
     }
 
-    // IP Camera watchdog visibility
+    // IP Camera watchdog & gateway visibility
     if (node.type === 'ip_camera') {
+      const mode = cfg.connectionMode || 'direct';
+      if (mode === 'direct') {
+        if (['gatewayUrl', 'gatewayRtspBase', 'selectedStream'].includes(key)) return false;
+      } else if (mode === 'gateway') {
+        if (['streamUrl', 'username', 'password'].includes(key)) return false;
+      }
+      if (['cameraBrand', 'networkType', 'host', 'port', 'streamQuality'].includes(key)) return false;
+
       if (!cfg.detectFreeze && key === 'freezeThresholdSeconds') return false;
       if (!cfg.detectTamper && ['tamperDarkThreshold', 'tamperBrightThreshold'].includes(key)) return false;
     }
@@ -6145,6 +6201,97 @@
         ? 'Placeholder dinamis: {event.type}, {event.zoneName}, {timestamp}, {event.message}, {track_id}, {class}, {confidence}'
         : 'Variabel tersedia: {detection.count}, {detection.class}, {detection.confidence}, {track.id}, {image.width}, {image.height}.';
       wrap.append(hint);
+      return wrap;
+    }
+
+    if (node.type === 'ip_camera' && key === 'connectionMode') {
+      const select = document.createElement('select');
+      const cModes = [
+        ['direct', '📡 Direct RTSP (Koneksi Langsung ke Kamera)'],
+        ['gateway', '🏢 Media Gateway / NVR (go2rtc Restreamer)']
+      ];
+      cModes.forEach(([val, lbl]) => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = lbl;
+        if (String(value || 'direct') === val) opt.selected = true;
+        select.append(opt);
+      });
+      select.onchange = () => {
+        node.config[key] = select.value;
+        markDirty();
+        renderInspector();
+        liveUpdateWorkflow();
+      };
+      wrap.append(select);
+      return wrap;
+    }
+
+    if (node.type === 'ip_camera' && key === 'selectedStream') {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.gap = '8px';
+      row.style.alignItems = 'center';
+
+      const select = document.createElement('select');
+      select.style.flex = '1';
+      const optDefault = document.createElement('option');
+      optDefault.value = '';
+      optDefault.textContent = value ? `Pilihan: ${value}` : '-- Pilih Stream dari Gateway --';
+      select.append(optDefault);
+
+      const btnRefresh = document.createElement('button');
+      btnRefresh.type = 'button';
+      btnRefresh.className = 'button secondary';
+      btnRefresh.style.height = '36px';
+      btnRefresh.style.padding = '0 10px';
+      btnRefresh.title = 'Refresh daftar stream dari Media Gateway';
+      btnRefresh.innerHTML = '🔄 Refresh';
+
+      const fetchStreams = async () => {
+        try {
+          btnRefresh.disabled = true;
+          btnRefresh.textContent = '...';
+          const gwUrl = node.config.gatewayUrl || 'http://127.0.0.1:1984';
+          const res = await api(`/api/gateway/streams?url=${encodeURIComponent(gwUrl)}`);
+          select.replaceChildren();
+          const emptyOpt = document.createElement('option');
+          emptyOpt.value = '';
+          emptyOpt.textContent = '-- Pilih Stream dari Gateway --';
+          select.append(emptyOpt);
+          const streams = (res && res.streams) || [];
+          if (streams.length === 0) {
+            const noOpt = document.createElement('option');
+            noOpt.value = '';
+            noOpt.textContent = 'Belum ada stream terdaftar di Gateway';
+            select.append(noOpt);
+          } else {
+            streams.forEach(s => {
+              const opt = document.createElement('option');
+              opt.value = s.name;
+              opt.textContent = `${s.name} (${s.is_online ? '🟢 Live' : '⚪ Standby'})`;
+              if (s.name === node.config.selectedStream) opt.selected = true;
+              select.append(opt);
+            });
+          }
+        } catch (e) {
+          // ignore or toast
+        } finally {
+          btnRefresh.disabled = false;
+          btnRefresh.textContent = '🔄 Refresh';
+        }
+      };
+
+      select.onchange = () => {
+        node.config[key] = select.value;
+        markDirty();
+        liveUpdateWorkflow();
+      };
+      btnRefresh.onclick = fetchStreams;
+
+      row.append(select, btnRefresh);
+      wrap.append(row);
+      setTimeout(fetchStreams, 100);
       return wrap;
     }
 
@@ -11261,6 +11408,376 @@
     modal.showModal();
   }
 
+    function showCameraSetupWizard(node) {
+    if (!node || !node.config) return;
+    const cfg = node.config;
+
+    let modal = $('#cameraSetupWizardModal');
+    if (!modal) {
+      modal = document.createElement('dialog');
+      modal.id = 'cameraSetupWizardModal';
+      modal.className = 'camera-wizard-modal';
+      document.body.append(modal);
+    }
+    modal.replaceChildren();
+
+    const brand = cfg.cameraBrand || 'ezviz';
+    const netType = cfg.networkType || 'lan';
+    const host = cfg.host || '';
+    const port = cfg.port || 554;
+    const username = cfg.username || 'admin';
+    const password = cfg.password || '';
+    const quality = cfg.streamQuality || 'main';
+    const isGw = (cfg.connectionMode || 'direct') === 'gateway';
+    const defaultStreamName = cfg.selectedStream || `cam_${node.id.slice(0, 6)}`;
+
+    modal.innerHTML = `
+      <div class="camera-wizard-header">
+        <h3>
+          <svg class="icon-svg icon-md" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          Setup Wizard Kamera (Ezviz / Tapo / IP Publik)
+        </h3>
+        <button type="button" class="icon-button" id="closeCamWizardBtn" title="Tutup">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="camera-wizard-body">
+        <div class="camera-wizard-grid">
+          <div class="camera-wizard-field">
+            <label>📹 Merk / Tipe Kamera</label>
+            <select id="wizBrand">
+              <option value="ezviz" ${brand === 'ezviz' ? 'selected' : ''}>Ezviz (Hikvision Consumer)</option>
+              <option value="tapo" ${brand === 'tapo' ? 'selected' : ''}>TP-Link Tapo</option>
+              <option value="dahua" ${brand === 'dahua' ? 'selected' : ''}>Dahua / Imou</option>
+              <option value="generic" ${brand === 'generic' ? 'selected' : ''}>Generic ONVIF / RTSP IP Cam</option>
+            </select>
+          </div>
+
+          <div class="camera-wizard-field">
+            <label>🌐 Tipe Jaringan Kamera</label>
+            <select id="wizNetType">
+              <option value="lan" ${netType === 'lan' ? 'selected' : ''}>Jaringan Lokal (LAN / Wi-Fi)</option>
+              <option value="public_ip" ${netType === 'public_ip' ? 'selected' : ''}>IP Publik Statis / Domain DDNS (WAN)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="camera-wizard-grid">
+          <div class="camera-wizard-field">
+            <label id="wizHostLabel">🏠 Alamat IP Kamera (Host)</label>
+            <input type="text" id="wizHost" placeholder="misal: 192.168.1.105 atau cctv.domain.com" value="${host}" />
+          </div>
+
+          <div class="camera-wizard-field">
+            <label>🔌 Port RTSP</label>
+            <input type="number" id="wizPort" value="${port}" />
+          </div>
+        </div>
+
+        <div class="camera-wizard-grid">
+          <div class="camera-wizard-field">
+            <label>👤 Username</label>
+            <input type="text" id="wizUsername" value="${username}" />
+          </div>
+
+          <div class="camera-wizard-field">
+            <label id="wizPassLabel">🔑 Kode Verifikasi / Password</label>
+            <input type="password" id="wizPassword" placeholder="Kode 6-huruf di stiker bawah kamera" value="${password}" />
+          </div>
+        </div>
+
+        <div class="camera-hint-box" id="wizBrandHint">
+          💡 <b>Petunjuk Ezviz:</b> Masukkan 6 huruf <i>Verification Code</i> yang tercetak pada stiker fisik di bagian bawah kamera Ezviz (misal: <code>ABCDEF</code>). Username kamera Ezviz selalu <code>admin</code>.
+        </div>
+
+        <div class="camera-wizard-grid">
+          <div class="camera-wizard-field">
+            <label>📺 Kualitas Stream</label>
+            <select id="wizQuality">
+              <option value="main" ${quality === 'main' ? 'selected' : ''}>Main Stream (Resolusi Tinggi / HD)</option>
+              <option value="sub" ${quality === 'sub' ? 'selected' : ''}>Sub Stream (Resolusi SD / Hemat Bandwidth WAN)</option>
+            </select>
+          </div>
+
+          <div class="camera-wizard-field">
+            <label>⚙️ Alur Penerapan Stream</label>
+            <select id="wizApplyMode">
+              <option value="direct" ${!isGw ? 'selected' : ''}>Terapkan Langsung ke Node (Direct RTSP)</option>
+              <option value="gateway" ${isGw ? 'selected' : ''}>Daftarkan ke Media Gateway (go2rtc)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="camera-wizard-field" id="wizStreamNameGroup" style="display: ${isGw ? 'flex' : 'none'};">
+          <label>🏷️ Nama Channel Stream di Gateway</label>
+          <input type="text" id="wizStreamName" placeholder="misal: ezviz_bengkel_1" value="${defaultStreamName}" />
+        </div>
+
+        <div class="camera-wizard-field">
+          <label>🔗 Generated RTSP URL (Preview)</label>
+          <div class="camera-preview-url-box" id="wizUrlPreview">rtsp://...</div>
+        </div>
+
+        <div id="wizTestResultBox"></div>
+      </div>
+
+      <div class="camera-wizard-footer">
+        <button type="button" class="button secondary" id="wizTestBtn">
+          🔍 Test Koneksi Kamera
+        </button>
+        <button type="button" class="button primary" id="wizSaveBtn" style="background: #0284c7; color: #fff;">
+          💾 Simpan &amp; Terapkan
+        </button>
+      </div>
+    `;
+
+    // Elements
+    const brandSel = modal.querySelector('#wizBrand');
+    const netTypeSel = modal.querySelector('#wizNetType');
+    const hostInput = modal.querySelector('#wizHost');
+    const portInput = modal.querySelector('#wizPort');
+    const userInput = modal.querySelector('#wizUsername');
+    const passInput = modal.querySelector('#wizPassword');
+    const qualitySel = modal.querySelector('#wizQuality');
+    const applyModeSel = modal.querySelector('#wizApplyMode');
+    const streamNameGroup = modal.querySelector('#wizStreamNameGroup');
+    const streamNameInput = modal.querySelector('#wizStreamName');
+    const brandHint = modal.querySelector('#wizBrandHint');
+    const urlPreview = modal.querySelector('#wizUrlPreview');
+    const testResultBox = modal.querySelector('#wizTestResultBox');
+    const testBtn = modal.querySelector('#wizTestBtn');
+    const saveBtn = modal.querySelector('#wizSaveBtn');
+    const closeBtn = modal.querySelector('#closeCamWizardBtn');
+
+    const updateHintsAndLabels = () => {
+      const b = brandSel.value;
+      const n = netTypeSel.value;
+
+      if (n === 'public_ip') {
+        modal.querySelector('#wizHostLabel').innerHTML = '🌐 IP Publik Statis / Hostname DDNS';
+        hostInput.placeholder = 'misal: 114.122.50.10 atau cctv-gudang.ddns.net';
+      } else {
+        modal.querySelector('#wizHostLabel').innerHTML = '🏠 Alamat IP Kamera (LAN)';
+        hostInput.placeholder = 'misal: 192.168.1.105';
+      }
+
+      if (b === 'ezviz') {
+        modal.querySelector('#wizPassLabel').innerHTML = '🔑 Kode Verifikasi Ezviz (Stiker Bawah Kamera)';
+        passInput.placeholder = '6 huruf besar di stiker (misal: ABCDEF)';
+        userInput.value = 'admin';
+        brandHint.innerHTML = '💡 <b>Petunjuk Ezviz:</b> Masukkan 6 huruf <i>Verification Code</i> yang tercetak pada stiker fisik di bagian bawah kamera atau di kartu garansi. Password bawaan kamera adalah kode verifikasi ini.';
+      } else if (b === 'tapo') {
+        modal.querySelector('#wizPassLabel').innerHTML = '🔑 Password Akun Kamera Tapo';
+        passInput.placeholder = 'Password yang dibuat di aplikasi Tapo';
+        brandHint.innerHTML = '💡 <b>Petunjuk TP-Link Tapo:</b> Buka aplikasi Tapo di HP > Pengaturan Kamera > Lanjutan > <b>Akun Kamera</b> (Camera Account). Buat username dan password baru di sana, lalu masukkan di sini.';
+      } else if (b === 'dahua') {
+        modal.querySelector('#wizPassLabel').innerHTML = '🔑 Password Akun Kamera Dahua / Imou';
+        passInput.placeholder = 'Safety code stiker Imou / password admin Dahua';
+        brandHint.innerHTML = '💡 <b>Petunjuk Dahua/Imou:</b> Masukkan password kamera atau <i>Device Safety Code</i> yang ada pada stiker kamera Imou.';
+      } else {
+        modal.querySelector('#wizPassLabel').innerHTML = '🔑 Password RTSP';
+        passInput.placeholder = 'Password kamera';
+        brandHint.innerHTML = '💡 <b>Petunjuk Generic IP Cam:</b> Masukkan port RTSP (default: 554) serta username & password stream kamera Anda.';
+      }
+
+      if (applyModeSel.value === 'gateway') {
+        streamNameGroup.style.display = 'flex';
+      } else {
+        streamNameGroup.style.display = 'none';
+      }
+
+      updateUrlPreview();
+    };
+
+    const updateUrlPreview = () => {
+      const b = brandSel.value;
+      const h = (hostInput.value || '').trim() || '192.168.1.100';
+      const p = portInput.value || 554;
+      const u = (userInput.value || 'admin').trim();
+      const pw = (passInput.value || '').trim();
+      const q = qualitySel.value;
+
+      let auth = '';
+      if (b === 'ezviz') {
+        auth = `admin:${pw ? '******' : ''}@`;
+      } else {
+        auth = `${u}:${pw ? '******' : ''}@`;
+      }
+
+      let path = '';
+      if (b === 'ezviz') {
+        path = q === 'sub' ? 'Streaming/Channels/102' : 'h264_stream';
+      } else if (b === 'tapo') {
+        path = q === 'sub' ? 'stream2' : 'stream1';
+      } else if (b === 'dahua') {
+        path = q === 'sub' ? 'cam/realmonitor?channel=1&subtype=1' : 'cam/realmonitor?channel=1&subtype=0';
+      } else {
+        path = q === 'sub' ? 'live/sub' : 'live/main';
+      }
+
+      urlPreview.textContent = `rtsp://${auth}${h}:${p}/${path}`;
+    };
+
+    brandSel.onchange = updateHintsAndLabels;
+    netTypeSel.onchange = updateHintsAndLabels;
+    applyModeSel.onchange = updateHintsAndLabels;
+    hostInput.oninput = updateUrlPreview;
+    portInput.oninput = updateUrlPreview;
+    userInput.oninput = updateUrlPreview;
+    passInput.oninput = updateUrlPreview;
+    qualitySel.onchange = updateUrlPreview;
+
+    updateHintsAndLabels();
+
+    // Close button
+    closeBtn.onclick = () => modal.close();
+
+    // Test connection button
+    testBtn.onclick = async () => {
+      const h = (hostInput.value || '').trim();
+      if (!h) {
+        toast('Masukkan alamat IP / Host kamera terlebih dahulu.', true);
+        hostInput.focus();
+        return;
+      }
+
+      testBtn.disabled = true;
+      testResultBox.innerHTML = `
+        <div class="test-result-banner testing">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          Sedang menghubungi kamera dan memverifikasi frame (${h}:${portInput.value || 554})...
+        </div>
+      `;
+
+      try {
+        const payload = {
+          brand: brandSel.value,
+          host: h,
+          port: parseInt(portInput.value || 554, 10),
+          username: (userInput.value || 'admin').trim(),
+          password: (passInput.value || '').trim(),
+          quality: qualitySel.value,
+          timeout: 5.0
+        };
+
+        const res = await api('/api/gateway/test-camera', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res && res.success) {
+          testResultBox.innerHTML = `
+            <div class="test-result-banner success">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>${res.message || 'Koneksi Berhasil!'} (Resolusi: ${res.width}x${res.height}, Latency: ${res.latency_seconds}s)</span>
+            </div>
+          `;
+          toast('Koneksi kamera berhasil!');
+        } else {
+          testResultBox.innerHTML = `
+            <div class="test-result-banner error">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>${(res && res.error) || 'Gagal terhubung ke kamera.'}</span>
+            </div>
+          `;
+        }
+      } catch (err) {
+        testResultBox.innerHTML = `
+          <div class="test-result-banner error">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>Error pengujian: ${err.message}</span>
+          </div>
+        `;
+      } finally {
+        testBtn.disabled = false;
+      }
+    };
+
+    // Save & Apply button
+    saveBtn.onclick = async () => {
+      const h = (hostInput.value || '').trim();
+      if (!h) {
+        toast('Masukkan alamat IP / Host kamera terlebih dahulu.', true);
+        hostInput.focus();
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Menyimpan...';
+
+      try {
+        const b = brandSel.value;
+        const p = parseInt(portInput.value || 554, 10);
+        const u = (userInput.value || 'admin').trim();
+        const pw = (passInput.value || '').trim();
+        const q = qualitySel.value;
+        const nType = netTypeSel.value;
+        const applyMode = applyModeSel.value;
+
+        // Generate full RTSP URL
+        const genRes = await api('/api/gateway/generate-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brand: b, host: h, port: p, username: u, password: pw, quality: q })
+        });
+
+        if (!genRes || !genRes.ok) {
+          throw new Error((genRes && genRes.error) || 'Gagal menyusun URL kamera');
+        }
+
+        const rtspUrl = genRes.url;
+
+        // Store wizard state
+        cfg.cameraBrand = b;
+        cfg.networkType = nType;
+        cfg.host = h;
+        cfg.port = p;
+        cfg.username = u;
+        cfg.password = pw;
+        cfg.streamQuality = q;
+        cfg.connectionMode = applyMode;
+        cfg.transport = 'tcp'; // recommended for WAN/IP Public
+
+        if (applyMode === 'gateway') {
+          const sName = (streamNameInput.value || `cam_${node.id.slice(0, 6)}`).trim();
+          const gwUrl = cfg.gatewayUrl || 'http://127.0.0.1:1984';
+          const regRes = await api('/api/gateway/register-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              gateway_url: gwUrl,
+              rtsp_base: cfg.gatewayRtspBase || 'rtsp://127.0.0.1:8554',
+              stream_name: sName,
+              source_url: rtspUrl
+            })
+          });
+
+          cfg.selectedStream = sName;
+          cfg.streamUrl = (regRes && regRes.result && regRes.result.rtsp_url) || `${cfg.gatewayRtspBase || 'rtsp://127.0.0.1:8554'}/${sName}`;
+          toast(`Kamera ${sName} berhasil didaftarkan ke Media Gateway!`);
+        } else {
+          cfg.streamUrl = rtspUrl;
+          toast('Kamera berhasil dikonfigurasi ke node (Direct RTSP)!');
+        }
+
+        markDirty();
+        renderInspector();
+        liveUpdateWorkflow();
+        modal.close();
+      } catch (err) {
+        toast('Gagal menyimpan: ' + err.message, true);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Simpan & Terapkan';
+      }
+    };
+
+    modal.showModal();
+  }
+
+
   async function showDatabaseLogsModal() {
     let modal = $('#dbLogsModal');
     if (!modal) {
@@ -12153,13 +12670,15 @@
       studio: $('#viewStudio'),
       cameras: $('#viewLiveCameras'),
       sessions: $('#viewWorkshopSessions'),
-      warehouse: $('#viewWarehouseEvents')
+      warehouse: $('#viewWarehouseEvents'),
+      dashboard: $('#viewDashboardBuilder')
     };
     const tabs = {
       studio: $('#tabStudio'),
       cameras: $('#tabLiveCameras'),
       sessions: $('#tabSessions'),
-      warehouse: $('#tabWarehouse')
+      warehouse: $('#tabWarehouse'),
+      dashboard: $('#tabDashboardBuilder')
     };
 
     Object.keys(views).forEach(key => {
@@ -12191,7 +12710,7 @@
 
     if (hubActions) hubActions.hidden = false;
     if (projectBreadcrumb) projectBreadcrumb.hidden = isHub;
-    if (projectActions) projectActions.hidden = isHub;
+    if (projectActions) projectActions.hidden = isHub || (viewName === 'dashboard');
     if (projectSwitcherWrap) projectSwitcherWrap.hidden = isHub;
     if (projectSwitcherBtn) projectSwitcherBtn.hidden = isHub;
     if (topbarNavTabs) topbarNavTabs.hidden = (viewName === 'studio');
@@ -12207,6 +12726,10 @@
       loadDashboardSessions();
     } else if (viewName === 'warehouse') {
       loadDashboardWarehouse();
+    } else if (viewName === 'dashboard') {
+      if (typeof window.initOrRefreshDashboardBuilder === 'function') {
+        window.initOrRefreshDashboardBuilder();
+      }
     }
   }
   window.switchMainView = switchMainView;
@@ -13030,6 +13553,7 @@
     $('#tabLiveCameras')?.addEventListener('click', () => switchMainView('cameras'));
     $('#tabSessions')?.addEventListener('click', () => switchMainView('sessions'));
     $('#tabWarehouse')?.addEventListener('click', () => switchMainView('warehouse'));
+    $('#tabDashboardBuilder')?.addEventListener('click', () => switchMainView('dashboard'));
 
     // Camera Grid Switchers
     $('#gridFocusBtn')?.addEventListener('click', () => {
@@ -14825,6 +15349,252 @@
     });
   }
 
+  // --- Workflow Fleet Manager (Multi-Workflow Background Runner) ---
+  function initFleetManager() {
+    const fleetModal = $('#fleetManagerModal');
+    const openBtn = $('#openFleetHubBtn');
+    const navTab = $('#tabFleetHub');
+    const closeBtn = $('#closeFleetModalBtn');
+    const stopAllBtn = $('#fleetStopAllBtn');
+    const refreshBtn = $('#fleetRefreshBtn');
+    const tabTable = $('#fleetTabTable');
+    const tabMatrix = $('#fleetTabMatrix');
+    const paneTable = $('#fleetPaneTable');
+    const paneMatrix = $('#fleetPaneMatrix');
+
+    let fleetPollTimer = null;
+
+    async function updateFleetActiveBadge() {
+      try {
+        const res = await api('/api/fleet/status');
+        const count = res.runningCount || 0;
+        const navBadge = $('#fleetNavActiveBadge');
+        if (navBadge) {
+          navBadge.textContent = `${count} Aktif`;
+          if (count > 0) {
+            navBadge.style.background = '#217a5a';
+            navBadge.style.color = '#fff';
+          } else {
+            navBadge.style.background = '';
+            navBadge.style.color = '';
+          }
+        }
+        const toolbarBadge = $('#fleetToolbarBadge');
+        if (toolbarBadge) {
+          toolbarBadge.textContent = count;
+          toolbarBadge.style.display = count > 0 ? 'inline-block' : 'none';
+        }
+      } catch (_) {}
+    }
+
+    async function loadFleetHubData() {
+      try {
+        const res = await api('/api/fleet/status');
+        const services = res.services || [];
+        const running = res.runningCount || 0;
+        const total = res.total || 0;
+        const stopped = res.stoppedCount || 0;
+
+        const totalEl = $('#fleetTotalVal');
+        const runEl = $('#fleetRunningVal');
+        const stopEl = $('#fleetStoppedVal');
+        const matrixBadge = $('#fleetMatrixCountBadge');
+
+        if (totalEl) totalEl.textContent = total;
+        if (runEl) runEl.textContent = running;
+        if (stopEl) stopEl.textContent = stopped;
+        if (matrixBadge) matrixBadge.textContent = running;
+
+        renderFleetTable(services);
+        renderFleetMatrix(services);
+        updateFleetActiveBadge();
+      } catch (err) {
+        toast('Gagal memuat status Fleet Hub: ' + err.message, true);
+      }
+    }
+
+    function renderFleetTable(services) {
+      const tbody = $('#fleetTableBody');
+      if (!tbody) return;
+      if (!services || services.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:36px 20px;color:var(--muted);font-size:13px;">Belum ada proyek alur kerja yang tersimpan. Buat alur kerja di Studio terlebih dahulu.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = services.map(srv => {
+        const isRun = srv.running;
+        const statusBadge = isRun
+          ? `<span class="fleet-status-badge running"><span class="pulse-dot"></span> Berjalan (${srv.fps ? srv.fps.toFixed(1) : '0.0'} FPS)</span>`
+          : (srv.error ? `<span class="fleet-status-badge error">⚠️ Galat: ${escapeHtml(String(srv.error).slice(0, 30))}</span>` : `<span class="fleet-status-badge stopped">⚪ Siaga</span>`);
+
+        const actionBtn = isRun
+          ? `<button class="fleet-switch-btn action-stop" data-fleet-stop="${srv.projectId}" type="button">Stop</button>`
+          : `<button class="fleet-switch-btn action-start" data-fleet-start="${srv.projectId}" type="button">Jalankan</button>`;
+
+        const fpsOptions = [5, 10, 15, 30].map(fps => {
+          const sel = (srv.targetFps === fps || (!srv.targetFps && fps === 10)) ? 'selected' : '';
+          return `<option value="${fps}" ${sel}>${fps} FPS</option>`;
+        }).join('');
+
+        return `
+          <tr data-project-row="${srv.projectId}">
+            <td>
+              <div class="fleet-workflow-name">
+                <span>${escapeHtml(srv.projectName || 'Alur Kerja')}</span>
+              </div>
+              <div class="fleet-workflow-date">${srv.modifiedAt ? 'Diperbarui: ' + srv.modifiedAt.slice(0, 19).replace('T', ' ') : ''}</div>
+            </td>
+            <td>
+              <select class="fleet-fps-select" data-fps-select="${srv.projectId}" ${isRun ? 'disabled' : ''}>
+                ${fpsOptions}
+              </select>
+            </td>
+            <td>
+              ${statusBadge}
+            </td>
+            <td style="text-align:center;">
+              ${actionBtn}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Wire row actions
+      tbody.querySelectorAll('[data-fleet-start]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const pid = btn.getAttribute('data-fleet-start');
+          const select = tbody.querySelector(`[data-fps-select="${pid}"]`);
+          const targetFps = select ? parseInt(select.value, 10) : 10;
+          btn.disabled = true;
+          btn.textContent = 'Memulai...';
+          try {
+            await api('/api/fleet/start', { method: 'POST', body: JSON.stringify({ projectId: pid, targetFps }) });
+            toast('Layanan alur kerja berhasil dijalankan di latar belakang.');
+            await loadFleetHubData();
+          } catch (e) {
+            toast('Gagal memulai alur kerja: ' + e.message, true);
+            await loadFleetHubData();
+          }
+        });
+      });
+
+      tbody.querySelectorAll('[data-fleet-stop]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const pid = btn.getAttribute('data-fleet-stop');
+          btn.disabled = true;
+          btn.textContent = 'Menghentikan...';
+          try {
+            await api('/api/fleet/stop', { method: 'POST', body: JSON.stringify({ projectId: pid }) });
+            toast('Layanan alur kerja dihentikan.');
+            await loadFleetHubData();
+          } catch (e) {
+            toast('Gagal menghentikan alur kerja: ' + e.message, true);
+            await loadFleetHubData();
+          }
+        });
+      });
+    }
+
+    function renderFleetMatrix(services) {
+      const grid = $('#fleetMatrixGrid');
+      const empty = $('#fleetEmptyMatrix');
+      if (!grid || !empty) return;
+
+      const runningServices = (services || []).filter(s => s.running);
+      if (runningServices.length === 0) {
+        grid.innerHTML = '';
+        empty.hidden = false;
+        return;
+      }
+
+      empty.hidden = true;
+      grid.innerHTML = runningServices.map(srv => {
+        const previewUrl = `/api/fleet/preview/${srv.projectId}?t=${Date.now()}`;
+        return `
+          <div class="fleet-matrix-card">
+            <div class="fleet-matrix-header">
+              <span>${escapeHtml(srv.projectName || 'Kamera')}</span>
+              <span style="color:#217a5a;font-size:11px;font-weight:700;">● LIVE</span>
+            </div>
+            <div class="fleet-matrix-video-wrap">
+              <img class="fleet-matrix-img" src="${previewUrl}" alt="Live Preview">
+              <div class="fleet-matrix-fps-overlay">${srv.fps ? srv.fps.toFixed(1) : '10.0'} FPS</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openModal() {
+      if (!fleetModal) return;
+      loadFleetHubData();
+      fleetModal.showModal();
+      if (!fleetPollTimer) {
+        fleetPollTimer = setInterval(loadFleetHubData, 1500);
+      }
+    }
+
+    function closeModal() {
+      if (!fleetModal) return;
+      fleetModal.close();
+      if (fleetPollTimer) {
+        clearInterval(fleetPollTimer);
+        fleetPollTimer = null;
+      }
+    }
+
+    if (openBtn) openBtn.addEventListener('click', openModal);
+    if (navTab) navTab.addEventListener('click', openModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (refreshBtn) refreshBtn.addEventListener('click', loadFleetHubData);
+
+    if (stopAllBtn) {
+      stopAllBtn.addEventListener('click', async () => {
+        if (!confirm('Apakah Anda yakin ingin menghentikan seluruh layanan alur kerja latar belakang?')) return;
+        try {
+          await api('/api/fleet/stop-all', { method: 'POST' });
+          toast('Seluruh alur kerja telah dihentikan.');
+          await loadFleetHubData();
+        } catch (e) {
+          toast('Gagal menghentikan alur kerja: ' + e.message, true);
+        }
+      });
+    }
+
+    if (tabTable && tabMatrix && paneTable && paneMatrix) {
+      tabTable.addEventListener('click', () => {
+        tabTable.classList.add('active');
+        tabMatrix.classList.remove('active');
+        paneTable.hidden = false;
+        paneMatrix.hidden = true;
+      });
+      tabMatrix.addEventListener('click', () => {
+        tabMatrix.classList.add('active');
+        tabTable.classList.remove('active');
+        paneMatrix.hidden = false;
+        paneTable.hidden = true;
+        loadFleetHubData();
+      });
+    }
+
+    if (fleetModal) {
+      fleetModal.addEventListener('click', (e) => {
+        const rect = fleetModal.getBoundingClientRect();
+        const isInDialog = (
+          rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+          rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+        );
+        if (!isInDialog) {
+          closeModal();
+        }
+      });
+    }
+
+    // Initial badge update & polling in background every 5 seconds
+    updateFleetActiveBadge();
+    setInterval(updateFleetActiveBadge, 5000);
+  }
+
   // --- Bootstrap ---
   (async () => {
     try {
@@ -14833,6 +15603,7 @@
       initHeaderActions();
       initAiStudioCopilot();
       initUseCaseWizard();
+      initFleetManager();
       switchMainView('projectsHub');
 
       const catalog = await api('/api/catalog');

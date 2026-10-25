@@ -5,8 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Afi Vision Builder - Computer Vision Studio</title>
   <link rel="icon" href="/static/logo.png">
-  <link rel="stylesheet" href="/static/style.css?v=3.6">
-  <script defer src="/static/app.js?v=3.6"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=Poppins:wght@400;600;700&family=Roboto:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=4.3">
+  <script defer src="/static/app.js?v=4.3"></script>
+  <script defer src="/static/dashboard_builder.js?v=2.7"></script>
 </head>
 <body>
   <header class="topbar">
@@ -85,6 +89,16 @@
         <button class="nav-tab" id="tabWarehouse" type="button" title="Log Kejadian Keluar Gerbang Warehouse">
           <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           <span>Warehouse</span>
+        </button>
+        <button class="nav-tab" id="tabDashboardBuilder" type="button" title="No-Code Visual Web Dashboard Builder (Elementor & Looker Style)">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          <span>Dashboard</span>
+          <span class="nav-badge" id="dashboardLiveBadge" style="background:#0284c7;color:#fff;">Builder</span>
+        </button>
+        <button class="nav-tab fleet-hub-tab" id="tabFleetHub" type="button" title="Pengelola Layanan Alur Kerja (Multi-Workflow Fleet Hub)">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span>Fleet Hub</span>
+          <span class="nav-badge" id="fleetNavActiveBadge">0 Aktif</span>
         </button>
       </nav>
     </div>
@@ -441,6 +455,10 @@
           <button class="button wizard-btn" id="openUseCaseWizardBtn" type="button" title="✨ Panduan Solusi Siap Pakai (1-Klik)">
             <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             <span>✨ Solusi Cepat</span>
+          </button>
+          <button class="button fleet-btn" id="openFleetHubBtn" type="button" title="🚀 Pengelola Layanan Alur Kerja (Multi-Workflow Fleet Hub)">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span>🚀 Layanan Fleet</span>
           </button>
           <label class="toggle-switch-compact" title="Mode Auto-Connect: Otomatis menghubungkan node saat ditambah/dihapus">
             <input type="checkbox" id="autoConnectToggle" checked>
@@ -957,6 +975,409 @@
           </thead>
           <tbody id="warehouseTableBody"></tbody>
         </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- View: No-Code Visual Dashboard Builder (Elementor & Looker Style) -->
+  <section class="dashboard-builder-view" id="viewDashboardBuilder" hidden>
+    <!-- Builder Top Toolbar -->
+    <div class="builder-toolbar">
+      <div class="builder-toolbar-left">
+        <div class="builder-title-badge">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          <span id="builderProjectTitleText">Dashboard Builder</span>
+        </div>
+        <div class="builder-mode-switcher" role="group" aria-label="Mode Builder">
+          <button class="builder-mode-btn active" id="btnBuilderModeEdit" type="button" title="Mode Desain / Tata Letak">
+            <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            <span>Desain</span>
+          </button>
+          <button class="builder-mode-btn" id="btnBuilderModePreview" type="button" title="Mode Pemantauan Nyata (Live View)">
+            <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>Live Monitor</span>
+          </button>
+        </div>
+        <div class="builder-theme-toggle-wrap">
+          <button class="button ghost builder-theme-btn" id="btnBuilderThemeToggle" type="button" title="Ganti Tema Gelap / Terang">
+            <span id="builderThemeIcon">🌙</span>
+            <span id="builderThemeText">Gelap</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="builder-toolbar-center">
+        <!-- Zoom Controls -->
+        <div class="builder-zoom-controls">
+          <button class="button ghost icon-button-xs" id="btnBuilderZoomOut" type="button" title="Perkecil Kanvas">−</button>
+          <span class="builder-zoom-text" id="builderZoomText">100%</span>
+          <button class="button ghost icon-button-xs" id="btnBuilderZoomIn" type="button" title="Perbesar Kanvas">+</button>
+          <button class="button ghost icon-button-xs" id="btnBuilderZoomFit" type="button" title="Sesuaikan Layar">Fit</button>
+        </div>
+
+        <!-- Canvas Dimensions Picker -->
+        <button class="button ghost builder-canvas-dim-btn" id="btnBuilderCanvasSize" type="button" title="Atur Ukuran & Resolusi Kanvas">
+          <span>📐</span>
+          <span id="builderCanvasDimText">1440 × 960</span>
+        </button>
+
+        <!-- Audio Alert Toggle -->
+        <button class="button ghost builder-audio-btn" id="btnBuilderAudioToggle" type="button" title="Aktifkan/Matikan Suara Alarm Bahaya">
+          <span id="builderAudioIcon">🔔</span>
+          <span id="builderAudioText">Alarm: Aktif</span>
+        </button>
+
+        <!-- Active Looker Filter Chip -->
+        <div class="builder-active-filter-chip" id="builderFilterChip" hidden>
+          <span class="filter-chip-label">Filter Kamera:</span>
+          <strong class="filter-chip-val" id="builderFilterCameraName">Semua</strong>
+          <button class="filter-chip-reset" id="btnBuilderResetFilter" type="button" title="Hapus Filter">✕</button>
+        </div>
+      </div>
+
+      <div class="builder-toolbar-right">
+        <button class="button primary" id="btnBuilderToggleCopilot" type="button" title="Buka AI Dashboard Assistant & Generator (Data Real-time)">
+          <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+          <span>AI Copilot</span>
+        </button>
+        <button class="button ghost" id="btnBuilderToggleNavigator" type="button" title="Buka Navigator / Pohon Layer Komponen (Elementor)">
+          <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          <span>Navigator</span>
+        </button>
+        <button class="button ghost" id="btnBuilderTemplates" type="button" title="Pilih dari 5 template dashboard siap pakai">
+          <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/></svg>
+          <span>Template</span>
+        </button>
+        <button class="button ghost" id="btnBuilderResetLayout" type="button" title="Kembalikan ke layout default bawaan">
+          <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          <span>Atur Ulang</span>
+        </button>
+        <button class="button primary" id="btnBuilderSaveLayout" type="button" title="Simpan tata letak dashboard">
+          <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span>Simpan</span>
+        </button>
+        <button class="button success" id="btnBuilderExportDocker" type="button" title="Ekspor Web & Workflow Mandiri ke Docker Compose">
+          <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Ekspor Docker</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Builder Workspace Body -->
+    <div class="builder-workspace-body">
+      <!-- Left Drawer: Component Palette -->
+      <aside class="builder-drawer" id="builderWidgetDrawer">
+        <div class="builder-drawer-head">
+          <h3>Komponen Dashboard</h3>
+          <small>Klik untuk menambahkan ke kanvas</small>
+        </div>
+        <div class="builder-drawer-section">
+          <span class="drawer-section-label">MONITORING & METRIK</span>
+          <div class="widget-palette-list">
+            <button class="palette-item-btn" type="button" data-widget-type="cctv_player">
+              <span class="palette-icon">📹</span>
+              <div class="palette-info">
+                <strong>CCTV Player</strong>
+                <span>Streaming RTSP/AI beranotasi</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="scorecard">
+              <span class="palette-icon">🔢</span>
+              <div class="palette-info">
+                <strong>Scorecard KPI</strong>
+                <span>Angka adaptif 3 warna batas</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="trend_chart">
+              <span class="palette-icon">📈</span>
+              <div class="palette-info">
+                <strong>Grafik Tren</strong>
+                <span>Fluktuasi garis/batang dinamis</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="event_table">
+              <span class="palette-icon">📋</span>
+              <div class="palette-info">
+                <strong>Tabel Log Kejadian</strong>
+                <span>Daftar kronologis real-time</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="excel_export_btn">
+              <span class="palette-icon">📥</span>
+              <div class="palette-info">
+                <strong>Tombol Ekspor Excel</strong>
+                <span>Unduh laporan spreadsheet .xlsx</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="builder-drawer-section">
+          <span class="drawer-section-label">PUSAT KENDALI (COMMAND CENTER)</span>
+          <div class="widget-palette-list">
+            <button class="palette-item-btn" type="button" data-widget-type="stat_kpi_card">
+              <span class="palette-icon">📊</span>
+              <div class="palette-info">
+                <strong>Stat KPI Card</strong>
+                <span>Kartu metrik atas dengan garis aksen</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="cctv_grid_2x2">
+              <span class="palette-icon">▦</span>
+              <div class="palette-info">
+                <strong>Video Wall 2x2</strong>
+                <span>Matriks kuadran CCTV & laser tripwire</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="active_alerts_list">
+              <span class="palette-icon">⚠️</span>
+              <div class="palette-info">
+                <strong>Peringatan Kritis</strong>
+                <span>Daftar alert berjenjang prioritas</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="donut_chart">
+              <span class="palette-icon">🍩</span>
+              <div class="palette-info">
+                <strong>Donut Okupansi</strong>
+                <span>Diagram lingkaran kapasitas zona</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="ai_engine_status">
+              <span class="palette-icon">🧠</span>
+              <div class="palette-info">
+                <strong>AI Engine Status</strong>
+                <span>Status microservice inferensi visi</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="system_health_vitals">
+              <span class="palette-icon">⚡</span>
+              <div class="palette-info">
+                <strong>System Health Vitals</strong>
+                <span>Telemetri CPU, RAM, Disk & Network</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="zone_occupancy_meters">
+              <span class="palette-icon">📶</span>
+              <div class="palette-info">
+                <strong>Zone Occupancy Bars</strong>
+                <span>Pengukur kapasitas multi-zona</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="detection_summary">
+              <span class="palette-icon">👥</span>
+              <div class="palette-info">
+                <strong>Detection Summary</strong>
+                <span>Rekapitulasi kelas objek harian</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="system_info">
+              <span class="palette-icon">🖥️</span>
+              <div class="palette-info">
+                <strong>System Info & Uptime</strong>
+                <span>Metadata versi, suhu & status runtime</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="builder-drawer-section">
+          <span class="drawer-section-label">TATA LETAK & VISUAL (ELEMENTOR)</span>
+          <div class="widget-palette-list">
+            <button class="palette-item-btn" type="button" data-widget-type="custom_text">
+              <span class="palette-icon">🔤</span>
+              <div class="palette-info">
+                <strong>Teks Kustom</strong>
+                <span>Judul, paragraf, dan label</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="status_badge">
+              <span class="palette-icon">🏷️</span>
+              <div class="palette-info">
+                <strong>Lencana Status</strong>
+                <span>Indikator kesiapan & shift kerja</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="dashboard_navbar">
+              <span class="palette-icon">🧭</span>
+              <div class="palette-info">
+                <strong>Header / Menu Bar</strong>
+                <span>Bilah navigasi, logo, jam live & shift</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="container_box">
+              <span class="palette-icon">📦</span>
+              <div class="palette-info">
+                <strong>Wadah Kontainer</strong>
+                <span>Kartu pengelompokan area/zona</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="image_logo">
+              <span class="palette-icon">🖼️</span>
+              <div class="palette-info">
+                <strong>Logo & Citra</strong>
+                <span>Gambar logo instansi atau watermark</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center Viewport & Free Canvas -->
+      <main class="builder-viewport" id="builderViewport">
+        <div class="builder-canvas-wrapper" id="builderCanvasWrapper">
+          <div class="builder-canvas" id="builderCanvas" style="width: 1440px; height: 960px;">
+            <!-- Snap guidelines -->
+            <div class="snap-line snap-line-x" id="snapLineX" hidden></div>
+            <div class="snap-line snap-line-y" id="snapLineY" hidden></div>
+            <!-- Widgets will be rendered here dynamically -->
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Inspector Panel -->
+      <aside class="builder-inspector" id="builderInspector">
+        <div class="builder-inspector-head">
+          <h3>Pengaturan Komponen</h3>
+          <button class="icon-button" id="btnBuilderCloseInspector" type="button" title="Tutup">✕</button>
+        </div>
+        <div class="builder-inspector-content" id="builderInspectorContent">
+          <div class="inspector-empty-state">
+            <svg class="icon-svg icon-lg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            <p>Pilih salah satu komponen di atas kanvas untuk mengatur koordinat, data binding, dan tampilannya.</p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Floating Navigator Panel (Elementor Layer Tree) -->
+      <aside class="builder-navigator-panel" id="builderNavigatorPanel" hidden>
+        <div class="navigator-head">
+          <div class="navigator-title">
+            <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            <span>Navigator (Layers)</span>
+          </div>
+          <button class="icon-button-xs" id="btnCloseNavigator" type="button" title="Tutup">✕</button>
+        </div>
+        <div class="navigator-body" id="builderNavigatorTree">
+          <!-- Dynamic component list rendered here -->
+        </div>
+      </aside>
+
+      <!-- AI Dashboard Copilot Drawer (Sliding Panel Sisi Kanan) -->
+      <aside class="builder-copilot-drawer" id="builderCopilotDrawer" hidden>
+        <div class="copilot-drawer-head">
+          <div class="copilot-drawer-title">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg>
+            <span>AI Dashboard Copilot</span>
+            <span class="copilot-status-badge">🟢 Realtime Live</span>
+          </div>
+          <button class="icon-button-xs" id="btnCloseCopilotDrawer" type="button" title="Tutup Copilot">✕</button>
+        </div>
+        <div class="copilot-drawer-body">
+          <div class="copilot-chat-history" id="copilotChatHistory">
+            <div class="copilot-msg msg-ai">
+              <div class="msg-author">🤖 Afivision Copilot</div>
+              <div class="msg-bubble">
+                Halo! Saya asisten perancang dashboard Anda. Saya dapat otomatis mendesainkan layout, membuat bilah menu navigasi, dan langsung menghubungkan seluruh komponen ke <strong>kamera CCTV dan metrik riil</strong> yang aktif di sistem Anda (bukan data dummy).<br><br>
+                Ketik instruksi Anda atau klik salah satu saran cepat di bawah ini!
+              </div>
+            </div>
+          </div>
+          <div class="copilot-quick-prompts">
+            <span class="quick-prompts-label">✨ Saran Desain Cepat:</span>
+            <div class="quick-prompts-chips">
+              <button class="copilot-chip-btn" type="button" data-prompt="Desainkan Command Center K3 Pabrik lengkap dengan header bar jam digital, 2 CCTV, KPI pekerja tanpa APD, grafik tren insiden, dan tabel pelanggaran real-time">🏭 K3 & APD Pabrik</button>
+              <button class="copilot-chip-btn" type="button" data-prompt="Desainkan Dashboard Smart Traffic Flow dengan navbar live, CCTV lalu lintas, scorecard jumlah kendaraan, dan grafik kepadatan jalan">🚦 Smart Traffic</button>
+              <button class="copilot-chip-btn" type="button" data-prompt="Buatkan Dashboard Restoran dengan monitoring CCTV meja, KPI okupansi meja makan, grafik jam sibuk, dan tabel pesanan">🍽️ Restoran & Meja</button>
+              <button class="copilot-chip-btn" type="button" data-prompt="Susun ulang tata letak dashboard ini menjadi 2 kolom rapi dengan header navbar di atas dan tema futuristik neon gelap">📐 Rapikan 2 Kolom</button>
+            </div>
+          </div>
+        </div>
+        <div class="copilot-drawer-footer">
+          <!-- Mode Switcher: Prompt Text vs Image Replicator -->
+          <div class="copilot-mode-tabs">
+            <button class="copilot-mode-tab active" type="button" id="tabModePrompt" data-mode="text">
+              <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <span>Teks Prompt</span>
+            </button>
+            <button class="copilot-mode-tab" type="button" id="tabModeImage" data-mode="image">
+              <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+              <span>Upload Desain JPEG</span>
+            </button>
+          </div>
+
+          <!-- Panel 1: Text Prompt Input -->
+          <div class="copilot-mode-panel" id="panelCopilotText">
+            <div class="copilot-input-row">
+              <textarea id="inpCopilotPrompt" class="copilot-prompt-input" rows="2" placeholder="Ketik instruksi desain dashboard... (contoh: Buatkan dashboard K3 dengan navbar)"></textarea>
+              <button class="button primary" id="btnSendCopilotPrompt" type="button" title="Kirim Instruksi">
+                <span>Kirim</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Panel 2: Image Upload & Vision Replicator -->
+          <div class="copilot-mode-panel" id="panelCopilotImage" hidden>
+            <input type="file" id="inpCopilotImageFile" accept="image/jpeg,image/png,image/webp" style="display:none;" />
+            <div class="copilot-dropzone" id="copilotDropzone">
+              <svg class="icon-svg icon-md" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+              <div class="dropzone-text">
+                <strong>Pilih atau seret gambar desain JPEG/PNG</strong>
+                <span>AI VLM akan menganalisis tata letak & menirunya</span>
+              </div>
+            </div>
+            <div class="copilot-image-preview-wrap" id="copilotImagePreviewWrap" hidden>
+              <img id="copilotImagePreview" src="" alt="Desain Referensi" />
+              <div class="preview-meta">
+                <span id="copilotImageName" class="preview-filename">desain.jpeg</span>
+                <button type="button" class="btn-remove-preview" id="btnRemoveCopilotImage" title="Hapus Gambar">✕</button>
+              </div>
+            </div>
+            <div class="copilot-image-instruction-row">
+              <input type="text" id="inpCopilotImageNote" class="copilot-note-input" placeholder="Instruksi tambahan (opsional: misal sesuaikan ke CCTV workshop)..." />
+              <button class="button primary" id="btnAnalyzeCopilotImage" type="button" style="white-space:nowrap;">
+                <span>🔍 Tiru Desain</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="copilot-action-bar" id="copilotActionBar" hidden>
+            <button class="button success" id="btnApplyCopilotLayout" type="button" style="width:100%;">
+              ✨ Terapkan Rancangan AI ke Kanvas
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Elementor Right-Click Context Menu -->
+      <div class="builder-context-menu" id="builderContextMenu" hidden>
+        <button class="context-menu-item" type="button" data-action="duplicate">
+          <span>📋</span> <span>Gandakan (Duplicate)</span> <small>Ctrl+D</small>
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" type="button" data-action="bring_front">
+          <span>🔝</span> <span>Bawa ke Paling Depan</span>
+        </button>
+        <button class="context-menu-item" type="button" data-action="bring_forward">
+          <span>🔼</span> <span>Naikkan 1 Lapisan</span>
+        </button>
+        <button class="context-menu-item" type="button" data-action="send_backward">
+          <span>🔽</span> <span>Turunkan 1 Lapisan</span>
+        </button>
+        <button class="context-menu-item" type="button" data-action="send_back">
+          <span>🔚</span> <span>Kirim ke Paling Belakang</span>
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" type="button" data-action="center_canvas">
+          <span>📐</span> <span>Pusatkan di Kanvas</span>
+        </button>
+        <button class="context-menu-item" type="button" data-action="toggle_lock">
+          <span id="ctxMenuLockIcon">🔒</span> <span id="ctxMenuLockText">Kunci Komponen</span>
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item danger-item" type="button" data-action="delete">
+          <span>🗑️</span> <span>Hapus Komponen</span> <small>Del</small>
+        </button>
       </div>
     </div>
   </section>
@@ -1639,6 +2060,181 @@
             <button class="wizard-card-btn" type="button" style="margin-top: 10px;">⚡ Pasang Alur Ini</button>
           </div>
         </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal 5 Production Dashboard Templates -->
+  <dialog id="dashboardTemplatesModal" class="modal">
+    <div class="modal-box modal-box-templates">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">PRESET DASHBOARD INDUSTRI</span>
+          <h2>Pilih Template Dashboard Siap Pakai</h2>
+        </div>
+        <button class="icon-button" id="closeDashboardTemplatesModal" type="button" title="Tutup">✕</button>
+      </div>
+      <div class="modal-body-pad">
+        <p style="margin-bottom:16px;color:var(--text-secondary);font-size:13.5px;line-height:1.5;">
+          Pilih salah satu dari 5 rancangan pusat kendali terintegrasi alur kerja computer vision nyata:
+        </p>
+        <div class="dashboard-templates-grid" id="dashboardTemplatesList">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal CCTV Fullscreen Focus -->
+  <dialog id="cctvFullscreenModal" class="modal modal-fullscreen">
+    <div class="modal-box modal-box-cctv-focus">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow" id="cctvModalEyebrow">LIVE STREAM MONITOR</span>
+          <h2 id="cctvModalTitle">Kamera Fokus</h2>
+        </div>
+        <div class="modal-head-actions">
+          <button class="button ghost" id="cctvModalToggleStreamBtn" type="button">Switch Stream Mode</button>
+          <button class="button ghost" id="cctvModalSnapshotBtn" type="button">📷 Snapshot</button>
+          <button class="icon-button" id="closeCctvModal" type="button" title="Tutup">✕</button>
+        </div>
+      </div>
+      <div class="cctv-modal-viewport">
+        <img id="cctvModalImg" src="" alt="CCTV Stream Focus">
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal Docker Compose Export -->
+  <dialog id="dockerExportModal" class="modal">
+    <div class="modal-box modal-box-md">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">STANDALONE DEPLOYMENT</span>
+          <h2>Ekspor Web Dashboard & Docker Compose</h2>
+        </div>
+        <button class="icon-button" id="closeDockerExportModal" type="button" title="Tutup">✕</button>
+      </div>
+      <div class="modal-body-pad">
+        <p style="margin-bottom:14px;color:var(--text-secondary);font-size:14px;line-height:1.5;">
+          Paket ini mengemas seluruh tata letak web dashboard, pipeline computer vision, dan model AI ke dalam satu berkas ZIP siap jalan di server mana pun secara mandiri.
+        </p>
+        <div class="export-package-checklist" style="background:rgba(30,41,59,0.5);padding:14px;border-radius:8px;margin-bottom:16px;">
+          <div style="font-weight:600;margin-bottom:8px;color:var(--text-primary);">Isi Paket Ekspor Mandiri:</div>
+          <ul style="margin:0;padding-left:20px;font-size:13px;color:var(--text-secondary);line-height:1.7;">
+            <li><code>docker-compose.yml</code> (Multi-container runtime)</li>
+            <li><code>Dockerfile</code> (Runtime Python, OpenCV & PyTorch)</li>
+            <li><code>run.bat</code> & <code>run.sh</code> (Peluncur sekali klik Windows/Linux)</li>
+            <li><code>data/dashboard.json</code> (Tata letak kanvas aktif)</li>
+            <li><code>static/</code> (Web dashboard frontend terkompilasi)</li>
+          </ul>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button class="button ghost" id="cancelDockerExportBtn" type="button">Batal</button>
+          <button class="button success" id="confirmDownloadDockerZipBtn" type="button">
+            <span>Unduh Berkas ZIP (.zip)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Fleet Manager Modal (Multi-Workflow Background Runner) -->
+  <dialog id="fleetManagerModal" class="modal fleet-manager-modal">
+    <div class="modal-box modal-box-large fleet-box">
+      <div class="modal-head fleet-head">
+        <div class="fleet-head-title">
+          <div class="fleet-icon-badge">
+            <svg class="icon-svg icon-md" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div>
+            <span class="eyebrow">MULTI-WORKFLOW RUNNER</span>
+            <h2>Pengelola Layanan Alur Kerja (Fleet Hub)</h2>
+            <p class="fleet-subtitle">Jalankan dan pantau beberapa alur kerja analitik secara simultan di latar belakang. Aktifkan atau nonaktifkan alur kerja secara selektif tanpa saling membebani.</p>
+          </div>
+        </div>
+        <button class="icon-button" id="closeFleetModalBtn" type="button" title="Tutup">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body-pad fleet-body">
+        <!-- Summary Stats Bento & Actions -->
+        <div class="fleet-toolbar-bar">
+          <div class="fleet-stats-group">
+            <div class="fleet-stat-card">
+              <span class="fleet-stat-label">Total Alur Kerja</span>
+              <span class="fleet-stat-val" id="fleetTotalVal">0</span>
+            </div>
+            <div class="fleet-stat-card running-card">
+              <span class="fleet-stat-label">Layanan Berjalan</span>
+              <span class="fleet-stat-val text-green" id="fleetRunningVal">0</span>
+            </div>
+            <div class="fleet-stat-card stopped-card">
+              <span class="fleet-stat-label">Siaga / Berhenti</span>
+              <span class="fleet-stat-val text-muted" id="fleetStoppedVal">0</span>
+            </div>
+          </div>
+          <div class="fleet-actions-group">
+            <button class="button fleet-action-btn danger" id="fleetStopAllBtn" type="button" title="Hentikan semua alur kerja yang sedang berjalan">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" fill="currentColor"/></svg>
+              <span>Hentikan Semua</span>
+            </button>
+            <button class="button fleet-action-btn secondary" id="fleetRefreshBtn" type="button" title="Segarkan status alur kerja">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+              <span>Segarkan</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Subtabs: List vs Matrix -->
+        <div class="fleet-subtabs">
+          <button class="fleet-subtab active" id="fleetTabTable" type="button">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            <span>Daftar Alur Kerja & Kontrol</span>
+          </button>
+          <button class="fleet-subtab" id="fleetTabMatrix" type="button">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span>Matriks Monitor Multi-Layar</span>
+            <span id="fleetMatrixCountBadge" class="fleet-pill-badge">0</span>
+          </button>
+        </div>
+
+        <!-- View 1: Table & Controls -->
+        <div class="fleet-view-pane" id="fleetPaneTable">
+          <div class="fleet-table-wrap">
+            <table class="fleet-table">
+              <thead>
+                <tr>
+                  <th style="width:34%;">Nama Alur Kerja</th>
+                  <th style="width:20%;">Target Kecepatan (FPS)</th>
+                  <th style="width:26%;">Status & Kecepatan Riil</th>
+                  <th style="width:20%;text-align:center;">Sakelar Operasi</th>
+                </tr>
+              </thead>
+              <tbody id="fleetTableBody">
+                <!-- Dynamically populated rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- View 2: Multi-Screen Matrix Grid -->
+        <div class="fleet-view-pane" id="fleetPaneMatrix" hidden>
+          <div class="fleet-matrix-grid" id="fleetMatrixGrid">
+            <!-- Dynamically populated live camera video cards -->
+          </div>
+          <div class="fleet-empty-matrix" id="fleetEmptyMatrix" hidden>
+            <div class="empty-icon">📹</div>
+            <p>Belum ada alur kerja yang sedang berjalan di latar belakang.</p>
+            <span class="empty-sub">Aktifkan sakelar alur kerja pada tab Daftar Layanan untuk melihat tayangan kamera langsung di sini.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </dialog>
+
       </div>
     </div>
   </dialog>

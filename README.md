@@ -11,8 +11,8 @@
   <img src="https://img.shields.io/badge/OpenCV-4.8+-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white" alt="OpenCV" />
   <img src="https://img.shields.io/badge/Ultralytics-YOLO26%20%7C%20v11%20%7C%20v8-00FFFF?style=for-the-badge&logo=yolo&logoColor=black" alt="YOLO" />
   <img src="https://img.shields.io/badge/Nodes%20Catalog-80%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
-  <img src="https://img.shields.io/badge/Unit%20Tests-242%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
-  <img src="https://img.shields.io/badge/E2E%20Tests-29%2B%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
+  <img src="https://img.shields.io/badge/Unit%20Tests-266%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
+  <img src="https://img.shields.io/badge/E2E%20Tests-34%2B%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
 </p>
 
 <p align="center">
@@ -248,6 +248,39 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 - **Ukuran Model Super Ringkas**: Bobot `yolo26n.pt` hanya berukuran 5.3 MB dengan performa deteksi dan akurasi setara atau melampaui generasi sebelumnya.
 - **1-Klik Switch di Inspector**: Tombol pintas sekali klik untuk berpindah langsung antara model standar YOLOv8n dan model hemat daya YOLO26n tanpa perlu mengetik ulang konfigurasi alur kerja.
 
+### 🎨 38. No-Code Web Dashboard Builder (Elementor Pro & Google Looker Style)
+- **Kanvas Desain Visual Bebas & Grid Snap**: Drag-and-drop widget secara presisi dengan sistem snap-to-grid, perataan otomatis, penarik ukuran 8 titik jangkar, alignment toolbar (kiri, tengah, kanan, atas, bawah, sebar horizontal/vertikal), dan preset ukuran kanvas (1080p Full HD, 720p HD, 2K, 4K, 9:16 Portrait, Custom WxH).
+- **Elementor Pro 3-Tab Inspector**:
+  - `[📄 Konten]`: Konfigurasi data, judul, metrik KPI, pemilihan kamera/alur kerja CCTV, link URL, dan alignment teks instan.
+  - `[🎨 Gaya]`: Kontrol warna latar (background picker + hex), warna teks utama, border kustom, radius sudut, efek Frosted Glassmorphism (`backdrop-filter: blur(14px)`), dan preset bayangan elevasi modern.
+  - `[⚙️ Lanjutan]`: Pengaturan padding, margin, urutan tumpukan z-index, opasitas slider, custom styling, dan proteksi kunci widget (*Lock Component*).
+- **Floating Navigator / Layers Tree Panel**: Panel pohon lapisan komponen yang dapat dibuka/tutup untuk mengatur urutan tumpukan (Bring to Front, Send to Back), menyembunyikan/menampilkan komponen (👁️/🕶️), serta mengunci widget langsung dari daftar tree (🔒/🔓).
+- **Menu Kontekstual Klik Kanan (Context Menu)**: Akses cepat pada kanvas untuk menduplikasi widget (Ctrl+D), mengatur urutan lapisan, memusatkan widget di tengah kanvas, atau menghapus widget.
+- **Penyaringan Silang Antar-Widget (Google Looker Cross-Filtering)**: Mengklik kartu CCTV pada mode pemantauan otomatis memusatkan sorotan kamera dan menyaring data tabel log kejadian khusus kamera tersebut secara real-time tanpa memuat ulang halaman.
+- **Tema Terpadu & Redesain Light Mode**: Tampilan tema terang profesional berbasis Slate/Zinc bergradasi lembut, menghilangkan kontras tabrakan dan teks samar pada seluruh drawer, toolbar, dan kartu metrik.
+
+### 🤖 39. Dashboard AI Copilot & Real-Time Telemetry Generator
+- **Generasi Dasbor Otomatis dari Prompt Natural**: Pengguna cukup mengetikkan instruksi kebutuhan bisnis (misal: *"Buatkan dashboard monitoring CCTV gudang dengan live player, scorecard KPI forklift, dan grafik efisiensi shift"*), AI Copilot langsung merancang tata letak lengkap.
+- **Koneksi Telemetri Nyata (Zero Dummy Data)**: Terintegrasi langsung dengan `DashboardDataBus` dan `WorkflowEngine`. Widget yang dibuat AI otomatis terikat ke kamera CCTV riil yang aktif dan metrik data bus hidup di sistem, bukan sekadar angka tiruan/palsu.
+- **Widget Eksklusif `dashboard_navbar`**: Menghasilkan bilah navigasi header terpadu dengan jam digital presisi tinggi (live digital clock ber-font monospaced), badge status shift kerja operasional, dan lampu indikator sistem berdenyut.
+- **Dukungan Multi-Engine LLM**: Terintegrasi fleksibel dengan endpoint gateway terpusat (9router / OpenAI GPT-4o & GPT-5 / OpenRouter / Ollama lokal) dengan sistem penanganan error dan fallback mandiri.
+
+### 🖼️ 40. Multimodal Vision-to-Dashboard Replicator (Upload Desain JPEG/PNG)
+- **Ekstraksi Tata Letak dari Gambar & Sketsa**: Unggah gambar referensi dasbor, tangkapan layar UI, atau sketsa tata letak format JPEG, PNG, maupun WebP via drag-and-drop.
+- **Analisis Multimodal VLM & Ekstraksi Warna OpenCV**: Mengirimkan representasi Base64 ke Vision-Language Model untuk memetakan struktur grid, posisi header, player video, kartu scorecard, grafik garis, dan tabel log, dikombinasikan dengan deteksi luminansi background (dark/light) via OpenCV.
+- **Replikasi Instan ke Kanvas Interaktif**: Otomatis mengubah gambar statis menjadi widget interaktif di kanvas yang langsung dapat diedit dan dipindahkan.
+- **Resilient Offline Fallback**: Dilengkapi mesin estimasi heuristik visual offline sehingga pengguna tetap memperoleh rancangan dasbor proporsional sekalipun koneksi cloud AI sedang tidak tersedia.
+
+### 📹 41. Interactive CCTV Camera Switcher, Scrollable Filmstrip & Auto-Patrol
+- **Dropdown Selector di Header CCTV Player**: Menu dropdown interaktif langsung di header kartu CCTV Player untuk berganti saluran kamera atau alur kerja aktif (Ezviz, Tapo, RTSP, Webcam, YouTube, File) tanpa perlu kembali ke kanvas editor.
+- **Scrollable Camera Strip (Filmstrip Horizontal)**: Panel gulir thumbnail kamera horizontal di bawah layar video utama untuk navigasi visual cepat ala software VMS profesional.
+- **Mode Auto-Patrol (Patroli Kamera Otomatis)**: Siklus pergantian kamera otomatis setiap N detik (default 10 detik) dengan tombol radar berdenyut (`.btn-cctv-patrol`) dan overlay informasi nama kamera aktif di pojok video.
+
+### 🔤 42. Multi-Font Typography & Logo Branding Suite with Standalone Docker Export
+- **Koleksi 8 Google Fonts Modern**: Pilihan tipografi profesional (Inter, Plus Jakarta Sans, Outfit, Poppins, Roboto, JetBrains Mono, Syne, Arial) yang dapat diterapkan secara global di pengaturan kanvas atau individual per-widget di Tab Gaya.
+- **Upload Logo Perusahaan Langsung**: Widget `image_logo` mendukung unggah berkas citra brand (PNG, JPG, SVG, WebP) dengan thumbnail pratinjau instan dan penyimpanan persisten di server.
+- **Ekspor Kode Mandiri Docker (Standalone 1-Click ZIP)**: Mengemas seluruh dasbor, alur kerja aktif, engine Python, template web, aset logo terunggah, `Dockerfile`, `docker-compose.yml`, serta skrip peluncur `run.bat`/`run.sh` ke dalam arsip ZIP mandiri tanpa ketergantungan eksternal, siap pakai untuk deployment server Dokploy maupun Portainer.
+
 ---
 
 ## 📸 Tur Antarmuka & Showcase Visual
@@ -369,6 +402,36 @@ Pengaturan inspeksi warna APD: pemotongan area torso untuk rompi, pemilihan pres
 ### 20. Overstack Clearance Detector (Batas Ketinggian Tumpukan Gudang)
 Pemantau batas tumpukan kargo aman di koridor gudang: koordinat garis batas virtual langit-langit (Ceiling Y), kalibrasi rasio piksel ke meter, dan waktu persistensi debouncing.
 ![Overstack Clearance Inspector](docs/screenshots/26_overstack_clearance_inspector.png)
+
+---
+
+### 21. No-Code Web Dashboard Builder (Elementor Pro & Redesigned Light Mode)
+Kanvas visual drag-and-drop dengan 3-Tab Inspector (Konten, Gaya, Lanjutan), floating Layers Navigator tree, pengaturan dimensi kanvas 1080p, dan kartu komponen dengan styling kontras tinggi.
+![Dashboard Builder Light Mode](docs/screenshots/001-01_dashboard_redesigned_light_mode.png)
+
+---
+
+### 22. Elementor Pro Layers Navigator & Glassmorphism Styling
+Panel pohon lapisan widget mengambang untuk manajemen hierarki, penguncian komponen (lock protection), serta efek frosted glassmorphism semi-transparan modern.
+![Elementor Navigator & Glassmorphism](docs/screenshots/001-01_elementor_navigator_layers.png)
+
+---
+
+### 23. Dashboard AI Copilot & Vision-to-Dashboard Image Replicator
+Asisten AI cerdas untuk merancang dasbor otomatis dari prompt teks natural atau unggahan referensi gambar/sketsa JPEG/PNG dengan pengikatan langsung ke telemetri dan CCTV nyata.
+![Dashboard AI Copilot](docs/screenshots/dashboard_ai_copilot/003-03_dashboard_ai_layout_applied_to_canvas.png)
+
+---
+
+### 24. Interactive CCTV Camera Switcher, Filmstrip & Auto-Patrol
+Pengalih siaran kamera CCTV langsung di widget player dengan menu dropdown, strip gulir thumbnail kamera horizontal, dan mode patroli otomatis siklikal.
+![CCTV Camera Switcher](docs/screenshots/dashboard_camera_switcher/002-02_cctv_camera_scroll_strip_visible.png)
+
+---
+
+### 25. Standalone Docker Code Export Modal
+Modal ekspor 1-klik yang mengemas seluruh dasbor, alur kerja aktif, dependensi, dan file Docker Compose ke dalam arsip ZIP siap deploy ke server produksi.
+![Docker Export Ready](docs/screenshots/005-05_docker_export_modal_ready.png)
 
 ---
 
@@ -517,8 +580,8 @@ afivisionbuilder/
 
 AFI Vision Builder menerapkan standar rekayasa perangkat lunak ketat dengan pengujian berlapis:
 
-- **219 Unit Tests (100% Passed)**: Pengujian unit menyeluruh via Pytest untuk menguji logika fungsional internal (FSM multi-zone, tracking, konsensus model, kalibrasi jarak, variansi Laplacian, kalkulator kecepatan, throttler delta, komparasi model dual-stream, state comparator, rolling window aggregation, CSV formatting, S3 mock upload, notification cooldown, ONVIF PTZ velocity deadzone, pengenalan teks ONNX OCR, zero-shot YOLO-World text prompting, integrasi Roboflow Universe hosted inference, serta engine kuantisasi model TFLite INT8/FP16 & ONNX Dynamic INT8).
-- **26+ Automated E2E Test Suites**: Menguji seluruh fungsionalitas dari perspektif pengguna nyata menggunakan runner modern `e2e` dengan engine Playwright dan model AI `cx/gpt-5.6-luna`.
+- **266 Unit Tests (100% Passed)**: Pengujian unit menyeluruh via Pytest untuk menguji logika fungsional internal (FSM multi-zone, tracking, konsensus model, kalibrasi jarak, variansi Laplacian, kalkulator kecepatan, throttler delta, komparasi model dual-stream, state comparator, rolling window aggregation, CSV formatting, S3 mock upload, notification cooldown, ONVIF PTZ velocity deadzone, pengenalan teks ONNX OCR, zero-shot YOLO-World text prompting, integrasi Roboflow Universe hosted inference, serta engine kuantisasi model TFLite INT8/FP16 & ONNX Dynamic INT8).
+- **34+ Automated E2E Test Suites**: Menguji seluruh fungsionalitas dari perspektif pengguna nyata menggunakan runner modern `e2e` dengan engine Playwright dan model AI `cx/gpt-5.6-luna`.
 - **Verifikasi Real-Browser & Visual**: Memvalidasi kelayakan kanvas flow, video stream live, modal pengaturan kamera, editor poligon, filter shift, dan ekspor CSV.
 - **Tangkapan Layar Otomatis**: Setiap proses pengujian secara otomatis mendokumentasikan bukti screenshot visual ke folder `.e2e/artifacts/`.
 

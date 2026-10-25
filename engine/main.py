@@ -3707,7 +3707,17 @@ class OpenCVInputSource:
 
     def open(self) -> tuple[str, int, int]:
         # Check if this input config is from an ip_camera node or has rtsp/http streamUrl
-        stream_url = str(self.config.get("streamUrl") or "").strip()
+        conn_mode = str(self.config.get("connectionMode", "direct") or "direct").lower()
+        if conn_mode == "gateway":
+            selected_stream = str(self.config.get("selectedStream") or "").strip()
+            gateway_rtsp_base = str(self.config.get("gatewayRtspBase") or "rtsp://127.0.0.1:8554").rstrip("/")
+            if selected_stream:
+                stream_url = f"{gateway_rtsp_base}/{selected_stream}"
+            else:
+                stream_url = str(self.config.get("streamUrl") or "").strip()
+        else:
+            stream_url = str(self.config.get("streamUrl") or "").strip()
+
         if stream_url:
             username = str(self.config.get("username") or "").strip()
             password = str(self.config.get("password") or "").strip()
@@ -3718,7 +3728,10 @@ class OpenCVInputSource:
                     auth_prefix = f"{urllib.parse.quote(username)}:{urllib.parse.quote(password)}@" if password else f"{urllib.parse.quote(username)}@"
                     stream_url = f"{parts[0]}://{auth_prefix}{parts[1]}"
             self.loop = False
-            self.label = f"IP Camera stream ({self.config.get('streamUrl')})"
+            if conn_mode == "gateway" and self.config.get("selectedStream"):
+                self.label = f"Media Gateway ({self.config.get('selectedStream')})"
+            else:
+                self.label = f"IP Camera stream ({self.config.get('streamUrl') or stream_url})"
             transport = str(self.config.get("transport", "tcp") or "tcp").lower()
             if transport == "tcp":
                 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
@@ -3729,7 +3742,7 @@ class OpenCVInputSource:
             if not self.capture.isOpened():
                 self.capture.release()
                 self.capture = None
-                raise RuntimeError(f"Unable to connect to IP Camera stream: {self.config.get('streamUrl')}. Please verify camera IP, port, and credentials.")
+                raise RuntimeError(f"Unable to connect to IP Camera stream: {stream_url}. Please verify camera IP, port, and credentials.")
             width = int(self.capture.get(self.cv2.CAP_PROP_FRAME_WIDTH) or 0)
             height = int(self.capture.get(self.cv2.CAP_PROP_FRAME_HEIGHT) or 0)
             return self.label, width, height

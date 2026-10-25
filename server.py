@@ -19,7 +19,7 @@ import uuid
 from collections import deque
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 try:
     from dotenv import load_dotenv
@@ -51,10 +51,13 @@ try:
 except Exception:
     pass
 import cv2  # noqa: E402
+import numpy as np  # noqa: E402
 import core  # noqa: E402
 import node_catalog  # noqa: E402
 import workflow_store as store  # noqa: E402
 import workflow_export  # noqa: E402
+from fleet_manager import fleet_manager  # noqa: E402
+from media_gateway import MediaGatewayClient, build_camera_rtsp_url, test_camera_connection  # noqa: E402
 
 app = FastAPI(title="Afi Vision Builder")
 _allowed_hosts = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if h.strip()]
@@ -1816,6 +1819,70 @@ def stop(request: Request, body: dict = None) -> dict:
     return {"running": False, "state": "idle", "error": None, "projectId": None}
 
 
+# -- Fleet Manager Routes (Multi-Workflow Background Runner) ------------------
+
+@app.get("/api/fleet/status")
+def get_fleet_status(request: Request) -> dict:
+    return fleet_manager.get_fleet_status()
+
+
+@app.post("/api/fleet/start")
+def start_fleet_workflow(request: Request, body: dict = Body(...)) -> dict:
+    _write_allowed(request)
+    project_id = str((body or {}).get("projectId") or "").strip()
+    if not project_id:
+        raise HTTPException(400, "projectId is required")
+    target_fps = int((body or {}).get("targetFps", 10) or 10)
+    try:
+        return fleet_manager.start(project_id, target_fps=target_fps)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(429, str(exc))
+    except Exception as exc:
+        raise HTTPException(500, f"Gagal memulai layanan: {exc}")
+
+
+@app.post("/api/fleet/stop")
+def stop_fleet_workflow(request: Request, body: dict = Body(...)) -> dict:
+    _write_allowed(request)
+    project_id = str((body or {}).get("projectId") or "").strip()
+    if not project_id:
+        raise HTTPException(400, "projectId is required")
+    return fleet_manager.stop(project_id)
+
+
+@app.post("/api/fleet/restart")
+def restart_fleet_workflow(request: Request, body: dict = Body(...)) -> dict:
+    _write_allowed(request)
+    project_id = str((body or {}).get("projectId") or "").strip()
+    if not project_id:
+        raise HTTPException(400, "projectId is required")
+    target_fps = int((body or {}).get("targetFps", 10) or 10)
+    try:
+        return fleet_manager.restart(project_id, target_fps=target_fps)
+    except Exception as exc:
+        raise HTTPException(500, f"Gagal memulai ulang layanan: {exc}")
+
+
+@app.get("/api/fleet/preview/{project_id}")
+def get_fleet_preview(project_id: str) -> Response:
+    frame_bytes = fleet_manager.get_preview(project_id)
+    if not frame_bytes:
+        # Generate clean 1x1 placeholder JPEG
+        blank = np.zeros((1, 1, 3), dtype=np.uint8)
+        _, encoded = cv2.imencode(".jpg", blank)
+        return Response(content=encoded.tobytes(), media_type="image/jpeg")
+    return Response(content=frame_bytes, media_type="image/jpeg", headers={"Cache-Control": "no-cache, no-store"})
+
+
+@app.post("/api/fleet/stop-all")
+def stop_all_fleet_workflows(request: Request) -> dict:
+    _write_allowed(request)
+    fleet_manager.stop_all()
+    return {"ok": True, "message": "Seluruh layanan alur kerja latar belakang telah dihentikan."}
+
+
 @app.post("/api/counters/reset")
 def reset_counters(request: Request, body: dict = None) -> dict:
     _write_allowed(request)
@@ -2022,8 +2089,47 @@ async def upload(request: Request, file: UploadFile = File(...)) -> dict:
     except Exception:
         target.unlink(missing_ok=True)
         raise
-    kind = "image" if suffix in {".jpg", ".jpeg", ".png", ".bmp", ".webp"} else "video"
-    return {"path": str(target), "name": file.filename, "kind": kind}
+    kind = "image" if suffix in {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".svg"} else "video"
+    return {
+        "ok": True,
+        "url": f"/api/uploads/{target.name}",
+        "path": str(target),
+        "name": file.filename,
+        "kind": kind,
+        "size": size,
+    }
+
+
+@app.get("/api/uploads/{filename}")
+def get_uploaded_file(filename: str):
+    clean_name = Path(filename).name
+    file_path = _uploads / clean_name
+    if not file_path.is_file():
+        alt1 = Path("public") / "uploads" / clean_name
+        alt2 = Path("static") / "uploads" / clean_name
+        if alt1.is_file():
+            file_path = alt1
+        elif alt2.is_file():
+            file_path = alt2
+        else:
+            raise HTTPException(404, "File tidak ditemukan")
+
+    suffix = file_path.suffix.lower()
+    media_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+        ".mp4": "video/mp4",
+        ".mov": "video/quicktime",
+        ".avi": "video/x-msvideo",
+        ".pdf": "application/pdf",
+    }
+    media_type = media_map.get(suffix, "application/octet-stream")
+    return FileResponse(str(file_path), media_type=media_type)
 
 
 # --- Face Registry Endpoints (UniFace Face Gallery) ---
@@ -2687,6 +2793,306 @@ def export_warehouse_csv(gate: str = "all") -> Response:
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=warehouse_events_{gate}.csv"}
     )
+
+
+# -----------------------------------------------------------------------------
+# DASHBOARD BUILDER & VISUAL DESIGNER REST APIs
+# -----------------------------------------------------------------------------
+@app.get("/api/dashboard/builder/layout")
+@app.get("/api/dashboard/layout")
+def get_dashboard_layout(project_id: str = "default") -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    return bus.load_layout(project_id)
+
+
+@app.post("/api/dashboard/builder/layout")
+@app.post("/api/dashboard/layout")
+async def save_dashboard_layout(request: Request, project_id: str = "default") -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    try:
+        body = await request.json()
+        saved_path = bus.save_layout(project_id, body)
+        return {"ok": True, "project_id": project_id, "saved_path": saved_path}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Gagal menyimpan layout dashboard: {e}")
+
+
+@app.get("/api/dashboard/builder/templates")
+def get_dashboard_templates() -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    return {"templates": bus.get_templates()}
+
+
+@app.post("/api/dashboard/builder/templates/apply")
+async def apply_dashboard_template(request: Request) -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    body = await request.json()
+    project_id = body.get("project_id", "default")
+    template_id = body.get("template_id", "tpl_traffic_flow")
+    applied = bus.apply_template(project_id, template_id)
+    return {"ok": True, "project_id": project_id, "template_id": template_id, "layout": applied}
+
+
+@app.get("/api/dashboard/builder/snapshot")
+@app.get("/api/dashboard/snapshot")
+def get_dashboard_snapshot() -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    return bus.get_live_snapshot()
+
+
+@app.get("/api/dashboard/builder/timeseries")
+@app.get("/api/dashboard/timeseries")
+def get_dashboard_timeseries(
+    metric_key: str = "",
+    hours: float = 24.0,
+    camera_label: str = ""
+) -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    points = bus.get_historical_timeseries(metric_key=metric_key, hours=hours, camera_label=camera_label)
+    return {"ok": True, "points": points}
+
+
+@app.get("/api/dashboard/builder/events")
+@app.get("/api/dashboard/events")
+def get_dashboard_events(
+    limit: int = 100,
+    camera_label: Optional[str] = None,
+    level: Optional[str] = None,
+    start_time: Optional[float] = None,
+    end_time: Optional[float] = None
+) -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    events = bus.get_events(limit=limit, camera_label=camera_label, level=level, start_time=start_time, end_time=end_time)
+    return {"ok": True, "events": events}
+
+
+@app.get("/api/dashboard/builder/export-excel")
+@app.get("/api/dashboard/export-excel")
+def export_dashboard_excel(
+    camera_label: Optional[str] = None,
+    start_time: Optional[float] = None,
+    end_time: Optional[float] = None
+) -> Response:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    content = bus.export_excel(camera_label=camera_label, start_time=start_time, end_time=end_time)
+    ts = int(time.time())
+    cam_slug = "".join(c for c in (camera_label or "semua") if c.isalnum() or c in ("-", "_"))
+    filename = f"afivision_report_{cam_slug}_{ts}.xlsx"
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@app.post("/api/dashboard/builder/export-package")
+@app.post("/api/dashboard/export-package")
+async def export_dashboard_package(request: Request) -> Response:
+    from dashboard_export import create_standalone_dashboard_package
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    project_id = body.get("project_id", "default")
+    layout = body.get("layout")
+    zip_bytes = create_standalone_dashboard_package(project_id=project_id, layout_data=layout, root_dir=ROOT)
+    filename = f"afivision-dashboard-standalone-{project_id}.zip"
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@app.post("/api/dashboard/builder/emit-event")
+async def emit_dashboard_event(request: Request) -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    body = await request.json()
+    ev = bus.publish_event(
+        event_type=body.get("event_type", "OPERATOR_NOTE"),
+        description=body.get("description", ""),
+        camera_label=body.get("camera_label", "Operator"),
+        level=body.get("level", "info"),
+        metadata=body.get("metadata", {})
+    )
+    return {"ok": True, "event": ev}
+
+
+@app.post("/api/dashboard/builder/emit-metric")
+async def emit_dashboard_metric(request: Request) -> dict:
+    from dashboard_bus import DashboardDataBus
+    bus = DashboardDataBus.get_instance(_data_dir)
+    body = await request.json()
+    rec = bus.publish_metric(
+        metric_key=body.get("metric_key", "custom_metric"),
+        value=body.get("value", 0),
+        label=body.get("label", ""),
+        unit=body.get("unit", ""),
+        status=body.get("status", "normal"),
+        camera_label=body.get("camera_label", ""),
+        stream_id=body.get("stream_id", "")
+    )
+    return {"ok": True, "metric": rec}
+
+
+# --- AI Dashboard Copilot Endpoints ---
+@app.post("/api/dashboard/builder/ai-generate")
+async def ai_generate_dashboard(request: Request) -> dict:
+    _write_allowed(request)
+    body = await request.json()
+    user_instruction = str(body.get("userInstruction", "")).strip()
+    if not user_instruction:
+        raise HTTPException(400, "Instruksi prompt wajib diisi")
+    current_layout = body.get("currentLayout")
+    ai_config = body.get("aiConfig")
+
+    try:
+        from engine.dashboard_ai_generator import generate_dashboard_layout_with_ai
+    except ImportError:
+        import dashboard_ai_generator
+        generate_dashboard_layout_with_ai = dashboard_ai_generator.generate_dashboard_layout_with_ai
+
+    res = generate_dashboard_layout_with_ai(
+        user_instruction=user_instruction,
+        current_layout=current_layout,
+        ai_config=ai_config,
+        data_dir=_data_dir
+    )
+    if not res.get("success"):
+        raise HTTPException(500, res.get("error", "Gagal merancang dashboard dengan AI"))
+    return res
+
+
+@app.post("/api/dashboard/builder/ai-analyze-image")
+async def ai_analyze_dashboard_image(request: Request) -> dict:
+    _write_allowed(request)
+    body = await request.json()
+    image_data = body.get("image") or body.get("imageData") or ""
+    if not image_data:
+        raise HTTPException(400, "Gambar referensi JPEG/PNG wajib diunggah")
+
+    user_instruction = str(body.get("instruction") or body.get("userInstruction") or "").strip()
+    current_layout = body.get("currentLayout")
+    ai_config = body.get("aiConfig")
+
+    try:
+        from engine.dashboard_ai_generator import analyze_dashboard_image_and_replicate
+    except ImportError:
+        import dashboard_ai_generator
+        analyze_dashboard_image_and_replicate = dashboard_ai_generator.analyze_dashboard_image_and_replicate
+
+    res = analyze_dashboard_image_and_replicate(
+        image_data=image_data,
+        user_instruction=user_instruction,
+        current_layout=current_layout,
+        ai_config=ai_config,
+        data_dir=_data_dir
+    )
+    if not res.get("success"):
+        raise HTTPException(500, res.get("error", "Gagal menganalisis desain gambar"))
+    return res
+
+
+@app.get("/api/dashboard/builder/realtime-context")
+def get_dashboard_realtime_context() -> dict:
+    try:
+        from engine.dashboard_ai_generator import collect_realtime_system_context
+    except ImportError:
+        import dashboard_ai_generator
+        collect_realtime_system_context = dashboard_ai_generator.collect_realtime_system_context
+
+    ctx = collect_realtime_system_context(_data_dir)
+    return {"ok": True, "context": ctx}
+
+
+# -----------------------------------------------------------------------------
+# Media Gateway & IP Camera Setup Wizard Endpoints
+# -----------------------------------------------------------------------------
+
+@app.get("/api/gateway/status")
+def gateway_status(url: str = "http://127.0.0.1:1984") -> dict:
+    client = MediaGatewayClient(gateway_url=url)
+    return client.get_status()
+
+
+@app.get("/api/gateway/streams")
+def gateway_streams(url: str = "http://127.0.0.1:1984", rtsp_base: str = "rtsp://127.0.0.1:8554") -> dict:
+    client = MediaGatewayClient(gateway_url=url, rtsp_base=rtsp_base)
+    streams = client.list_streams()
+    return {"ok": True, "streams": streams}
+
+
+@app.post("/api/gateway/generate-url")
+async def gateway_generate_url(request: Request) -> dict:
+    body = await request.json()
+    brand = body.get("brand", "ezviz")
+    host = body.get("host", "")
+    port = body.get("port", 554)
+    username = body.get("username", "admin")
+    password = body.get("password", "")
+    quality = body.get("quality", "main")
+    custom_path = body.get("custom_path", "")
+    try:
+        url = build_camera_rtsp_url(
+            brand=brand,
+            host=host,
+            port=port,
+            username=username,
+            password=password,
+            quality=quality,
+            custom_path=custom_path,
+        )
+        return {"ok": True, "url": url}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@app.post("/api/gateway/test-camera")
+async def gateway_test_camera(request: Request) -> dict:
+    body = await request.json()
+    url = body.get("url", "")
+    if not url:
+        brand = body.get("brand", "ezviz")
+        host = body.get("host", "")
+        port = body.get("port", 554)
+        username = body.get("username", "admin")
+        password = body.get("password", "")
+        quality = body.get("quality", "main")
+        custom_path = body.get("custom_path", "")
+        try:
+            url = build_camera_rtsp_url(brand, host, port, username, password, quality, custom_path)
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    timeout = float(body.get("timeout", 4.0))
+    res = test_camera_connection(url, timeout_seconds=timeout)
+    res["url"] = url
+    return res
+
+
+@app.post("/api/gateway/register-stream")
+async def gateway_register_stream(request: Request) -> dict:
+    body = await request.json()
+    gateway_url = body.get("gateway_url", "http://127.0.0.1:1984")
+    rtsp_base = body.get("rtsp_base", "rtsp://127.0.0.1:8554")
+    stream_name = body.get("stream_name", "")
+    source_url = body.get("source_url", "")
+    if not stream_name or not source_url:
+        return {"ok": False, "error": "stream_name dan source_url wajib diisi."}
+
+    client = MediaGatewayClient(gateway_url=gateway_url, rtsp_base=rtsp_base)
+    result = client.register_stream(stream_name, source_url)
+    return {"ok": result.get("success", False), "result": result}
 
 
 @app.get("/")

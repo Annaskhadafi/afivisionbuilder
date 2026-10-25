@@ -778,7 +778,8 @@ def _process_track_event_nodes(
             "detections_difference", "data_aggregator", "csv_formatter", "s3_sink",
             "notification_dispatcher", "ptz_controller", "screenshot_capture", "telegram_notification", "ocr_reader", "object_timer",
             "face_detector", "face_analyzer", "face_tracker", "face_crop",
-            "dominant_color", "class_replacement", "man_down_detector", "lpr_license_plate", "overstack_detector"
+            "dominant_color", "class_replacement", "man_down_detector", "lpr_license_plate", "overstack_detector",
+            "dashboard_sink"
         ):
             continue
         project_id = str(project_node.get("id") or "")
@@ -1000,6 +1001,81 @@ def _process_track_event_nodes(
                 candidates[:] = augmented_dets
             if detections:
                 detections[:] = augmented_dets
+        elif p_type == "dashboard_sink":
+            try:
+                from dashboard_bus import DashboardDataBus
+                bus = DashboardDataBus.get_instance()
+                cfg = project_node.get("config", {})
+                m_key = cfg.get("metricKey", "total_count")
+                m_label = cfg.get("metricLabel", "Total Deteksi")
+                m_source = cfg.get("metricSource", "count")
+                unit = cfg.get("unit", "Objek")
+                warn_th = float(cfg.get("warningThreshold", 10.0))
+                danger_th = float(cfg.get("dangerThreshold", 20.0))
+                cam_lbl = cfg.get("cameraLabel", "Kamera 01")
+                stream_id = cfg.get("streamId", "cam_01")
+                flush_sec = float(cfg.get("flushIntervalSeconds", 1.0))
+
+                target_items = candidates or tracked or detections
+                if m_source == "active_tracks":
+                    val = len(set(d.get("track_id") for d in target_items if d.get("track_id") is not None))
+                elif m_source == "violations":
+                    val = sum(1 for d in target_items if d.get("violation") or d.get("alert") or d.get("is_anomaly"))
+                elif m_source == "event_count":
+                    val = len(extra_results)
+                elif m_source == "person_count":
+                    val = sum(1 for d in target_items if str(d.get("class_name", "")).lower() in ("person", "pedestrian", "man", "woman", "worker", "user"))
+                elif m_source == "vehicle_count":
+                    val = sum(1 for d in target_items if str(d.get("class_name", "")).lower() in ("car", "truck", "bus", "motorcycle", "vehicle"))
+                elif m_source == "occupancy_pct":
+                    max_cap = float(cfg.get("maxCapacity", 100.0) or 100.0)
+                    val = round((len(target_items) / max(1.0, max_cap)) * 100.0, 1)
+                else:
+                    val = len(target_items)
+
+                if val >= danger_th:
+                    status = "danger"
+                elif val >= warn_th:
+                    status = "warning"
+                else:
+                    status = "normal"
+
+                bus.publish_metric(
+                    metric_key=m_key,
+                    value=val,
+                    label=m_label,
+                    unit=unit,
+                    status=status,
+                    workflow_id=str(workflow.get("id") or "default"),
+                    node_id=project_id,
+                    camera_label=cam_lbl,
+                    stream_id=stream_id,
+                    flush_interval_seconds=flush_sec
+                )
+
+                if cfg.get("enableAlert", True) and status in ("warning", "danger"):
+                    state = event_runtime.setdefault(project_id, {})
+                    last_alert_time = state.get("last_alert_time", 0.0)
+                    if now - last_alert_time >= 5.0:
+                        state["last_alert_time"] = now
+                        alert_msg = cfg.get("alertMessage", "Ambang batas terlampaui")
+                        ev = {
+                            "type": "THRESHOLD_ALERT",
+                            "message": f"{m_label}: {val} {unit} ({alert_msg})",
+                            "zoneName": cam_lbl,
+                            "level": status
+                        }
+                        extra_results.append(ev)
+                        bus.publish_event(
+                            event_type="THRESHOLD_ALERT",
+                            description=f"{m_label}: {val} {unit} ({alert_msg})",
+                            camera_label=cam_lbl,
+                            level=status,
+                            workflow_id=str(workflow.get("id") or "default"),
+                            node_id=project_id
+                        )
+            except Exception as e:
+                logger.debug(f"dashboard_sink processing error: {e}")
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
         if telemetry_callback and project_id:
@@ -1017,6 +1093,32 @@ def _process_track_event_nodes(
     barcode_dets = _process_barcode_reading(workflow, frame, detections)
     extra_results.extend(barcode_dets)
     detections.extend(barcode_dets)
+
+    # Auto-publish workflow activity and detection metrics to DashboardDataBus
+    try:
+        from dashboard_bus import DashboardDataBus
+        bus = DashboardDataBus.get_instance()
+        wf_id = str(workflow.get("id") or "default")
+        cam_id = str(workflow.get("camera_id") or wf_id or "cam_01")
+        cam_name = str(workflow.get("name") or "Kamera Utama")
+        bus.update_camera_status(stream_id=cam_id, camera_label=cam_name, status="online", workflow_id=wf_id)
+
+        all_items = tracked or detections or []
+        if all_items:
+            p_count = sum(1 for d in all_items if str(d.get("class_name", "")).lower() in ("person", "pedestrian", "man", "woman", "worker", "user"))
+            v_count = sum(1 for d in all_items if str(d.get("class_name", "")).lower() in ("car", "truck", "bus", "motorcycle", "vehicle"))
+            viol_count = sum(1 for d in all_items if d.get("violation") or d.get("alert") or d.get("is_anomaly"))
+
+            if p_count > 0:
+                bus.publish_metric("total_person", p_count, label="Personel", unit="Orang", camera_label=cam_name, workflow_id=wf_id)
+            if v_count > 0:
+                bus.publish_metric("vehicle_count", v_count, label="Kendaraan", unit="Unit", camera_label=cam_name, workflow_id=wf_id)
+            if viol_count > 0:
+                bus.publish_metric("violation_count", viol_count, label="Pelanggaran", unit="Kasus", status="warning" if viol_count < 3 else "danger", camera_label=cam_name, workflow_id=wf_id)
+
+            bus.publish_metric("total_count", len(all_items), label="Total Deteksi", unit="Objek", camera_label=cam_name, workflow_id=wf_id)
+    except Exception:
+        pass
 
     return extra_results, crop_batches, object_records, count_records
 
