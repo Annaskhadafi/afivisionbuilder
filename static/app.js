@@ -64,6 +64,10 @@
     man_down_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2"/><path d="m8 18 4-2 3 2 4-2"/><path d="M12 9V3"/><path d="m9 6 3-3 3 3"/></svg>',
     lpr_license_plate: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="5" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><path d="M8 10h8"/><path d="M8 14h5"/></svg>',
     overstack_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M2 5h20"/><path d="m12 2 3 3-3 3"/><rect width="16" height="5" x="4" y="10" rx="1"/><rect width="18" height="5" x="3" y="16" rx="1"/></svg>',
+    incident_video_recorder: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/><circle cx="9" cy="12" r="2.5" fill="#ef4444"/></svg>',
+    mqtt_publisher: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M4.93 4.93A10 10 0 0 1 19.07 4.93"/><path d="M7.76 7.76a6 6 0 0 1 8.48 0"/><circle cx="12" cy="12" r="2"/><path d="M12 14v8"/></svg>',
+    crowd_density_heatmap: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2c-4 4-6 7.5-6 10.5 0 3.3 2.7 6 6 6s6-2.7 6-6c0-3-2-6.5-6-10.5Z"/><path d="M12 8c-2 2-3 3.8-3 5.3 0 1.7 1.3 3 3 3s3-1.3 3-3c0-1.5-1-3.3-3-5.3Z"/></svg>',
+    ppe_compliance_matrix: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v1h10V7a5 5 0 0 0-5-5Z"/><path d="M2 13h20"/><path d="M4 13v2a8 8 0 0 0 16 0v-2"/><path d="m9 17 2 2 4-4"/></svg>',
 
     // Preprocessing
     slicer: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>',
@@ -224,9 +228,9 @@
   function categoryFor(type) {
     if (type === 'input' || type === 'ip_camera') return 'Sources';
     if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison', 'face_detector', 'face_analyzer', 'face_crop', 'lpr_license_plate'].includes(type)) return 'AI Vision Models';
-    if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller', 'object_timer', 'face_tracker', 'dominant_color', 'man_down_detector', 'overstack_detector'].includes(type)) return 'Tracking & Analysis';
+    if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller', 'object_timer', 'face_tracker', 'dominant_color', 'man_down_detector', 'overstack_detector', 'ppe_compliance_matrix'].includes(type)) return 'Tracking & Analysis';
     if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer', 'camera_focus', 'auto_rotate_edges', 'delta_filter'].includes(type)) return 'Image Preprocessing';
-    if (['overlay_annotate', 'interactive_zoom', 'draw_boxes', 'draw_text', 'blur_anonymizer'].includes(type)) return 'Annotations & Drawing';
+    if (['overlay_annotate', 'interactive_zoom', 'draw_boxes', 'draw_text', 'blur_anonymizer', 'crowd_density_heatmap'].includes(type)) return 'Annotations & Drawing';
     if (['if_else', 'compare_value', 'roi_filter', 'object_count_condition', 'class_detected_condition', 'confidence_threshold', 'timer_delay', 'debounce', 'rate_limiter', 'and_or_logic', 'trigger_once', 'switch_case', 'class_replacement'].includes(type)) return 'Logic & Flow Control';
     return 'Outputs & Export';
   }
@@ -11238,6 +11242,77 @@
       { "key": "alarmCooldownSeconds", "label": "Jeda Cooldown Alarm", "desc": "Jeda waktu antar peringatan bahaya overstack." }
     ],
     "tips": "Visualisasi overlay otomatis merender garis batas langit-langit oranye dan menghitung kelebihan tinggi (misal: OVERSTACK +0.45m)."
+  },
+  "incident_video_recorder": {
+    "concept": "Node perekam klip video insiden MP4 otomatis menggunakan rolling buffer di memori RAM. Menyimpan N detik sebelum insiden terjadi dan N detik setelah insiden di-trigger secara non-blocking.",
+    "diagram": "[ Detections / Alert ] ──▶ [ Incident Video Recorder ] ──▶ [ MP4 Clip & Metadata JSON ]",
+    "steps": [
+      "Pilih Mode Pemicu (on_detection, on_violation, atau manual).",
+      "Tentukan durasi Pre-Buffer (default 5 detik) dan Post-Buffer (default 10 detik).",
+      "Pilih folder output penyimpanan lokal (data/recordings).",
+      "Atur jeda cooldown antar rekaman (default 15 detik)."
+    ],
+    "params": [
+      { "key": "triggerMode", "label": "Mode Pemicu Perekaman", "desc": "Kondisi mulai merekam (on_detection, on_violation, manual)." },
+      { "key": "preBufferSeconds", "label": "Durasi Pre-Buffer (Detik)", "desc": "Waktu mundur sebelum insiden yang tetap terekam dari RAM." },
+      { "key": "postBufferSeconds", "label": "Durasi Post-Buffer (Detik)", "desc": "Waktu rekam setelah pemicu menyala." },
+      { "key": "fps", "label": "Frame Per Second", "desc": "Kecepatan frame rate klip video output." },
+      { "key": "cooldownSeconds", "label": "Jeda Cooldown (Detik)", "desc": "Jeda waktu sebelum insiden baru diizinkan merekam klip baru." }
+    ],
+    "tips": "Proses kompresi MP4 berjalan di background thread terpisah sehingga FPS live kamera sama sekali tidak terganggu."
+  },
+  "mqtt_publisher": {
+    "concept": "Node Industrial IoT & SCADA Gateway untuk menerbitkan data deteksi, alarm K3, atau hitungan objek ke broker MQTT (Mosquitto, EMQX, Node-RED, PLC Siemens, Home Assistant).",
+    "diagram": "[ Detections / Events ] ──▶ [ MQTT Publisher ] ──▶ [ Industrial PLC / SCADA / Dashboard ]",
+    "steps": [
+      "Masukkan alamat broker MQTT (host & port, default localhost:1883).",
+      "Tentukan Topic penerbitan (misal: afivision/alerts atau plant1/safety).",
+      "Pilih Mode Publikasi (on_event, on_detection, always).",
+      "Pilih format payload (JSON atau Template teks kustom)."
+    ],
+    "params": [
+      { "key": "brokerHost", "label": "Alamat Broker MQTT", "desc": "IP Address atau hostname broker MQTT." },
+      { "key": "brokerPort", "label": "Port Broker", "desc": "Port TCP broker MQTT (default 1883)." },
+      { "key": "topic", "label": "Topik MQTT", "desc": "Topik penerbitan pesan MQTT." },
+      { "key": "qos", "label": "Quality of Service (QoS)", "desc": "Tingkat keandalan transmisi pesan (0, 1, 2)." },
+      { "key": "publishMode", "label": "Mode Publikasi", "desc": "Waktu penerbitan pesan (on_event, on_detection, always)." }
+    ],
+    "tips": "Sangat ideal untuk memicu sirine fisik pabrik atau palang gerbang parkir secara langsung tanpa perantara server tambahan."
+  },
+  "crowd_density_heatmap": {
+    "concept": "Node visualisasi spasial 2D yang mengakumulasi titik lalu lintas pejalan kaki atau kendaraan menggunakan kernel Gaussian, menghasilkan peta panas densitas mobilitas.",
+    "diagram": "[ Detections / Centroids ] ──▶ [ Crowd Density Heatmap ] ──▶ [ Blended Heatmap Frame ]",
+    "steps": [
+      "Tentukan Target Kelas yang diakumulasi (person, vehicle, forklift).",
+      "Pilih Preset ColorMap (Jet, Inferno, Viridis, Turbo).",
+      "Atur Radius Kernel Gaussian (default 24 piksel) dan Opasitas (default 0.45).",
+      "Atur Decay Factor (0.985) untuk menentukan seberapa cepat jejak masa lalu memudar."
+    ],
+    "params": [
+      { "key": "targetClass", "label": "Target Kelas Objek", "desc": "Kelas deteksi yang dihitung titik kerumunannya." },
+      { "key": "colormap", "label": "Skema Warna Heatmap", "desc": "Preset palet gradasi warna OpenCV." },
+      { "key": "opacity", "label": "Opasitas Transparansi", "desc": "Tingkat transparansi lapisan heatmap di atas video (0.1 - 1.0)." },
+      { "key": "decayFactor", "label": "Faktor Peluruhan (Decay)", "desc": "Laju pemudaran akumulasi historis per frame." },
+      { "key": "minDensityThreshold", "label": "Ambang Batas Minimum", "desc": "Area dengan densitas di bawah batas ini tidak akan diwarnai." }
+    ],
+    "tips": "Memberikan wawasan visual langsung mengenai rute yang paling sering dilalui (traffic flow) dan titik kerumunan (bottleneck) di lantai pabrik atau toko ritel."
+  },
+  "ppe_compliance_matrix": {
+    "concept": "Node evaluator kepatuhan APD (Alat Pelindung Diri) K3 komposit yang memeriksa kelengkapan Helm, Rompi Reflektif, dan Sepatu Safety pada setiap tubuh pekerja.",
+    "diagram": "[ Person & Safety Gear ] ──▶ [ PPE Compliance Matrix ] ──▶ [ K3 Score (0-100%) & Violation Alert ]",
+    "steps": [
+      "Pilih APD Wajib yang diperiksa (helmet, vest, boots, gloves).",
+      "Atur Ambang Batas Skor Minimum K3 (default 70%).",
+      "Atur Jeda Cooldown Alarm Pelanggaran (default 5 detik).",
+      "Aktifkan Show Badge Overlay untuk melihat badge hijau/merah di atas kepala pekerja."
+    ],
+    "params": [
+      { "key": "requiredPPE", "label": "Daftar APD Wajib", "desc": "Komponen keselamatan yang harus dikenakan pekerja." },
+      { "key": "minComplianceScore", "label": "Skor Kepatuhan Minimum (%)", "desc": "Batas kelulusan kepatuhan sebelum alarm berbunyi." },
+      { "key": "alarmCooldownSeconds", "label": "Jeda Cooldown Alarm", "desc": "Interval pencegahan duplikasi alarm pelanggaran pekerja yang sama." },
+      { "key": "showBadgeOverlay", "label": "Tampilkan Badge Visual", "desc": "Render badge pill status K3 di atas bounding box pekerja." }
+    ],
+    "tips": "Secara otomatis menganalisis overlap spasial pada zona anatomi tubuh (kepala untuk helm, torso untuk rompi, kaki untuk sepatu) sehingga akurat dan tidak tertukar antar pekerja."
   }
 };
 

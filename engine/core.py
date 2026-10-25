@@ -779,7 +779,7 @@ def _process_track_event_nodes(
             "notification_dispatcher", "ptz_controller", "screenshot_capture", "telegram_notification", "ocr_reader", "object_timer",
             "face_detector", "face_analyzer", "face_tracker", "face_crop",
             "dominant_color", "class_replacement", "man_down_detector", "lpr_license_plate", "overstack_detector",
-            "dashboard_sink"
+            "dashboard_sink", "incident_video_recorder", "mqtt_publisher", "crowd_density_heatmap", "ppe_compliance_matrix"
         ):
             continue
         project_id = str(project_node.get("id") or "")
@@ -1076,6 +1076,41 @@ def _process_track_event_nodes(
                         )
             except Exception as e:
                 logger.debug(f"dashboard_sink processing error: {e}")
+        elif p_type == "incident_video_recorder":
+            from incident_recorder import process_incident_video_recorder
+            state = event_runtime.setdefault(project_id, {})
+            rec_status, rec_events = process_incident_video_recorder(
+                project_node, frame, candidates or tracked or detections, state, now
+            )
+            extra_results.extend(rec_events)
+        elif p_type == "mqtt_publisher":
+            from mqtt_gateway import process_mqtt_publisher
+            state = event_runtime.setdefault(project_id, {})
+            mqtt_status, mqtt_events = process_mqtt_publisher(
+                project_node, candidates or tracked or detections, state, now
+            )
+            extra_results.extend(mqtt_events)
+        elif p_type == "crowd_density_heatmap":
+            from crowd_heatmap import process_crowd_density_heatmap
+            state = event_runtime.setdefault(project_id, {})
+            heat_frame, heat_meta = process_crowd_density_heatmap(
+                project_node, frame, candidates or tracked or detections, state, now
+            )
+            if heat_frame is not None and heat_frame.shape == frame.shape:
+                frame[:] = heat_frame
+        elif p_type == "ppe_compliance_matrix":
+            from ppe_compliance import process_ppe_compliance_matrix
+            state = event_runtime.setdefault(project_id, {})
+            augmented_dets, ppe_events = process_ppe_compliance_matrix(
+                project_node, frame, candidates or tracked or detections, state, now
+            )
+            extra_results.extend(ppe_events)
+            if candidates:
+                candidates[:] = augmented_dets
+            if tracked:
+                tracked[:] = augmented_dets
+            if detections:
+                detections[:] = augmented_dets
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
         if telemetry_callback and project_id:

@@ -10,16 +10,16 @@
   <img src="https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch" />
   <img src="https://img.shields.io/badge/OpenCV-4.8+-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white" alt="OpenCV" />
   <img src="https://img.shields.io/badge/Ultralytics-YOLO26%20%7C%20v11%20%7C%20v8-00FFFF?style=for-the-badge&logo=yolo&logoColor=black" alt="YOLO" />
-  <img src="https://img.shields.io/badge/Nodes%20Catalog-80%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
-  <img src="https://img.shields.io/badge/Unit%20Tests-266%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
-  <img src="https://img.shields.io/badge/E2E%20Tests-34%2B%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
+  <img src="https://img.shields.io/badge/Nodes%20Catalog-89%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
+  <img src="https://img.shields.io/badge/Unit%20Tests-281%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
+  <img src="https://img.shields.io/badge/E2E%20Tests-35%2B%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
 </p>
 
 <p align="center">
   <a href="#-fitur-unggulan-terbaru">Fitur Unggulan</a> •
   <a href="#-tur-antarmuka--showcase-visual">Tur Antarmuka</a> •
   <a href="#-instalasi--eksekusi-1-click">Instalasi Cepat</a> •
-  <a href="#-katalog-80-node-lengkap">Katalog 80+ Node</a> •
+  <a href="#-katalog-80-node-lengkap">Katalog 89+ Node</a> •
   <a href="#-arsitektur-sistem">Arsitektur</a> •
   <a href="#-pengujian-kualitas-unit--e2e">Pengujian Kualitas</a> •
   <a href="#-lisensi--pengembang">Lisensi</a>
@@ -271,6 +271,26 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 - **Upload Logo Perusahaan Langsung**: Widget `image_logo` mendukung unggah berkas citra brand (PNG, JPG, SVG, WebP) dengan thumbnail pratinjau instan dan penyimpanan persisten di server.
 - **Ekspor Kode Mandiri Docker (Standalone 1-Click ZIP)**: Mengemas seluruh dasbor, alur kerja aktif, engine Python, template web, aset logo terunggah, `Dockerfile`, `docker-compose.yml`, serta skrip peluncur `run.bat`/`run.sh` ke dalam arsip ZIP mandiri tanpa ketergantungan eksternal, siap pakai untuk deployment server Dokploy maupun Portainer.
 
+### 📹 43. Incident Video Recorder (Pre-Buffer RAM Clip)
+- **Perekaman Klip Insiden Cerdas (Pre & Post Buffer)**: Menjaga circular ring buffer di memori RAM (misal: 5-10 detik terakhir frame) secara kontinu tanpa beban I/O disk.
+- **Pemicu Otomatis Multi-Kondisi**: Mulai merekam otomatis saat mendeteksi pelanggaran K3, tabrakan, intrusi, atau objek tertentu (`on_detection`, `on_violation`, atau sinyal logic).
+- **Asynchronous MP4 Rendering**: Encoding video berjalan di background thread terpisah tanpa mengurangi FPS inferensi kamera real-time, lengkap dengan file metadata JSON pendamping.
+
+### 📡 44. Industrial MQTT IoT & SCADA Gateway Publisher
+- **Integrasi Langsung ke Perangkat Fisik Pabrik**: Menghubungkan kejadian analitik AI ke PLC fisik (Siemens, Schneider), lampu sirine alarm K3, palang pintu gerbang otomatis, atau broker MQTT (Mosquitto, EMQX, HiveMQ, Node-RED, Home Assistant).
+- **Klien Persisten Thread-Safe**: Mendukung QoS 0/1/2, retain flag, otentikasi username/password, dan format payload JSON maupun template string kustom.
+- **Resilient Fallback**: Dilengkapi mekanisme penanganan error mandiri dan mock publisher jika dependensi paho-mqtt belum tersedia.
+
+### 🌡️ 45. Crowd Density & Mobility Heatmap Generator (2D Gaussian Splatting)
+- **Akumulasi Spasial Jejak Mobilitas**: Membangkitkan peta panas densitas 2D berbasis sebaran Gaussian untuk menganalisis jalur lalu lintas pejalan kaki (customer journey ritel) atau titik kemacetan forklift di gudang.
+- **Decay Factor & Colormap OpenCV**: Dilengkapi faktor peluruhan temporal per frame/detik dan opsi palet warna profesional (Jet, Inferno, Viridis, Turbo) dengan slider opasitas blend transparan.
+- **Filter Ambang Densitas**: Meniadakan pewarnaan pada area kosong/sepi sehingga video tetap jernih dan fokus pada titik kerumunan.
+
+### 🦺 46. Safety PPE Compliance Matrix (Hardhat, Vest, Boots Composite K3)
+- **Evaluasi Komposit K3 Terpadu per Pekerja**: Memeriksa kelengkapan APD wajib (Helm, Rompi Reflektif, Sepatu Safety, Sarung Tangan) pada setiap tubuh pekerja (`person`) dengan analisis asosiasi spasial sub-zona anatomi (kepala, torso, kaki).
+- **Skor Kepatuhan Dinamis (0 - 100%)**: Menghasilkan klasifikasi status instan (`COMPLIANT`, `PARTIAL`, `VIOLATION`) dan daftar komponen yang belum dipakai (`missingPPE`).
+- **Visual Pill Badges & Alarm Cooldown**: Menampilkan badge kepatuhan visual di atas kepala pekerja (hijau untuk lolos, merah untuk pelanggaran) dan pemicu alarm terukur dengan batas cooldown anti-spam.
+
 ---
 
 ## 📸 Tur Antarmuka & Showcase Visual
@@ -453,7 +473,7 @@ AFI Vision Builder dirancang portabel dengan skrip launcher otomatis:
 
 ---
 
-## 🧩 Katalog 80+ Node Lengkap
+## 🧩 Katalog 89+ Node Lengkap
 
 Seluruh node dikelompokkan ke dalam 5 kategori fungsional dengan parameter berlabel Bahasa Indonesia dan panduan interaktif:
 

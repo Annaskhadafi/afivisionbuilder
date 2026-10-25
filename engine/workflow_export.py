@@ -89,6 +89,10 @@ NODE_TYPE_TO_ENGINE_FILES = {
     "multi_zone_occupancy": {"multi_zone_occupancy.py"},
     "zone_timer": {"project_nodes.py"},
     "zone_exit_event": {"project_nodes.py"},
+    "incident_video_recorder": {"incident_recorder.py"},
+    "mqtt_publisher": {"mqtt_gateway.py"},
+    "crowd_density_heatmap": {"crowd_heatmap.py"},
+    "ppe_compliance_matrix": {"ppe_compliance.py"},
 }
 
 CORE_ENGINE_FILES = {
