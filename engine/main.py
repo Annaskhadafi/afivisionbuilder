@@ -6503,7 +6503,8 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
             classification_y = draw_result(frame, detection, show_labels=show_labels, y=classification_y,
                                            show_boxes=show_boxes, show_track_ids=show_track_ids)
             continue
-        label_text = f"OCR: {detection['text']}" if ("text" in detection and detection["text"]) else detection.get("class", "object")
+        is_text_det = bool("text" in detection and str(detection["text"]).strip())
+        label_text = str(detection["text"]).strip() if is_text_det else str(detection.get("class", "object"))
         track_id = detection.get("trackId")
         color_key = f"{label_text}:{track_id}" if track_id is not None else label_text
         color = detection_color(color_key)
@@ -6516,7 +6517,14 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
                 if len(h) == 6:
                     color = (int(h[4:6], 16), int(h[2:4], 16), int(h[0:2], 16))
 
-        label = f"{label_text} {round(float(detection.get('score', 0)) * 100)}%"
+        if is_text_det and not config.get("showConfidence", False):
+            label = label_text
+        else:
+            score_val = detection.get("score")
+            if score_val is not None and float(score_val) > 0:
+                label = f"{label_text} {round(float(score_val) * 100)}%"
+            else:
+                label = label_text
         if show_track_ids and track_id is not None:
             label = f"#{track_id} {label}"
         if "lineDirection" in detection:
@@ -6600,15 +6608,6 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
             cv2.rectangle(frame, (x, label_y - bg_h), (x + 3, label_y), color, -1)
             cv2.rectangle(frame, (x, label_y - bg_h), (x + bg_w, label_y), (50, 65, 85), 1)
             cv2.putText(frame, label, (x + 7, label_y - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.46, (255, 255, 255), 1, cv2.LINE_AA)
-            if "text" in detection and detection["text"]:
-                tag = f"OCR: {detection['text']}"
-                tag_size, _ = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.52, 2)
-                bw = tag_size[0] + 16
-                bh = tag_size[1] + 12
-                by = min(frame.shape[0] - bh - 4, y + height + 4)
-                cv2.rectangle(frame, (x, by), (x + bw, by + bh), (15, 23, 42), -1)
-                cv2.rectangle(frame, (x, by), (x + bw, by + bh), (16, 185, 129), 2)
-                cv2.putText(frame, tag, (x + 8, by + bh - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (52, 211, 153), 2, cv2.LINE_AA)
 
     if show_counts:
         _draw_object_count_overlay(frame, detections, counter_state=counter_state)

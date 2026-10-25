@@ -190,7 +190,17 @@
           this.state.layout = await res.json();
           this.applyTheme(this.state.layout.theme || 'dark');
           this.renderCanvas();
-          setTimeout(() => this.zoomFit(), 60);
+          if (this.state.isPublicView) {
+            const title = this.state.layout.name || this.state.layout.title || 'Live Dashboard';
+            document.title = `${title} — Afi Vision Live`;
+            const publicTitle = document.getElementById('publicDashTitle');
+            if (publicTitle) publicTitle.textContent = title;
+            if (typeof window.autoFitPublicCanvas === 'function') {
+              setTimeout(() => window.autoFitPublicCanvas(), 40);
+            }
+          } else {
+            setTimeout(() => this.zoomFit(), 60);
+          }
         } else {
           console.error('[DashboardBuilder] Gagal memuat layout:', res.statusText);
         }
@@ -576,9 +586,13 @@
       btnAudio?.addEventListener('click', () => this.toggleAudio());
     },
 
+    getCanvasElement() {
+      return document.getElementById('builderCanvas') || document.getElementById('publicCanvas');
+    },
+
     bindCanvasBackgroundEvents() {
-      const canvas = document.getElementById('builderCanvas');
-      const viewport = document.getElementById('builderViewport');
+      const canvas = this.getCanvasElement();
+      const viewport = document.getElementById('builderViewport') || document.getElementById('publicViewport');
       canvas?.addEventListener('click', (e) => {
         this.closeContextMenu();
         if (e.target === canvas) {
@@ -615,7 +629,7 @@
     },
 
     applyCanvasBackground() {
-      const canvas = document.getElementById('builderCanvas');
+      const canvas = this.getCanvasElement();
       if (!canvas || !this.state.layout) return;
       const c = this.state.layout.canvas || {};
 
@@ -675,7 +689,7 @@
       if (!this.state.layout.canvas) this.state.layout.canvas = {};
       this.state.layout.canvas.fontFamily = fontFamily;
       this.state.layout.fontFamily = fontFamily;
-      const canvas = document.getElementById('builderCanvas');
+      const canvas = this.getCanvasElement();
       if (canvas) {
         canvas.style.fontFamily = fontFamily;
       }
@@ -683,7 +697,7 @@
 
     setZoom(level) {
       this.state.zoom = Math.max(0.4, Math.min(1.8, Math.round(level * 100) / 100));
-      const canvas = document.getElementById('builderCanvas');
+      const canvas = this.getCanvasElement();
       const text = document.getElementById('builderZoomText');
       if (canvas) {
         canvas.style.transform = `scale(${this.state.zoom})`;
@@ -776,7 +790,7 @@
 
     setMode(mode) {
       this.state.mode = mode;
-      const view = document.getElementById('viewDashboardBuilder');
+      const view = document.getElementById('viewDashboardBuilder') || document.getElementById('publicViewport') || document.body;
       const btnEdit = document.getElementById('btnBuilderModeEdit');
       const btnPreview = document.getElementById('btnBuilderModePreview');
 
@@ -800,7 +814,7 @@
 
     applyTheme(theme) {
       this.state.theme = theme;
-      const view = document.getElementById('viewDashboardBuilder');
+      const view = document.getElementById('viewDashboardBuilder') || document.getElementById('publicViewport') || document.body;
       const themeIcon = document.getElementById('builderThemeIcon');
       const themeText = document.getElementById('builderThemeText');
 
@@ -982,7 +996,7 @@
     // Canvas & Widget Rendering
     // ------------------------------------------------------------------------
     renderCanvas() {
-      const canvas = document.getElementById('builderCanvas');
+      const canvas = this.getCanvasElement();
       if (!canvas || !this.state.layout) return;
 
       const cw = this.state.layout.canvas?.width || 1440;

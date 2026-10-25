@@ -416,6 +416,11 @@ def status() -> dict:
         return {**current, "projectId": _runner_project_id, "logs": list(_logs), "events": list(_events), "previews": list(_previews)}
 
 
+@app.get("/api/system/devices")
+def system_devices() -> dict:
+    return core.runtime_devices()
+
+
 @app.post("/api/scripts/validate")
 def check_python_script(request: Request, body: dict) -> dict:
     _write_allowed(request)

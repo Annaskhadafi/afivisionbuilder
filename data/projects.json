@@ -2,10 +2,22 @@
   "active_project_id": "733240f514454a71bc65ae45f3fd9245",
   "projects": [
     {
+      "id": "20b0531ad295457bbcb50cd12113415d",
+      "name": "OCR",
+      "created_at": "2026-10-25T10:44:08+00:00",
+      "modified_at": "2026-10-25T10:53:49+00:00"
+    },
+    {
+      "id": "ba4d514c0ea9472fae54d6029d952f86",
+      "name": "Conditional Logic & Alert Dispatcher",
+      "created_at": "2026-10-25T10:29:40+00:00",
+      "modified_at": "2026-10-25T10:42:48+00:00"
+    },
+    {
       "id": "fd7ba0fb11384cd28d210cb715969acf",
       "name": "Ronaldo",
       "created_at": "2026-10-25T08:11:29+00:00",
-      "modified_at": "2026-10-25T08:17:32+00:00"
+      "modified_at": "2026-10-25T10:21:42+00:00"
     },
     {
       "id": "144aceaa102943e6856bb431cec88f52",

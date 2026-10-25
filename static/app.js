@@ -14560,9 +14560,37 @@
     if ($('#settingOllamaUrl')) $('#settingOllamaUrl').value = ollamaUrl;
     if ($('#settingErpWebhook')) $('#settingErpWebhook').value = erpWebhook;
 
+    async function refreshSystemDeviceStatus() {
+      const titleEl = $('#deviceDetectionTitle');
+      const detailEl = $('#deviceDetectionDetail');
+      if (!titleEl || !detailEl) return;
+      try {
+        const res = await fetch('/api/system/devices');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.cudaAvailable && data.devices && data.devices.length > 0) {
+          const dev = data.devices[0];
+          titleEl.innerHTML = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;"></span><span style="color:#10b981;">GPU Akselerasi Aktif: ${dev.name}</span>`;
+          detailEl.innerHTML = `VRAM: ${dev.memoryMb || '—'} MB · PyTorch CUDA aktif. Inferensi berjalan cepat dengan akselerasi GPU. Auto-fallback CPU siap sedia.`;
+        } else if (data.nvidiaGpus && data.nvidiaGpus.length > 0) {
+          const gpu = data.nvidiaGpus[0];
+          titleEl.innerHTML = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;"></span><span style="color:#f59e0b;">Hardware: ${gpu.name} (${gpu.memoryMb} MB) Terdeteksi</span>`;
+          detailEl.innerHTML = `Status: <strong>CPU Fallback Aktif</strong> (PyTorch: ${data.torchVersion || 'CPU'}). Auto-detect otomatis mengalihkan inferensi ke CPU agar workflow stabil tanpa crash.<br><span style="color:#38bdf8;margin-top:2px;display:inline-block;">Untuk mengaktifkan akselerasi GPU CUDA:</span> jalankan <code>.\\scripts\\install-gpu.bat</code>`;
+        } else {
+          titleEl.innerHTML = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#38bdf8;"></span><span style="color:#38bdf8;">Perangkat Komputasi: CPU Mode</span>`;
+          detailEl.innerHTML = `Menggunakan komputasi CPU multi-core. Auto-fallback dan deteksi hardware berjalan optimal.`;
+        }
+      } catch (err) {
+        console.warn('Failed to load device status:', err);
+      }
+    }
+
     // Wire up all settings buttons
     document.querySelectorAll('#hubSettingsBtn, .header-settings-btn').forEach(btn => {
-      btn.onclick = () => modal.showModal();
+      btn.onclick = () => {
+        modal.showModal();
+        refreshSystemDeviceStatus();
+      };
     });
 
     $('#closeSystemSettingsModal')?.addEventListener('click', () => modal.close());

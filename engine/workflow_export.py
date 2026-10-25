@@ -94,6 +94,7 @@ NODE_TYPE_TO_ENGINE_FILES = {
 CORE_ENGINE_FILES = {
     "core.py",
     "main.py",
+    "media_gateway.py",
     "node_catalog.py",
     "app_version.py",
     "detector_process.py",
