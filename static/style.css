@@ -1257,24 +1257,30 @@
   font-weight: 700;
 }
 
-/* --- Canvas Action Primary Buttons (Rangkai Otomatis & AI Copilot) --- */
+/* --- Canvas Action Primary Buttons (Rangkai Otomatis & AI Copilot & Wizard & Fleet) --- */
 .auto-assemble-btn,
 .button.auto-assemble-btn,
 #autoAssembleBtn,
 .ai-copilot-btn,
 .button.ai-copilot-btn,
-#toggleAiCopilotBtn {
-  min-height: 30px !important;
-  height: 30px !important;
-  padding: 0 10px !important;
-  font-size: 11.5px !important;
+#toggleAiCopilotBtn,
+.wizard-btn,
+.button.wizard-btn,
+#openUseCaseWizardBtn,
+.fleet-btn,
+.button.fleet-btn,
+#openFleetHubBtn {
+  min-height: 28px !important;
+  height: 28px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
   font-weight: 700 !important;
   letter-spacing: 0.01em !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 6px !important;
-  border-radius: 7px !important;
+  gap: 5px !important;
+  border-radius: 6px !important;
   cursor: pointer !important;
   box-sizing: border-box !important;
   transition: all 0.15s ease !important;
@@ -1326,6 +1332,36 @@
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.45) !important;
 }
 
+/* Solusi Cepat Wizard Button */
+.wizard-btn,
+.button.wizard-btn,
+#openUseCaseWizardBtn {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(168, 85, 247, 0.12)) !important;
+  border: 1px solid rgba(14, 165, 233, 0.35) !important;
+  color: #0284c7 !important;
+}
+
+.wizard-btn:hover,
+#openUseCaseWizardBtn:hover {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.22), rgba(168, 85, 247, 0.22)) !important;
+  border-color: #0284c7 !important;
+}
+
+/* Layanan Fleet Button */
+.fleet-btn,
+.button.fleet-btn,
+#openFleetHubBtn {
+  background: #edf2ed !important;
+  border: 1px solid var(--line) !important;
+  color: var(--teal) !important;
+}
+
+.fleet-btn:hover,
+#openFleetHubBtn:hover {
+  background: #e1ebe2 !important;
+  border-color: #cfded1 !important;
+}
+
 /* Universal Child High Contrast & Font Enforcement */
 .auto-assemble-btn *,
 .button.auto-assemble-btn *,
@@ -1337,18 +1373,20 @@
   stroke: #ffffff !important;
   fill: none !important;
   font-weight: 700 !important;
-  font-size: 11.5px !important;
+  font-size: 11px !important;
   letter-spacing: 0.01em !important;
 }
 
 .auto-assemble-btn svg,
 #autoAssembleBtn svg,
 .ai-copilot-btn svg,
-#toggleAiCopilotBtn svg {
-  width: 14px !important;
-  height: 14px !important;
-  stroke: #ffffff !important;
-  stroke-width: 2.2 !important;
+#toggleAiCopilotBtn svg,
+.wizard-btn svg,
+#openUseCaseWizardBtn svg,
+.fleet-btn svg,
+#openFleetHubBtn svg {
+  width: 13px !important;
+  height: 13px !important;
   flex-shrink: 0 !important;
 }
 
@@ -1357,32 +1395,51 @@
   display: flex !important;
   justify-content: space-between !important;
   align-items: center !important;
-  padding: 0 12px !important;
-  gap: 8px !important;
-  overflow: hidden !important;
-  min-height: 44px !important;
-  height: 44px !important;
+  padding: 0 10px !important;
+  gap: 6px !important;
+  min-height: 42px !important;
+  height: 42px !important;
+  min-width: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+}
+
+.canvas-toolbar::-webkit-scrollbar {
+  display: none !important;
 }
 
 .canvas-title-group {
   display: flex !important;
   align-items: center !important;
-  gap: 8px !important;
+  gap: 6px !important;
   flex-shrink: 0 !important;
+  min-width: max-content !important;
 }
 
+.canvas-title-group strong {
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+
+/* Canvas Hint: Never blow up layout width or push tools out of view */
 .canvas-hint-text,
 #canvasHint {
   display: none !important;
+  max-width: 180px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 11px !important;
+  color: #94a3b8 !important;
+  margin-left: 4px !important;
 }
 
-@media (min-width: 1540px) {
+@media (min-width: 1800px) {
   .canvas-hint-text,
   #canvasHint {
-    display: inline !important;
-    font-size: 11px !important;
-    color: #94a3b8 !important;
-    margin-left: 6px !important;
+    display: inline-block !important;
   }
 }
 
@@ -1390,26 +1447,27 @@
   display: flex !important;
   align-items: center !important;
   gap: 4px !important;
-  flex-shrink: 0 !important;
+  flex-shrink: 1 !important;
+  min-width: 0 !important;
   margin-left: auto !important;
 }
 
 .canvas-tools .icon-button {
-  width: 28px !important;
-  min-width: 28px !important;
-  height: 28px !important;
-  min-height: 28px !important;
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
   padding: 0 !important;
-  border-radius: 6px !important;
+  border-radius: 5px !important;
 }
 
 .canvas-tools .icon-button svg {
-  width: 14px !important;
-  height: 14px !important;
+  width: 13px !important;
+  height: 13px !important;
 }
 
 .canvas-tools output#zoomLevel {
-  min-width: 32px !important;
+  min-width: 30px !important;
   font-size: 11px !important;
   text-align: center !important;
   font-weight: 700 !important;
@@ -1440,13 +1498,7 @@
   display: none !important;
 }
 
-@media (min-width: 1440px) {
-  .canvas-tools .toggle-switch-compact .toggle-label {
-    display: inline !important;
-    font-size: 11px !important;
-  }
-}
-
+/* Panel Layout Actions: ALWAYS visible, never squished or dropped */
 .canvas-tools .panel-layout-actions {
   display: flex !important;
   align-items: center !important;
@@ -1455,7 +1507,9 @@
   padding: 2px !important;
   border-radius: 6px !important;
   border: 1px solid #e2e8f0 !important;
-  margin-left: 2px !important;
+  margin-left: 4px !important;
+  flex-shrink: 0 !important;
+  order: 99 !important;
 }
 
 .canvas-tools .panel-layout-actions .icon-button {
@@ -1468,6 +1522,88 @@
 .canvas-tools .panel-layout-actions .icon-button svg {
   width: 13px !important;
   height: 13px !important;
+}
+
+/* --- Container Query & Responsive Breakpoints for Canvas Tools --- */
+/* Workspace Container Query for Perfect Layout Adaptivity */
+@container workspace (max-width: 1160px) {
+  .canvas-tools .toggle-switch-compact .toggle-label {
+    display: none !important;
+  }
+  .canvas-tools #openUseCaseWizardBtn span,
+  .canvas-tools #openFleetHubBtn span {
+    display: none !important;
+  }
+  .canvas-tools #openUseCaseWizardBtn,
+  .canvas-tools #openFleetHubBtn {
+    padding: 0 !important;
+    width: 28px !important;
+    min-width: 28px !important;
+  }
+}
+
+@container workspace (max-width: 900px) {
+  .canvas-tools #autoAssembleBtn span,
+  .canvas-tools #toggleAiCopilotBtn span {
+    display: none !important;
+  }
+  .canvas-tools #autoAssembleBtn,
+  .canvas-tools #toggleAiCopilotBtn {
+    padding: 0 !important;
+    width: 28px !important;
+    min-width: 28px !important;
+  }
+}
+
+@container workspace (max-width: 650px) {
+  .canvas-tools #zoomResetBtn,
+  .canvas-tools #fitBtn {
+    display: none !important;
+  }
+}
+
+/* Viewport Media Queries Fallback */
+@media (min-width: 1600px) {
+  .canvas-tools .toggle-switch-compact .toggle-label {
+    display: inline !important;
+    font-size: 11px !important;
+  }
+}
+
+@media (max-width: 1560px) {
+  .canvas-tools .toggle-switch-compact .toggle-label {
+    display: none !important;
+  }
+  .canvas-tools #openUseCaseWizardBtn span,
+  .canvas-tools #openFleetHubBtn span {
+    display: none !important;
+  }
+  .canvas-tools #openUseCaseWizardBtn,
+  .canvas-tools #openFleetHubBtn {
+    padding: 0 !important;
+    width: 28px !important;
+    min-width: 28px !important;
+  }
+}
+
+@media (max-width: 1340px) {
+  .canvas-tools #autoAssembleBtn span,
+  .canvas-tools #toggleAiCopilotBtn span {
+    display: none !important;
+  }
+  .canvas-tools #autoAssembleBtn,
+  .canvas-tools #toggleAiCopilotBtn {
+    padding: 0 !important;
+    width: 28px !important;
+    min-width: 28px !important;
+  }
+}
+
+@media (max-width: 1080px) {
+  .canvas-tools #zoomResetBtn,
+  .canvas-tools #fitBtn {
+    display: none !important;
+  }
 }
 
 /* --- Interactive SVG Connection Lines (Thin & Clean) --- */
@@ -1654,7 +1790,12 @@
 }
 
 .sidebar { grid-area: sidebar; }
-.workspace { grid-area: workspace; grid-template-rows: 62px minmax(200px, 1fr) 8px var(--bottom-height) !important; }
+.workspace {
+  grid-area: workspace;
+  grid-template-rows: 44px minmax(200px, 1fr) 8px var(--bottom-height) !important;
+  container-type: inline-size;
+  container-name: workspace;
+}
 .inspector { grid-area: inspector; }
 .panel-resizer-left { grid-area: split-left; }
 .panel-resizer-right { grid-area: split-right; }
@@ -1696,7 +1837,7 @@
 .app-shell[data-inspector-hidden="true"] .panel-resizer-right { visibility: hidden; }
 .app-shell[data-inspector-hidden="true"] { grid-template-columns: minmax(0, var(--sidebar-width)) 8px minmax(0, 1fr) 0 0; }
 .app-shell[data-sidebar-hidden="true"][data-inspector-hidden="true"] { grid-template-columns: 0 0 minmax(0, 1fr) 0 0; }
-.app-shell[data-bottom-hidden="true"] .workspace { grid-template-rows: 62px minmax(0, 1fr) 0 0 !important; }
+.app-shell[data-bottom-hidden="true"] .workspace { grid-template-rows: 44px minmax(0, 1fr) 0 0 !important; }
 .app-shell[data-bottom-hidden="true"] .panel-resizer-bottom { visibility: hidden; }
 
 @media (max-width: 920px) {
@@ -1709,8 +1850,8 @@
   .app-shell[data-sidebar-hidden="true"] { grid-template-columns: 0 minmax(0, 1fr); }
   .app-shell[data-inspector-hidden="true"] { grid-template-columns: minmax(0, var(--sidebar-width)) minmax(0, 1fr); }
   .app-shell[data-sidebar-hidden="true"][data-inspector-hidden="true"] { grid-template-columns: 0 minmax(0, 1fr); }
-  .workspace { grid-template-rows: 62px minmax(430px, 1fr) 8px minmax(180px, var(--bottom-height)) !important; }
-  .app-shell[data-bottom-hidden="true"] .workspace { grid-template-rows: 62px minmax(430px, 1fr) 0 0 !important; }
+  .workspace { grid-template-rows: 44px minmax(430px, 1fr) 8px minmax(180px, var(--bottom-height)) !important; }
+  .app-shell[data-bottom-hidden="true"] .workspace { grid-template-rows: 44px minmax(430px, 1fr) 0 0 !important; }
 }
 
 @media (max-width: 600px) {
