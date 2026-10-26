@@ -52,6 +52,8 @@ desktop.ini
 # Agent instructions & internal docs
 AGENTS.md
 agent.md
+.agent/
+.agents/
 docs/PRD.md
 PRD.md
 task 2.md
