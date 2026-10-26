@@ -384,6 +384,10 @@
         <svg class="icon-svg icon-md" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         <span>Workflow</span>
       </button>
+      <button class="rail-tab" id="railTabDashboard" type="button" title="Dashboard Pemantauan Alur Kerja">
+        <svg class="icon-svg icon-md" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        <span>Dashboard</span>
+      </button>
       <button class="rail-tab" id="railTabModels" type="button" title="Models Registry">
         <svg class="icon-svg icon-md" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         <span>Models</span>
@@ -791,6 +795,59 @@
       </div>
     </div>
   </div>
+
+  <!-- View: Project Dashboard (Embedded Live Viewer & Hub for active workflow) -->
+  <section class="models-manager-panel project-dashboard-panel" id="viewProjectDashboard" hidden>
+    <div class="models-panel-head project-dash-head">
+      <div class="models-panel-title">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <h2 id="projectDashTitle">Dashboard Pemantauan</h2>
+          <span class="builder-dash-badge active" id="projectDashLiveBadge" style="display:none;">Live Monitor</span>
+        </div>
+        <p id="projectDashSubtitle">Alur Kerja: Memuat...</p>
+      </div>
+      <div class="models-panel-actions" id="projectDashActions" style="display:none;">
+        <button class="button secondary" id="btnRefreshProjectDash" type="button" title="Muat ulang tampilan dashboard">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span>Refresh</span>
+        </button>
+        <button class="button ghost" id="btnOpenPublicProjectDash" type="button" title="Buka di tab baru (Mode TV / Display Publik)">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span>Layar Penuh</span>
+        </button>
+        <button class="button primary" id="btnEditProjectDash" type="button" style="background:#0284c7;">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          <span>Edit di Dashboard Builder</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- State A: Empty State (If no dashboard created for this workflow yet) -->
+    <div class="project-dash-empty-state" id="projectDashEmptyState" style="display:none;">
+      <div class="dash-empty-card">
+        <div class="dash-empty-icon">
+          <svg viewBox="0 0 24 24" class="icon-hero-dash" style="width:52px;height:52px;color:#0284c7;stroke:currentColor;fill:none;stroke-width:1.5;">
+            <rect width="18" height="18" x="3" y="3" rx="2"/>
+            <path d="M3 9h18"/>
+            <path d="M9 21V9"/>
+          </svg>
+        </div>
+        <h3 id="projectDashEmptyTitle">Belum Ada Dashboard untuk Alur Kerja Ini</h3>
+        <p id="projectDashEmptyDesc">Workflow ini belum memiliki dashboard pemantauan visual. Anda dapat membuat dashboard kustom dengan CCTV player, kartu metrik, chart tren, dan peringatan alarm instan.</p>
+        <div class="dash-empty-actions">
+          <button class="button primary button-lg" id="btnCreateProjectDash" type="button" style="background:#0284c7;font-weight:700;display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:8px;font-size:13px;cursor:pointer;">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Buat Dashboard di Dashboard Builder</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- State B: Active Dashboard Viewer (If dashboard exists) -->
+    <div class="project-dash-viewer-container" id="projectDashActiveContainer" style="display:none;">
+      <iframe id="projectDashIframe" class="project-dash-frame" title="Live Project Dashboard"></iframe>
+    </div>
+  </section>
 </div>
 
 
@@ -799,6 +856,10 @@
     <!-- Builder Top Toolbar -->
     <div class="builder-toolbar">
       <div class="builder-toolbar-left">
+        <button class="button ghost btn-builder-back" id="btnBuilderBackToStudio" type="button" title="Kembali ke Workflow Studio" style="display:inline-flex;align-items:center;gap:6px;font-weight:600;padding:4px 10px;height:32px;border:1px solid var(--line);border-radius:6px;">
+          <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>Ke Studio</span>
+        </button>
         <div class="builder-title-badge">
           <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
           <span id="builderProjectTitleText">Dashboard Builder</span>
@@ -904,6 +965,39 @@
         <div class="builder-drawer-head">
           <h3>Komponen Dashboard</h3>
           <small>Klik untuk menambahkan ke kanvas</small>
+        </div>
+        <div class="builder-drawer-section">
+          <span class="drawer-section-label" style="color: #38bdf8; font-weight: 700;">WEB COMPUTER VISION (STREAMLIT STYLE)</span>
+          <div class="widget-palette-list">
+            <button class="palette-item-btn" type="button" data-widget-type="media_input_controller">
+              <span class="palette-icon">📤</span>
+              <div class="palette-info">
+                <strong>Media Input & Controller</strong>
+                <span>Upload gambar/video & eksekusi inferensi</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="vision_result_viewer">
+              <span class="palette-icon">🖼️</span>
+              <div class="palette-info">
+                <strong>Vision Result Viewer</strong>
+                <span>Hasil anotasi AI & zoom inspeksi</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="confidence_table">
+              <span class="palette-icon">📋</span>
+              <div class="palette-info">
+                <strong>Tabel Konfiden Deteksi</strong>
+                <span>Daftar skor, BBox, crop objek & ekspor</span>
+              </div>
+            </button>
+            <button class="palette-item-btn" type="button" data-widget-type="custom_analytics_table">
+              <span class="palette-icon">📊</span>
+              <div class="palette-info">
+                <strong>Tabel Kustom Analitik</strong>
+                <span>Agregasi zona, counter, dwelling & K3</span>
+              </div>
+            </button>
+          </div>
         </div>
         <div class="builder-drawer-section">
           <span class="drawer-section-label">MONITORING & METRIK</span>

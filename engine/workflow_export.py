@@ -280,8 +280,9 @@ def prepare(workflow: dict, name: str, root: Path) -> tuple[dict, dict, dict[str
     warnings = []
     for node in graph["nodes"]:
         config = node.setdefault("config", {})
-        if node["type"] in {"face_detector", "face_analyzer", "face_tracker"}:
-            raise ValueError(f"{node['id']}: face model/registry assets are not supported by standalone export yet")
+        if node["type"] in {"face_detector", "face_analyzer", "face_tracker", "face_crop"}:
+            if not config.get("storageDirectory"):
+                config["storageDirectory"] = PACKAGE_PREFIX + "data/faces" 
         if node["type"] == "database_output" and not config.get("databasePath"):
             config["databasePath"] = PACKAGE_PREFIX + "data/visonode.db"
         if node["type"] == "image_output" and not config.get("outputDirectory"):

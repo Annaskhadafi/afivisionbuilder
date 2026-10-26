@@ -11184,3 +11184,953 @@ kbd {
   box-shadow: 0 0 8px #10b981;
   animation: pulse-dot 2s infinite;
 }
+
+/* -------------------------------------------------------------------------
+   Project Dashboard Panel (Embedded Viewer in Workflow Studio)
+------------------------------------------------------------------------- */
+.project-dashboard-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg, #0f172a);
+}
+
+.project-dash-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line, #334155);
+  background: var(--panel, #1e293b);
+  flex-shrink: 0;
+}
+
+.project-dash-empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: radial-gradient(circle at 50% 30%, rgba(2, 132, 199, 0.06), transparent 70%);
+}
+
+.dash-empty-card {
+  text-align: center;
+  max-width: 520px;
+  padding: 44px 32px;
+  background: var(--panel, #1e293b);
+  border: 1px solid var(--line, #334155);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+}
+
+.dash-empty-icon {
+  margin-bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  background: rgba(2, 132, 199, 0.12);
+  border: 1px solid rgba(2, 132, 199, 0.3);
+}
+
+.dash-empty-card h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text, #f8fafc);
+  letter-spacing: -0.01em;
+}
+
+.dash-empty-card p {
+  margin: 0 0 24px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted, #94a3b8);
+}
+
+.project-dash-viewer-container {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 480px;
+  overflow: hidden;
+  background: #090d16;
+}
+
+.project-dash-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.btn-builder-back:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #38bdf8 !important;
+}
+
+body.is-embedded .public-floating-bar {
+  display: none !important;
+}
+
+
+
+/* -------------------------------------------------------------------------
+
+   Web Computer Vision & Interactive Widgets (Streamlit & Ultralytics Style)
+
+------------------------------------------------------------------------- */
+
+
+/* Base Card for all Web CV Studio Widgets */
+.web-cv-widget-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--panel, #1e293b);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line, #334155);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  box-sizing: border-box;
+  color: var(--text, #f8fafc);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Light Mode & Canvas High Contrast support */
+.canvas-light .web-cv-widget-card,
+[data-theme="light"] .web-cv-widget-card {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12) !important;
+}
+
+.canvas-light .web-cv-widget-title,
+[data-theme="light"] .web-cv-widget-title {
+  color: #0f172a !important;
+}
+
+.canvas-light .web-cv-drop-text,
+[data-theme="light"] .web-cv-drop-text {
+  color: #1e293b !important;
+}
+
+.canvas-light .web-cv-dropzone,
+[data-theme="light"] .web-cv-dropzone {
+  background: rgba(241, 245, 249, 0.85) !important;
+  border-color: #94a3b8 !important;
+}
+
+.canvas-light .web-cv-slider-label,
+[data-theme="light"] .web-cv-slider-label {
+  color: #334155 !important;
+}
+
+.canvas-light .web-cv-table-header,
+[data-theme="light"] .web-cv-table-header {
+  border-color: #e2e8f0 !important;
+}
+
+.canvas-light .web-cv-table-search,
+[data-theme="light"] .web-cv-table-search {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.canvas-light .web-cv-data-table th,
+[data-theme="light"] .web-cv-data-table th {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.canvas-light .web-cv-data-table td,
+[data-theme="light"] .web-cv-data-table td {
+  border-color: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+.canvas-light .web-cv-data-table tr:hover,
+[data-theme="light"] .web-cv-data-table tr:hover {
+  background: rgba(15, 23, 42, 0.04) !important;
+}
+
+.canvas-light .web-cv-viewer-toolbar,
+[data-theme="light"] .web-cv-viewer-toolbar {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.canvas-light .web-cv-tool-btn,
+[data-theme="light"] .web-cv-tool-btn {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+.canvas-light .web-cv-empty-banner,
+[data-theme="light"] .web-cv-empty-banner {
+  color: #64748b !important;
+}
+
+/* Drag & Drop Visual Feedback on Canvas */
+.canvas-drag-receiving {
+  outline: 3px dashed #0284c7 !important;
+  outline-offset: -3px;
+  background-color: rgba(2, 132, 199, 0.08) !important;
+}
+
+.palette-item-btn[draggable="true"] {
+  cursor: grab;
+  user-select: none;
+}
+
+.palette-item-btn[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* 1. Media Input & Controller Widget */
+
+.widget-media-controller {
+
+  display: flex;
+
+  flex-direction: column;
+
+  height: 100%;
+
+  background: var(--panel, #1e293b);
+
+  border-radius: 10px;
+
+  overflow: hidden;
+
+  border: 1px solid var(--line, #334155);
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+
+  padding: 14px;
+
+  box-sizing: border-box;
+
+}
+
+
+
+.web-cv-widget-header {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  margin-bottom: 12px;
+
+  flex-shrink: 0;
+
+}
+
+
+
+.web-cv-widget-title {
+
+  font-size: 13.5px;
+
+  font-weight: 700;
+
+  color: var(--text, #f8fafc);
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+}
+
+
+
+.web-cv-mode-toggle {
+
+  display: flex;
+
+  background: rgba(15, 23, 42, 0.6);
+
+  border-radius: 6px;
+
+  padding: 2px;
+
+  border: 1px solid var(--line, #334155);
+
+}
+
+
+
+.web-cv-mode-btn {
+
+  background: none;
+
+  border: none;
+
+  font-size: 11px;
+
+  font-weight: 600;
+
+  color: var(--muted, #94a3b8);
+
+  padding: 3px 8px;
+
+  border-radius: 4px;
+
+  cursor: pointer;
+
+  transition: all 0.15s ease;
+
+}
+
+
+
+.web-cv-mode-btn.active {
+
+  background: #0284c7;
+
+  color: #ffffff;
+
+}
+
+
+
+.web-cv-dropzone {
+
+  flex: 1;
+
+  border: 2px dashed rgba(56, 189, 248, 0.4);
+
+  background: rgba(15, 23, 42, 0.4);
+
+  border-radius: 8px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 14px;
+
+  text-align: center;
+
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+
+  position: relative;
+
+  min-height: 120px;
+
+}
+
+
+
+.web-cv-dropzone:hover, .web-cv-dropzone.dragover {
+
+  border-color: #38bdf8;
+
+  background: rgba(56, 189, 248, 0.08);
+
+}
+
+
+
+.web-cv-drop-icon {
+
+  font-size: 28px;
+
+  margin-bottom: 6px;
+
+}
+
+
+
+.web-cv-drop-text {
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  color: #e2e8f0;
+
+  margin-bottom: 4px;
+
+}
+
+
+
+.web-cv-drop-subtext {
+
+  font-size: 10.5px;
+
+  color: #94a3b8;
+
+}
+
+
+
+.web-cv-preview-thumb {
+
+  max-width: 100%;
+
+  max-height: 120px;
+
+  object-fit: contain;
+
+  border-radius: 6px;
+
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+}
+
+
+
+.web-cv-controls-row {
+
+  margin-top: 10px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 8px;
+
+  flex-shrink: 0;
+
+}
+
+
+
+.web-cv-slider-group {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 4px;
+
+}
+
+
+
+.web-cv-slider-label {
+
+  display: flex;
+
+  justify-content: space-between;
+
+  font-size: 11px;
+
+  font-weight: 600;
+
+  color: #cbd5e1;
+
+}
+
+
+
+.web-cv-slider-val {
+
+  color: #38bdf8;
+
+  font-family: 'JetBrains Mono', monospace;
+
+}
+
+
+
+.web-cv-slider-input {
+
+  width: 100%;
+
+  height: 5px;
+
+  accent-color: #0284c7;
+
+  cursor: pointer;
+
+}
+
+
+
+.web-cv-action-btn {
+
+  width: 100%;
+
+  height: 36px;
+
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+
+  color: #ffffff;
+
+  border: none;
+
+  border-radius: 6px;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 6px;
+
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+
+  transition: all 0.15s ease;
+
+}
+
+
+
+.web-cv-action-btn:hover {
+
+  background: linear-gradient(135deg, #0369a1, #1d4ed8);
+
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.45);
+
+}
+
+
+
+.web-cv-action-btn:disabled {
+
+  opacity: 0.6;
+
+  cursor: not-allowed;
+
+}
+
+
+
+/* 2. Vision Result Viewer Widget */
+
+.widget-vision-viewer {
+
+  display: flex;
+
+  flex-direction: column;
+
+  height: 100%;
+
+  background: #090d16;
+
+  border-radius: 10px;
+
+  overflow: hidden;
+
+  border: 1px solid var(--line, #334155);
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+
+  position: relative;
+
+}
+
+
+
+.web-cv-viewer-toolbar {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding: 8px 12px;
+
+  background: var(--panel, #1e293b);
+
+  border-bottom: 1px solid var(--line, #334155);
+
+  flex-shrink: 0;
+
+  z-index: 5;
+
+}
+
+
+
+.web-cv-viewer-tools-group {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+}
+
+
+
+.web-cv-tool-btn {
+
+  background: rgba(15, 23, 42, 0.6);
+
+  border: 1px solid var(--line, #334155);
+
+  color: #cbd5e1;
+
+  font-size: 11px;
+
+  padding: 3px 8px;
+
+  border-radius: 4px;
+
+  cursor: pointer;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 4px;
+
+  transition: all 0.15s ease;
+
+}
+
+
+
+.web-cv-tool-btn:hover {
+
+  background: rgba(255, 255, 255, 0.1);
+
+  color: #ffffff;
+
+}
+
+
+
+.web-cv-tool-btn.active {
+
+  background: #0284c7;
+
+  color: #ffffff;
+
+  border-color: #38bdf8;
+
+}
+
+
+
+.web-cv-viewport {
+
+  flex: 1;
+
+  position: relative;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  overflow: hidden;
+
+  background: radial-gradient(circle at center, #111827 0%, #030712 100%);
+
+}
+
+
+
+.web-cv-result-img {
+
+  max-width: 100%;
+
+  max-height: 100%;
+
+  object-fit: contain;
+
+  border-radius: 4px;
+
+  transition: transform 0.15s ease;
+
+  user-select: none;
+
+}
+
+
+
+.web-cv-empty-banner {
+
+  text-align: center;
+
+  color: #64748b;
+
+  padding: 24px;
+
+}
+
+
+
+.web-cv-empty-banner span {
+
+  font-size: 36px;
+
+  display: block;
+
+  margin-bottom: 8px;
+
+}
+
+
+
+/* 3. Confidence Table Widget */
+
+.widget-confidence-table, .widget-custom-analytics {
+
+  display: flex;
+
+  flex-direction: column;
+
+  height: 100%;
+
+  background: var(--panel, #1e293b);
+
+  border-radius: 10px;
+
+  overflow: hidden;
+
+  border: 1px solid var(--line, #334155);
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+
+  box-sizing: border-box;
+
+}
+
+
+
+.web-cv-table-header {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding: 10px 14px;
+
+  border-bottom: 1px solid var(--line, #334155);
+
+  flex-shrink: 0;
+
+  gap: 8px;
+
+}
+
+
+
+.web-cv-table-search {
+
+  background: #0f172a;
+
+  border: 1px solid #334155;
+
+  color: #f8fafc;
+
+  font-size: 11px;
+
+  padding: 4px 8px;
+
+  border-radius: 4px;
+
+  outline: none;
+
+  max-width: 140px;
+
+}
+
+
+
+.web-cv-table-body-scroll {
+
+  flex: 1;
+
+  overflow-y: auto;
+
+  overflow-x: auto;
+
+}
+
+
+
+.web-cv-data-table {
+
+  width: 100%;
+
+  border-collapse: collapse;
+
+  font-size: 11.5px;
+
+  text-align: left;
+
+}
+
+
+
+.web-cv-data-table th {
+
+  position: sticky;
+
+  top: 0;
+
+  background: #0f172a;
+
+  color: #94a3b8;
+
+  font-weight: 600;
+
+  padding: 8px 10px;
+
+  border-bottom: 1px solid #334155;
+
+  z-index: 2;
+
+  white-space: nowrap;
+
+}
+
+
+
+.web-cv-data-table td {
+
+  padding: 6px 10px;
+
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+
+  color: #e2e8f0;
+
+  vertical-align: middle;
+
+}
+
+
+
+.web-cv-data-table tr:hover {
+
+  background: rgba(255, 255, 255, 0.04);
+
+}
+
+
+
+.web-cv-crop-thumb {
+
+  width: 32px;
+
+  height: 32px;
+
+  border-radius: 4px;
+
+  object-fit: cover;
+
+  border: 1px solid #475569;
+
+  background: #000;
+
+  display: block;
+
+}
+
+
+
+.web-cv-class-pill {
+
+  font-size: 10.5px;
+
+  font-weight: 700;
+
+  padding: 2px 7px;
+
+  border-radius: 12px;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  background: rgba(2, 132, 199, 0.2);
+
+  color: #38bdf8;
+
+  border: 1px solid rgba(56, 189, 248, 0.3);
+
+}
+
+
+
+.web-cv-conf-bar-wrap {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  min-width: 90px;
+
+}
+
+
+
+.web-cv-conf-bar {
+
+  flex: 1;
+
+  height: 6px;
+
+  border-radius: 3px;
+
+  background: rgba(255, 255, 255, 0.1);
+
+  overflow: hidden;
+
+}
+
+
+
+.web-cv-conf-bar-fill {
+
+  height: 100%;
+
+  border-radius: 3px;
+
+  background: #10b981;
+
+}
+
+
+
+.web-cv-conf-text {
+
+  font-family: 'JetBrains Mono', monospace;
+
+  font-size: 10.5px;
+
+  font-weight: 600;
+
+  color: #10b981;
+
+}

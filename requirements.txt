@@ -17,6 +17,7 @@ onnx>=1.15.0
 onnxruntime>=1.17.0
 tensorflow>=2.15.0
 timm>=0.9.0
+transformers>=4.38.0
 # Face Detection, Demographics & Emotion (UniFace: RetinaFace, ArcFace, AgeGender, Emotion, MiniFASNet, eDifFIQA)
 uniface>=4.0.0
 
@@ -32,6 +33,18 @@ trackers==2.5.0.post0
 yt-dlp>=2024.0.0
 ftfy>=6.0.0
 clip @ git+https://github.com/ultralytics/CLIP.git
+
+# Dashboard Analytics, Reporting & Telemetry
+pandas>=2.0.0
+openpyxl>=3.1.0
+psutil>=5.9.0
+
+# Cloud Sinks, IoT Gateways & Extended CV
+paho-mqtt>=1.6.1
+boto3>=1.28.0
+pyzbar>=0.1.9
+easyocr>=1.7.0
+onvif-zeep>=0.2.12
 
 # Testing & Verification
 pytest>=8.0.0

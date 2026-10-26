@@ -779,7 +779,7 @@ def _process_track_event_nodes(
             "notification_dispatcher", "ptz_controller", "screenshot_capture", "telegram_notification", "ocr_reader", "object_timer",
             "face_detector", "face_analyzer", "face_tracker", "face_crop",
             "dominant_color", "class_replacement", "man_down_detector", "lpr_license_plate", "overstack_detector",
-            "dashboard_sink", "incident_video_recorder", "mqtt_publisher", "crowd_density_heatmap", "ppe_compliance_matrix"
+            "dashboard_sink", "incident_video_recorder", "mqtt_publisher", "crowd_density_heatmap", "ppe_compliance_matrix", "switch_case"
         ):
             continue
         project_id = str(project_node.get("id") or "")
@@ -843,6 +843,15 @@ def _process_track_event_nodes(
                 candidates, project_node.get("config", {}), state, f_shape, now, node_id=project_id
             )
             extra_results.extend(dev_events)
+        elif p_type == "switch_case":
+            from advanced_logic import route_switch_case
+            routed_dict = route_switch_case(candidates, project_node.get("config", {}))
+            extra_results.append({
+                "node_id": project_id,
+                "type": "switch_case_routed",
+                "summary": {k: len(v) for k, v in routed_dict.items()},
+                "timestamp": now,
+            })
         elif p_type == "delta_filter":
             from advanced_logic import evaluate_delta_filter
             state = event_runtime.setdefault(project_id, {})

@@ -293,6 +293,122 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 
 ---
 
+
+
+---
+
+## 📦 Katalog Lengkap 89 Node Vision Studio (5 Tabel Kategori Modular)
+
+Berikut adalah katalog referensi komprehensif seluruh node yang didukung oleh Afi Vision Builder, mencakup 61 node baru hasil ekspansi Fase 1 s/d Fase 5, lengkap dengan parameter kunci, kesiapan ekspor kode mandiri, dan integrasi Dashboard:
+
+### 📐 1. Pengukuran Spasial, Kinematika & Classical CV
+| Node Type | Nama / Label | Kegunaan Utama | Parameter Kunci | Export Code & Dashboard |
+| :--- | :--- | :--- | :--- | :--- |
+| `distance_measurement` | Pengukur Jarak Antar Objek | Menghitung jarak Euclidean antar titik tengah BBox objek. | `unit`, `pixelsPerMeter`, `alertThreshold` | ✅ Supported (Live Telemetry & Standalone) |
+| `size_measurement` | Pengukur Dimensi Fisik | Mengukur lebar, tinggi, dan luas permukaan objek terkalibrasi. | `unit`, `calibrationRatio`, `minArea` | ✅ Supported (Live Telemetry & Standalone) |
+| `velocity_calculator` | Kalkulator Kecepatan | Menghitung kecepatan linier objek (km/jam) berdasarkan jejak tracking. | `fps`, `pixelsPerMeter`, `maxSpeedAlert` | ✅ Supported (Speed KPI & Standalone) |
+| `path_deviation` | Detektor Deviasi Trajektori | Memeriksa simpangan jalur pergerakan objek dari koridor yang ditentukan. | `tolerancePixels`, `allowedCorridor` | ✅ Supported (Event Log & Standalone) |
+| `camera_focus` | Skor Fokus Kamera | Menghitung variansi Laplacian untuk mendeteksi kamera kotor/buram. | `blurThreshold`, `alertOnBlur` | ✅ Supported (System Vitals & Standalone) |
+| `auto_rotate_edges` | Koreksi Rotasi Otomatis | Meluruskan kemiringan citra menggunakan transformasi garis Hough. | `maxAngle`, `detectAngleMethod` | ✅ Supported (Image Preprocessing) |
+| `delta_filter` | Filter Gerak Delta | Meneruskan frame hanya saat terjadi perubahan intensitas piksel di atas threshold. | `motionThreshold`, `cooldownFrames` | ✅ Supported (Compute Optimizer) |
+| `background_subtract` | Pengurangan Latar Belakang | Memisahkan objek bergerak dari latar belakang statis (MOG2/KNN). | `history`, `varThreshold`, `detectShadows` | ✅ Supported (Segment Mask) |
+| `color_convert` | Konversi Ruang Warna | Mengubah ruang warna citra ke Grayscale, HSV, LAB, atau RGB. | `targetColorSpace` | ✅ Supported (Preprocessing) |
+| `undistort` | Koreksi Distorsi Lensa | Menghilangkan efek fisheye kamera sudut lebar berbasis matriks kalibrasi. | `cameraMatrix`, `distCoeffs` | ✅ Supported (Preprocessing) |
+| `blur_sharpen` | Filter Blur / Sharp | Melembutkan (Gaussian) atau menajamkan (Laplacian) kontur citra. | `kernelSize`, `filterType` | ✅ Supported (Preprocessing) |
+| `brightness_contrast` | Kecerahan & Kontras | Penyesuaian intensitas cahaya dan kontras dinamis per frame. | `alpha`, `beta`, `autoAdjust` | ✅ Supported (Preprocessing) |
+| `perspective` | Transformasi Perspektif | Melakukan warp 4-titik bird's-eye view pada bidang datar area pengawasan. | `sourcePoints`, `targetPoints` | ✅ Supported (Preprocessing) |
+
+---
+
+### 🛡️ 2. Analitik K3, Keselamatan & Keamanan Industri
+| Node Type | Nama / Label | Kegunaan Utama | Parameter Kunci | Export Code & Dashboard |
+| :--- | :--- | :--- | :--- | :--- |
+| `ppe_compliance_matrix` | Matriks APD K3 | Memeriksa kelengkapan helm, rompi, dan sepatu safety pekerja. | `requiredPpe`, `violationCooldown` | ✅ Supported (K3 Scorecard & Standalone) |
+| `man_down_detector` | Deteksi Orang Jatuh | Mendeteksi postur rebah abnormal dan durasi diam manusia di lantai kerja. | `aspectRatioThreshold`, `dwellSecondsAlert` | ✅ Supported (Critical Alerts & Standalone) |
+| `overstack_detector` | Deteksi Tumpukan Berlebih | Memantau ketinggian tumpukan pallet kargo agar tidak melampaui batas aman. | `maxHeightRatio`, `clearanceMargin` | ✅ Supported (Height Gauge & Standalone) |
+| `crowd_density_heatmap` | Heatmap Kepadatan Massa | Peta akumulasi spasial kepadatan kerumunan orang secara dinamis. | `decayRate`, `colormapType`, `gridSize` | ✅ Supported (Visual Heatmap Overlay) |
+| `lpr_license_plate` | Pengenal Plat Nomor (LPR) | Deteksi lokasi plat nomor kendaraan dan ekstraksi karakter teks nomor polisi. | `countryFormat`, `minPlateConfidence` | ✅ Supported (Vehicle Log & Standalone) |
+| `zone_activity_timer` | Timer Aktivitas Zona | Menghitung akumulasi waktu kerja personil di dalam poligon zona workshop. | `zoneName`, `targetDwellMinutes` | ✅ Supported (Shift Timer & Standalone) |
+| `zone_exit_event` | Kejadian Keluar Zona | Memvalidasi perpindahan objek dari dalam ke luar zona gudang. | `exitDirection`, `minConfidence` | ✅ Supported (Dispatch Event & Standalone) |
+| `dwell_time` | Waktu Diam Objek | Mengukur durasi sebuah objek diam di satu lokasi stasioner. | `stationaryRadius`, `thresholdSeconds` | ✅ Supported (Dwell Metrics & Standalone) |
+| `line_counter` | Penghitung Garis Virtual | Menghitung objek yang melintasi garis batas arah masuk atau keluar. | `lineCoords`, `direction` | ✅ Supported (Traffic Counter & Standalone) |
+| `object_counter` | Penghitung Total Objek | Agregasi jumlah objek terdeteksi per kelas objek secara real-time. | `targetClasses`, `resetDaily` | ✅ Supported (Total Scorecard & Standalone) |
+
+---
+
+### ⚙️ 3. Logika Tingkat Lanjut & Kontrol Alur
+| Node Type | Nama / Label | Kegunaan Utama | Parameter Kunci | Export Code & Dashboard |
+| :--- | :--- | :--- | :--- | :--- |
+| `switch_case` | Switch Case Router | Mengarahkan aliran deteksi ke port cabang berbeda berdasarkan kelas/atribut. | `evaluationField`, `cases`, `defaultPort` | ✅ Supported (Pipeline Router & Standalone) |
+| `and_or_logic` | Gerbang Logika AND/OR | Menggabungkan beberapa kondisi boolean menjadi satu keputusan alur. | `logicOperator`, `minTrueInputs` | ✅ Supported (Flow Logic & Standalone) |
+| `if_else` | Percabangan If-Else | Membagi arah eksekusi alur berdasarkan evaluasi ekspresi kondisi. | `conditionExpr`, `truePort`, `falsePort` | ✅ Supported (Flow Logic & Standalone) |
+| `class_detected_condition` | Kondisi Deteksi Kelas | Memeriksa kemunculan kelas target tertentu pada frame saat ini. | `targetClass`, `minCount` | ✅ Supported (Flow Logic & Standalone) |
+| `object_count_condition` | Ambang Jumlah Objek | Membandingkan total deteksi dengan nilai target (`>`, `<`, `==`). | `threshold`, `operator` | ✅ Supported (Threshold Alert & Standalone) |
+| `compare_value` | Pembanding Nilai Numerik | Memvalidasi metrik kuantitatif terhadap nilai konfigurasi. | `metricKey`, `operator`, `targetValue` | ✅ Supported (Flow Logic & Standalone) |
+| `confidence_threshold` | Filter Skor Keyakinan | Memfilter deteksi yang skor konfidennya berada di bawah nilai batas. | `minScore`, `perClassThresholds` | ✅ Supported (Confidence Filter & Standalone) |
+| `rate_limiter` | Pembatas Laju Alur | Membatasi laju eksekusi node per detik agar tidak membebani sistem. | `maxEventsPerSecond`, `bufferSize` | ✅ Supported (Throttler & Standalone) |
+| `timer_delay` | Jeda Waktu Eksekusi | Menunda penerusan data selama durasi detik yang dikonfigurasi. | `delaySeconds` | ✅ Supported (Timer Control & Standalone) |
+| `trigger_once` | Pemicu Sekali Saja | Menjamin event hilir hanya ditembakkan satu kali sebelum reset. | `resetCondition`, `autoResetSeconds` | ✅ Supported (One-Shot Trigger & Standalone) |
+| `roi_filter` | Filter Region of Interest | Membatasi analisis deteksi hanya di dalam batas poligon ROI tertentu. | `roiPolygon`, `insideOnly` | ✅ Supported (Spatial ROI & Standalone) |
+| `debounce` | Peredam Fluktuasi | Mencegah event pemicuan beruntun dalam jeda waktu singkat. | `debounceMs` | ✅ Supported (Debouncer & Standalone) |
+
+---
+
+### 🎨 4. Visualisasi, VLM & Pelacakan Khusus
+| Node Type | Nama / Label | Kegunaan Utama | Parameter Kunci | Export Code & Dashboard |
+| :--- | :--- | :--- | :--- | :--- |
+| `vlm_box_tracker` | Pelacak Grounding VLM | Pelacakan visual menggunakan Vision-Language Model berbasis teks perintah. | `vlmPrompt`, `groundingThreshold` | ✅ Supported (Zero-Shot VLM & Standalone) |
+| `model_comparison` | Evaluasi Dual Model AI | Menjalankan 2 model AI secara paralel dan membandingkan akurasi serta latensi. | `primaryModel`, `secondaryModel` | ✅ Supported (A/B Testing & Standalone) |
+| `blur_anonymizer` | Pengabur Wajah & Plat | Mengaburkan area sensitif untuk kepatuhan privasi (GDPR). | `blurRadius`, `targetClasses` | ✅ Supported (Privacy View & Standalone) |
+| `dominant_color` | Analisis Warna Dominan | Mengekstraksi kode warna dominan (HEX/RGB) pada setiap bounding box. | `kClusters`, `colorNaming` | ✅ Supported (Color Telemetry & Standalone) |
+| `draw_boxes` | Kotak Deteksi Kustom | Menggambar bounding box beranotasi dengan warna dan ketebalan dinamis. | `colorPalette`, `lineWidth` | ✅ Supported (Visual Annotations) |
+| `draw_text` | Anotasi Teks Kanvas | Menampilkan teks keterangan atau nilai telemetri di atas layar video. | `fontSize`, `position`, `textColor` | ✅ Supported (Visual Annotations) |
+| `interactive_zoom` | Zoom Kanvas Interaktif | Pembesaran citra secara digital pada koordinat minat pengguna. | `zoomFactor`, `centerCoords` | ✅ Supported (Inspector Zoom) |
+| `slicer` | Pemotong Grid Resolusi | Memotong citra ultra-tinggi menjadi ubin kecil untuk deteksi objek mini (SAHI). | `sliceWidth`, `sliceHeight`, `overlapRatio` | ✅ Supported (SAHI Preprocessing) |
+| `track_snapshot` | Tangkapan Objek Terbaik | Menyimpan gambar crop dengan resolusi dan kualitas terbaik dari tiap ID tracking. | `saveBestCrop`, `minQualityScore` | ✅ Supported (Snapshot Gallery & Standalone) |
+| `face_detector` | Detektor Wajah UniFace | Deteksi wajah presisi tinggi berbasis RetinaFace / YuNet. | `confThresh`, `nmsThresh` | ✅ Supported (Face Strip & Standalone) |
+| `face_analyzer` | Analisis Demografi Wajah | Estimasi usia, jenis kelamin, dan ekspresi emosi manusia secara real-time. | `analyzeEmotion`, `analyzeAgeGender` | ✅ Supported (Demographic KPI & Standalone) |
+| `face_tracker` | Pelacak Identitas Wajah | Pelacakan konsisten wajah personil lintas frame video. | `maxCosineDistance`, `trackBuffer` | ✅ Supported (Face Attendance & Standalone) |
+| `face_crop` | Pemotong Wajah Terpusat | Memotong dan meluruskan citra wajah untuk database identitas. | `paddingRatio`, `outputSize` | ✅ Supported (Face Registration) |
+| `detection_crop` | Pemotong Objek Umum | Memotong bounding box objek untuk downstream classification. | `expandBoxPct` | ✅ Supported (Object Crop Thumbnails) |
+| `frame_sampler` | Penyampel Laju Frame | Meneruskan 1 frame dari setiap interval N frame untuk menghemat daya komputasi. | `sampleInterval`, `stride` | ✅ Supported (Performance Tuner) |
+
+---
+
+### ☁️ 5. Cloud Sinks, Notifikasi & Output
+| Node Type | Nama / Label | Kegunaan Utama | Parameter Kunci | Export Code & Dashboard |
+| :--- | :--- | :--- | :--- | :--- |
+| `s3_sink` | Cloud S3 / MinIO Sink | Mengunggah gambar dan video rekaman ke penyimpanan awan kompatibel AWS S3. | `bucketName`, `endpointUrl`, `acl` | ✅ Supported (Cloud Sync & Standalone) |
+| `csv_formatter` | Pemformat Berkas CSV | Menyusun rekapitulasi data kejadian ke format baris CSV spreadsheet. | `csvFilename`, `appendMode` | ✅ Supported (CSV Export & Standalone) |
+| `data_aggregator` | Agregator Data Periodik | Merangkum statistik operasional secara berkala per jam atau per shift. | `aggregationPeriod`, `summaryFunc` | ✅ Supported (Summary Cards & Standalone) |
+| `telegram_notification` | Notifikasi Bot Telegram | Mengirim pesan alert instan beserta tangkapan foto kejadian ke Telegram. | `botToken`, `chatId`, `sendPhoto` | ✅ Supported (Instant Alert Dispatcher) |
+| `notification_dispatcher` | Penyalur Multi-Kanal | Pengiriman alert ke berbagai saluran (Webhook, Email, SMS) berjenjang. | `channels`, `priorityLevel` | ✅ Supported (Alert Routing & Standalone) |
+| `incident_video_recorder` | Perekam Klip Insiden | Merekam klip video dengan penyangga pra-insiden (Pre-Roll) saat insiden terjadi. | `preRollSeconds`, `postRollSeconds` | ✅ Supported (Incident Review & Standalone) |
+| `mqtt_publisher` | Penerbit Pesan MQTT | Mempublikasikan payload kejadian JSON ke broker MQTT otomasi industri. | `brokerHost`, `topic`, `qos` | ✅ Supported (IoT Integration & Standalone) |
+| `ptz_controller` | Pengontrol Kamera PTZ | Menggerakkan pan, tilt, dan zoom kamera ke titik koordinat kejadian via ONVIF. | `onvifUrl`, `zoomPreset`, `trackTarget` | ✅ Supported (Hardware Control & Standalone) |
+| `database_output` | Penulis Database Lokal | Menyimpan riwayat kejadian ke database SQLite / PostgreSQL. | `databasePath`, `tableName` | ✅ Supported (Historical Query & Standalone) |
+| `image_output` | Penyimpan Citra Lokal | Menyimpan frame citra beranotasi ke direktori penyimpanan lokal. | `outputDirectory`, `format` | ✅ Supported (Disk Archive & Standalone) |
+| `screenshot_capture` | Tangkapan Layar Otomatis | Mengambil cuplikan frame video pada interval waktu yang ditentukan. | `intervalMinutes`, `filenamePrefix` | ✅ Supported (Scheduled Snapshot) |
+
+
+
+### 🔌 6. Node Inti Masukan, Segmentasi & Utilitas Sistem
+| Node Type | Nama / Label | Kegunaan Utama | Parameter Kunci | Export Code & Dashboard |
+| :--- | :--- | :--- | :--- | :--- |
+| `ip_camera` | IP Camera Stream (RTSP) | Mengambil feed video langsung dari kamera pengawas IP via protokol RTSP/HTTP. | `rtspUrl`, `reconnectInterval` | ✅ Supported (CCTV Player & Standalone) |
+| `segmenter` | Instance Segmentation AI | Segmentasi piksel objek berbasis RF-DETR / YOLOv8-seg. | `engine`, `threshold`, `modelPath` | ✅ Supported (Mask Viewer & Standalone) |
+| `classifier` | Image Classification AI | Klasifikasi kategori citra menyeluruh berbasis ConvNeXt / MobileNet. | `engine`, `threshold`, `modelPath` | ✅ Supported (Class KPI & Standalone) |
+| `efficientad` | Anomaly Detection AI | Deteksi anomali cacat visual industri tanpa sampel cacat (zero-shot anomaly). | `efficientadModel`, `anomalyThreshold` | ✅ Supported (Anomaly Score & Standalone) |
+| `barcode_reader` | Barcode & QR Reader | Membaca dan mendekode barcode 1D/2D dan QR Code secara instan. | `barcodeType`, `minConfidence` | ✅ Supported (Barcode Log & Standalone) |
+| `overlap_analysis` | Analisis Tumpang Tindih | Menghitung rasio tumpeng tindih (IoU) antar dua kelompok bounding box. | `targetClass1`, `targetClass2`, `minIoU` | ✅ Supported (Safety Event & Standalone) |
+| `webhook_output` | Penyalur HTTP Webhook | Mengirimkan payload JSON hasil deteksi ke server eksternal / endpoint API. | `webhookUrl`, `secretKey`, `retryCount` | ✅ Supported (External Sinks & Standalone) |
+| `resize` | Pengubah Resolusi Citra | Mengubah dimensi lebar dan tinggi frame video secara terkalibrasi. | `width`, `height`, `interpolation` | ✅ Supported (Preprocessing) |
+| `rotate_flip` | Rotasi & Balik Citra | Memutar citra 90/180/270 derajat atau melakukan flip horizontal/vertikal. | `rotateAngle`, `flipMode` | ✅ Supported (Preprocessing) |
+| `python_script` | Skrip Python Dinamis | Mengeksekusi logika manipulasi citra dan bounding box menggunakan kode Python kustom. | `pythonCode`, `timeout` | ✅ Supported (Custom Logic & Standalone) |
+| `dashboard_sink` | Kolektor Data Dashboard | Mengumpulkan metrik dan bounding box langsung ke antarmuka Dashboard Builder. | `dashboardId`, `metricBindings` | ✅ Supported (Dashboard Hub & Standalone) |
+| `export_code` | Generator Ekspor Mandiri | Mengonfigurasi metadata dan opsi pembuatan bundel Python mandiri / Docker. | `packageName`, `version`, `includeModels` | ✅ Supported (Design-Time Meta Node) |
+
+
 ## 📸 Tur Antarmuka & Showcase Visual
 
 ### 1. Projects & Templates Hub

@@ -601,6 +601,11 @@ class DashboardDataBus:
     def save_layout(self, project_id: str, layout_data: dict[str, Any]) -> str:
         """Save user's custom drag-and-drop dashboard layout."""
         clean_id = "".join(c for c in project_id if c.isalnum() or c in ("-", "_")).strip() or "default"
+        if isinstance(layout_data, dict):
+            if not layout_data.get("project_id"):
+                layout_data["project_id"] = clean_id
+            if not layout_data.get("id"):
+                layout_data["id"] = clean_id
         file_path = self.dashboards_dir / f"{clean_id}.json"
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(layout_data, f, indent=2, ensure_ascii=False)
@@ -655,6 +660,7 @@ class DashboardDataBus:
                 results.append({
                     "id": dash_id,
                     "name": name,
+                    "project_id": data.get("project_id") or dash_id,
                     "modified_at": mtime_iso,
                     "widget_count": len(widgets),
                     "resolution": f"{cw} × {ch}",
@@ -667,19 +673,24 @@ class DashboardDataBus:
         results.sort(key=lambda d: (not d["is_default"], d.get("modified_at", "")), reverse=True)
         return results
 
-    def create_dashboard(self, name: str, template_id: Optional[str] = None) -> dict[str, Any]:
+    def create_dashboard(self, name: str, template_id: Optional[str] = None, project_id: Optional[str] = None) -> dict[str, Any]:
         """Create a new dashboard layout and return its metadata and data."""
         name = (name or "").strip() or "Dashboard Baru"
-        short_id = uuid.uuid4().hex[:8]
-        slug = "".join(c for c in name.lower().replace(" ", "_") if c.isalnum() or c == "_")
-        slug = slug[:16].strip("_") or "dash"
-        clean_id = f"{slug}_{short_id}"
+        if project_id:
+            clean_proj = "".join(c for c in project_id if c.isalnum() or c in ("-", "_")).strip()
+            clean_id = clean_proj or "default"
+        else:
+            short_id = uuid.uuid4().hex[:8]
+            slug = "".join(c for c in name.lower().replace(" ", "_") if c.isalnum() or c == "_")
+            slug = slug[:16].strip("_") or "dash"
+            clean_id = f"{slug}_{short_id}"
 
         if template_id:
             layout = self._build_template_layout(template_id, clean_id)
         else:
             layout = {
                 "id": clean_id,
+                "project_id": project_id or clean_id,
                 "name": name,
                 "canvas": {
                     "width": 1440,
@@ -692,10 +703,12 @@ class DashboardDataBus:
 
         layout["id"] = clean_id
         layout["name"] = name
+        layout["project_id"] = project_id or clean_id
         self.save_layout(clean_id, layout)
         return {
             "id": clean_id,
             "name": name,
+            "project_id": project_id or clean_id,
             "layout": layout,
             "message": f"Dashboard '{name}' berhasil dibuat."
         }
@@ -762,6 +775,15 @@ class DashboardDataBus:
         """Return metadata of all built-in production dashboard templates."""
         return [
             {
+                "id": "tpl_web_cv_studio",
+                "name": "Web Computer Vision Studio (Streamlit Style)",
+                "workflow_id": "web_cv_studio",
+                "category": "Web Computer Vision & Analisis Interaktif",
+                "badge": "⚡ WEB CV & STREAMLIT",
+                "icon": "layout-template",
+                "description": "Aplikasi Web Computer Vision interaktif: Media Input Controller (upload gambar/video), Vision Result Viewer beranotasi, Tabel Hasil Konfiden, dan Tabel Kustom Analitik.",
+            },
+            {
                 "id": "tpl_ai_cctv_pro",
                 "name": "AI CCTV PRO — Security Command Center",
                 "workflow_id": "ai-agent-safety-auditor",
@@ -826,6 +848,62 @@ class DashboardDataBus:
 
     def _build_template_layout(self, template_id: str, project_id: str) -> dict[str, Any]:
         now_ts = int(time.time())
+        if template_id == "tpl_web_cv_studio":
+            return {
+                "version": "1.0.0",
+                "project_id": project_id,
+                "title": "Interactive Web Computer Vision Studio",
+                "theme": "dark",
+                "canvas": {"width": 1440, "height": 980, "background": "#080D19"},
+                "widgets": [
+                    {
+                        "id": "w_cv_navbar", "type": "dashboard_navbar", "x": 0, "y": 0, "w": 1440, "h": 56, "z": 1,
+                        "config": {"title": "WEB COMPUTER VISION STUDIO", "subtitle": "Interactive Inference & Analytics Platform", "showClock": True, "showShift": True}
+                    },
+                    {
+                        "id": "w_cv_input", "type": "media_input_controller", "x": 20, "y": 70, "w": 440, "h": 460, "z": 2,
+                        "config": {
+                            "title": "Media Input & Inference Controller",
+                            "defaultMode": "single_analysis",
+                            "confidence": 0.25,
+                            "iouThreshold": 0.45,
+                            "autoRunOnDrop": True
+                        }
+                    },
+                    {
+                        "id": "w_cv_kpi", "type": "stat_kpi_card", "x": 20, "y": 545, "w": 440, "h": 105, "z": 2,
+                        "config": {"title": "Total Objek Terdeteksi", "metricKey": "total_detected", "accentColor": "#0284c7", "icon": "users"}
+                    },
+                    {
+                        "id": "w_cv_viewer", "type": "vision_result_viewer", "x": 480, "y": 70, "w": 940, "h": 580, "z": 2,
+                        "config": {
+                            "title": "Hasil Visual Analisis AI (Annotated Result)",
+                            "showBeforeAfterSlider": True,
+                            "showZoomControls": True,
+                            "showDownloadBtn": True
+                        }
+                    },
+                    {
+                        "id": "w_cv_table_conf", "type": "confidence_table", "x": 20, "y": 665, "w": 720, "h": 295, "z": 2,
+                        "config": {
+                            "title": "Tabel Hasil Konfiden Deteksi (Detections)",
+                            "showCrops": True,
+                            "showScoreBar": True,
+                            "showBboxCoords": True,
+                            "showExportBtn": True
+                        }
+                    },
+                    {
+                        "id": "w_cv_table_analytics", "type": "custom_analytics_table", "x": 760, "y": 665, "w": 660, "h": 295, "z": 2,
+                        "config": {
+                            "title": "Tabel Kustom Analitik Alur Kerja",
+                            "showZoneSummary": True,
+                            "showClassCounter": True,
+                            "showExportBtn": True
+                        }
+                    }
+                ]
+            }
         if template_id in ("tpl_ai_cctv_pro", "default"):
             return {
                 "version": "1.0.0",

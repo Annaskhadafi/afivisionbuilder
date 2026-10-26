@@ -177,6 +177,7 @@
       }
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('id')) dashId = urlParams.get('id');
+      if (urlParams.get('embed') === 'true') document.body.classList.add('is-embedded');
 
       // Link Back to Editor
       const linkEditor = document.getElementById('linkBackToEditor');

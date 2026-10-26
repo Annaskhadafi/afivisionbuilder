@@ -2072,6 +2072,7 @@ def active_analysis_pipeline(workflow: dict) -> bool:
         "track_snapshot",
         "filter",
         "detections_consensus",
+        "switch_case",
     }
     for node in workflow.get("nodes", []):
         if (
