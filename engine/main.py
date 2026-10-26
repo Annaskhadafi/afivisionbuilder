@@ -81,7 +81,7 @@ IMAGE_PROCESSING_NODE_TYPES = (
 DRAWING_NODE_TYPES = ALL_DRAWING_NODE_TYPES
 LOGIC_NODE_TYPES = (
     "if_else", "compare_value", "roi_filter", "object_count_condition", "class_detected_condition",
-    "confidence_threshold", "timer_delay", "debounce", "rate_limiter",
+    "confidence_threshold", "timer_delay", "debounce", "rate_limiter", "alarm_cooldown_gate",
     "and_or_logic", "trigger_once",
 )
 IMAGE_EXTENSIONS = {".bmp", ".dib", ".jpg", ".jpeg", ".jpe", ".jp2", ".png", ".webp", ".pbm", ".pgm", ".ppm", ".pxm", ".pnm", ".tif", ".tiff"}
@@ -2066,6 +2066,7 @@ def active_analysis_pipeline(workflow: dict) -> bool:
         "face_detector",
         "face_analyzer",
         "face_tracker",
+        "hand_skeleton",
         "object_counter",
         "line_counter",
         "dwell_zone",
@@ -3016,7 +3017,7 @@ def active_logic_nodes_for_target(workflow: dict, target_id: str) -> list[dict]:
     if input_id:
         sources.append(input_id)
     for n in workflow.get("nodes", []):
-        if n.get("type") in ("line_counter", "object_counter", "dwell_time", "barcode_reader", "crop", "roi_filter", "zone_activity_timer", "zone_exit_event", "object_timer", "face_detector", "face_analyzer", "face_tracker") and n.get("enabled", True):
+        if n.get("type") in ("line_counter", "object_counter", "dwell_time", "barcode_reader", "crop", "roi_filter", "zone_activity_timer", "zone_exit_event", "object_timer", "face_detector", "face_analyzer", "face_tracker", "hand_skeleton") and n.get("enabled", True):
             sources.append(str(n.get("id", "")))
 
     nodes = [
@@ -3031,9 +3032,11 @@ def active_logic_nodes_for_target(workflow: dict, target_id: str) -> list[dict]:
     incoming = {node_id: 0 for node_id in node_ids}
     outgoing = {node_id: [] for node_id in node_ids}
     for edge in workflow.get("edges", []):
-        if len(edge) >= 2 and edge[0] in node_ids and edge[1] in node_ids:
-            outgoing[edge[0]].append(edge[1])
-            incoming[edge[1]] += 1
+        src = edge[0] if isinstance(edge, (list, tuple)) and len(edge) >= 2 else (edge.get("source", edge.get("from")) if isinstance(edge, dict) else None)
+        tgt = edge[1] if isinstance(edge, (list, tuple)) and len(edge) >= 2 else (edge.get("target", edge.get("to")) if isinstance(edge, dict) else None)
+        if src in node_ids and tgt in node_ids:
+            outgoing[src].append(tgt)
+            incoming[tgt] += 1
     ready = sorted((node_id for node_id, degree in incoming.items() if degree == 0), key=order_hint.get)
     ordered_ids = []
     while ready:
@@ -3161,6 +3164,51 @@ def _logic_signal(node: dict, detections: list[dict], runtime: dict, now: float)
             state["last_pass_at"] = now
         else:
             signal = False
+    elif node_type == "alarm_cooldown_gate":
+        cooldown_sec = max(0.5, float(config.get("cooldownSeconds", 30.0) or 30.0))
+        mode = str(config.get("mode", "suppress")).lower()
+        escalate_sec = max(1.0, float(config.get("escalateIntervalSeconds", 60.0) or 60.0))
+        clear_hold_sec = max(0.5, float(config.get("clearHoldSeconds", 3.0) or 3.0))
+
+        if not signal:
+            clear_since = state.get("clear_since")
+            if clear_since is None:
+                state["clear_since"] = now
+            elif (now - clear_since) >= clear_hold_sec:
+                # Area has been clear for clearHoldSeconds -> Re-arm the gate to idle
+                state["is_active"] = False
+                state.pop("first_triggered_at", None)
+                state.pop("last_emitted_at", None)
+                state["clear_since"] = now
+            signal = False
+        else:
+            state.pop("clear_since", None)
+            is_active = state.get("is_active", False)
+            last_emitted = state.get("last_emitted_at", 0.0)
+
+            if not is_active:
+                state["is_active"] = True
+                state["first_triggered_at"] = now
+                state["last_emitted_at"] = now
+                state["is_escalation"] = False
+                signal = True
+            else:
+                if mode == "single_shot":
+                    signal = False
+                elif mode == "escalate":
+                    if (now - last_emitted) >= escalate_sec:
+                        state["last_emitted_at"] = now
+                        state["is_escalation"] = True
+                        signal = True
+                    else:
+                        signal = False
+                else:  # default "suppress"
+                    if (now - last_emitted) >= cooldown_sec:
+                        state["last_emitted_at"] = now
+                        state["is_escalation"] = False
+                        signal = True
+                    else:
+                        signal = False
     elif node_type == "and_or_logic":
         static_input = bool(config.get("enabledValue", True))
         signal = signal and static_input if config.get("operator", "and") == "and" else signal or static_input
@@ -3220,6 +3268,15 @@ def apply_logic_nodes(
                     next_result = [d for d in result if str(d.get("class", "")).casefold() in cond_classes]
                 else:
                     next_result = result
+            elif passed and node.get("type") == "alarm_cooldown_gate":
+                st = runtime.get(str(node.get("id") or ""), {})
+                is_esc = bool(st.get("is_escalation", False))
+                first_trig = st.get("first_triggered_at", now)
+                dur = round(now - first_trig, 1)
+                next_result = [
+                    {**d, "alarmCooldownPassed": True, "isEscalation": is_esc, "incidentDurationSeconds": dur}
+                    for d in result
+                ]
             else:
                 next_result = result if passed else []
         if debug_callback:

@@ -752,7 +752,7 @@ def _process_track_event_nodes(
 
     def _node_priority(n):
         t = n.get("type")
-        if t in ("face_detector", "face_analyzer"):
+        if t in ("face_detector", "face_analyzer", "hand_skeleton"):
             return 0
         if t == "class_replacement":
             return 0
@@ -777,7 +777,7 @@ def _process_track_event_nodes(
             "overlap_analysis", "velocity_calculator", "path_deviation", "delta_filter",
             "detections_difference", "data_aggregator", "csv_formatter", "s3_sink",
             "notification_dispatcher", "ptz_controller", "screenshot_capture", "telegram_notification", "ocr_reader", "object_timer",
-            "face_detector", "face_analyzer", "face_tracker", "face_crop",
+            "face_detector", "face_analyzer", "face_tracker", "face_crop", "hand_skeleton",
             "dominant_color", "class_replacement", "man_down_detector", "lpr_license_plate", "overstack_detector",
             "dashboard_sink", "incident_video_recorder", "mqtt_publisher", "crowd_density_heatmap", "ppe_compliance_matrix", "switch_case"
         ):
@@ -946,6 +946,17 @@ def _process_track_event_nodes(
             if f_crops:
                 crop_batches.setdefault(project_id, []).extend(f_crops)
             extra_results.extend(f_events)
+        elif p_type == "hand_skeleton":
+            try:
+                from hand_engine import HandTrackerEngine, draw_hand_skeleton
+            except ImportError:
+                from .hand_engine import HandTrackerEngine, draw_hand_skeleton
+            engine_inst = HandTrackerEngine.get_instance()
+            cfg = project_node.get("config", {})
+            hand_dets = engine_inst.process_frame(frame, cfg, project_id)
+            if hand_dets and cfg.get("showSkeleton", True) is not False:
+                draw_hand_skeleton(frame, hand_dets, cfg)
+            detections.extend(hand_dets)
         elif p_type == "dominant_color":
             from dominant_color import inspect_dominant_color
             state = event_runtime.setdefault(project_id, {})
@@ -1340,9 +1351,9 @@ def _normalize_line_counter_config(config: dict) -> list[dict]:
     return lines
 
 
-def _check_line_crossing(p1: tuple[int, int], p2: tuple[int, int], q1: tuple[float, float], q2: tuple[float, float], invert_direction: bool = False) -> str | None:
+def _check_line_crossing(p1: tuple[int, int], p2: tuple[int, int], q1: tuple[float, float], q2: tuple[float, float], invert_direction: bool = False, hysteresis_distance: float = 0.0) -> str | None:
     """
-    Check if track segment q1->q2 crosses line segment p1->p2.
+    Check if track segment q1->q2 crosses line segment p1->p2 with optional hysteresis deadband.
     Returns: 'IN', 'OUT', or None.
     Uses 2D cross product sign changes and parametric projection along the line.
     """
@@ -1364,6 +1375,14 @@ def _check_line_crossing(p1: tuple[int, int], p2: tuple[int, int], q1: tuple[flo
 
     # Check if endpoints lie on opposite sides of the line (or one lies on the line)
     if (s1 * s2 <= 0) and (s1 != 0 or s2 != 0):
+        # Anti-jitter: If hysteresis deadband is active, enforce that motion spans the corridor
+        if hysteresis_distance > 0.0:
+            line_len = math.sqrt(line_len_sq)
+            d1 = abs(s1) / line_len
+            d2 = abs(s2) / line_len
+            if max(d1, d2) < hysteresis_distance and (d1 + d2) < hysteresis_distance:
+                return None
+
         total_side = abs(s1) + abs(s2)
         if total_side > 1e-6:
             frac = abs(s1) / total_side
@@ -1535,13 +1554,21 @@ def _process_line_counters(
                 if prev_entry is not None and (now - last_seen) < 2.5:
                     prev_anchors = prev_entry if isinstance(prev_entry, dict) else {"primary": prev_entry}
 
+                    # Extract anti-jitter hysteresis and rearm cooldown configuration
+                    hysteresis_px = max(0.0, float(config.get("hysteresisDistance", 15.0) or 15.0))
+                    rearm_cooldown = max(0.5, float(config.get("reArmCooldown", 1.5) or 1.5))
+
                     # Test candidate anchor trajectories (primary first, then center, bottom_center, top_center)
                     direction = None
                     for anchor_key in ("primary", "center", "bottom_center", "top_center"):
                         prev_pt = prev_anchors.get(anchor_key)
                         curr_pt = curr_anchors.get(anchor_key)
                         if prev_pt and curr_pt:
-                            detected_dir = _check_line_crossing(p1, p2, prev_pt, curr_pt, invert_direction=invert_dir)
+                            detected_dir = _check_line_crossing(
+                                p1, p2, prev_pt, curr_pt,
+                                invert_direction=invert_dir,
+                                hysteresis_distance=hysteresis_px,
+                            )
                             if detected_dir:
                                 direction = detected_dir
                                 break
@@ -1555,7 +1582,8 @@ def _process_line_counters(
                         last_event = line_state["last_event"].get(tid)
                         last_event_time = line_state["last_event_time"].get(tid, 0.0)
 
-                        if (now - last_event_time >= 0.7) or (last_event != direction):
+                        # Enforce rearm_cooldown even if direction toggles, eliminating rapid rocking double counts
+                        if (now - last_event_time >= rearm_cooldown):
                             line_state["last_event"][tid] = direction
                             line_state["last_event_time"][tid] = now
                             line_state["last_crossing_timestamp"] = now

@@ -1,0 +1,12 @@
+{
+  "id": "62e8fd8eb1c34720b856bec6e7d92762",
+  "project_id": "62e8fd8eb1c34720b856bec6e7d92762",
+  "name": "Detection, Class Filter & Counter Dashboard",
+  "canvas": {
+    "width": 1440,
+    "height": 960,
+    "bgColor": "#ffffff",
+    "fontFamily": "'Inter', -apple-system, sans-serif"
+  },
+  "widgets": []
+}

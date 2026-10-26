@@ -53,12 +53,15 @@
 
     async init() {
       console.log('[DashboardBuilder] Menginisialisasi Dashboard Builder...');
-      this.bindToolbarEvents();
-      this.bindPaletteEvents();
-      this.bindModalEvents();
-      this.bindKeyboardShortcuts();
-      this.bindCanvasBackgroundEvents();
-      this.bindContextMenuActions();
+      if (!this.eventsBound) {
+        this.eventsBound = true;
+        this.bindToolbarEvents();
+        this.bindPaletteEvents();
+        this.bindModalEvents();
+        this.bindKeyboardShortcuts();
+        this.bindCanvasBackgroundEvents();
+        this.bindContextMenuActions();
+      }
       await this.loadRegisteredCameras();
       await this.loadProjects();
       await this.loadRealtimeContext();
@@ -933,7 +936,6 @@
 
       // Canvas drop target listeners
       const canvas = document.getElementById('builderCanvas');
-      const viewport = document.getElementById('builderCanvasViewport');
 
       const handleDragOver = (e) => {
         if (e.dataTransfer.types.includes('application/x-afi-widget-type') || e.dataTransfer.types.includes('text/plain')) {
@@ -944,7 +946,7 @@
       };
 
       const handleDragLeave = (e) => {
-        if (e.relatedTarget && (canvas?.contains(e.relatedTarget) || viewport?.contains(e.relatedTarget))) {
+        if (e.relatedTarget && canvas?.contains(e.relatedTarget)) {
           return;
         }
         canvas?.classList.remove('canvas-drag-receiving');
@@ -967,10 +969,6 @@
 
         this.addWidget(type, dropX, dropY);
       };
-
-      viewport?.addEventListener('dragover', handleDragOver);
-      viewport?.addEventListener('dragleave', handleDragLeave);
-      viewport?.addEventListener('drop', handleDrop);
 
       canvas?.addEventListener('dragover', handleDragOver);
       canvas?.addEventListener('dragleave', handleDragLeave);

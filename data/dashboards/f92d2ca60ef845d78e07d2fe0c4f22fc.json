@@ -1,0 +1,51 @@
+{
+  "id": "f92d2ca60ef845d78e07d2fe0c4f22fc",
+  "project_id": "f92d2ca60ef845d78e07d2fe0c4f22fc",
+  "name": "E2E Test Flow 1792970105516 Dashboard",
+  "canvas": {
+    "width": 1440,
+    "height": 960,
+    "bgColor": "#ffffff",
+    "fontFamily": "'Inter', -apple-system, sans-serif"
+  },
+  "widgets": [
+    {
+      "id": "w_media_input_controller_mvohqwg3",
+      "type": "media_input_controller",
+      "x": 20,
+      "y": 70,
+      "w": 410,
+      "h": 450,
+      "z": 1,
+      "config": {
+        "title": "Media Input & Inference Controller",
+        "defaultConfidence": 0.25,
+        "workflowId": "",
+        "autoRunOnUpload": true,
+        "sampleUrls": [
+          {
+            "label": "Sample Bengkel Workshop",
+            "url": "/static/sample_workshop.jpg"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_vision_result_viewer_mvohrhnu",
+      "type": "vision_result_viewer",
+      "x": 460,
+      "y": 60,
+      "w": 940,
+      "h": 580,
+      "z": 2,
+      "config": {
+        "title": "Visual Output & Detections",
+        "showBoxes": true,
+        "showLabels": true,
+        "showMasks": true,
+        "enableZoomPan": true,
+        "showDownloadBtn": true
+      }
+    }
+  ]
+}

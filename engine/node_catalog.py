@@ -608,6 +608,24 @@ NODE_BLUEPRINTS = {
             "maxDetectionFps": 0,
         },
     },
+    "hand_skeleton": {
+        "title": "Hand Tracking & Gestures",
+        "subtitle": "Pelacakan 21 titik sendi kerangka tangan 3D & pengenal gestur interaktif (Pinch, Fist, Peace, Pointing)",
+        "category": "AI Vision Models",
+        "x": 330,
+        "y": 210,
+        "config": {
+            "numHands": 2,
+            "threshold": 0.45,
+            "showSkeleton": True,
+            "showJoints": True,
+            "showGestureBadge": True,
+            "skeletonThickness": 2,
+            "jointRadius": 4,
+            "detectPinch": True,
+            "pinchThreshold": 32.0,
+        },
+    },
     "detector": {
         "title": "Object Detection",
         "subtitle": "Mendeteksi objek langsung memakai YOLO26 NMS-Free (hemat CPU), YOLOv8n, atau RF-DETR",
@@ -1072,6 +1090,8 @@ NODE_BLUEPRINTS = {
             "outLabel": "OUT",
             "invertDirection": False,
             "countMode": "both",
+            "hysteresisDistance": 15.0,
+            "reArmCooldown": 1.5,
         },
     },
     "dwell_time": {
@@ -1653,6 +1673,19 @@ NODE_BLUEPRINTS = {
         "x": 620,
         "y": 1220,
         "config": {"seconds": 5.0},
+    },
+    "alarm_cooldown_gate": {
+        "title": "Alarm Cooldown Gate",
+        "subtitle": "Peredam badai alarm: cegah spam beruntun dengan masa hening, eskalasi bertahap, dan re-arm otomatis",
+        "category": "Logic & Flow Control",
+        "x": 620,
+        "y": 1285,
+        "config": {
+            "cooldownSeconds": 30.0,
+            "mode": "suppress",
+            "escalateIntervalSeconds": 60.0,
+            "clearHoldSeconds": 3.0,
+        },
     },
     "and_or_logic": {
         "title": "AND / OR Logic",

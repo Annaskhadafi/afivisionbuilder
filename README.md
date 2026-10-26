@@ -5,23 +5,22 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch" />
-  <img src="https://img.shields.io/badge/OpenCV-4.8+-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white" alt="OpenCV" />
-  <img src="https://img.shields.io/badge/Ultralytics-YOLO26%20%7C%20v11%20%7C%20v8-00FFFF?style=for-the-badge&logo=yolo&logoColor=black" alt="YOLO" />
-  <img src="https://img.shields.io/badge/Nodes%20Catalog-89%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
-  <img src="https://img.shields.io/badge/Unit%20Tests-281%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
-  <img src="https://img.shields.io/badge/E2E%20Tests-35%2B%20Suites%20Passed-22c55e?style=for-the-badge&logo=playwright&logoColor=white" alt="E2E Tests" />
+  <img src="https://img.shields.io/badge/Ultralytics-YOLO26%20NMS--Free-00FFFF?style=for-the-badge&logo=yolo&logoColor=black" alt="YOLO26" />
+  <img src="https://img.shields.io/badge/MediaPipe-Hand%203D%20Skeleton-FF6F00?style=for-the-badge&logo=google&logoColor=white" alt="MediaPipe" />
+  <img src="https://img.shields.io/badge/Fleet%20Hub-Multi--Workflow-10b981?style=for-the-badge&logo=fastapi&logoColor=white" alt="Fleet Hub" />
+  <img src="https://img.shields.io/badge/Nodes%20Catalog-91%2B%20Nodes-blueviolet?style=for-the-badge" alt="Nodes" />
+  <img src="https://img.shields.io/badge/Unit%20Tests-264%20Passed-success?style=for-the-badge&logo=pytest&logoColor=white" alt="Unit Tests" />
 </p>
 
 <p align="center">
   <a href="#-fitur-unggulan-terbaru">Fitur Unggulan</a> •
+  <a href="#-galeri-template-siap-pakai-industri-visual-template-showcase">Galeri Template Bergambar</a> •
   <a href="#-tur-antarmuka--showcase-visual">Tur Antarmuka</a> •
   <a href="#-instalasi--eksekusi-1-click">Instalasi Cepat</a> •
-  <a href="#-katalog-80-node-lengkap">Katalog 89+ Node</a> •
+  <a href="#-katalog-lengkap-91-node-vision-studio-5-tabel-kategori-modular">Katalog 91+ Node</a> •
   <a href="#-arsitektur-sistem">Arsitektur</a> •
-  <a href="#-pengujian-kualitas-unit--e2e">Pengujian Kualitas</a> •
   <a href="#-lisensi--pengembang">Lisensi</a>
 </p>
 
@@ -291,6 +290,35 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 - **Skor Kepatuhan Dinamis (0 - 100%)**: Menghasilkan klasifikasi status instan (`COMPLIANT`, `PARTIAL`, `VIOLATION`) dan daftar komponen yang belum dipakai (`missingPPE`).
 - **Visual Pill Badges & Alarm Cooldown**: Menampilkan badge kepatuhan visual di atas kepala pekerja (hijau untuk lolos, merah untuk pelanggaran) dan pemicu alarm terukur dengan batas cooldown anti-spam.
 
+### 🚀 47. Multi-Workflow Fleet Hub & Background Services (Layanan Multi-Alur Kerja Latar Belakang)
+- **Eksekusi Latar Belakang Simultan**: Jalankan beberapa alur kerja analitik secara bersamaan di latar belakang tanpa saling mengunci satu sama lain.
+- **Isolasi Kegagalan Terpadu (Fault Isolation)**: Setiap alur kerja berjalan pada proses mandiri dengan fail-safe. Gangguan pada satu stream kamera tidak akan mengganggu alur kerja lain maupun server utama.
+- **Tata Kelola CPU Cerdas (Target FPS Governor)**: Batasi kecepatan pemrosesan frame (5, 10, atau 15 FPS) untuk memangkas penggunaan CPU hingga **60%+** di komputer lokal tanpa mengorbankan akurasi analitik.
+- **Matriks Pemantau Multi-Layar (Matrix Live Monitor)**: Pantau seluruh siaran langsung kamera dari alur kerja yang sedang aktif secara berdampingan dalam grid responsif dengan pembaruan otomatis setiap 1.5 detik.
+- **Sentralisasi Event Bus**: Peringatan deteksi dan data operasional dari semua alur kerja terhubung langsung ke `DashboardDataBus` tanpa risiko tabrakan penguncian database.
+
+### ✋ 48. 3D Hand Tracking & Touchless Gesture Recognition (`hand_skeleton`)
+- **Pelacakan 21 Sendi Tangan 3D (MediaPipe Tasks)**: Melacak 21 titik sendi tangan dalam ruang 3D secara real-time untuk pergelangan, pangkal telapak, dan 5 jari.
+- **Deteksi Cubit Udara (Air Pinch / Click)**: Menghitung jarak euclidean antara ujung jempol dan telunjuk ($d_{\text{pinch}} \le 32\text{ px}$) untuk simulasi klik mouse atau melukis di udara (*Air Canvas*).
+- **Penghitung Jari Terangkat (Finger Counter)**: Menghitung otomatis jumlah jari yang sedang berdiri tegak (0 sampai 5 jari) dengan heuristik geometri cepat.
+- **Pengenal Gestur Bawaan Populer**: Mengenali gestur Peace/Victory (✌️), Closed Fist (✊), Open Palm (✋), Pointing Up (☝️), Thumbs Up (👍), Thumbs Down (👎), dan I Love You (🤟).
+- **Kerangka Estetik Bercahaya**: Visualisasi kerangka dengan warna khas tiap jari (Jempol Oranye, Telunjuk Cyan, Tengah Hijau Neon, Manis Emas, Kelingking Magenta), sendi bercahaya (*glowing dots*), dan lencana status gestur dinamis.
+
+### 📐 49. Anti-Jitter Line Counter with Hysteresis Deadband & Re-Arm Cooldown
+- **Pita Batas Toleransi Koridor (Deadband)**: Menghitung jarak tegak lurus bertanda ($d = s / L$) terhadap garis batas. Gerakan osilasi kecil di dalam pita toleransi (`hysteresisDistance: 15 px`) diabaikan total.
+- **Anti Double-Count Orang Ragu-Ragu**: Menghilangkan cacat hitung berulang saat seseorang berdiri ragu-ragu di atas garis masuk/keluar kasir atau gerbang.
+- **Penguncian Jeda Re-Arm Mutlak**: Mewajibkan jeda waktu minimum (`reArmCooldown: 1.5s`) sebelum objek yang sama dapat dihitung kembali sekalipun terjadi pembalikan arah instan.
+
+### 🛡️ 50. Peredam Badai Notifikasi (`alarm_cooldown_gate`)
+- **Peredam Spam Notifikasi**: Menghentikan ribuan notifikasi per menit saat terjadi pelanggaran zona atau deteksi objek yang berlangsung lama di frame kamera.
+- **Pemicu Awal Lolos Instan**: Kejadian awal segera ditembakkan ke hilir (Telegram/Webhook) agar operator mendapatkan peringatan darurat pertama tanpa tunda.
+- **Masa Hening & Eskalasi Berkala**: Notifikasi dibungkam selama masa cooldown (`cooldownSeconds: 30s`) dan dapat diatur mengirimkan pengingat eskalasi berkala (`escalateIntervalSeconds: 60s`) lengkap dengan tag durasi kejadian.
+- **Penyegelan Ulang Otomatis (Auto Re-Arm)**: Gerbang otomatis kembali siaga saat area telah dipastikan bersih selama minimal `clearHoldSeconds: 3s`.
+
+### ⚡ 51. Ultralytics Native Trackers (TrackTrack & FastTracker)
+- **TrackTrack (CVPR — Harmonic Mean IoU + Track-Aware Initialization)**: Algoritma bawaan baru Ultralytics dengan akurasi asosiasi tinggi dan latensi postprocess super cepat (~3.78 ms pada CPU).
+- **FastTracker (Anti-Oklusi Kalman Rollback)**: Mengimplementasikan ring-buffer Kalman rollback yang memutar balik vektor kecepatan saat terjadi oklusi parah tanpa membebani GPU dengan model ReID berat.
+
 ---
 
 
@@ -331,7 +359,7 @@ Berikut adalah katalog referensi komprehensif seluruh node yang didukung oleh Af
 | `zone_activity_timer` | Timer Aktivitas Zona | Menghitung akumulasi waktu kerja personil di dalam poligon zona workshop. | `zoneName`, `targetDwellMinutes` | ✅ Supported (Shift Timer & Standalone) |
 | `zone_exit_event` | Kejadian Keluar Zona | Memvalidasi perpindahan objek dari dalam ke luar zona gudang. | `exitDirection`, `minConfidence` | ✅ Supported (Dispatch Event & Standalone) |
 | `dwell_time` | Waktu Diam Objek | Mengukur durasi sebuah objek diam di satu lokasi stasioner. | `stationaryRadius`, `thresholdSeconds` | ✅ Supported (Dwell Metrics & Standalone) |
-| `line_counter` | Penghitung Garis Virtual | Menghitung objek yang melintasi garis batas arah masuk atau keluar. | `lineCoords`, `direction` | ✅ Supported (Traffic Counter & Standalone) |
+| `line_counter` | Penghitung Garis Anti-Jitter | Menghitung objek melintasi garis dengan koridor toleransi deadband anti-goyang. | `lineCoords`, `hysteresisDistance`, `reArmCooldown` | ✅ Supported (Traffic Counter & Standalone) |
 | `object_counter` | Penghitung Total Objek | Agregasi jumlah objek terdeteksi per kelas objek secara real-time. | `targetClasses`, `resetDaily` | ✅ Supported (Total Scorecard & Standalone) |
 
 ---
@@ -339,6 +367,7 @@ Berikut adalah katalog referensi komprehensif seluruh node yang didukung oleh Af
 ### ⚙️ 3. Logika Tingkat Lanjut & Kontrol Alur
 | Node Type | Nama / Label | Kegunaan Utama | Parameter Kunci | Export Code & Dashboard |
 | :--- | :--- | :--- | :--- | :--- |
+| `alarm_cooldown_gate` | Peredam Badai Alarm (Cooldown Gate) | Mencegah spam banjir notifikasi dengan masa hening, eskalasi berkala, dan auto re-arm. | `cooldownSeconds`, `mode`, `escalateIntervalSeconds` | ✅ Supported (Flow Logic & Standalone) |
 | `switch_case` | Switch Case Router | Mengarahkan aliran deteksi ke port cabang berbeda berdasarkan kelas/atribut. | `evaluationField`, `cases`, `defaultPort` | ✅ Supported (Pipeline Router & Standalone) |
 | `and_or_logic` | Gerbang Logika AND/OR | Menggabungkan beberapa kondisi boolean menjadi satu keputusan alur. | `logicOperator`, `minTrueInputs` | ✅ Supported (Flow Logic & Standalone) |
 | `if_else` | Percabangan If-Else | Membagi arah eksekusi alur berdasarkan evaluasi ekspresi kondisi. | `conditionExpr`, `truePort`, `falsePort` | ✅ Supported (Flow Logic & Standalone) |
@@ -357,6 +386,7 @@ Berikut adalah katalog referensi komprehensif seluruh node yang didukung oleh Af
 ### 🎨 4. Visualisasi, VLM & Pelacakan Khusus
 | Node Type | Nama / Label | Kegunaan Utama | Parameter Kunci | Export Code & Dashboard |
 | :--- | :--- | :--- | :--- | :--- |
+| `hand_skeleton` | Hand Tracking & 3D Gestures | Pelacakan 21 titik sendi kerangka tangan 3D dan pengenal gestur interaktif. | `numHands`, `detectPinch`, `pinchThreshold` | ✅ Supported (Interactive Vision & Standalone) |
 | `vlm_box_tracker` | Pelacak Grounding VLM | Pelacakan visual menggunakan Vision-Language Model berbasis teks perintah. | `vlmPrompt`, `groundingThreshold` | ✅ Supported (Zero-Shot VLM & Standalone) |
 | `model_comparison` | Evaluasi Dual Model AI | Menjalankan 2 model AI secara paralel dan membandingkan akurasi serta latensi. | `primaryModel`, `secondaryModel` | ✅ Supported (A/B Testing & Standalone) |
 | `blur_anonymizer` | Pengabur Wajah & Plat | Mengaburkan area sensitif untuk kepatuhan privasi (GDPR). | `blurRadius`, `targetClasses` | ✅ Supported (Privacy View & Standalone) |
@@ -410,6 +440,26 @@ Berikut adalah katalog referensi komprehensif seluruh node yang didukung oleh Af
 
 
 ## 📸 Tur Antarmuka & Showcase Visual
+
+### 🏛️ Galeri Template Siap Pakai Industri (Visual Template Showcase)
+
+AFI Vision Builder menyediakan puluhan template alur kerja produksi siap pakai untuk berbagai skenario industri dan visi komputer interaktif:
+
+| Template Alur Kerja | Tangkapan Layar & Pratinjau Visual | Skenario Penggunaan |
+| :--- | :---: | :--- |
+| **🚦 Smart Traffic Flow & Vehicle Counter**<br><sub>Deteksi kendaraan, klasifikasi kelas (mobil/motor/bus/truk), pemisahan lajur arah, dan penghitungan volume lalu lintas.</sub> | <img src="static/assets/templates/traffic_flow_counter.jpg" width="360" alt="Traffic Flow Counter" /> | • Manajemen lampu lalu lintas cerdas<br>• Analisis volume kendaraan per jam<br>• Audit kepadatan jalan raya |
+| **🍽️ Restaurant Table Occupancy & Dining Tracker**<br><sub>Pelacakan keterisian meja makan kafe/restoran (Vacant ➔ Occupied) dengan timer centroid transparan tanpa menutup makanan.</sub> | <img src="static/assets/templates/restaurant_table_occupancy.jpg" width="360" alt="Restaurant Occupancy" /> | • Efisiensi perputaran meja (table turnover)<br>• Peringatan waktu tunggu tamu<br>• Analisis waktu makan rata-rata |
+| **🏗️ Warehouse Forklift & Pedestrian Safety Guard**<br><sub>Zona keselamatan pejalan kaki vs forklift, batas kecepatan pergerakan armada, dan alarm peringatan tabrakan K3.</sub> | <img src="static/assets/templates/warehouse_forklift_safety_guard.jpg" width="360" alt="Warehouse Forklift" /> | • Pencegahan tabrakan pekerja di gudang<br>• Pemantauan area loading dock<br>• Kepatuhan K3 logistik industri |
+| **🔧 Assembly Line & Workshop Cycle Timer**<br><sub>Pengukuran durasi waktu siklus kerja per teknisi di workstation perakitan dan identifikasi waktu menganggur (idle time).</sub> | <img src="static/assets/templates/workshop_bay_activity.jpg" width="360" alt="Workshop Bay Activity" /> | • Audit efisiensi lini perakitan manufaktur<br>• Pencatatan otomatis durasi servis bengkel<br>• Deteksi hambatan proses perakitan |
+| **🛒 Retail Checkout Queue & Hotspot Analyzer**<br><sub>Analisis antrean kasir supermarket dan pemanggilan kasir cadangan otomatis saat antrean melebihi kapasitas.</sub> | <img src="static/assets/templates/retail_checkout_queue_monitor.jpg" width="360" alt="Retail Queue Monitor" /> | • Pengurangan waktu antre pembeli<br>• Pemetaan rute belanja favorit pelanggan<br>• Peringatan penumpukan kasir otomatis |
+| **🚪 Warehouse Gate Exit & Logistics Verification**<br><sub>Verifikasi keluar-masuk kendaraan ekspedisi di pintu gerbang gudang dan sinkronisasi logistik ERP terpadu.</sub> | <img src="static/assets/templates/warehouse_gate_exit.jpg" width="360" alt="Warehouse Gate Exit" /> | • Pengawasan gerbang logistik 24/7<br>• Rekap waktu keluar-masuk armada<br>• Verifikasi muatan barang gudang |
+| **🎯 RF-DETR Transformer Detection Pipeline**<br><sub>Deteksi objek akurasi tinggi menggunakan arsitektur Vision Transformer mutakhir bebas NMS.</sub> | <img src="static/assets/templates/rfdetr_detection.jpg" width="360" alt="RF-DETR Detection" /> | • Deteksi objek saling bertumpuk<br>• Inspeksi produk berukuran kecil<br>• Klasifikasi komponen presisi |
+| **📊 Industrial AI CCTV Pro Dashboard**<br><sub>Dasbor pemantauan visual no-code lengkap dengan live player CCTV, kartu metrik KPI, grafik tren, dan tabel log kejadian.</sub> | <img src="docs/screenshots/004-04_dashboard_ai_cctv_pro_template_applied.png" width="360" alt="Industrial CCTV Dashboard" /> | • Ruang kendali keamanan (Command Center)<br>• Monitoring operasional multi-kamera<br>• Ekspor mandiri ke server Docker |
+| **🖥️ Dashboard Templates Gallery Modal**<br><sub>Pilihan template dasbor visual siap pakai dengan pratinjau thumbnail interaktif 1-klik terapkan.</sub> | <img src="docs/screenshots/003-03_dashboard_templates_modal.png" width="360" alt="Dashboard Templates Modal" /> | • Template Monitoring CCTV Pro<br>• Template Smart Traffic City<br>• Template Restoran & Ritel Modern |
+| **📦 Standalone Docker Compose Export**<br><sub>Mengemas seluruh alur kerja dan web dasbor menjadi paket Docker mandiri siap jalan di server mana pun.</sub> | <img src="docs/screenshots/006-06_dashboard_docker_export_modal.png" width="360" alt="Docker Export Modal" /> | • Deployment mandiri ke server klien<br>• Siap jalan di Portainer / Dokploy<br>• Bundel lengkap `run.bat` & `run.sh` |
+| **🔍 Google Looker Interactive Cross-Filtering**<br><sub>Penyaringan silang data interaktif saat mengklik kartu kamera atau jenis kejadian pada dasbor.</sub> | <img src="docs/screenshots/005-05_dashboard_looker_cross_filter.png" width="360" alt="Looker Cross Filter" /> | • Investigasi insiden spesifik kamera<br>• Filter tabel kejadian secara langsung<br>• Analisis data tanpa reload halaman |
+
+---
 
 ### 1. Projects & Templates Hub
 Halaman awal untuk mengelola seluruh proyek alur kerja, membuka proyek terkini, mengimpor alur kerja JSON, dan memilih template siap pakai industri (Restaurant Dwell Tracker, Bottle Inspection, dll).

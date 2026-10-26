@@ -12,12 +12,14 @@ __pycache__/
 
 # Root duplicate weights (weights are placed in data/models/)
 /*.pt
+/*.onnx
 
 # Runtime outputs & uploads
 data/outputs/*
 !data/outputs/.gitkeep
 data/uploads/*
 !data/uploads/.gitkeep
+data/models/[0-9a-f][0-9a-f]*
 data/projects/*
 !data/projects/097960d9099c4027940e9dc1aa4c8b43/
 !data/projects/4369ad1a672f456f974c75a20773b824/

@@ -2,10 +2,70 @@
   "active_project_id": "733240f514454a71bc65ae45f3fd9245",
   "projects": [
     {
+      "id": "c3bb0f6d7cf34a649cbaa582c9878a50",
+      "name": "TES",
+      "created_at": "2026-10-26T12:22:32+00:00",
+      "modified_at": "2026-10-26T12:56:40+00:00"
+    },
+    {
+      "id": "62e8fd8eb1c34720b856bec6e7d92762",
+      "name": "Detection, Class Filter & Counter",
+      "created_at": "2026-10-26T08:20:59+00:00",
+      "modified_at": "2026-10-26T08:20:59+00:00"
+    },
+    {
+      "id": "aaf0ed33124b491ca3e0d50bd3338a38",
+      "name": "Zero-Defect Surface Anomaly Inspection",
+      "created_at": "2026-10-26T06:43:02+00:00",
+      "modified_at": "2026-10-26T06:43:02+00:00"
+    },
+    {
+      "id": "722876ca1620408d814d8ad4f42f4f59",
+      "name": "Tripwire & Bi-Directional Line Counter",
+      "created_at": "2026-10-26T06:41:55+00:00",
+      "modified_at": "2026-10-26T06:41:55+00:00"
+    },
+    {
+      "id": "af1ccf64ea0e4d60bb6cb82525da16b5",
+      "name": "Remediated Flow 1792975846587",
+      "created_at": "2026-10-26T00:50:46+00:00",
+      "modified_at": "2026-10-26T00:50:49+00:00"
+    },
+    {
+      "id": "a5a10e331fc54d77a527daacd228641f",
+      "name": "Remediated Flow 1792975757664",
+      "created_at": "2026-10-26T00:49:17+00:00",
+      "modified_at": "2026-10-26T00:49:21+00:00"
+    },
+    {
+      "id": "c73ec3f712a5479b88dcd4f65008480e",
+      "name": "Remediated Flow 1792975693987",
+      "created_at": "2026-10-26T00:48:14+00:00",
+      "modified_at": "2026-10-26T00:48:17+00:00"
+    },
+    {
+      "id": "f92d2ca60ef845d78e07d2fe0c4f22fc",
+      "name": "E2E Test Flow 1792970105516",
+      "created_at": "2026-10-25T23:15:05+00:00",
+      "modified_at": "2026-10-25T23:15:05+00:00"
+    },
+    {
+      "id": "b378db06abfb4611a8653c14985853ef",
+      "name": "E2E Test Flow 1792970068614",
+      "created_at": "2026-10-25T23:14:28+00:00",
+      "modified_at": "2026-10-25T23:14:28+00:00"
+    },
+    {
+      "id": "4c915e63445c4885a74641f76a4ce6a8",
+      "name": "face analyzer",
+      "created_at": "2026-10-25T12:08:11+00:00",
+      "modified_at": "2026-10-25T12:08:11+00:00"
+    },
+    {
       "id": "20b0531ad295457bbcb50cd12113415d",
       "name": "OCR",
       "created_at": "2026-10-25T10:44:08+00:00",
-      "modified_at": "2026-10-25T10:53:49+00:00"
+      "modified_at": "2026-10-25T12:08:03+00:00"
     },
     {
       "id": "ba4d514c0ea9472fae54d6029d952f86",

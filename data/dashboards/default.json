@@ -1,195 +1,106 @@
 {
   "version": "1.0.0",
   "project_id": "default",
-  "title": "Warehouse Logistics Dock & Forklift Safety Guard",
+  "title": "Interactive Web Computer Vision Studio",
   "theme": "light",
   "canvas": {
     "width": 1440,
-    "height": 960,
-    "background": "#0B0F19",
-    "bgColor": "#064e3b"
+    "height": 980,
+    "background": "#080D19"
   },
   "widgets": [
     {
-      "id": "w_head",
-      "type": "custom_text",
-      "x": 30,
-      "y": 24,
-      "w": 700,
-      "h": 60,
+      "id": "w_cv_navbar",
+      "type": "dashboard_navbar",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 56,
       "z": 1,
       "config": {
-        "text": "Warehouse Logistics Dock & Forklift Safety Guard",
-        "tag": "h1",
-        "fontSize": 24,
-        "color": "#EF4444",
-        "subtitle": "Audit Keselamatan Kerja K3, Jarak Aman Forklift & Pemantauan Dock"
+        "title": "WEB COMPUTER VISION STUDIO",
+        "subtitle": "Interactive Inference & Analytics Platform",
+        "showClock": true,
+        "showShift": true
       }
     },
     {
-      "id": "w_badge",
-      "type": "status_badge",
-      "x": 1200,
-      "y": 30,
-      "w": 210,
-      "h": 48,
-      "z": 1,
-      "config": {
-        "label": "Gudang Distribusi — Zona K3",
-        "status": "online",
-        "shift": "Audit Shift 1"
-      }
-    },
-    {
-      "id": "w_sc1",
-      "type": "scorecard",
-      "x": 30,
-      "y": 95,
-      "w": 260,
-      "h": 120,
+      "id": "w_cv_input",
+      "type": "media_input_controller",
+      "x": 20,
+      "y": 70,
+      "w": 440,
+      "h": 460,
       "z": 2,
       "config": {
-        "metricKey": "forklift_proximity_alert",
-        "title": "Pelanggaran Jarak Forklift",
-        "unit": "Insiden",
-        "warningThreshold": 1,
-        "dangerThreshold": 3,
-        "defaultValue": 0
+        "title": "Media Input & Inference Controller",
+        "defaultMode": "single_analysis",
+        "confidence": 0.25,
+        "iouThreshold": 0.45,
+        "autoRunOnDrop": true
       }
     },
     {
-      "id": "w_sc2",
-      "type": "scorecard",
-      "x": 310,
-      "y": 95,
-      "w": 260,
-      "h": 120,
+      "id": "w_cv_kpi",
+      "type": "stat_kpi_card",
+      "x": 20,
+      "y": 545,
+      "w": 440,
+      "h": 105,
       "z": 2,
       "config": {
-        "metricKey": "ppe_compliance_pct",
-        "title": "Kepatuhan APD Helm & Rompi",
-        "unit": "%",
-        "warningThreshold": 90,
-        "dangerThreshold": 80,
-        "defaultValue": 96.8
+        "title": "Total Objek Terdeteksi",
+        "metricKey": "total_detected",
+        "accentColor": "#0284c7",
+        "icon": "users"
       }
     },
     {
-      "id": "w_sc3",
-      "type": "scorecard",
-      "x": 590,
-      "y": 95,
-      "w": 260,
-      "h": 120,
+      "id": "w_cv_viewer",
+      "type": "vision_result_viewer",
+      "x": 480,
+      "y": 70,
+      "w": 940,
+      "h": 580,
       "z": 2,
       "config": {
-        "metricKey": "dock_trucks_active",
-        "title": "Truk di Loading Dock",
-        "unit": "Truk",
-        "warningThreshold": 4,
-        "dangerThreshold": 5,
-        "defaultValue": 3
+        "title": "Hasil Visual Analisis AI (Annotated Result)",
+        "showBeforeAfterSlider": true,
+        "showZoomControls": true,
+        "showDownloadBtn": true
       }
     },
     {
-      "id": "w_sc4",
-      "type": "scorecard",
-      "x": 870,
-      "y": 95,
-      "w": 260,
-      "h": 120,
+      "id": "w_cv_table_conf",
+      "type": "confidence_table",
+      "x": 20,
+      "y": 665,
+      "w": 720,
+      "h": 295,
       "z": 2,
       "config": {
-        "metricKey": "overstack_warning",
-        "title": "Peringatan Tumpukan Overstack",
-        "unit": "Titik",
-        "warningThreshold": 1,
-        "dangerThreshold": 2,
-        "defaultValue": 0
+        "title": "Tabel Hasil Konfiden Deteksi (Detections)",
+        "showCrops": true,
+        "showScoreBar": true,
+        "showBboxCoords": true,
+        "showExportBtn": true
       }
     },
     {
-      "id": "w_excel",
-      "type": "excel_export_btn",
-      "x": 1150,
-      "y": 95,
-      "w": 260,
-      "h": 50,
-      "z": 2,
-      "config": {
-        "label": "Unduh Laporan Shift Pagi (.xlsx)",
-        "includeEvents": true,
-        "includeMetrics": true,
-        "filename": "Laporan_Shift_Pagi.xlsx",
-        "icon": "table"
-      }
-    },
-    {
-      "id": "w_cctv1",
-      "type": "cctv_player",
-      "x": 30,
-      "y": 235,
+      "id": "w_cv_table_analytics",
+      "type": "custom_analytics_table",
+      "x": 760,
+      "y": 665,
       "w": 660,
-      "h": 400,
-      "z": 3,
+      "h": 295,
+      "z": 2,
       "config": {
-        "cameraLabel": "Restaurant Table Occupancy & Dining Dwell Tracker",
-        "streamId": "cam_forklift_lane",
-        "nodeId": "preview",
-        "showAnnotatedToggle": true,
-        "showSnapshotBtn": true,
-        "showFullscreenBtn": true,
-        "workflowId": "733240f514454a71bc65ae45f3fd9245",
-        "workflowName": "Restaurant Table Occupancy & Dining Dwell Tracker",
-        "inputSource": "File: Video"
-      }
-    },
-    {
-      "id": "w_cctv2",
-      "type": "cctv_player",
-      "x": 710,
-      "y": 235,
-      "w": 700,
-      "h": 400,
-      "z": 3,
-      "config": {
-        "cameraLabel": "Kamera Loading Dock Gerbang WH-01",
-        "streamId": "cam_dock_wh1",
-        "nodeId": "detector",
-        "showAnnotatedToggle": true,
-        "showSnapshotBtn": true,
-        "showFullscreenBtn": true
-      }
-    },
-    {
-      "id": "w_chart",
-      "type": "trend_chart",
-      "x": 30,
-      "y": 655,
-      "w": 660,
-      "h": 280,
-      "z": 4,
-      "config": {
-        "title": "Grafik Frekuensi Lalu Lintas Forklift per Jam",
-        "metricKey": "forklift_proximity_alert",
-        "chartType": "line",
-        "rangeHours": 24
-      }
-    },
-    {
-      "id": "w_table",
-      "type": "event_table",
-      "x": 710,
-      "y": 655,
-      "w": 700,
-      "h": 280,
-      "z": 4,
-      "config": {
-        "title": "Log Pelanggaran K3 & Rekaman Insiden",
-        "maxRows": 25,
-        "autoScroll": true,
-        "showFilter": true
+        "title": "Tabel Kustom Analitik Alur Kerja",
+        "showZoneSummary": true,
+        "showClassCounter": true,
+        "showExportBtn": true
       }
     }
-  ]
+  ],
+  "id": "default"
 }
