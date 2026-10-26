@@ -692,6 +692,7 @@ class DashboardDataBus:
                 "id": clean_id,
                 "project_id": project_id or clean_id,
                 "name": name,
+                "theme": "light",
                 "canvas": {
                     "width": 1440,
                     "height": 960,
@@ -766,7 +767,9 @@ class DashboardDataBus:
 
     def _generate_default_layout(self, project_id: str) -> dict[str, Any]:
         """Generate default modern dashboard based on flagship AI CCTV PRO."""
-        return self._build_template_layout("tpl_ai_cctv_pro", project_id)
+        layout = self._build_template_layout("tpl_ai_cctv_pro", project_id)
+        layout["theme"] = "light"
+        return layout
 
     # -------------------------------------------------------------------------
     # 5 Production Dashboard Templates Connected to Workflows

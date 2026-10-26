@@ -8,9 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700&family=Poppins:wght@400;600;700&family=Roboto:wght@400;500;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=4.5">
-  <script defer src="/static/app.js?v=4.3"></script>
-  <script defer src="/static/dashboard_builder.js?v=2.8"></script>
+  <link rel="stylesheet" href="/static/style.css?v=5.1">
+  <script defer src="/static/app.js?v=4.6"></script>
+  <script defer src="/static/dashboard_builder.js?v=2.9"></script>
 </head>
 <body>
   <header class="topbar">
@@ -279,6 +279,7 @@
 
   <!-- View: Projects & Templates Hub (Screenshot 1) -->
   <section class="hub-container" id="viewProjectsHub">
+    <main class="hub-main">
     <!-- Modern Hero Banner & Quick Overview -->
     <div class="hub-hero-banner">
       <div class="hub-hero-main">
@@ -286,8 +287,9 @@
           <span class="hub-pulse-dot"></span>
           <span>Computer Vision Studio Engine · v1.0.5</span>
         </div>
-        <h1 class="hub-hero-title">Computer Vision Workflows</h1>
-        <p class="hub-hero-desc">Platform visual modular untuk merancang alur kerja AI, menghubungkan kamera industri, dan membangun analitik video cerdas dalam satu antarmuka terpadu.</p>
+        <h1 class="hub-hero-title">Computer Vision <span>Workflows</span></h1>
+        <p class="hub-hero-desc">Temukan, sesuaikan, dan jalankan workflow visi komputer untuk kamera dan proses industri Anda.</p>
+        <label class="hub-hero-search" for="hubTemplateSearchInput"><svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>Cari workflow, misalnya deteksi objek atau inspeksi...</span><kbd>⌕</kbd></label>
         <div class="hub-hero-actions">
           <button class="button primary hub-action-btn" id="hubNewProjectBtn" type="button">
             <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -313,26 +315,31 @@
         <div class="hub-stat-divider"></div>
         <div class="hub-stat-item">
           <div class="hub-stat-val" id="hubStatTemplatesCount">24+</div>
-          <div class="hub-stat-lbl">Template Industri</div>
+          <div class="hub-stat-lbl">Template Tersedia</div>
         </div>
         <div class="hub-stat-divider"></div>
         <div class="hub-stat-item">
           <div class="hub-stat-val" id="hubStatCamerasCount">8</div>
-          <div class="hub-stat-lbl">Kamera / RTSP Online</div>
+          <div class="hub-stat-lbl">Kamera Terdaftar</div>
         </div>
         <div class="hub-stat-divider"></div>
         <div class="hub-stat-item">
           <div class="hub-stat-val" id="hubStatNodesCount">27+</div>
-          <div class="hub-stat-lbl">Visual AI Nodes</div>
+          <div class="hub-stat-lbl">Tipe Node</div>
         </div>
       </div>
     </div>
 
+    <div class="hub-content-tabs" role="tablist" aria-label="Katalog halaman depan">
+      <button class="hub-content-tab active" id="hubTemplatesTab" type="button" role="tab" aria-controls="hubTemplatesSection" aria-selected="true">Template</button>
+      <button class="hub-content-tab" id="hubProjectsTab" type="button" role="tab" aria-controls="hubRecentProjectsSection" aria-selected="false">Proyek Saya</button>
+    </div>
+
     <!-- Section 1: Recent Projects -->
-    <div class="hub-section">
+    <div class="hub-section" id="hubRecentProjectsSection" role="tabpanel" aria-labelledby="hubProjectsTab" hidden>
       <div class="hub-section-head">
         <div>
-          <h2>Proyek Tersimpan</h2>
+          <h2>Proyek Anda</h2>
           <p class="hub-section-sub">Daftar alur kerja visi komputer yang sedang aktif dikembangkan.</p>
         </div>
         <div class="hub-section-controls">
@@ -343,14 +350,19 @@
           <button class="text-link" id="hubViewAllProjectsBtn" type="button">Lihat semua &rarr;</button>
         </div>
       </div>
-      <div class="hub-projects-grid" id="hubRecentProjectsGrid"></div>
+      <div class="hub-projects-table-wrap">
+        <table class="hub-projects-table">
+          <thead><tr><th scope="col">Nama Proyek</th><th scope="col">Terakhir Diperbarui</th><th scope="col">Aksi</th></tr></thead>
+          <tbody id="hubRecentProjectsGrid"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Section 2: Industry Solution Templates -->
-    <div class="hub-section" id="hubTemplatesSection">
+    <div class="hub-section" id="hubTemplatesSection" role="tabpanel" aria-labelledby="hubTemplatesTab">
       <div class="hub-section-head flex-col-sm">
         <div>
-          <h2>Template Solusi Industri</h2>
+          <h2>Workflow siap pakai</h2>
           <p class="hub-section-sub">Pilih alur kerja siap pakai untuk kebutuhan lapangan tanpa perlu merakit dari awal.</p>
         </div>
         <div class="hub-section-controls">
@@ -375,6 +387,8 @@
 
       <div class="hub-templates-grid" id="hubTemplatesGrid"></div>
     </div>
+    <div class="hub-bottom-cta"><div><strong>Siap membuat solusi visi komputer sendiri?</strong><span>Mulai dari proyek kosong atau sesuaikan salah satu workflow di atas.</span></div><button type="button" id="hubBottomCreateBtn">+ Buat Proyek Baru →</button></div>
+    </main>
   </section>
 
   <div class="project-studio-container" id="viewStudio" hidden>
@@ -891,8 +905,8 @@
         </div>
         <div class="builder-theme-toggle-wrap">
           <button class="button ghost builder-theme-btn" id="btnBuilderThemeToggle" type="button" title="Ganti Tema Gelap / Terang">
-            <span id="builderThemeIcon">🌙</span>
-            <span id="builderThemeText">Gelap</span>
+            <span id="builderThemeIcon">☀️</span>
+            <span id="builderThemeText">Terang</span>
           </button>
         </div>
       </div>

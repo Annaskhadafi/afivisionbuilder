@@ -2158,9 +2158,9 @@
       delBtn.title = 'Delete project';
       delBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
       delBtn.onclick = (e) => {
-        e.stopPropagation();
+        e.stopPropagation();
         deleteProject(p.id, p.name || 'Untitled project');
-      };
+      };
 
       b.append(labelWrap, delBtn);
       root.append(b);
@@ -2204,6 +2204,22 @@
     openProjectDeleteModal(id, name);
   }
 
+  async function duplicateProject(project) {
+    try {
+      const source = await api(`/api/projects/${encodeURIComponent(project.id)}`);
+      const name = `${project.name || 'Proyek'} (Salinan)`;
+      await api('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, workflow: source.workflow })
+      });
+      await loadProjects();
+      toast(`Proyek berhasil diduplikasi: ${name}`);
+    } catch (err) {
+      toast(`Gagal menduplikasi proyek: ${err.message}`, true);
+    }
+  }
+
   function showProjectContextMenu(anchorBtn, project) {
     document.querySelectorAll('.hub-project-dropdown-menu').forEach(el => el.remove());
 
@@ -2218,6 +2234,7 @@
         <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
         <span>Ubah nama (Edit)</span>
       </button>
+      <button class="hub-dropdown-item duplicate-opt" type="button"><span>⧉</span><span>Duplikasi proyek</span></button>
       <div class="hub-dropdown-divider"></div>
       <button class="hub-dropdown-item delete-opt danger" type="button">
         <svg class="icon-svg icon-xs" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -2227,7 +2244,7 @@
 
     menu.querySelector('.open-opt').onclick = (e) => {
       e.stopPropagation();
-      menu.remove();
+      menu.remove();
       openProjectWorkflow(project.id);
     };
 
@@ -2237,6 +2254,12 @@
       openProjectRenameModal(project.id, project.name);
     };
 
+    menu.querySelector('.duplicate-opt').onclick = (e) => {
+      e.stopPropagation();
+      menu.remove();
+      duplicateProject(project);
+    };
+
     menu.querySelector('.delete-opt').onclick = (e) => {
       e.stopPropagation();
       menu.remove();
@@ -2250,8 +2273,8 @@
     let left = rect.right - menuWidth;
     if (left < 10) left = rect.left;
     let top = rect.bottom + 6;
-    if (top + 130 > window.innerHeight) {
-      top = Math.max(10, rect.top - 130);
+    if (top + 170 > window.innerHeight) {
+      top = Math.max(10, rect.top - 170);
     }
     menu.style.left = `${left + window.scrollX}px`;
     menu.style.top = `${top + window.scrollY}px`;
@@ -2469,9 +2492,9 @@
     const statNodes = $('#hubStatNodesCount');
 
     if (statProjects) statProjects.textContent = (state.projects || []).length;
-    if (statTemplates) statTemplates.textContent = (state.templates || []).length ? `${state.templates.length}+` : '24+';
-    if (statCameras) statCameras.textContent = '8';
-    if (statNodes) statNodes.textContent = '27+';
+    if (statTemplates) statTemplates.textContent = (state.templates || []).length;
+    if (statCameras) statCameras.textContent = (state.cameras || []).length;
+    if (statNodes) statNodes.textContent = Object.keys(state.catalog || {}).length;
 
     // 2. Render Projects Grid with Filter
     const projGrid = $('#hubRecentProjectsGrid');
@@ -2484,53 +2507,30 @@
         return (p.name || '').toLowerCase().includes(projQuery) || (p.id || '').toLowerCase().includes(projQuery);
       });
 
-      if (!filteredProjects.length) {
-        projGrid.innerHTML = `
-          <div class="empty-hint" style="grid-column: 1 / -1; padding: 36px 20px; text-align: center; color: #64748b; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 12px;">
-            <svg class="icon-svg icon-lg" style="margin-bottom: 8px; color: #94a3b8;" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-            <div style="font-weight: 600; color: #1e293b; font-size: 14px;">${projQuery ? 'Tidak ada proyek yang sesuai pencarian' : 'Belum ada proyek tersimpan'}</div>
-            <div style="font-size: 12px; margin-top: 4px;">${projQuery ? 'Coba gunakan kata kunci nama proyek lain.' : 'Buat proyek baru atau pilih salah satu template di bawah untuk memulai!'}</div>
-          </div>
-        `;
-      } else {
-        filteredProjects.forEach(p => {
-          const card = document.createElement('div');
-          card.className = 'hub-project-card';
-
-          const mtime = p.modified_at ? new Date(p.modified_at).toLocaleString('id-ID', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Baru disimpan';
-
-          card.innerHTML = `
-            <div class="hub-project-top">
-              <div class="hub-project-icon">
-                <svg class="icon-svg icon-md" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-              </div>
-              <div class="hub-project-info">
-                <h3 class="hub-project-title" title="${escapeHtml(p.name)}">${escapeHtml(p.name || 'Untitled project')}</h3>
-                <div class="hub-project-meta">Diperbarui: ${mtime}</div>
-              </div>
-              <button class="hub-card-menu-btn" title="Opsi Proyek" type="button">
-                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-              </button>
-            </div>
-            <div class="hub-project-foot">
-              <button class="hub-open-workflow-btn" type="button">
-                <span>Buka Workflow &rarr;</span>
-              </button>
-            </div>
-          `;
-
-          card.querySelector('.hub-open-workflow-btn').onclick = () => openProjectWorkflow(p.id);
-          card.querySelector('.hub-project-title').onclick = () => openProjectWorkflow(p.id);
-          card.querySelector('.hub-card-menu-btn').onclick = (e) => {
-            e.stopPropagation();
-            showProjectContextMenu(e.currentTarget, p);
-          };
-
-          projGrid.append(card);
-        });
-      }
-    }
-
+      if (!filteredProjects.length) {
+        projGrid.innerHTML = `<tr class="hub-project-empty"><td colspan="3">${projQuery ? 'Tidak ada proyek yang sesuai pencarian.' : 'Belum ada proyek tersimpan. Buat proyek baru atau pilih template untuk memulai.'}</td></tr>`;
+      } else {
+        filteredProjects.forEach(p => {
+          const row = document.createElement('tr');
+          row.className = 'hub-project-card';
+          const mtime = p.modified_at ? new Date(p.modified_at).toLocaleString('id-ID', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Baru disimpan';
+          row.innerHTML = `
+            <td><button class="hub-project-title" type="button" title="${escapeHtml(p.name || '')}"><span class="hub-project-icon">▦</span><span>${escapeHtml(p.name || 'Untitled project')}</span></button></td>
+            <td class="hub-project-meta">${mtime}</td>
+            <td class="hub-project-actions"><button class="hub-open-workflow-btn" type="button">Buka Workflow →</button><button class="hub-duplicate-project-btn" type="button" title="Duplikasi proyek">Duplikasi</button><button class="hub-card-menu-btn" title="Opsi Proyek" aria-label="Opsi proyek ${escapeHtml(p.name || '')}" type="button">•••</button></td>`;
+          row.querySelector('.hub-open-workflow-btn').onclick = () => openProjectWorkflow(p.id);
+          row.querySelector('.hub-project-title').onclick = () => openProjectWorkflow(p.id);
+          row.querySelector('.hub-duplicate-project-btn').onclick = () => duplicateProject(p);
+          row.querySelector('.hub-card-menu-btn').onclick = e => {
+            e.stopPropagation();
+            showProjectContextMenu(e.currentTarget, p);
+          };
+          projGrid.append(row);
+        });
+      }
+    }
+
+
     // 3. Render Templates Grid with Category & Search Filters
     const tplGrid = $('#hubTemplatesGrid');
     if (tplGrid) {
@@ -2579,7 +2579,24 @@
           renderProjectsHub();
         });
       } else {
-        filteredTemplates.forEach(t => {
+        const templateArtIds = [
+          'traffic_flow_counter', 'restaurant_table_occupancy', 'assembly_workshop_cycle_timer',
+          'warehouse_forklift_safety_guard', 'retail_checkout_queue_monitor', 'workshop_bay_activity',
+          'warehouse_gate_exit', 'bottle_visual_inspection', 'preprocessing',
+          'rfdetr_detection', 'filter_counter', 'motion_detection',
+          'image_enhancement', 'branching_if_else', 'workflow-01-detection',
+          'workflow-02-filter-count', 'workflow-03-tracking-line', 'workflow-04-dwell-privacy',
+          'workflow-05-segmentation', 'workflow-06-crop-classify', 'workflow-07-if-else',
+          'workflow-08-roi', 'workflow-09-conditions', 'workflow-10-transform',
+          'workflow-11-enhance', 'workflow-12-calibration', 'workflow-13-motion',
+          'workflow-14-sampling-slicer', 'workflow-15-barcode', 'workflow-16-event-controls',
+          'workflow-17-python-script', 'workflow-18-output', 'workflow-19-ip-camera',
+          'workflow-20-inspection', 'custom-workshop-zone', 'custom-warehouse-exit',
+          'ai-agent-safety-auditor',
+        ];
+        filteredTemplates.forEach(t => {
+          const artId = templateArtIds.includes(t.id) ? t.id : null;
+          const artHtml = artId ? `<img class="hub-template-image" src="/static/assets/templates/${artId}.jpg" alt="Ilustrasi ${escapeHtml(t.name)}" loading="lazy">` : '';
           const card = document.createElement('div');
           card.className = 'hub-template-card';
 
@@ -2596,133 +2613,10 @@
           else if (badgeText.includes('Gudang') || badgeText.includes('Logistik')) badgeThemeClass = 'badge-cyan';
           else if (badgeText.includes('Agent') || badgeText.includes('VLM')) badgeThemeClass = 'badge-purple';
 
-          // Decorative SVG graphics per template
-          let bannerGraphic = `
-            <g stroke="#38bdf8" stroke-width="1.5" fill="none" opacity="0.6">
-              <rect x="30" y="25" width="60" height="90" rx="6" stroke-dasharray="4 2"/>
-              <line x1="60" y1="20" x2="60" y2="120" stroke="#22c55e" stroke-width="2"/>
-              <rect x="110" y="25" width="60" height="90" rx="6" stroke="#22c55e"/>
-              <line x1="140" y1="20" x2="140" y2="120" stroke="#22c55e" stroke-width="2"/>
-              <rect x="190" y="35" width="60" height="80" rx="6" stroke="#ef4444"/>
-              <line x1="220" y1="20" x2="220" y2="120" stroke="#ef4444" stroke-width="2"/>
-              <rect x="270" y="25" width="60" height="90" rx="6" stroke-dasharray="4 2"/>
-              <line x1="300" y1="20" x2="300" y2="120" stroke="#22c55e" stroke-width="2"/>
-            </g>
-          `;
-
-          if (t.id === 'traffic_flow_counter') {
-            bannerGraphic = `
-              <g opacity="0.95">
-                <rect x="25" y="15" width="145" height="110" rx="8" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="4 2" fill="#0284c718"/>
-                <text x="35" y="35" fill="#38bdf8" font-size="11" font-weight="700">LAJUR 01 (UTARA)</text>
-                <text x="35" y="55" fill="#bae6fd" font-size="16" font-weight="800">42 KENDARAAN</text>
-                <text x="35" y="75" fill="#94a3b8" font-size="10">Mobil: 28 • Motor: 14</text>
-                <rect x="35" y="90" width="70" height="20" rx="4" fill="#22c55e33" stroke="#22c55e"/>
-                <text x="43" y="104" fill="#86efac" font-size="10" font-weight="700">LANCAR</text>
-
-                <rect x="190" y="15" width="145" height="110" rx="8" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 2" fill="#d9770618"/>
-                <text x="200" y="35" fill="#f59e0b" font-size="11" font-weight="700">LAJUR 02 (SELATAN)</text>
-                <text x="200" y="55" fill="#fde68a" font-size="16" font-weight="800">78 KENDARAAN</text>
-                <text x="200" y="75" fill="#94a3b8" font-size="10">Truk: 12 • Bus: 8 • Mobil: 58</text>
-                <rect x="200" y="90" width="70" height="20" rx="4" fill="#ef444433" stroke="#ef4444"/>
-                <text x="212" y="104" fill="#fca5a5" font-size="10" font-weight="700">PADAT ⚠</text>
-              </g>
-            `;
-          } else if (t.id === 'assembly_workshop_cycle_timer') {
-            bannerGraphic = `
-              <g opacity="0.95">
-                <rect x="30" y="22" width="140" height="96" rx="8" stroke="#22c55e" stroke-width="2" fill="#22c55e1a"/>
-                <circle cx="48" cy="42" r="5" fill="#22c55e"/>
-                <text x="60" y="46" fill="#86efac" font-size="11" font-weight="700">STASIUN 01 • ACTIVE</text>
-                <text x="48" y="72" fill="#ffffff" font-size="18" font-weight="800">04m : 18s</text>
-                <text x="48" y="95" fill="#94a3b8" font-size="10">Target Cycle: 05:00</text>
-
-                <rect x="190" y="22" width="140" height="96" rx="8" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4 2" fill="#ef44441a"/>
-                <circle cx="208" cy="42" r="5" fill="#ef4444"/>
-                <text x="220" y="46" fill="#fca5a5" font-size="11" font-weight="700">STASIUN 02 • IDLE</text>
-                <text x="208" y="72" fill="#f87171" font-size="18" font-weight="800">01m : 42s ⚠</text>
-                <text x="208" y="95" fill="#94a3b8" font-size="10">Status: Tidak Terisi</text>
-              </g>
-            `;
-          } else if (t.id === 'warehouse_forklift_safety_guard') {
-            bannerGraphic = `
-              <g opacity="0.95">
-                <rect x="30" y="20" width="140" height="100" rx="8" stroke="#eab308" stroke-width="2" fill="#eab3081a"/>
-                <text x="45" y="42" fill="#fde047" font-size="11" font-weight="800">DOCK 01 • LOADING</text>
-                <text x="45" y="68" fill="#ffffff" font-size="16" font-weight="800">TRUK IN: 28m</text>
-                <rect x="45" y="82" width="110" height="24" rx="4" fill="#0284c733" stroke="#38bdf8"/>
-                <text x="53" y="98" fill="#7dd3fc" font-size="10" font-weight="700">GERBANG TERBUKA</text>
-
-                <rect x="190" y="20" width="140" height="100" rx="8" stroke="#ef4444" stroke-width="2" fill="#ef444426"/>
-                <text x="202" y="42" fill="#fca5a5" font-size="11" font-weight="800">FORKLIFT ZONE ⚠</text>
-                <text x="202" y="68" fill="#ef4444" font-size="15" font-weight="800">PROXIMITY ALERT</text>
-                <rect x="202" y="82" width="115" height="24" rx="4" fill="#ef444444" stroke="#f87171"/>
-                <text x="210" y="98" fill="#fecaca" font-size="10" font-weight="700">JARAK AMAN: &lt; 2.5m</text>
-              </g>
-            `;
-          } else if (t.id === 'retail_checkout_queue_monitor') {
-            bannerGraphic = `
-              <g opacity="0.95">
-                <rect x="30" y="22" width="140" height="96" rx="8" stroke="#ef4444" stroke-width="2" fill="#ef444422"/>
-                <text x="45" y="45" fill="#fca5a5" font-size="11" font-weight="800">KASIR 01 (UTAMA)</text>
-                <text x="45" y="75" fill="#f87171" font-size="20" font-weight="900">4 ORANG ⚠</text>
-                <text x="45" y="98" fill="#fecaca" font-size="10" font-weight="700">ALERT: BUKA KASIR +1</text>
-
-                <rect x="190" y="22" width="140" height="96" rx="8" stroke="#22c55e" stroke-width="1.5" fill="#22c55e1a"/>
-                <text x="205" y="45" fill="#86efac" font-size="11" font-weight="800">KASIR 02 (EXPRESS)</text>
-                <text x="205" y="75" fill="#22c55e" font-size="20" font-weight="900">1 ORANG</text>
-                <text x="205" y="98" fill="#bbf7d0" font-size="10" font-weight="700">STATUS: ANTRIAN NORMAL</text>
-              </g>
-            `;
-          } else if (t.id === 'restaurant_table_occupancy') {
-            bannerGraphic = `
-              <g opacity="0.95">
-                <rect x="35" y="20" width="130" height="42" rx="7" stroke="#10b981" stroke-width="2" fill="#10b98126"/>
-                <circle cx="50" cy="41" r="4.5" fill="#10b981"/>
-                <text x="62" y="45" fill="#6ee7b7" font-size="11" font-weight="700" font-family="system-ui, sans-serif">MEJA 01 • 34m</text>
-                
-                <rect x="195" y="20" width="130" height="42" rx="7" stroke="#38bdf8" stroke-width="2" fill="#38bdf826"/>
-                <circle cx="210" cy="41" r="4.5" fill="#38bdf8"/>
-                <text x="222" y="45" fill="#bae6fd" font-size="11" font-weight="700" font-family="system-ui, sans-serif">MEJA 02 • 15m</text>
-                
-                <rect x="35" y="78" width="130" height="42" rx="7" stroke="#f59e0b" stroke-width="2" fill="#f59e0b26"/>
-                <circle cx="50" cy="99" r="4.5" fill="#f59e0b"/>
-                <text x="62" y="103" fill="#fde68a" font-size="11" font-weight="700" font-family="system-ui, sans-serif">MEJA 03 • 52m ⚠</text>
-                
-                <rect x="195" y="78" width="130" height="42" rx="7" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 2" fill="#0f172a33"/>
-                <circle cx="210" cy="99" r="4.5" fill="#64748b"/>
-                <text x="222" y="103" fill="#cbd5e1" font-size="11" font-weight="600" font-family="system-ui, sans-serif">MEJA 04 • KOSONG</text>
-              </g>
-            `;
-          } else if (t.id.includes('barcode')) {
-            bannerGraphic = `
-              <g opacity="0.9">
-                <rect x="40" y="30" width="280" height="80" rx="8" fill="#0f172a44" stroke="#0284c7" stroke-width="1.5"/>
-                <line x1="60" y1="45" x2="60" y2="95" stroke="#38bdf8" stroke-width="3"/>
-                <line x1="72" y1="45" x2="72" y2="95" stroke="#38bdf8" stroke-width="5"/>
-                <line x1="88" y1="45" x2="88" y2="95" stroke="#38bdf8" stroke-width="2"/>
-                <line x1="100" y1="45" x2="100" y2="95" stroke="#38bdf8" stroke-width="6"/>
-                <line x1="120" y1="45" x2="120" y2="95" stroke="#38bdf8" stroke-width="3"/>
-                <line x1="135" y1="45" x2="135" y2="95" stroke="#38bdf8" stroke-width="7"/>
-                <line x1="30" y1="70" x2="330" y2="70" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3"/>
-                <rect x="230" y="45" width="50" height="50" rx="4" fill="#0284c722" stroke="#38bdf8" stroke-width="2"/>
-                <text x="240" y="75" fill="#38bdf8" font-size="16" font-weight="bold">QR</text>
-              </g>
-            `;
-          }
-
           card.innerHTML = `
             <div class="hub-template-banner">
-              <svg width="100%" height="100%" viewBox="0 0 360 140" preserveAspectRatio="none" style="opacity: 0.9;">
-                <defs>
-                  <linearGradient id="grad-${t.id}" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#0f172a" stop-opacity="0.95"/>
-                    <stop offset="100%" stop-color="#1e293b" stop-opacity="0.95"/>
-                  </linearGradient>
-                </defs>
-                <rect width="360" height="140" fill="url(#grad-${t.id})"/>
-                ${bannerGraphic}
-              </svg>
+              ${artHtml}
+
               <span class="hub-template-category-badge ${badgeThemeClass}">${escapeHtml(badgeText)}</span>
             </div>
             <div class="hub-template-body">
@@ -2757,7 +2651,20 @@
     }
   }
 
-  function initHubEvents() {
+  function showHubTab(tab) {
+    const projects = tab === 'projects';
+    $('#hubTemplatesSection').hidden = projects;
+    $('#hubRecentProjectsSection').hidden = !projects;
+    for (const [id, selected] of [['hubTemplatesTab', !projects], ['hubProjectsTab', projects]]) {
+      const button = document.getElementById(id);
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-selected', String(selected));
+    }
+  }
+
+  function initHubEvents() {
+    $('#hubTemplatesTab')?.addEventListener('click', () => showHubTab('templates'));
+    $('#hubProjectsTab')?.addEventListener('click', () => showHubTab('projects'));
     // Category pills filter
     const pillContainer = $('#hubCategoryPills');
     if (pillContainer) {
@@ -2783,6 +2690,7 @@
 
     // Scroll to templates section
     $('#hubBrowseTemplatesBtn')?.addEventListener('click', () => {
+      showHubTab('templates');
       const section = $('#hubTemplatesSection');
       if (section) section.scrollIntoView({ behavior: 'smooth' });
     });
@@ -12504,6 +12412,7 @@
     try {
       const data = await api('/api/cameras');
       state.cameras = data.cameras || [];
+      if (state.activeView === 'projectsHub') renderProjectsHub();
     } catch (e) {
       console.warn('Cameras error:', e.message);
       if (!state.cameras || state.cameras.length === 0) {
@@ -14532,6 +14441,12 @@
     initProjectSwitcher();
     initHubEvents();
     $('#hubNewProjectBtn')?.addEventListener('click', newProject);
+    $('#hubBottomCreateBtn')?.addEventListener('click', newProject);
+    $('.hub-hero-search')?.addEventListener('click', () => {
+      showHubTab('templates');
+      $('#hubTemplatesSection')?.scrollIntoView({ behavior: 'smooth' });
+      $('#hubTemplateSearchInput')?.focus();
+    });
     $('#hubImportBtn')?.addEventListener('click', () => $('#importInput')?.click());
     $('#hubViewAllTemplatesBtn')?.addEventListener('click', () => {
       $('#templatesModal')?.showModal();

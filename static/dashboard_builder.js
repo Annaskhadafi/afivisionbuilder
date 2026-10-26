@@ -10,7 +10,7 @@
       projectId: 'default',
       dashboardsList: [],
       mode: 'edit', // 'edit' | 'preview'
-      theme: 'dark', // 'dark' | 'light'
+      theme: 'light', // 'dark' | 'light'
       zoom: 1.0,
       audioEnabled: true,
       lastChime: 0,
@@ -197,7 +197,7 @@
         const res = await fetch(`/api/dashboard/builder/layout?project_id=${encodeURIComponent(this.state.projectId)}`);
         if (res.ok) {
           this.state.layout = await res.json();
-          this.applyTheme(this.state.layout.theme || 'dark');
+          this.applyTheme(this.state.layout.theme || 'light');
           this.renderCanvas();
           if (this.state.isPublicView) {
             const title = this.state.layout.name || this.state.layout.title || 'Live Dashboard';
@@ -5179,7 +5179,7 @@
         if (res.ok) {
           const data = await res.json();
           this.state.layout = data.layout;
-          this.applyTheme(this.state.layout.theme || 'dark');
+          this.applyTheme(this.state.layout.theme || 'light');
           this.renderCanvas();
           if (window.toast) window.toast('Template dashboard berhasil diterapkan!', false);
         }

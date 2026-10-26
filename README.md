@@ -413,7 +413,8 @@ Berikut adalah katalog referensi komprehensif seluruh node yang didukung oleh Af
 
 ### 1. Projects & Templates Hub
 Halaman awal untuk mengelola seluruh proyek alur kerja, membuka proyek terkini, mengimpor alur kerja JSON, dan memilih template siap pakai industri (Restaurant Dwell Tracker, Bottle Inspection, dll).
-![Projects Hub](docs/screenshots/01_projects_hub.png)
+Tampilan katalog memakai ilustrasi visi komputer lokal pada hero, 37 gambar khusus yang berbeda untuk 37 template dengan banner 16:9, pencarian template, statistik dari data aplikasi, dan tab **Template** / **Proyek Saya**. Tab proyek menampilkan tabel; tombol **Duplikasi** membuat proyek baru dari workflow tersimpan tanpa mengubah proyek asal. Halaman depan tampil tanpa sidebar agar katalog memakai ruang penuh. Gunakan **Buat Proyek Baru** untuk alur kosong, **Impor Workflow JSON** untuk berkas sendiri, atau buka salah satu kartu template untuk memulai dari contoh. Beranda dan Dashboard Designer mode **Light** mengikuti font Inter, latar hangat, dan aksen hijau Workflow Studio; warna widget yang dikonfigurasi pada dashboard tersimpan tetap berlaku.
+![Projects Hub](docs/screenshots/home_catalog_redesign.png)
 
 ---
 
