@@ -3053,7 +3053,7 @@ def active_logic_nodes_for_target(workflow: dict, target_id: str) -> list[dict]:
 
 
 def _object_detection_count(detections: list[dict]) -> int:
-    real_objects = [item for item in detections if item.get("kind") not in ("line_crossing", "count_event", "loitering_alert", "zone_activity", "zone_activity_event", "zone_exit")]
+    real_objects = [item for item in detections if item.get("kind") not in ("line_crossing", "count_event", "loitering_alert", "zone_activity", "zone_activity_event", "zone_exit", "face_analysis_summary")]
     boxed = [item for item in real_objects if _detection_box_xywh(item) is not None]
     return len(_overlay_objects(boxed)) + len(real_objects) - len(boxed)
 
@@ -6444,7 +6444,7 @@ def _draw_object_count_overlay(
 
     if not display_counts:
         for d in detections:
-            if d.get("kind") in ("anomaly", "classification", "zone_activity", "zone_activity_event", "zone_exit"):
+            if d.get("kind") in ("anomaly", "classification", "zone_activity", "zone_activity_event", "zone_exit", "face_analysis_summary"):
                 continue
             cls_name = str(d.get("class") or "object").strip()
             display_counts[cls_name] = display_counts.get(cls_name, 0) + 1
@@ -6554,7 +6554,7 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
     mask_opacity = min(0.85, max(0.05, float(config.get("maskOpacity", 0.35))))
     classification_y = 12
     for detection in detections:
-        if detection.get("kind") in ("count_event", "line_crossing", "loitering_alert", "zone_activity", "zone_activity_event", "zone_exit", "ocr_text_read"):
+        if detection.get("kind") in ("count_event", "line_crossing", "loitering_alert", "zone_activity", "zone_activity_event", "zone_exit", "ocr_text_read", "face_analysis_summary"):
             continue
         if detection.get("kind") == "anomaly":
             from efficientad_runtime import draw_result
@@ -6588,7 +6588,7 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
         if "lineDirection" in detection:
             label = f"{label} [{detection['lineDirection']}]"
         if detection.get("kind") == "classification":
-            if show_labels:
+            if show_labels and not detection.get("hideLabel"):
                 text_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
                 x = 12
                 y = classification_y
@@ -6656,7 +6656,7 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
                 if i % 2 == 0:
                     cv2.circle(frame, p_start, max(1, int(round(2.5 * progress))), color, -1, cv2.LINE_AA)
             cv2.circle(frame, (int(round(trail[-1][0])), int(round(trail[-1][1]))), 3, (255, 255, 255), -1, cv2.LINE_AA)
-        if show_labels:
+        if show_labels and not detection.get("hideLabel"):
             text_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.46, 1)
             bg_w = text_size[0] + 12
             bg_h = text_size[1] + 8

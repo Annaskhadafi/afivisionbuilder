@@ -55,7 +55,7 @@ NODE_TYPE_TO_ENGINE_FILES = {
     "tracker": {"roboflow_tracker.py"},
     "distance_measurement": {"spatial_measurement.py"},
     "size_measurement": {"spatial_measurement.py"},
-    "camera_focus_score": {"classical_cv.py"},
+    "camera_focus": {"classical_cv.py"},
     "auto_rotate_edges": {"classical_cv.py"},
     "overlap_analysis": {"advanced_logic.py"},
     "delta_filter": {"advanced_logic.py"},
@@ -68,10 +68,10 @@ NODE_TYPE_TO_ENGINE_FILES = {
     "csv_formatter": {"data_aggregation.py"},
     "s3_sink": {"cloud_sinks.py"},
     "notification_dispatcher": {"cloud_sinks.py"},
-    "screenshot": {"screenshot_capture.py"},
-    "telegram_sink": {"telegram_sink.py"},
+    "screenshot_capture": {"screenshot_capture.py"},
+    "telegram_notification": {"telegram_sink.py"},
     "ptz_controller": {"ptz_controller.py"},
-    "ocr": {"ocr_engine.py"},
+    "ocr_reader": {"ocr_engine.py"},
     "object_timer": {"object_timer.py"},
     "dominant_color": {"dominant_color.py"},
     "class_replacement": {"class_replacement.py"},
@@ -84,6 +84,7 @@ NODE_TYPE_TO_ENGINE_FILES = {
     "face_analyzer": {"uniface_runtime.py"},
     "face_tracker": {"uniface_runtime.py"},
     "face_crop": {"uniface_runtime.py"},
+    "hand_skeleton": {"hand_engine.py"},
     "vlm_box_tracker": {"vlm_box_tracker.py"},
     "ai_agent": {"ai_agent.py"},
     "multi_zone_occupancy": {"multi_zone_occupancy.py"},
@@ -165,7 +166,7 @@ def _determine_required_packages(graph: dict) -> set[str]:
         elif ntype == "input" and (config.get("sourceType") == "youtube" or config.get("youtubeUrl")):
             packages.add("yt-dlp")
 
-        elif ntype == "ocr":
+        elif ntype == "ocr_reader":
             packages.update({"onnxruntime", "onnx"})
 
         elif ntype in {"man_down_detector", "lpr_license_plate", "overstack_detector"}:
@@ -173,6 +174,10 @@ def _determine_required_packages(graph: dict) -> set[str]:
 
         elif ntype in {"face_detector", "face_analyzer", "face_tracker", "face_crop"}:
             packages.update({"uniface", "onnxruntime", "torch", "torchvision"})
+        elif ntype == "mqtt_publisher":
+            packages.add("paho-mqtt")
+        elif ntype == "hand_skeleton":
+            packages.add("mediapipe")
 
     return packages
 
@@ -315,6 +320,20 @@ def prepare(workflow: dict, name: str, root: Path) -> tuple[dict, dict, dict[str
                 ocr_file = ocr_dir / ocr_name
                 if ocr_file.is_file():
                     files[f"data/models/ocr/{ocr_name}"] = ocr_file
+        if node["type"] == "hand_skeleton":
+            model = _file(root, str(config.get("modelPath") or "gesture_recognizer.task"))
+            if model is None:
+                raise ValueError(f"{node['id']}: gesture_recognizer.task model not found")
+            digest = _sha256(model)
+            archive_name = f"models/{digest[:12]}-{model.name}"
+            model_records.append({"nodeId": node["id"], "field": "modelPath", "sha256": digest, "file": archive_name if include_models else None})
+            if include_models:
+                files[archive_name] = model
+                config["modelPath"] = PACKAGE_PREFIX + archive_name
+            else:
+                env_name = f"AFI_{re.sub(r'[^A-Z0-9]+', '_', node['id'].upper()).strip('_')[:32]}_MODELPATH"
+                config["modelPath"] = ENV_PREFIX + env_name
+                variables.append({"name": env_name, "nodeId": node["id"], "field": "modelPath", "required": True, "sha256": digest})
         node_tag = re.sub(r"[^A-Z0-9]+", "_", node["id"].upper()).strip("_")[:32]
         if node["type"] == "input" and config.get("sourceType", "camera") == "camera" and not _sensitive_url(str(config.get("source") or "")):
             variables.append({"name": f"AFI_{node_tag}_SOURCE", "nodeId": node["id"], "field": "source", "required": False})

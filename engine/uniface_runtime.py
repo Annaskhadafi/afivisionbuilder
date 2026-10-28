@@ -336,6 +336,8 @@ class UniFaceManager:
         self._quality_estimator = None
         self._age_gender_estimator = None
         self._emotion_estimator = None
+        self._age_gender_attempted = False
+        self._emotion_attempted = False
         self._detector_name = "retinaface"
         self._init_models()
 
@@ -438,7 +440,8 @@ class UniFaceManager:
             return 0.5
 
     def get_age_gender_estimator(self):
-        if self._age_gender_estimator is None:
+        if not self._age_gender_attempted:
+            self._age_gender_attempted = True
             try:
                 from uniface.attribute import AgeGender
                 logger.info("Initializing UniFace AgeGender attribute model...")
@@ -449,7 +452,8 @@ class UniFaceManager:
         return self._age_gender_estimator
 
     def get_emotion_estimator(self):
-        if self._emotion_estimator is None:
+        if not self._emotion_attempted:
+            self._emotion_attempted = True
             try:
                 from uniface.attribute import Emotion
                 logger.info("Initializing UniFace Emotion attribute model...")
@@ -464,12 +468,12 @@ class UniFaceManager:
         image_bgr: np.ndarray,
         bbox_xyxy: list | np.ndarray,
         landmarks: Optional[Any] = None,
-    ) -> Tuple[int, str]:
+    ) -> Tuple[Optional[int], Optional[str]]:
         """
         Estimates age (years) and gender ("Laki-laki" | "Perempuan").
         """
         if image_bgr is None or not hasattr(image_bgr, "shape"):
-            return 25, "Laki-laki"
+            return None, None
 
         estimator = self.get_age_gender_estimator()
         if estimator is not None:
@@ -486,32 +490,30 @@ class UniFaceManager:
                     landmarks=lm_arr,
                 )
                 res = estimator.predict(image_bgr, face_obj)
-                age_val = int(getattr(res, "age", 25))
-                gender_id = getattr(res, "gender", 1)
+                age_val = int(res.age)
+                gender_id = res.gender
+                if gender_id not in (0, 1):
+                    raise ValueError("Invalid gender result")
                 gender_str = "Perempuan" if gender_id == 0 else "Laki-laki"
                 return max(1, min(100, age_val)), gender_str
             except Exception as e:
-                logger.debug(f"UniFace AgeGender predict exception: {e}")
-
-        # Deterministic fallback based on bbox
-        bx = int(bbox_xyxy[0]) if len(bbox_xyxy) > 0 else 0
-        by = int(bbox_xyxy[1]) if len(bbox_xyxy) > 1 else 0
-        bw = int(bbox_xyxy[2] - bx) if len(bbox_xyxy) > 2 else 50
-        pseudo_age = 20 + ((bx + by * 3 + bw * 7) % 25)
-        pseudo_gender = "Laki-laki" if ((bx + by) % 2 == 0) else "Perempuan"
-        return pseudo_age, pseudo_gender
+                logger.warning(f"UniFace AgeGender prediction failed: {e}")
+        return None, None
 
     def predict_emotion(
         self,
         image_bgr: np.ndarray,
         bbox_xyxy: list | np.ndarray,
         landmarks: Optional[Any] = None,
-    ) -> Tuple[str, float]:
+    ) -> Tuple[Optional[str], Optional[float]]:
         """
         Classifies facial emotion in Indonesian with confidence score.
         """
         if image_bgr is None or not hasattr(image_bgr, "shape"):
-            return "Netral", 0.85
+            return None, None
+
+        if landmarks is None or len(landmarks) < 5:
+            return None, None
 
         estimator = self.get_emotion_estimator()
         if estimator is not None:
@@ -529,18 +531,12 @@ class UniFaceManager:
                         landmarks=lm_arr,
                     )
                     res = estimator.predict(image_bgr, face_obj)
-                    raw_emo = str(getattr(res, "emotion", "neutral")).lower()
-                    conf = float(getattr(res, "confidence", 0.85))
-                    return EMOTION_TRANSLATIONS.get(raw_emo, "Netral"), conf
+                    raw_emo = str(res.emotion).lower()
+                    conf = float(res.confidence)
+                    return EMOTION_TRANSLATIONS.get(raw_emo, raw_emo), conf
             except Exception as e:
-                logger.debug(f"UniFace Emotion predict exception: {e}")
-
-        # Deterministic fallback based on bbox
-        emotions = ["Bahagia", "Netral", "Terkejut", "Sedih"]
-        bx = int(bbox_xyxy[0]) if len(bbox_xyxy) > 0 else 0
-        by = int(bbox_xyxy[1]) if len(bbox_xyxy) > 1 else 0
-        idx = (bx * 5 + by * 11) % len(emotions)
-        return emotions[idx], 0.88
+                logger.warning(f"UniFace Emotion prediction failed: {e}")
+        return None, None
 
     def align_face(self, image_bgr: np.ndarray, landmarks: Any, size: int = 112) -> Optional[np.ndarray]:
         """
@@ -1111,7 +1107,7 @@ def draw_face_landmarks_overlay(frame: np.ndarray, detections: List[Dict[str, An
 
         # 3. Landmarks: 5 dots
         landmarks = det.get("landmarks", [])
-        if det.get("showLandmarks", True) and landmarks and not is_spoof:
+        if not det.get("faceAnalyzerActive") and det.get("showLandmarks", True) and landmarks and not is_spoof:
             for pt in landmarks:
                 px, py = int(pt[0]), int(pt[1])
                 cv2.circle(frame, (px, py), 3, (56, 189, 248), -1, cv2.LINE_AA)  # cyan dot
@@ -1234,6 +1230,9 @@ def process_face_analyzer_node(
     events = []
 
     for f in face_candidates:
+        if f.get("sourceNodeId") and f["sourceNodeId"] != node_id:
+            f["parentSourceNodeId"] = f["sourceNodeId"]
+        f["sourceNodeId"] = node_id
         bx = float(f.get("x", 0))
         by = float(f.get("y", 0))
         bw = float(f.get("width", 0))
@@ -1248,15 +1247,17 @@ def process_face_analyzer_node(
         # Age & Gender
         if estimate_age_gender:
             age, gender = mgr.predict_age_gender(frame, bbox_xyxy, landmarks=lms)
-            f["age"] = age
-            f["gender"] = gender
-            f["ageBracket"] = get_age_bracket(age)
+            if age is not None and gender is not None:
+                f["age"] = age
+                f["gender"] = gender
+                f["ageBracket"] = get_age_bracket(age)
 
         # Emotion
         if classify_emotion:
             emotion, emo_conf = mgr.predict_emotion(frame, bbox_xyxy, landmarks=lms)
-            f["emotion"] = emotion
-            f["emotionConfidence"] = emo_conf
+            if emotion is not None:
+                f["emotion"] = emotion
+                f["emotionConfidence"] = emo_conf
 
         f["detectLandmarks"] = detect_landmarks
         f["showFaceBadges"] = show_face_badges
@@ -1294,6 +1295,7 @@ def process_face_analyzer_node(
         "exact_ages": exact_ages,
         "emotions": emotion_counts,
         "hudPosition": hud_position,
+        "hudScalePercent": config.get("hudScalePercent", 100),
         "ageGrouping": age_grouping,
         "showCornerHUD": show_corner_hud,
         "estimateAgeGender": estimate_age_gender,
@@ -1365,7 +1367,7 @@ def draw_face_analyzer_overlay(frame: np.ndarray, detections: List[Dict[str, Any
             if "emotion" in det:
                 parts.append(str(det["emotion"]))
 
-            badge_text = " • ".join(parts) if parts else "Wajah"
+            badge_text = " | ".join(parts) if parts else "Wajah"
             font_scale = 0.42
             font_thick = 1
             ts, _ = cv2.getTextSize(badge_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thick)
@@ -1426,21 +1428,28 @@ def draw_face_analyzer_overlay(frame: np.ndarray, detections: List[Dict[str, Any
         else:
             lines.append(("Emosi : -", (16, 185, 129), False))
 
-    font_scale = 0.44
-    line_h = 22
-    pad_x = 14
-    pad_y = 12
-
     max_text_w = 0
     for text, _, is_bold in lines:
-        t_sz, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 1 if not is_bold else 2)
+        t_sz, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.44, 1 if not is_bold else 2)
         if t_sz[0] > max_text_w:
             max_text_w = t_sz[0]
 
-    panel_w = max(260, max_text_w + pad_x * 2)
-    panel_h = pad_y * 2 + len(lines) * line_h
-
-    margin = 16
+    margin = min(16, min(w, h) // 8)
+    try:
+        requested_scale = float(stats.get("hudScalePercent", 100)) / 100
+        if not math.isfinite(requested_scale):
+            requested_scale = 1.0
+    except (TypeError, ValueError):
+        requested_scale = 1.0
+    base_w = max(260, max_text_w + 28)
+    base_h = 24 + len(lines) * 22
+    scale = min(max(0.5, min(2.0, requested_scale)), max(1, w - 2 * margin) / base_w, max(1, h - 2 * margin) / base_h)
+    font_scale = 0.44 * scale
+    line_h = max(1, round(22 * scale))
+    pad_x = max(1, round(14 * scale))
+    pad_y = max(1, round(12 * scale))
+    panel_w = max(1, round(base_w * scale))
+    panel_h = max(1, round(base_h * scale))
     if hud_pos == "top-right":
         px1 = max(0, w - panel_w - margin)
         py1 = margin
@@ -1464,11 +1473,11 @@ def draw_face_analyzer_overlay(frame: np.ndarray, detections: List[Dict[str, Any
 
     # Draw cyan top accent and border
     cv2.rectangle(frame, (px1, py1), (px2, py2), (51, 65, 85), 1, cv2.LINE_AA)
-    cv2.line(frame, (px1, py1), (px2, py1), (56, 189, 248), 3, cv2.LINE_AA)
+    cv2.line(frame, (px1, py1), (px2, py1), (56, 189, 248), max(1, round(3 * scale)), cv2.LINE_AA)
 
-    curr_y = py1 + pad_y + 14
+    curr_y = py1 + pad_y + max(1, round(14 * scale))
     for text, col, is_bold in lines:
-        thick = 2 if is_bold else 1
+        thick = max(1, round(2 * scale)) if is_bold else 1
         cv2.putText(
             frame,
             text,

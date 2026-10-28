@@ -750,6 +750,11 @@ def validate_workflow(workflow: Any) -> dict:
 
             raise HTTPException(400, f"node config must be an object: {node['id']}")
 
+        if node["type"] == "face_analyzer" and "hudScalePercent" in node.get("config", {}):
+            size = node["config"]["hudScalePercent"]
+            if isinstance(size, bool) or not isinstance(size, (int, float)) or not math.isfinite(size) or not 50 <= size <= 200:
+                raise HTTPException(400, f"node '{node['id']}': HUD size must be between 50 and 200 percent")
+
 
 
         if node["type"] in ("zone_activity_timer", "zone_exit_event"):

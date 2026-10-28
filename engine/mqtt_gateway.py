@@ -80,11 +80,8 @@ class MqttPublisherClient:
 
     def publish(self, topic: str, payload: str, qos: int = 0, retain: bool = False) -> bool:
         if not PAHO_AVAILABLE:
-            # Mock publisher fallback
-            self.published_count += 1
-            self.last_published_time = time.time()
-            logger.debug("[MOCK MQTT Publish] Topic: %s, Payload: %s", topic, payload[:100])
-            return True
+            logger.warning("MQTT tidak tersedia: pasang paho-mqtt")
+            return False
 
         if not self.connect_if_needed():
             return False
@@ -158,8 +155,8 @@ def process_mqtt_publisher(
             for d in candidates:
                 summary_list.append({
                     "class": d.get("class"),
-                    "confidence": round(float(d.get("confidence", 0.0)), 3),
-                    "track_id": d.get("track_id"),
+                    "confidence": round(float(d.get("score", d.get("confidence", 0.0))), 3),
+                    "track_id": d.get("trackId", d.get("track_id")),
                     "bbox": d.get("bbox"),
                     "attributes": {k: v for k, v in d.items() if k in ("isManDown", "ppeStatus", "plateNumber", "dominantColor")}
                 })

@@ -156,11 +156,13 @@ class PPEComplianceMatrix:
             person["isViolation"] = is_violation
 
             # Cek trigger alarm kejadian
-            track_id = str(person.get("track_id") or person.get("id") or "worker")
+            raw_id = person.get("trackId", person.get("track_id", person.get("id")))
+            track_id = str(raw_id) if raw_id is not None else "unknown"
             if is_violation:
-                last_time = self.last_alarm_time.get(track_id, 0.0)
+                last_time = self.last_alarm_time.get(track_id, 0.0) if raw_id is not None else 0.0
                 if current_time - last_time >= self.alarm_cooldown:
-                    self.last_alarm_time[track_id] = current_time
+                    if raw_id is not None:
+                        self.last_alarm_time[track_id] = current_time
                     events.append({
                         "event_type": "ppe_safety_violation",
                         "node_id": self.node_id,

@@ -117,13 +117,14 @@ def process_license_plates(
             augmented.append(det)
             continue
 
-        track_id = det.get("track_id", det.get("id", "veh"))
+        track_id = det.get("trackId", det.get("track_id", det.get("id")))
+        # Untracked vehicles must not share a temporal voting buffer.
         t_data = tracks_mem.setdefault(track_id, {
             "buffer": [],
             "consensus": "",
             "last_event_time": 0.0,
             "last_status": "UNKNOWN",
-        })
+        }) if track_id is not None else {"buffer": [], "consensus": "", "last_event_time": 0.0, "last_status": "UNKNOWN"}
 
         # Check if plate text already extracted by upstream OCR or attribute
         plate_text_raw = str(

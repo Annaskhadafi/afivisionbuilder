@@ -251,20 +251,8 @@ def _run_roboflow_universe(frame, model_id: str, api_key: str, threshold: float,
     model_id_clean = model_id.strip().strip("/")
     confidence_param = int(max(1, min(99, threshold * 100)))
 
-    # Fallback to mock / synthetic response if test/mock key or empty key
     if not api_key or api_key.startswith("mock") or api_key == "test_key":
-        h, w = frame.shape[:2]
-        configured_classes = [c.strip() for c in str(config.get("classes") or config.get("customClasses") or "").split(",") if c.strip()]
-        target_cls = configured_classes[0] if configured_classes else "roboflow_object"
-        return [
-            {
-                "class": target_cls,
-                "score": 0.88,
-                "bbox": [float(w * 0.2), float(h * 0.2), float(w * 0.3), float(h * 0.4)],
-                "sourceNodeId": node_id,
-                "kind": "segmentation" if node_type == "segmenter" else "detection",
-            }
-        ]
+        raise ValueError("Roboflow API key is missing or invalid")
 
     url = f"https://detect.roboflow.com/{model_id_clean}?api_key={api_key}&confidence={confidence_param}"
     try:

@@ -798,6 +798,7 @@ def _process_track_event_nodes(
             continue
         t0_proj = time.perf_counter()
         candidates = engine.results_for_node(workflow, project_id, detections, tracked)
+        node_output_count = None
         candidates = engine.filter_project_inputs(workflow, project_id, candidates, (frame.shape[1], frame.shape[0]))
         with logic_lock if logic_lock is not None else nullcontext():
             candidates = engine.apply_logic_nodes(workflow, project_id, candidates, logic_runtime, now)
@@ -930,8 +931,10 @@ def _process_track_event_nodes(
                 a_dets, a_events = analyzer_res
                 detections.extend(a_dets)
                 extra_results.extend(a_events)
+                node_output_count = len(a_dets)
             else:
                 detections.extend(analyzer_res)
+                node_output_count = len(analyzer_res)
         elif p_type == "face_tracker":
             from uniface_runtime import process_face_tracker_node
             state = event_runtime.setdefault(project_id, {})
@@ -951,10 +954,12 @@ def _process_track_event_nodes(
                 from hand_engine import HandTrackerEngine, draw_hand_skeleton
             except ImportError:
                 from .hand_engine import HandTrackerEngine, draw_hand_skeleton
-            engine_inst = HandTrackerEngine.get_instance()
             cfg = project_node.get("config", {})
+            engine_inst = HandTrackerEngine.get_instance(cfg.get("modelPath") or None)
+            if not engine_inst.is_ready():
+                raise RuntimeError("Hand Tracking & Gestures requires MediaPipe and a valid gesture_recognizer.task model")
             hand_dets = engine_inst.process_frame(frame, cfg, project_id)
-            if hand_dets and cfg.get("showSkeleton", True) is not False:
+            if hand_dets and any(cfg.get(key, True) is not False for key in ("showSkeleton", "showJoints", "showGestureBadge")):
                 draw_hand_skeleton(frame, hand_dets, cfg)
             detections.extend(hand_dets)
         elif p_type == "dominant_color":
@@ -1038,15 +1043,15 @@ def _process_track_event_nodes(
 
                 target_items = candidates or tracked or detections
                 if m_source == "active_tracks":
-                    val = len(set(d.get("track_id") for d in target_items if d.get("track_id") is not None))
+                    val = len(set(d.get("trackId", d.get("track_id")) for d in target_items if d.get("trackId", d.get("track_id")) is not None))
                 elif m_source == "violations":
                     val = sum(1 for d in target_items if d.get("violation") or d.get("alert") or d.get("is_anomaly"))
                 elif m_source == "event_count":
                     val = len(extra_results)
                 elif m_source == "person_count":
-                    val = sum(1 for d in target_items if str(d.get("class_name", "")).lower() in ("person", "pedestrian", "man", "woman", "worker", "user"))
+                    val = sum(1 for d in target_items if str(d.get("class", d.get("class_name", ""))).lower() in ("person", "pedestrian", "man", "woman", "worker", "user"))
                 elif m_source == "vehicle_count":
-                    val = sum(1 for d in target_items if str(d.get("class_name", "")).lower() in ("car", "truck", "bus", "motorcycle", "vehicle"))
+                    val = sum(1 for d in target_items if str(d.get("class", d.get("class_name", ""))).lower() in ("car", "truck", "bus", "motorcycle", "vehicle"))
                 elif m_source == "occupancy_pct":
                     max_cap = float(cfg.get("maxCapacity", 100.0) or 100.0)
                     val = round((len(target_items) / max(1.0, max_cap)) * 100.0, 1)
@@ -1139,9 +1144,9 @@ def _process_track_event_nodes(
                 project_id,
                 status="success",
                 latency_ms=dur_ms,
-                item_count=len(candidates),
+                item_count=node_output_count if node_output_count is not None else len(candidates),
                 last_input={"candidates": len(candidates)},
-                last_output={"processed": True},
+                last_output={"processed": True, **({"detections": node_output_count} if node_output_count is not None else {})},
             )
 
     # Process Roboflow Barcode & QR Code Reader
@@ -1160,8 +1165,8 @@ def _process_track_event_nodes(
 
         all_items = tracked or detections or []
         if all_items:
-            p_count = sum(1 for d in all_items if str(d.get("class_name", "")).lower() in ("person", "pedestrian", "man", "woman", "worker", "user"))
-            v_count = sum(1 for d in all_items if str(d.get("class_name", "")).lower() in ("car", "truck", "bus", "motorcycle", "vehicle"))
+            p_count = sum(1 for d in all_items if str(d.get("class", d.get("class_name", ""))).lower() in ("person", "pedestrian", "man", "woman", "worker", "user"))
+            v_count = sum(1 for d in all_items if str(d.get("class", d.get("class_name", ""))).lower() in ("car", "truck", "bus", "motorcycle", "vehicle"))
             viol_count = sum(1 for d in all_items if d.get("violation") or d.get("alert") or d.get("is_anomaly"))
 
             if p_count > 0:
@@ -4507,6 +4512,9 @@ class WorkflowRunner:
                                     if "speed_formatted" in det and det.get("showVelocityOverlay", True):
                                         from video_kinematics import draw_single_velocity_badge
                                         draw_single_velocity_badge(display_frame, det)
+                                from uniface_runtime import draw_face_landmarks_overlay, draw_face_analyzer_overlay
+                                draw_face_landmarks_overlay(display_frame, preview_detections)
+                                draw_face_analyzer_overlay(display_frame, preview_detections)
                             if not hold_crop_grid:
                                 display_frame = engine.apply_drawing_nodes(
                                     display_frame, workflow, preview_id, drawing_detections,
@@ -5246,7 +5254,7 @@ class WorkflowRunner:
                         message="Condition passed" if passed else "Condition blocked this frame",
                     )
 
-                if inference_nodes:
+                if inference_nodes or engine.active_analysis_pipeline(workflow):
                     detections = []
                     tracking_detections = []
                     for inference_node, threshold, tracking_threshold, runtime_inference_node in frame_inference_plan:

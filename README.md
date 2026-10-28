@@ -34,6 +34,10 @@
 
 ---
 
+## Ukuran tampilan preview
+
+Gunakan slider **Ukuran layar** di panel Live Preview untuk memperbesar atau memperkecil area tampilan Input maupun hasil Live Preview di Studio. Rasio gambar mengikuti sumber, dan ukuran panel disimpan di browser.
+
 ## ✨ Fitur Unggulan Terbaru
 
 ### 🍽️ 1. Restaurant Table Occupancy & Dining Dwell Time Tracker
@@ -171,6 +175,7 @@
 - **Ekstraksi Fitur ArcFace 512-D**: Menghitung vektor representasi wajah *L2-normalized cosine embedding* berdimensi 512 untuk pengenalan identitas akurat (*Face Re-ID*).
 - **Pencocokan Identitas Otomatis**: Menampilkan badge nama profil terdaftar (`👤 Budi Santoso (94%)`) jika wajah cocok dengan database, atau melacak orang asing secara dinamis (`👤 Tamu #1`) tanpa *ID hopping*.
 - **Pemancaran Event Terstruktur**: Mengirimkan event `face_identified` lengkap dengan metadata nama, role, kemiripan (similarity score), dan timestamp ke alert, webhook, maupun sistem absensi/keamanan.
+- **Face Analyzer**: Hubungkan Input → Face Analyzer → Live Preview untuk menampilkan landmark dan hasil model UniFace. Atur **Ukuran Panel Ringkasan (HUD)** dari 50–200% (standar 100%); panel menyesuaikan jika ukuran frame kecil. Jika model atribut gagal dimuat atau landmark yang diperlukan tidak tersedia, hasil terkait tidak ditampilkan; restart aplikasi setelah model tersedia kembali.
 
 ### 👥 28. Database Wajah Terdaftar (Known Faces Gallery)
 - **Halaman Manajemen Profil Wajah**: Tersedia langsung dari panel Left Rail navigasi (`👤 Wajah`) untuk melihat galeri identitas yang terdaftar di sistem.
@@ -303,6 +308,8 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 - **Penghitung Jari Terangkat (Finger Counter)**: Menghitung otomatis jumlah jari yang sedang berdiri tegak (0 sampai 5 jari) dengan heuristik geometri cepat.
 - **Pengenal Gestur Bawaan Populer**: Mengenali gestur Peace/Victory (✌️), Closed Fist (✊), Open Palm (✋), Pointing Up (☝️), Thumbs Up (👍), Thumbs Down (👎), dan I Love You (🤟).
 - **Kerangka Estetik Bercahaya**: Visualisasi kerangka dengan warna khas tiap jari (Jempol Oranye, Telunjuk Cyan, Tengah Hijau Neon, Manis Emas, Kelingking Magenta), sendi bercahaya (*glowing dots*), dan lencana status gestur dinamis.
+- **Pemakaian**: Hubungkan Input/IP Camera → Hand Tracking & Gestures → Live Preview. Atur `numHands` (1–4), `detectPinch`, dan `pinchThreshold`; garis, titik sendi, serta badge dapat diaktifkan terpisah. Instal `requirements.txt` dan sediakan `data/models/gesture_recognizer.task`. Export Code menyertakan model jika `includeModels` aktif; bila nonaktif, isi `AFI_<ID_NODE>_MODELPATH` pada paket hasil ekspor.
+- **Sembunyikan Label Gestur None**: Aktifkan checkbox ini di inspector untuk menyembunyikan tulisan seperti `None 92%` saat gestur belum dikenali. Kerangka/kotak tangan dan data deteksi tetap tersedia; label gestur yang dikenali tetap tampil.
 
 ### 📐 49. Anti-Jitter Line Counter with Hysteresis Deadband & Re-Arm Cooldown
 - **Pita Batas Toleransi Koridor (Deadband)**: Menghitung jarak tegak lurus bertanda ($d = s / L$) terhadap garis batas. Gerakan osilasi kecil di dalam pita toleransi (`hysteresisDistance: 15 px`) diabaikan total.
@@ -397,7 +404,7 @@ Berikut adalah katalog referensi komprehensif seluruh node yang didukung oleh Af
 | `slicer` | Pemotong Grid Resolusi | Memotong citra ultra-tinggi menjadi ubin kecil untuk deteksi objek mini (SAHI). | `sliceWidth`, `sliceHeight`, `overlapRatio` | ✅ Supported (SAHI Preprocessing) |
 | `track_snapshot` | Tangkapan Objek Terbaik | Menyimpan gambar crop dengan resolusi dan kualitas terbaik dari tiap ID tracking. | `saveBestCrop`, `minQualityScore` | ✅ Supported (Snapshot Gallery & Standalone) |
 | `face_detector` | Detektor Wajah UniFace | Deteksi wajah presisi tinggi berbasis RetinaFace / YuNet. | `confThresh`, `nmsThresh` | ✅ Supported (Face Strip & Standalone) |
-| `face_analyzer` | Analisis Demografi Wajah | Estimasi usia, jenis kelamin, dan ekspresi emosi manusia secara real-time. | `analyzeEmotion`, `analyzeAgeGender` | ✅ Supported (Demographic KPI & Standalone) |
+| `face_analyzer` | Analisis Demografi Wajah | Estimasi usia, jenis kelamin, dan ekspresi wajah menggunakan model UniFace. | `classifyEmotion`, `estimateAgeGender`, `showFaceBadges`, `showCornerHUD` | Preview dan data workflow |
 | `face_tracker` | Pelacak Identitas Wajah | Pelacakan konsisten wajah personil lintas frame video. | `maxCosineDistance`, `trackBuffer` | ✅ Supported (Face Attendance & Standalone) |
 | `face_crop` | Pemotong Wajah Terpusat | Memotong dan meluruskan citra wajah untuk database identitas. | `paddingRatio`, `outputSize` | ✅ Supported (Face Registration) |
 | `detection_crop` | Pemotong Objek Umum | Memotong bounding box objek untuk downstream classification. | `expandBoxPct` | ✅ Supported (Object Crop Thumbnails) |

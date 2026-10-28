@@ -554,6 +554,16 @@
 
   const FIELD_HELP = {
 
+    hudScalePercent: {
+      text: 'Mengatur ukuran panel ringkasan wajah dan teksnya.',
+      guide: '100% adalah ukuran standar. HUD menyesuaikan diri jika frame terlalu kecil.'
+    },
+
+    hideUnknownGesture: {
+      text: 'Sembunyikan label None saat tangan terdeteksi tetapi gesturnya belum dikenali.',
+      guide: 'Kotak dan kerangka tangan tetap tampil; label gestur lain tetap tampil.'
+    },
+
     connectionMode: {
 
       text: 'Mode integrasi aliran video kamera (Direct RTSP langsung atau lewat Media Gateway go2rtc).',
@@ -3475,6 +3485,7 @@
     showCornerHUD: 'Tampilkan Ringkasan Statistik di Pojok Layar (HUD)',
 
     hudPosition: 'Posisi Panel Ringkasan (HUD)',
+    hudScalePercent: 'Ukuran Panel Ringkasan (HUD)',
 
     ageGrouping: 'Model Pengelompokan Usia',
 
@@ -3487,6 +3498,7 @@
     detectPinch: 'Deteksi Gerakan Cubit (Air Pinch / Click)',
     pinchThreshold: 'Jarak Ambang Batas Cubit (Piksel)',
     showGestureBadge: 'Tampilkan Badge Nama Gestur & Jari',
+    hideUnknownGesture: 'Sembunyikan Label Gestur None',
     hysteresisDistance: 'Batas Toleransi Deadband (Anti-Jitter Px)',
     reArmCooldown: 'Jeda Waktu Re-Arm (Detik)',
     escalateIntervalSeconds: 'Interval Pengingat Eskalasi (Detik)',
@@ -10940,6 +10952,10 @@
 
       // Primary / Basic config fields (filtered conditionally)
 
+      if (n.type === 'face_analyzer' && n.config?.hudScalePercent === undefined) {
+        n.config = { ...n.config, hudScalePercent: 100 };
+      }
+
       Object.entries(n.config || {}).forEach(([key, value]) => {
 
         if (!ADVANCED_KEYS.has(key) && shouldShowField(n, key)) {
@@ -12007,6 +12023,8 @@
 
 
   const FIELD_BOUNDS = {
+
+    hudScalePercent: { min: 50, max: 200, step: 10, isSlider: true, unit: '%' },
 
     // 0.0 - 1.0 Normalized threshold & ratios
 
@@ -15723,6 +15741,10 @@
 
         };
 
+        range.onchange = () => {
+          if (node.type === 'face_analyzer' && key === 'hudScalePercent') liveUpdateWorkflow();
+        };
+
 
 
         const applyNumChange = () => {
@@ -15736,6 +15758,8 @@
           node.config[key] = clamped;
 
           markDirty();
+
+          if (node.type === 'face_analyzer' && key === 'hudScalePercent') liveUpdateWorkflow();
 
         };
 
@@ -15908,6 +15932,8 @@
         node.config[key] = input.checked;
 
         markDirty();
+
+        if (node.type === 'hand_skeleton' && key === 'hideUnknownGesture') liveUpdateWorkflow();
 
       };
 
@@ -27220,9 +27246,22 @@
 
       const setSize = value => {
 
-        state.panelLayout[size] = clamp(value, min, max);
+        const workspaceHeight = size === 'bottomHeight' ? $('.workspace')?.clientHeight : 0;
+        const effectiveMax = workspaceHeight ? Math.min(max, Math.max(min, workspaceHeight - 252)) : max;
+        state.panelLayout[size] = clamp(value, min, effectiveMax);
 
         separator.setAttribute('aria-valuenow', String(state.panelLayout[size]));
+        separator.setAttribute('aria-valuemax', String(effectiveMax));
+
+        if (size === 'bottomHeight') {
+          const slider = $('#previewSizeSlider');
+          const output = $('#previewSizeValue');
+          if (slider) {
+            slider.max = String(effectiveMax);
+            slider.value = String(state.panelLayout[size]);
+          }
+          if (output) output.textContent = `${state.panelLayout[size]} px`;
+        }
 
         if (shell) shell.style.setProperty(
 
@@ -27235,6 +27274,14 @@
       };
 
       setSize(state.panelLayout[size]);
+
+      if (size === 'bottomHeight') {
+        $('#previewSizeSlider')?.addEventListener('input', event => {
+          setSize(event.target.value);
+          persistPanelLayout();
+        });
+        window.addEventListener('resize', () => setSize(state.panelLayout[size]));
+      }
 
       separator.addEventListener('pointerdown', event => {
 

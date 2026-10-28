@@ -589,6 +589,11 @@
               <span class="status-pill" id="runState">Idle</span>
             </div>
           </div>
+          <div class="preview-size-control">
+            <label for="previewSizeSlider">Ukuran layar</label>
+            <input id="previewSizeSlider" type="range" min="180" max="600" step="1" value="320" aria-label="Ukuran layar Input dan Live Preview">
+            <output id="previewSizeValue" for="previewSizeSlider">320 px</output>
+          </div>
           <div class="preview-frame" id="previewContainer">
             <img id="previewImage" alt="Live workflow preview" hidden>
             <div id="previewEmpty">

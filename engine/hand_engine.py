@@ -85,13 +85,12 @@ class HandTrackerEngine:
 
     @classmethod
     def get_instance(cls, model_path: Optional[str] = None) -> HandTrackerEngine:
-        if cls._instance is None:
+        if cls._instance is None or cls._instance._model_path != (model_path or cls._instance._default_model_path()):
             cls._instance = HandTrackerEngine(model_path)
         return cls._instance
 
     def _default_model_path(self) -> str:
         base_dir = Path(__file__).resolve().parent.parent / "data" / "models"
-        base_dir.mkdir(parents=True, exist_ok=True)
         return str(base_dir / "gesture_recognizer.task")
 
     def _init_mediapipe(self) -> None:
@@ -108,7 +107,7 @@ class HandTrackerEngine:
             base_options = python.BaseOptions(model_asset_path=str(task_file))
             options = vision.GestureRecognizerOptions(
                 base_options=base_options,
-                num_hands=2,
+                num_hands=4,
                 min_hand_detection_confidence=0.45,
                 min_hand_presence_confidence=0.45,
                 min_tracking_confidence=0.45,
@@ -156,7 +155,8 @@ class HandTrackerEngine:
 
         detections: List[dict] = []
 
-        for idx, landmarks in enumerate(result.hand_landmarks):
+        max_hands = max(1, min(4, int(cfg.get("numHands", 2))))
+        for idx, landmarks in enumerate(result.hand_landmarks[:max_hands]):
             # Extract 21 landmark coordinates in pixel space
             pts_px: List[Tuple[float, float, float]] = []
             xs: List[float] = []
@@ -230,6 +230,7 @@ class HandTrackerEngine:
                 "hand": handedness,
                 "gesture": gesture_name,
                 "gestureLabel": display_gesture,
+                "hideLabel": bool(cfg.get("hideUnknownGesture", False) and gesture_name == "None"),
                 "isPinch": is_pinch,
                 "pinchDistance": round(pinch_dist, 1),
                 "fingerCount": extended_count,
@@ -318,10 +319,10 @@ def draw_hand_skeleton(
                 cv2.circle(frame, (ix, iy), radius + 10, (0, 140, 255), 1, cv2.LINE_AA)
 
         # 3. Draw Gesture Status Badge above hand
-        if show_badge:
+        if show_badge and not (cfg.get("hideUnknownGesture", False) and det.get("gesture") == "None"):
             bbox = det.get("bbox", [0, 0, 0, 0])
             bx, by = int(round(bbox[0])), int(round(bbox[1]))
-            badge_text = f"{det.get('hand', 'Tangan')} · {det.get('gestureLabel', 'Hand')}"
+            badge_text = f"{det.get('hand', 'Tangan')} | {det.get('gestureLabel', 'Hand')}"
             if det.get("isPinch"):
                 badge_text += " [PINCH!]"
             elif det.get("fingerCount", 0) > 0:

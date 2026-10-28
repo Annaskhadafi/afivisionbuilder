@@ -57,44 +57,8 @@ def upload_to_s3(
     access_key = os.environ.get(secret_ref, "").strip()
     secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY", "").strip()
 
-    if access_key and secret_key and payload:
-        if is_async:
-            def _async_s3_worker(target_url: str, upload_bytes: bytes) -> None:
-                try:
-                    req = urllib.request.Request(
-                        target_url,
-                        data=upload_bytes,
-                        headers={
-                            "Content-Type": "image/jpeg",
-                            "x-amz-meta-uploader": "AfiVisionBuilder",
-                        },
-                        method="PUT",
-                    )
-                    with urllib.request.urlopen(req, timeout=5) as _:
-                        pass
-                except Exception:
-                    pass
-
-            _cloud_executor.submit(_async_s3_worker, s3_url, payload)
-            status = "dispatched_async"
-        else:
-            # Standard synchronous HTTP PUT upload or simulated S3 call
-            try:
-                req = urllib.request.Request(
-                    s3_url,
-                    data=payload,
-                    headers={
-                        "Content-Type": "image/jpeg",
-                        "x-amz-meta-uploader": "AfiVisionBuilder",
-                    },
-                    method="PUT",
-                )
-                with urllib.request.urlopen(req, timeout=5) as resp:
-                    status = "uploaded" if resp.status in (200, 201) else "mock_uploaded"
-            except Exception:
-                status = "simulated_uploaded"
-    else:
-        status = "mock_uploaded"
+    # Signed S3 uploads are not implemented; never report a simulated upload as success.
+    status = "unsupported_signed_upload" if access_key and secret_key and payload else "missing_credentials_or_payload"
 
     return {
         "status": status,
@@ -152,7 +116,11 @@ def dispatch_notification(
         except Exception:
             pass
 
-    delivery_status = "simulated_delivered"
+    delivery_status = "missing_destination"
+    if channel not in ("telegram", "slack", "webhook"):
+        return {"status": "unsupported_channel", "channel": channel}
+    if channel == "telegram" and not (os.environ.get("TELEGRAM_BOT_TOKEN", "").strip() or config.get("botToken", "")):
+        return {"status": "missing_credentials", "channel": channel}
 
     if destination:
         # Immediately record timestamp to prevent cooldown racing
@@ -233,7 +201,7 @@ def dispatch_notification(
                     if resp.status in (200, 201, 204):
                         delivery_status = "delivered"
         except Exception:
-            delivery_status = "dispatched_local_fallback"
+            delivery_status = "failed"
 
     node_state["last_notification_time"] = now
 
