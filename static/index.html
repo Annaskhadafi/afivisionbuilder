@@ -557,8 +557,8 @@
       <div class="panel-resizer panel-resizer-bottom" id="resizeBottom" role="separator" aria-orientation="horizontal" aria-label="Ubah tinggi panel bawah" aria-valuemin="180" aria-valuemax="600" tabindex="0" title="Tarik untuk mengubah tinggi panel bawah"></div>
       <div class="bottom-grid">
         <section class="preview panel">
-          <div class="panel-heading">
-            <div>
+          <div class="panel-heading preview-panel-heading">
+            <div class="preview-title-block">
               <span class="eyebrow">LIVE PREVIEW</span>
               <strong id="previewTitle">Menunggu alur kerja dijalankan</strong>
             </div>
@@ -576,15 +576,16 @@
               <select id="previewSelect" aria-label="Preview output">
                 <option value="">Auto preview</option>
               </select>
-              <select id="previewResSelect" aria-label="Stream Resolution" title="Resolusi Pratinjau & Kompresi JPEG (720p / 480p)" class="icon-btn-sm" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border);">
+              <select id="previewResSelect" aria-label="Stream Resolution" title="Resolusi Pratinjau & Kompresi JPEG (720p / 480p)" class="preview-res-select">
                 <option value="720p">720p (70%)</option>
                 <option value="480p">480p (65%)</option>
               </select>
-              <button class="icon-button icon-btn-sm" id="snapshotBtn" title="Simpan tangkapan bingkai" aria-label="Simpan tangkapan bingkai">
+              <button class="icon-button icon-btn-sm preview-tool-btn" id="snapshotBtn" title="Simpan tangkapan bingkai" aria-label="Simpan tangkapan bingkai">
                 <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
               </button>
-              <button class="icon-button icon-btn-sm" id="fullscreenBtn" title="Perbesar layar pratinjau" aria-label="Perbesar layar pratinjau">
-                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+              <button class="icon-button preview-tool-btn preview-fullscreen-btn" id="fullscreenBtn" title="Buka Pratinjau Popup Layar Penuh (Expanded View)" aria-label="Buka Pratinjau Popup Layar Penuh">
+                <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                <span class="preview-btn-label">Popup</span>
               </button>
               <span class="status-pill" id="runState">Idle</span>
             </div>
@@ -594,7 +595,7 @@
             <input id="previewSizeSlider" type="range" min="180" max="600" step="1" value="320" aria-label="Ukuran layar Input dan Live Preview">
             <output id="previewSizeValue" for="previewSizeSlider">320 px</output>
           </div>
-          <div class="preview-frame" id="previewContainer">
+          <div class="preview-frame" id="previewContainer" title="Klik ganda untuk membuka pratinjau popup layar penuh">
             <img id="previewImage" alt="Live workflow preview" hidden>
             <div id="previewEmpty">
               <svg class="icon-svg icon-lg" viewBox="0 0 24 24"><rect width="18" height="14" x="3" y="5" rx="2"/><polygon points="10 9 15 12 10 15 10 9"/></svg>

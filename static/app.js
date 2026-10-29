@@ -6011,6 +6011,7 @@
       $('#dirty').hidden = true;
 
       $('#projectName').textContent = state.project?.name || 'Untitled project';
+      if (state.project?.id) localStorage.setItem('afi_active_project_id', state.project.id);
 
       renderProjects();
 
@@ -6072,7 +6073,17 @@
 
   async function save() {
 
-    if (!state.project) return false;
+    if (!state.project) {
+      if (state.projects?.length) {
+        const savedId = localStorage.getItem('afi_active_project_id');
+        const target = state.projects.find(p => p.id === savedId) || state.projects[0];
+        if (target) await switchProject(target.id, true);
+      }
+      if (!state.project) {
+        toast('Pilih proyek terlebih dahulu sebelum menyimpan alur kerja', true);
+        return false;
+      }
+    }
 
     const projectId = state.project.id;
 
@@ -12000,7 +12011,14 @@
 
         node.config.modelPath = data.path;
 
-        node.config.customClasses = (data.classes || []).join(', ');
+        if (!state._modelClassesCache) state._modelClassesCache = {};
+        if (Array.isArray(data.classes) && data.classes.length > 0) {
+          state._modelClassesCache[data.path] = data.classes;
+          state._modelClassesCache[modelPath] = data.classes;
+          node.config.customClasses = data.classes.join(', ');
+        } else if (data.classes) {
+          node.config.customClasses = (data.classes || []).join(', ');
+        }
 
         node.config.classes = '';
 
@@ -12262,84 +12280,109 @@
 
 
 
-  function getAutoDetectedModelClasses(currentNode, existingSelected = []) {
+  const STANDARD_COCO_MODELS = [
+    'yolov8n.pt', 'yolov8s.pt', 'yolov8m.pt', 'yolov8l.pt', 'yolov8x.pt',
+    'yolo11n.pt', 'yolo11s.pt', 'yolo11m.pt', 'yolo11l.pt', 'yolo11x.pt',
+    'yolov5n.pt', 'yolov5s.pt', 'yolov5m.pt', 'yolov9c.pt', 'yolov10n.pt'
+  ];
 
+  function isCustomModelPathOrEngine(node) {
+    if (!node) return false;
+    const cfg = node.config || {};
+    const customEngines = ['onnx_custom', 'tflite', 'tensorflow_keras', 'custom_auto', 'roboflow_universe', 'rfdetr_onnx', 'rfdetr_tensorrt'];
+    if (customEngines.includes(cfg.engine)) return true;
+    if (typeof cfg.customClasses === 'string' && cfg.customClasses.trim().length > 0) return true;
+    const model = (cfg.modelPath || cfg.customModelPath || '').trim().toLowerCase();
+    if (!model) return false;
+    const base = model.split(/[\\/]/).pop();
+    if (model.endsWith('.onnx') || model.endsWith('.tflite') || model.endsWith('.engine')) return true;
+    if (model.includes('/') || model.includes('\\')) return true;
+    return !STANDARD_COCO_MODELS.includes(base);
+  }
+
+  function getAutoDetectedModelClasses(currentNode, existingSelected = [], fieldKey = '') {
     const classSet = new Set();
+    const customClassSet = new Set();
 
-    
-
-    // 1. Always include standard COCO 80 & Industrial/K3 classes
-
-    COCO_80_CLASSES.forEach(c => classSet.add(c.toLowerCase()));
-
-    INDUSTRIAL_SAFETY_CLASSES.forEach(c => classSet.add(c.toLowerCase()));
-
-
-
-    // 2. Add classes from all nodes in current workflow
-
-    if (state.workflow && Array.isArray(state.workflow.nodes)) {
-
-      state.workflow.nodes.forEach(n => {
-
-        if (!n || !n.config) return;
-
-        ['customClasses', 'classes', 'targetClasses', 'filterClasses', 'vehicleClasses', 'triggerClasses', 'requiredClasses', 'passClasses', 'rfdetrOnnxClasses', 'rfdetrTensorRTClasses', 'convnextClasses'].forEach(f => {
-
-          const val = n.config[f];
-
-          if (typeof val === 'string' && val.trim()) {
-
-            val.split(',').forEach(item => {
-
-              const clean = item.trim().toLowerCase();
-
-              if (clean && clean !== '*' && clean !== 'all') classSet.add(clean);
-
-            });
-
-          }
-
+    // 1. Gather custom classes from currentNode
+    if (currentNode && currentNode.config) {
+      const cfg = currentNode.config;
+      ['customClasses', 'rfdetrOnnxClasses', 'rfdetrTensorRTClasses', 'convnextClasses'].forEach(f => {
+        const val = cfg[f];
+        if (typeof val === 'string' && val.trim()) {
+          val.split(',').forEach(item => {
+            const clean = item.trim().toLowerCase();
+            if (clean && clean !== '*' && clean !== 'all') customClassSet.add(clean);
+          });
+        }
+      });
+      const mPath = cfg.modelPath || cfg.customModelPath;
+      if (mPath && state._modelClassesCache?.[mPath]) {
+        state._modelClassesCache[mPath].forEach(c => {
+          const clean = String(c).trim().toLowerCase();
+          if (clean) customClassSet.add(clean);
         });
-
-      });
-
+      }
     }
 
-
-
-    // 3. Add classes from inspected models cache if available
-
-    if (state._modelClassesCache) {
-
-      Object.values(state._modelClassesCache).forEach(arr => {
-
-        if (Array.isArray(arr)) arr.forEach(c => classSet.add(String(c).toLowerCase().trim()));
-
+    // 2. Gather custom classes from all model/detector nodes in the workflow
+    let workflowHasCustomModel = currentNode ? isCustomModelPathOrEngine(currentNode) : false;
+    if (state.workflow && Array.isArray(state.workflow.nodes)) {
+      state.workflow.nodes.forEach(n => {
+        if (!n || !n.config) return;
+        const cfg = n.config;
+        if (isCustomModelPathOrEngine(n)) {
+          workflowHasCustomModel = true;
+        }
+        ['customClasses', 'rfdetrOnnxClasses', 'rfdetrTensorRTClasses', 'convnextClasses'].forEach(f => {
+          const val = cfg[f];
+          if (typeof val === 'string' && val.trim()) {
+            val.split(',').forEach(item => {
+              const clean = item.trim().toLowerCase();
+              if (clean && clean !== '*' && clean !== 'all') customClassSet.add(clean);
+            });
+          }
+        });
+        const mPath = cfg.modelPath || cfg.customModelPath;
+        if (mPath && state._modelClassesCache?.[mPath]) {
+          state._modelClassesCache[mPath].forEach(c => {
+            const clean = String(c).trim().toLowerCase();
+            if (clean) customClassSet.add(clean);
+          });
+        }
       });
-
     }
 
-
-
-    // 4. Add any already selected classes so user custom entries are preserved
-
+    // 3. Add existing selected classes (so user-chosen entries are preserved)
     if (Array.isArray(existingSelected)) {
-
       existingSelected.forEach(c => {
-
         const clean = String(c).toLowerCase().trim();
-
-        if (clean) classSet.add(clean);
-
+        if (clean && clean !== '*' && clean !== 'all') {
+          customClassSet.add(clean);
+        }
       });
-
     }
 
+    // 4. Determine if we are in a custom model context:
+    // If the field is customClasses, or if custom classes exist, or if node/workflow is running a custom model:
+    const isCustom = fieldKey === 'customClasses' ||
+      workflowHasCustomModel ||
+      customClassSet.size > 0;
 
+    if (isCustom && customClassSet.size > 0) {
+      // ONLY include custom model classes and user selections!
+      // Do NOT include standard COCO 80 classes!
+      customClassSet.forEach(c => classSet.add(c));
+    } else if (fieldKey === 'customClasses') {
+      customClassSet.forEach(c => classSet.add(c));
+    } else {
+      // Standard COCO model: include standard COCO 80 & Industrial/K3 classes
+      COCO_80_CLASSES.forEach(c => classSet.add(c.toLowerCase()));
+      INDUSTRIAL_SAFETY_CLASSES.forEach(c => classSet.add(c.toLowerCase()));
+      customClassSet.forEach(c => classSet.add(c));
+    }
 
     return Array.from(classSet).sort((a, b) => a.localeCompare(b));
-
   }
 
 
@@ -15229,7 +15272,7 @@
 
       function getFilteredClasses() {
 
-        const allAvailable = getAutoDetectedModelClasses(node, selected);
+        const allAvailable = getAutoDetectedModelClasses(node, selected, key);
 
         if (!searchQuery) return allAvailable;
 
@@ -15443,7 +15486,7 @@
 
       const rawVal = String(node.config[key] ?? value ?? '').trim();
 
-      const allAvailable = getAutoDetectedModelClasses(node, rawVal ? [rawVal] : []);
+      const allAvailable = getAutoDetectedModelClasses(node, rawVal ? [rawVal] : [], key);
 
 
 
@@ -24487,19 +24530,11 @@
 
     if (!modal.open) {
 
-      if (!previewOwnedByCurrentProject()) {
-
-        toast('Preview belongs to another project', true);
-
-        return;
-
-      }
-
       const target = state.previewNode || state.status?.previews?.[0];
 
       const resMode = $('#previewResSelect')?.value || '720p';
 
-      if (target) {
+      if (target && previewOwnedByCurrentProject()) {
 
         modalImg.src = state.status?.running
 
@@ -24517,9 +24552,21 @@
 
       modal.showModal();
 
+      const card = $('#interactiveZoomCard');
+      const modalWrap = modal.querySelector('.expanded-preview-wrap');
+      if (card && modalWrap) {
+        modalWrap.append(card);
+      }
+
     } else {
 
       modalImg.src = '';
+
+      const card = $('#interactiveZoomCard');
+      const mainContainer = $('#previewContainer');
+      if (card && mainContainer) {
+        mainContainer.append(card);
+      }
 
       modal.close();
 
@@ -24964,9 +25011,19 @@
 
       // Buttons
 
-      if ($('#runBtn')) $('#runBtn').disabled = !!data.running;
+      if ($('#runBtn')) {
+        $('#runBtn').disabled = !!data.running;
+        $('#runBtn').title = data.running
+          ? 'Alur kerja sedang berjalan. Klik Stop untuk menghentikan.'
+          : 'Jalankan alur kerja (Run)';
+      }
 
-      if ($('#stopBtn')) $('#stopBtn').disabled = !data.running;
+      if ($('#stopBtn')) {
+        $('#stopBtn').disabled = !data.running;
+        $('#stopBtn').title = data.running
+          ? 'Hentikan alur kerja yang sedang berjalan (Stop)'
+          : 'Alur kerja tidak sedang berjalan';
+      }
 
 
 
@@ -25334,6 +25391,17 @@
 
     try {
 
+      if (state.status?.running) {
+        toast('Alur kerja sedang berjalan. Klik tombol Stop merah terlebih dahulu untuk menghentikan.', true);
+        return;
+      }
+
+      if (!state.project && state.projects?.length) {
+        const savedId = localStorage.getItem('afi_active_project_id');
+        const target = state.projects.find(p => p.id === savedId) || state.projects[0];
+        if (target) await switchProject(target.id, true);
+      }
+
       if (state.dirty && !(await save())) return;
 
       const data = await api('/api/run', {
@@ -25689,6 +25757,12 @@
       renderProjectsHub();
 
     } else if (viewName === 'studio') {
+
+      if (!state.project && state.projects?.length) {
+        const savedId = localStorage.getItem('afi_active_project_id');
+        const target = state.projects.find(p => p.id === savedId) || state.projects[0];
+        if (target) switchProject(target.id, true);
+      }
 
       switchProjectRailTab(state.activeRailTab || 'workflow');
 
@@ -26638,13 +26712,22 @@
 
   window.renderInteractiveZoomPopup = renderInteractiveZoomPopup;
 
+  window.state = state;
+
+  window.renderInspector = renderInspector;
+
+  window.renderCanvas = renderCanvas;
+
 
 
   function renderInteractiveZoomPopup(zoomNode, targetState) {
 
     let card = $('#interactiveZoomCard');
 
-    const container = $('#previewContainer');
+    const modal = $('#previewModal');
+    const container = (modal && modal.open)
+      ? modal.querySelector('.expanded-preview-wrap')
+      : $('#previewContainer');
 
     if (!container) return;
 
@@ -26657,6 +26740,10 @@
       card.id = 'interactiveZoomCard';
 
       card.className = 'interactive-zoom-card';
+
+      container.append(card);
+
+    } else if (card.parentElement !== container) {
 
       container.append(card);
 
@@ -27886,19 +27973,34 @@
     $('#snapshotBtn')?.addEventListener('click', captureSnapshot);
 
     $('#fullscreenBtn')?.addEventListener('click', toggleFullscreenPreview);
+    $('#previewContainer')?.addEventListener('dblclick', (e) => {
+      if (e.target.closest('button, .interactive-zoom-card, input, select')) return;
+      toggleFullscreenPreview();
+    });
+
+    $('#previewModal')?.addEventListener('close', () => {
+      const modal = $('#previewModal');
+      const modalImg = $('#modalPreviewImage');
+      if (modalImg) modalImg.src = '';
+      if (modal) modal.classList.remove('is-fullscreen');
+      const card = $('#interactiveZoomCard');
+      const mainContainer = $('#previewContainer');
+      if (card && mainContainer) {
+        mainContainer.append(card);
+      }
+    });
 
     $('#closePreviewModal')?.addEventListener('click', () => {
-
       const modal = $('#previewModal');
-
       if (modal) {
-
         modal.classList.remove('is-fullscreen');
-
+        const card = $('#interactiveZoomCard');
+        const mainContainer = $('#previewContainer');
+        if (card && mainContainer) {
+          mainContainer.append(card);
+        }
         modal.close();
-
       }
-
     });
 
     $('#toggleFullscreenPreviewBtn')?.addEventListener('click', () => {

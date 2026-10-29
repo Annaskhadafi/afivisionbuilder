@@ -38,6 +38,18 @@
 
 Gunakan slider **Ukuran layar** di panel Live Preview untuk memperbesar atau memperkecil area tampilan Input maupun hasil Live Preview di Studio. Rasio gambar mengikuti sumber, dan ukuran panel disimpan di browser.
 
+### 🔍 Popup Expanded View & Responsivitas Live Preview Toolbar
+- **Tombol Popup Terpusat di Toolbar Atas (`Popup`)**: Tombol pembuka pratinjau popup layar penuh (`#fullscreenBtn`) berlokasi terpusat di toolbar atas dengan label jelas `Popup` dan icon ekspansi. Layar preview video dipertahankan tetap bersih tanpa tombol overlay yang menghalangi pandangan kamera.
+- **Responsivitas Total Saat Zoom In**: Toolbar kontrol pratinjau kini menggunakan arsitektur *responsive flex-wrap* multi-baris otomatis. Saat browser di-zoom in (125–200%) atau ukuran panel diperkecil (hingga slider 216px), seluruh tombol (Ambang slider, Auto preview, Resolusi, Snapshot, tombol Popup, dan Status pill) otomatis melipat rapi dan tidak akan pernah terpotong atau hilang dari layar.
+- **Kontras Tinggi Label Ambang Batas (Confidence Slider)**: Teks label `Ambang:` kini menggunakan warna kontras tinggi solid (`#0f172a` slate gelap) dan nilai persentase menggunakan badge berlatar warna emerald/teal (`#0f766e` / `#ccfbf1`) sehingga sangat tajam, jelas, dan mudah dibaca pada berbagai tingkat kecerahan layar.
+- **Pintasan Klik Ganda (Double Click to Popup)**: Pengguna juga dapat mengeklik ganda (*double click*) langsung pada bingkai video live preview untuk membuka jendela popup modal expanded view secara cepat.
+- **Dukungan Zoom In Objek (Interactive Zoom) di Popup Modal**: Ketika modal popup view dibuka, kartu interaktif zoom in objek otomatis disematkan langsung di dalam modal pratinjau sehingga tidak lagi tersembunyi di belakang dialog modal.
+
+### 🏷️ Isolasi Bersih Daftar Kelas Model Kustom (Custom Model Class Filtering)
+- **Hanya Menampilkan Kelas Milik Model Kustom**: Saat menggunakan model kustom (seperti model APD/K3, inspeksi cacat pabrik, deteksi ban/kendaraan tambang berformat `.pt`, `.onnx`, atau `tflite`), dropdown pemilihan kelas (baik pada field *Daftar Kelas Model Kustom* maupun node filter/zona hilir) secara otomatis **hanya memuat kelas-kelas aktual milik model tersebut**.
+- **Pembersihan Total Polusi COCO 80**: Kelas-kelas bawaan standar COCO 80 (seperti `airplane`, `apple`, `banana`, `baseball bat`, `bear`, dll.) secara otomatis ditekan dan dihilangkan total dari daftar pilihan alur custom model, sehingga operator tidak perlu lagi menggulir melewati puluhan kelas hewan atau makanan yang tidak relevan.
+- **Dukungan Kelas Bawaan YOLO Tetap Utuh**: Jika alur kerja menggunakan model standar YOLO COCO (seperti `yolov8n.pt` bawaan), seluruh kelas COCO 80 tetap tersedia normal seperti sedia kala.
+
 ## ✨ Fitur Unggulan Terbaru
 
 ### 🛡️ Computer Vision Engine Audit & Pipeline Stabilization
