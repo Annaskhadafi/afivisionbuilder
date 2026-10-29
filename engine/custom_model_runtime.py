@@ -397,8 +397,12 @@ class CustomModelRunner:
         elif engine_type == "onnx_custom":
             import onnxruntime as ort
             providers = ["CUDAExecutionProvider", "CPUExecutionProvider"] if "cuda" in device.lower() else ["CPUExecutionProvider"]
+            opts = ort.SessionOptions()
+            opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            opts.intra_op_num_threads = min(8, max(2, (os.cpu_count() or 4) - 2))
+            opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
             try:
-                model = ort.InferenceSession(str(path), providers=providers)
+                model = ort.InferenceSession(str(path), sess_options=opts, providers=providers)
             except Exception:
                 model = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
         elif engine_type == "tflite":
@@ -470,6 +474,8 @@ class CustomModelRunner:
             }
             if imgsz_val > 0:
                 predict_kwargs["imgsz"] = imgsz_val
+            elif node_type == "pose_detector" and "cuda" not in str(device).lower():
+                predict_kwargs["imgsz"] = 480
 
             try:
                 results = model.predict(frame, **predict_kwargs)
@@ -552,6 +558,8 @@ class CustomModelRunner:
             }
             if imgsz_val > 0:
                 predict_kwargs["imgsz"] = imgsz_val
+            elif node_type == "pose_detector" and "cuda" not in str(device).lower():
+                predict_kwargs["imgsz"] = 480
             if path.suffix.lower() == ".onnx":
                 onnx_session = cls.get_or_load("onnx_custom", str(path), device=device)
                 input_shape = onnx_session.get_inputs()[0].shape
@@ -615,10 +623,13 @@ class CustomModelRunner:
             else:
                 in_h, in_w = dims[1] or 640, dims[2] or 640
 
-            resized = cv2.resize(frame, (in_w, in_h))
             input_dtype = np.float16 if "float16" in str(input_meta.type).lower() else np.float32
-            blob = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(input_dtype) / input_dtype(255.0)
-            blob = np.transpose(blob, (2, 0, 1))[np.newaxis, ...] if nchw else blob[np.newaxis, ...]
+            if nchw and input_dtype == np.float32:
+                blob = cv2.dnn.blobFromImage(frame, 1.0 / 255.0, (in_w, in_h), swapRB=True, crop=False)
+            else:
+                resized = cv2.resize(frame, (in_w, in_h))
+                blob = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(input_dtype) / input_dtype(255.0)
+                blob = np.transpose(blob, (2, 0, 1))[np.newaxis, ...] if nchw else blob[np.newaxis, ...]
 
             outputs = session.run(None, {input_name: blob})
             if not outputs:

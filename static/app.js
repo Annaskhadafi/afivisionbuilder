@@ -24021,7 +24021,10 @@
 
     _previewGeneration += 1;
 
-    if (_previewLoopTimer) clearTimeout(_previewLoopTimer);
+    if (_previewLoopTimer) {
+      if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(_previewLoopTimer);
+      clearTimeout(_previewLoopTimer);
+    }
 
     _previewLoopTimer = null;
 
@@ -24227,9 +24230,12 @@
 
     const projectId = state.project?.id;
 
-    if (_previewLoopTimer) clearTimeout(_previewLoopTimer);
+    if (_previewLoopTimer) {
+      if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(_previewLoopTimer);
+      clearTimeout(_previewLoopTimer);
+    }
 
-    _previewLoopTimer = setTimeout(() => {
+    _previewLoopTimer = requestAnimationFrame(() => {
 
       if (generation === _previewGeneration && projectId === state.project?.id && state.status?.running && previewOwnedByCurrentProject()) {
 
@@ -24237,7 +24243,7 @@
 
       }
 
-    }, 25); // ~30-40 FPS silky smooth preview refresh rate
+    });
 
   }
 
@@ -24280,8 +24286,7 @@
     const now = Date.now();
 
     // Prevent overlapping network requests if one is still in-flight
-
-    if (_previewLoading && (now - _lastPreviewFetch < 1000)) {
+    if (_previewLoading && (now - _lastPreviewFetch < 250)) {
 
       return;
 
@@ -24319,7 +24324,7 @@
 
 
 
-      if (modalImg && $('#previewModal')?.open && !modalImg.src.includes('/stream')) {
+      if (modalImg && $('#previewModal')?.open) {
 
         modalImg.src = preloader.src;
 
@@ -24567,17 +24572,19 @@
 
       const resMode = $('#previewResSelect')?.value || '720p';
 
+      const previewImg = $('#previewImage');
+
       if (target && previewOwnedByCurrentProject()) {
 
-        modalImg.src = state.status?.running
+        modalImg.src = (previewImg && previewImg.src && !previewImg.hidden)
 
-          ? `/api/preview/${encodeURIComponent(target)}/stream?res=${resMode}`
+          ? previewImg.src
 
           : `/api/preview/${encodeURIComponent(target)}?t=${Date.now()}&res=${resMode}`;
 
       } else {
 
-        modalImg.src = $('#previewImage')?.src || '';
+        modalImg.src = previewImg?.src || '';
 
       }
 

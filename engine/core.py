@@ -3607,6 +3607,8 @@ class WorkflowRunner:
                         ),
                     ),
                 )
+                if drop_frames:
+                    configured_detection_batch = 1
                 tracker_node_for_log = engine.active_tracking_node(workflow)
                 configured_tracking_batch = max(
                     1,
@@ -3615,6 +3617,8 @@ class WorkflowRunner:
                         int((tracker_node_for_log or {}).get("config", {}).get("batchSize", 1) or 1),
                     ),
                 )
+                if drop_frames:
+                    configured_tracking_batch = 1
                 queue_mode = " (live source: dropping oldest frames to stay real-time)" if drop_frames else ""
                 self._emit_log(
                     f"Frame queue limit {frame_queue_size}{queue_mode}; detection batch size "
@@ -3768,6 +3772,8 @@ class WorkflowRunner:
                 last_slow_inference_at = 0.0
                 last_terminal_detection_at = 0.0
                 last_inference_by_node: dict[str, float] = {}
+                last_detections_by_node: dict[str, list[dict]] = {}
+                last_tracking_by_node: dict[str, list[dict]] = {}
                 frames_seen_by_node: dict[str, int] = {}
                 detector_batch_size = max(
                     1,
@@ -3778,6 +3784,8 @@ class WorkflowRunner:
                         ),
                     ),
                 )
+                if drop_frames:
+                    detector_batch_size = 1
                 if any(node.get("type") == "frame_sampler" for node in base_workflow.get("nodes", [])):
                     detector_batch_size = 1  # ponytail: group by sampler mask later if batching matters.
                 remaining_batch = []
@@ -3792,7 +3800,7 @@ class WorkflowRunner:
                             self._stop_event,
                             detector_batch_size,
                             timeout=0.1,
-                            collect_timeout=0.02,
+                            collect_timeout=0.005 if drop_frames else 0.02,
                         )
                         # A live edit can introduce sampling while this batch is collected.
                         if len(batch) > 1 and any(packet.workflow is not base_workflow for packet in batch):
@@ -3821,17 +3829,31 @@ class WorkflowRunner:
                         if max_fps > 0:
                             min_interval = 1.0 / max_fps
                             if now - last_inference_by_node.get(node_id, 0.0) < min_interval:
+                                cached_d = last_detections_by_node.get(node_id, [])
+                                cached_t = last_tracking_by_node.get(node_id, [])
+                                for idx in range(len(batch)):
+                                    detections_by_index[idx].extend(cached_d)
+                                    tracking_detections_by_index[idx].extend(cached_t)
                                 continue
                         # Count frames seen per node instead of using frame_id:
                         # dropped frames leave gaps in frame_id, which would make
                         # the modulo skip irregularly.
                         seen = frames_seen_by_node.get(node_id, 0)
                         eligible_indices = []
+                        skipped_indices = []
                         for index in range(len(batch)):
                             if seen % detect_every == 0:
                                 eligible_indices.append(index)
+                            else:
+                                skipped_indices.append(index)
                             seen += 1
                         frames_seen_by_node[node_id] = seen
+                        if skipped_indices:
+                            cached_d = last_detections_by_node.get(node_id, [])
+                            cached_t = last_tracking_by_node.get(node_id, [])
+                            for s_idx in skipped_indices:
+                                detections_by_index[s_idx].extend(cached_d)
+                                tracking_detections_by_index[s_idx].extend(cached_t)
                         if not eligible_indices:
                             continue
                         branch_script_nodes = [
@@ -3973,6 +3995,8 @@ class WorkflowRunner:
                             tracking_detections_by_index[packet_index].extend(
                                 tracking_detections
                             )
+                            last_detections_by_node[node_id] = kept_detections
+                            last_tracking_by_node[node_id] = tracking_detections
                             if self._debug_enabled:
                                 packet = batch[packet_index]
                                 self._emit_node_debug(
@@ -4101,6 +4125,8 @@ class WorkflowRunner:
                             int((tracker_node or {}).get("config", {}).get("batchSize", 1) or 1),
                         ),
                     )
+                    if drop_frames:
+                        tracker_batch_size = 1
                     get_tracking_batch = (
                         detection_queue.get_latest_batch if drop_frames else detection_queue.get_batch
                     )
@@ -4108,7 +4134,7 @@ class WorkflowRunner:
                         self._stop_event,
                         tracker_batch_size,
                         timeout=0.1,
-                        collect_timeout=0.01,
+                        collect_timeout=0.005 if drop_frames else 0.01,
                     )
                     if not batch:
                         break

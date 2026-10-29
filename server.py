@@ -8086,117 +8086,31 @@ def preview(node_id: str, res: str = "720p") -> Response:
 
 
 @app.get("/api/preview/{node_id}/stream")
-
-
-
-def preview_stream(node_id: str, res: str = "720p"):
-
-
-
-    def frame_generator():
-
-
-
+async def preview_stream(node_id: str, res: str = "720p"):
+    async def frame_generator():
         last_frame_bytes = None
-
-
-
         start_wait = time.time()
-
-
-
         try:
-
-
-
             while True:
-
-
-
                 with _lock:
-
-
-
                     bucket = _previews_480p if res == "480p" else _previews
-
-
-
                     frame_bytes = bucket.get(node_id) or _previews.get(node_id)
-
-
-
                     running = _runner.is_running() if _runner else False
-
-
-
                 if frame_bytes is not None:
-
-
-
-                    if frame_bytes is last_frame_bytes:
-
-
-
-                        time.sleep(0.01)
-
-
-
-                        continue
-
-
-
-                    last_frame_bytes = frame_bytes
-
-
-
-                    yield (
-
-
-
-                        b"--frame\r\n"
-
-
-
-                        b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
-
-
-
-                    )
-
-
-
+                    if frame_bytes is not last_frame_bytes:
+                        last_frame_bytes = frame_bytes
+                        yield (
+                            b"--frame\r\n"
+                            b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+                        )
                 elif not frame_bytes:
-
-
-
                     max_startup_wait = 25.0 if running or _runner else 3.0
-
-
-
                     if time.time() - start_wait > max_startup_wait:
-
-
-
                         break
-
-
-
                 elif not running and (time.time() - start_wait > 5.0):
-
-
-
                     break
-
-
-
-                time.sleep(0.015)
-
-
-
-        except GeneratorExit:
-
-
-
+                await asyncio.sleep(0.01)
+        except (GeneratorExit, asyncio.CancelledError, ConnectionResetError, BrokenPipeError, Exception):
             pass
 
 
