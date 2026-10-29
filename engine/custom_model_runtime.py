@@ -151,6 +151,8 @@ def resolve_model_file(raw_path: str) -> Path:
         app_data = app_root / app_data
     candidates = [
         app_root / raw_path,
+        app_root / "weights" / raw_path,
+        app_root / "weights" / p.name,
         app_data / "models" / raw_path,
         app_data / "models" / p.name,
         app_root / "data/models" / raw_path,
@@ -159,6 +161,14 @@ def resolve_model_file(raw_path: str) -> Path:
     for c in candidates:
         if c.is_file():
             return c.resolve()
+
+    # Search subdirectories inside data/models (e.g. data/models/<hash>/<model_name>)
+    for d in [app_data / "models", app_root / "data/models"]:
+        if d.is_dir():
+            for match in d.glob(f"*/{p.name}"):
+                if match.is_file():
+                    return match.resolve()
+
     return p.resolve()
 
 
@@ -575,7 +585,7 @@ class CustomModelRunner:
             import numpy as np
 
             session = cls.get_or_load(engine_type, str(path), device=device)
-            if _ultralytics_onnx_export(session, node_type):
+            if node_type == "segmenter" and _ultralytics_onnx_export(session, node_type):
                 yolo_config = dict(config)
                 yolo_config["engine"] = "ultralytics_yolo"
                 yolo_config["modelPath"] = str(path)
@@ -642,25 +652,69 @@ class CustomModelRunner:
                 scale_x = frame.shape[1] / in_w
                 scale_y = frame.shape[0] / in_h
                 configured_classes = {c.strip().casefold() for c in str(config.get("classes") or "").split(",") if c.strip()}
+                iou_threshold = float(config.get("iouThreshold", config.get("nmsThreshold", 0.45)) or 0.45)
 
-                for row in out:
-                    cx, cy, w, h = row[:4]
-                    class_scores = row[4:]
-                    cls_id = int(np.argmax(class_scores))
-                    score = float(class_scores[cls_id])
-                    if score >= threshold:
-                        x = (cx - w / 2) * scale_x
-                        y = (cy - h / 2) * scale_y
-                        cls_name = labels[cls_id] if cls_id < len(labels) else f"class_{cls_id}"
-                        if configured_classes and cls_name.casefold() not in configured_classes:
-                            continue
-                        detections.append({
-                            "class": str(cls_name),
-                            "score": score,
-                            "bbox": [float(x), float(y), float(w * scale_x), float(h * scale_y)],
-                            "sourceNodeId": node_id,
-                            "kind": "detection",
-                        })
+                # Check if End2End model format: [num_boxes, 6] (x1, y1, x2, y2, score, class_id)
+                if out.shape[1] == 6 and (out.shape[0] <= 300 or "end2end" in str(getattr(session.get_modelmeta(), "custom_metadata_map", {})).lower()):
+                    for row in out:
+                        score = float(row[4])
+                        if score >= threshold:
+                            cls_id = int(row[5])
+                            cls_name = labels[cls_id] if cls_id < len(labels) else f"class_{cls_id}"
+                            if configured_classes and cls_name.casefold() not in configured_classes:
+                                continue
+                            x1, y1, x2, y2 = row[:4]
+                            w_box = (x2 - x1) * scale_x
+                            h_box = (y2 - y1) * scale_y
+                            detections.append({
+                                "class": str(cls_name),
+                                "score": score,
+                                "bbox": [float(x1 * scale_x), float(y1 * scale_y), float(w_box), float(h_box)],
+                                "sourceNodeId": node_id,
+                                "kind": "detection",
+                            })
+                    return detections
+
+                # Standard YOLO format: [num_boxes, 4 + num_classes] (cx, cy, w, h, class_scores...)
+                class_scores = out[:, 4:]
+                if class_scores.shape[1] > 0:
+                    max_scores = np.max(class_scores, axis=1)
+                    best_class_ids = np.argmax(class_scores, axis=1)
+                    valid_mask = max_scores >= threshold
+
+                    if np.any(valid_mask):
+                        valid_boxes = out[valid_mask, :4]
+                        valid_scores = max_scores[valid_mask]
+                        valid_classes = best_class_ids[valid_mask]
+
+                        cx = valid_boxes[:, 0]
+                        cy = valid_boxes[:, 1]
+                        bw = valid_boxes[:, 2]
+                        bh = valid_boxes[:, 3]
+
+                        x1 = (cx - bw / 2.0) * scale_x
+                        y1 = (cy - bh / 2.0) * scale_y
+                        bw_s = bw * scale_x
+                        bh_s = bh * scale_y
+
+                        nms_boxes = [[int(x1[i]), int(y1[i]), int(bw_s[i]), int(bh_s[i])] for i in range(len(valid_scores))]
+                        nms_scores = [float(s) for s in valid_scores]
+                        indices = cv2.dnn.NMSBoxes(nms_boxes, nms_scores, threshold, iou_threshold)
+
+                        if len(indices) > 0:
+                            flat_indices = indices.flatten() if hasattr(indices, "flatten") else indices
+                            for idx in flat_indices:
+                                cls_id = int(valid_classes[idx])
+                                cls_name = labels[cls_id] if cls_id < len(labels) else f"class_{cls_id}"
+                                if configured_classes and cls_name.casefold() not in configured_classes:
+                                    continue
+                                detections.append({
+                                    "class": str(cls_name),
+                                    "score": float(valid_scores[idx]),
+                                    "bbox": [float(x1[idx]), float(y1[idx]), float(bw_s[idx]), float(bh_s[idx])],
+                                    "sourceNodeId": node_id,
+                                    "kind": "detection",
+                                })
                 return detections
 
             # If classification: 1D array of probabilities

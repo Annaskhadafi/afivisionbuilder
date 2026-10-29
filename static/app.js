@@ -10627,6 +10627,35 @@
 
     body.append(desc);
 
+    // Auto-inspect custom model to populate classes if missing
+    if (['detector', 'segmenter', 'classifier'].includes(n.type)) {
+      const mPath = n.config?.modelPath || n.config?.customModelPath;
+      if (mPath && (!n.config.customClasses || !state._modelClassesCache?.[mPath]) && !n._isInspectingModel) {
+        n._isInspectingModel = true;
+        api(`/api/models/inspect?path=${encodeURIComponent(mPath)}`).then(data => {
+          n._isInspectingModel = false;
+          if (data && Array.isArray(data.classes) && data.classes.length > 0) {
+            if (!state._modelClassesCache) state._modelClassesCache = {};
+            state._modelClassesCache[data.path] = data.classes;
+            state._modelClassesCache[mPath] = data.classes;
+            if (data.name) state._modelClassesCache[data.name] = data.classes;
+            const base = String(mPath).split(/[\\/]/).pop();
+            if (base) state._modelClassesCache[base] = data.classes;
+            
+            if (!n.config.customClasses || n.config.customClasses.trim() === '') {
+              n.config.customClasses = data.classes.join(', ');
+              markDirty();
+            }
+            if (state.selected === n.id) {
+              renderInspector();
+            }
+          }
+        }).catch(() => {
+          n._isInspectingModel = false;
+        });
+      }
+    }
+
 
 
     const guideBtn = document.createElement('button');
@@ -12317,11 +12346,15 @@
         }
       });
       const mPath = cfg.modelPath || cfg.customModelPath;
-      if (mPath && state._modelClassesCache?.[mPath]) {
-        state._modelClassesCache[mPath].forEach(c => {
-          const clean = String(c).trim().toLowerCase();
-          if (clean) customClassSet.add(clean);
-        });
+      if (mPath && state._modelClassesCache) {
+        const base = String(mPath).split(/[\\/]/).pop();
+        const cached = state._modelClassesCache[mPath] || (base ? state._modelClassesCache[base] : null);
+        if (Array.isArray(cached)) {
+          cached.forEach(c => {
+            const clean = String(c).trim().toLowerCase();
+            if (clean) customClassSet.add(clean);
+          });
+        }
       }
     }
 
@@ -24204,7 +24237,7 @@
 
       }
 
-    }, 125); // ~8 FPS silky smooth
+    }, 25); // ~30-40 FPS silky smooth preview refresh rate
 
   }
 
@@ -24248,7 +24281,7 @@
 
     // Prevent overlapping network requests if one is still in-flight
 
-    if (_previewLoading && (now - _lastPreviewFetch < 2000)) {
+    if (_previewLoading && (now - _lastPreviewFetch < 1000)) {
 
       return;
 
@@ -24286,7 +24319,7 @@
 
 
 
-      if (modalImg && $('#previewModal')?.open) {
+      if (modalImg && $('#previewModal')?.open && !modalImg.src.includes('/stream')) {
 
         modalImg.src = preloader.src;
 

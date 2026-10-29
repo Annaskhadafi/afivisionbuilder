@@ -530,9 +530,11 @@ def _frame(node_id: str, frame: Any, *_: Any) -> None:
 
     quality_720 = PREVIEW_JPEG_QUALITY_DEFAULT
 
+    encode_params_720 = [int(cv2.IMWRITE_JPEG_QUALITY), quality_720]
+    if hasattr(cv2, "IMWRITE_JPEG_OPTIMIZE"):
+        encode_params_720.extend([int(cv2.IMWRITE_JPEG_OPTIMIZE), 0])
 
-
-    ok_720, encoded_720 = cv2.imencode(".jpg", frame_720, [int(cv2.IMWRITE_JPEG_QUALITY), quality_720])
+    ok_720, encoded_720 = cv2.imencode(".jpg", frame_720, encode_params_720)
 
 
 
@@ -548,27 +550,25 @@ def _frame(node_id: str, frame: Any, *_: Any) -> None:
 
 
 
-    frame_480 = frame
+    if max(h, w) <= max_dim_480:
 
+        ok_480, encoded_480 = ok_720, encoded_720
 
+    else:
 
-    if max(h, w) > max_dim_480:
-
-
+        frame_480 = frame
 
         scale_480 = max_dim_480 / max(h, w)
 
-
-
         frame_480 = cv2.resize(frame, (int(w * scale_480), int(h * scale_480)), interpolation=cv2.INTER_AREA)
 
+        quality_480 = max(65, PREVIEW_JPEG_QUALITY_DEFAULT - 5)
 
+        encode_params_480 = [int(cv2.IMWRITE_JPEG_QUALITY), quality_480]
+        if hasattr(cv2, "IMWRITE_JPEG_OPTIMIZE"):
+            encode_params_480.extend([int(cv2.IMWRITE_JPEG_OPTIMIZE), 0])
 
-    quality_480 = max(65, PREVIEW_JPEG_QUALITY_DEFAULT - 5)
-
-
-
-    ok_480, encoded_480 = cv2.imencode(".jpg", frame_480, [int(cv2.IMWRITE_JPEG_QUALITY), quality_480])
+        ok_480, encoded_480 = cv2.imencode(".jpg", frame_480, encode_params_480)
 
 
 
@@ -8137,7 +8137,7 @@ def preview_stream(node_id: str, res: str = "720p"):
 
 
 
-                        time.sleep(0.03)
+                        time.sleep(0.01)
 
 
 
@@ -8189,7 +8189,7 @@ def preview_stream(node_id: str, res: str = "720p"):
 
 
 
-                time.sleep(0.04)
+                time.sleep(0.015)
 
 
 
@@ -8985,11 +8985,11 @@ def list_uploads() -> dict:
 
 
 
-_cached_cameras = None
+_cached_cameras = [{"index": 0, "label": "Camera 0"}]
 
 
 
-_cached_cameras_time = 0.0
+_cached_cameras_time = time.time()
 
 
 
