@@ -73,11 +73,11 @@ def measure_distance_between_objects(
     for i, a in enumerate(instances_a):
         bbox_a = a["bbox"]
         pt_a = calculate_bottom_center(bbox_a) if anchor_mode == "bottom_center" else calculate_centroid(bbox_a)
-        id_a = a.get("track_id", a.get("id", f"a_{i}"))
+        id_a = a.get("trackId", a.get("track_id", a.get("id", f"a_{i}")))
 
         b_list = instances_b[i + 1:] if same_class else instances_b
         for j, b in enumerate(b_list):
-            id_b = b.get("track_id", b.get("id", f"b_{j}"))
+            id_b = b.get("trackId", b.get("track_id", b.get("id", f"b_{j}")))
             if id_a == id_b:
                 continue
 

@@ -40,6 +40,13 @@ Gunakan slider **Ukuran layar** di panel Live Preview untuk memperbesar atau mem
 
 ## ✨ Fitur Unggulan Terbaru
 
+### 🛡️ Computer Vision Engine Audit & Pipeline Stabilization
+- **Penyempurnaan Pemrosesan OpenCV (CLAHE & Color Space)**: Perbaikan rekombinasi kanal LAB dan konversi kembali ke BGR pada CLAHE adaptif low-light, serta eksekusi konversi warna penuh untuk mode HSV, LAB, dan YCrCb.
+- **Standardisasi Track ID Spasial (`trackId`)**: Penyelarasan identitas objek pada seluruh node analisis spasial (`spatial_measurement.py`) dengan engine pelacak Roboflow & supervision.
+- **Anti-Jitter Line Counter Cooldown**: Perbaikan mekanisme hysteresis dan rearm cooldown garis hitung (`line_counter`) pada pergerakan frame awal.
+- **Proteksi Modular Runtime & Export**: Isolasi impor modul opsional pada rendering overlay sehingga workflow mandiri dapat diekspor dan dijalankan pada edge device tanpa dependensi modul yang tidak digunakan.
+
+
 ### 🍽️ 1. Restaurant Table Occupancy & Dining Dwell Time Tracker
 - **Pemantauan Meja Restoran dan Kafe Real-Time**: Mendeteksi otomatis status keterisian meja (`VACANT` ➔ `CONFIRMING` ➔ `OCCUPIED` ➔ `PENDING_VACANT`).
 - **Indikator Durasi Terpusat (Centroid Timer)**: Durasi duduk tamu (`1s`, `4m 12s`) diletakkan tepat di titik tengah meja dengan kartu transparan bersih, sehingga tidak menghalangi tampilan makanan atau aktivitas tamu.

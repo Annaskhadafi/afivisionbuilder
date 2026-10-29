@@ -1588,7 +1588,7 @@ def _process_line_counters(
                         last_event_time = line_state["last_event_time"].get(tid, 0.0)
 
                         # Enforce rearm_cooldown even if direction toggles, eliminating rapid rocking double counts
-                        if (now - last_event_time >= rearm_cooldown):
+                        if (last_event_time == 0.0 or now - last_event_time >= rearm_cooldown):
                             line_state["last_event"][tid] = direction
                             line_state["last_event_time"][tid] = now
                             line_state["last_crossing_timestamp"] = now
@@ -3886,13 +3886,10 @@ class WorkflowRunner:
                             )
                         elif eng in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                             try:
-                                from .custom_model_runtime import run_custom_model_frame
+                                from .custom_model_runtime import run_custom_model_batch
                             except ImportError:
-                                from custom_model_runtime import run_custom_model_frame
-                            node_results = [
-                                run_custom_model_frame(inference_frames[position], runtime_inference_node)
-                                for position, index in enumerate(eligible_indices)
-                            ]
+                                from custom_model_runtime import run_custom_model_batch
+                            node_results = run_custom_model_batch(inference_frames, runtime_inference_node)
                         else:
                             raise RuntimeError(
                                 f"Backend runtime does not support inference engine '{eng}'."
@@ -4512,9 +4509,13 @@ class WorkflowRunner:
                                     if "speed_formatted" in det and det.get("showVelocityOverlay", True):
                                         from video_kinematics import draw_single_velocity_badge
                                         draw_single_velocity_badge(display_frame, det)
-                                from uniface_runtime import draw_face_landmarks_overlay, draw_face_analyzer_overlay
-                                draw_face_landmarks_overlay(display_frame, preview_detections)
-                                draw_face_analyzer_overlay(display_frame, preview_detections)
+                                try:
+                                    if any("landmarks" in d or "face_id" in d or "gender" in d for d in preview_detections):
+                                        from uniface_runtime import draw_face_landmarks_overlay, draw_face_analyzer_overlay
+                                        draw_face_landmarks_overlay(display_frame, preview_detections)
+                                        draw_face_analyzer_overlay(display_frame, preview_detections)
+                                except (ImportError, ModuleNotFoundError):
+                                    pass
                             if not hold_crop_grid:
                                 display_frame = engine.apply_drawing_nodes(
                                     display_frame, workflow, preview_id, drawing_detections,
@@ -5653,9 +5654,13 @@ class WorkflowRunner:
                                 if "plateNumber" in det and det.get("plateNumber"):
                                     from lpr_license_plate import draw_license_plate_badges
                                     draw_license_plate_badges(display_frame, [det])
-                            from uniface_runtime import draw_face_landmarks_overlay, draw_face_analyzer_overlay
-                            draw_face_landmarks_overlay(display_frame, preview_detections)
-                            draw_face_analyzer_overlay(display_frame, preview_detections)
+                            try:
+                                if any("landmarks" in d or "face_id" in d or "gender" in d for d in preview_detections):
+                                    from uniface_runtime import draw_face_landmarks_overlay, draw_face_analyzer_overlay
+                                    draw_face_landmarks_overlay(display_frame, preview_detections)
+                                    draw_face_analyzer_overlay(display_frame, preview_detections)
+                            except (ImportError, ModuleNotFoundError):
+                                pass
                         if not hold_crop_grid:
                             display_frame = engine.apply_drawing_nodes(
                                 display_frame, workflow, preview_id, drawing_detections,

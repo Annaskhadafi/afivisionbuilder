@@ -12810,28 +12810,19 @@ async def dashboard_analyze(request: Request) -> dict:
 
 
         target_path = _uploads / clean_name
-
-
-
         if not target_path.exists():
-
-
-
             alt1 = Path("public/uploads") / clean_name
-
-
-
             alt2 = Path("static/uploads") / clean_name
-        alt3 = Path("static") / clean_name
-        direct_p = Path(urlsplit(file_url).path.lstrip("/\\"))
-        if direct_p.exists():
-            target_path = direct_p
-        elif alt3.exists():
-            target_path = alt3
-        elif alt1.exists():
-            target_path = alt1
-        elif alt2.exists():
-            target_path = alt2
+            alt3 = Path("static") / clean_name
+            direct_p = Path(urlsplit(file_url).path.lstrip("/\\"))
+            if direct_p.exists():
+                target_path = direct_p
+            elif alt3.exists():
+                target_path = alt3
+            elif alt1.exists():
+                target_path = alt1
+            elif alt2.exists():
+                target_path = alt2
         if target_path.exists():
 
 

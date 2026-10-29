@@ -562,97 +562,12 @@ class CustomModelRunner:
                 return []
             res = results[0]
 
-            detections = []
             custom_names = [c.strip() for c in str(config.get("customClasses") or "").split(",") if c.strip()]
-            # Check for Bounding Boxes (Object Detection)
-            if hasattr(res, "boxes") and res.boxes is not None and len(res.boxes) > 0:
-                boxes = res.boxes.xyxy.cpu().numpy()
-                confs = res.boxes.conf.cpu().numpy()
-                classes = res.boxes.cls.cpu().numpy()
-
-                masks_data = res.masks.data.cpu().numpy() if (hasattr(res, "masks") and res.masks is not None) else None
-                configured_classes = [c.strip().casefold() for c in str(config.get("classes") or config.get("customClasses") or "").split(",") if c.strip()]
-
-                for i, box in enumerate(boxes):
-                    score = float(confs[i])
-                    if score < threshold:
-                        continue
-                    cls_idx = int(classes[i])
-                    if hasattr(model, "names") and isinstance(model.names, dict) and cls_idx in model.names:
-                        cls_name = model.names[cls_idx]
-                    elif labels and cls_idx < len(labels):
-                        cls_name = labels[cls_idx]
-                    elif custom_names and cls_idx < len(custom_names):
-                        cls_name = custom_names[cls_idx]
-                    else:
-                        cls_name = f"class_{cls_idx}"
-                    if configured_classes and str(cls_name).casefold() not in configured_classes:
-                        continue
-                    x1, y1, x2, y2 = [float(v) for v in box]
-
-                    item: dict[str, Any] = {
-                        "class": str(cls_name),
-                        "score": score,
-                        "bbox": [x1, y1, x2 - x1, y2 - y1],
-                        "sourceNodeId": node_id,
-                        "kind": "segmentation" if node_type == "segmenter" else "detection",
-                    }
-                    if masks_data is not None and i < len(masks_data):
-                        import cv2
-                        import numpy as np
-                        mask = (masks_data[i] > 0.5).astype(np.uint8) * 255
-                        mask_resized = cv2.resize(mask, (frame.shape[1], frame.shape[0]))
-                        contours, _ = cv2.findContours(mask_resized, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                        if contours:
-                            c_poly = max(contours, key=cv2.contourArea).reshape(-1, 2)
-                            if len(c_poly) >= 3:
-                                item["mask"] = [[float(p[0]), float(p[1])] for p in c_poly]
-
-                    # Extract 17 Keypoints (Human Pose Estimation)
-                    kpts_data = res.keypoints.data.cpu().numpy() if (hasattr(res, "keypoints") and res.keypoints is not None and hasattr(res.keypoints, "data")) else None
-                    if kpts_data is not None and i < len(kpts_data):
-                        person_kpts = kpts_data[i].tolist()
-                        item["keypoints"] = person_kpts
-                        try:
-                            from .pose_engine import COCO_KEYPOINT_NAMES, classify_human_posture, draw_human_skeleton
-                        except Exception:
-                            from pose_engine import COCO_KEYPOINT_NAMES, classify_human_posture, draw_human_skeleton
-
-                        item["keypoints_dict"] = {
-                            COCO_KEYPOINT_NAMES[idx]: person_kpts[idx]
-                            for idx in range(min(len(COCO_KEYPOINT_NAMES), len(person_kpts)))
-                        }
-                        pkey, plabel, pconf = classify_human_posture(person_kpts)
-                        item["posture"] = pkey
-                        item["posture_label"] = plabel
-                        item["posture_confidence"] = pconf
-
-                        # Render colorful skeleton bones and glowing joint dots onto frame
-                        if (node_type == "pose_detector" or config.get("showSkeleton", True)) and config.get("showSkeleton", True) is not False:
-                            draw_human_skeleton(frame, person_kpts, config, plabel if config.get("showPostureBadge", True) else "")
-
-                    detections.append(item)
-                return detections
-
-            # Check for Classification probabilities
-            if hasattr(res, "probs") and res.probs is not None:
-                probs = res.probs.data.cpu().numpy()
-                top_k = int(config.get("topK", 1))
-                top_indices = probs.argsort()[-top_k:][::-1]
-                for idx in top_indices:
-                    score = float(probs[idx])
-                    if score >= threshold:
-                        cls_name = custom_names[idx] if idx < len(custom_names) else model.names.get(idx, labels[idx] if idx < len(labels) else f"class_{idx}")
-                        detections.append({
-                            "class": str(cls_name),
-                            "classId": int(idx),
-                            "score": score,
-                            "sourceNodeId": node_id,
-                            "kind": "classification",
-                        })
-                return detections
-
-            return []
+            configured_classes = [c.strip().casefold() for c in str(config.get("classes") or config.get("customClasses") or "").split(",") if c.strip()]
+            return cls._parse_ultralytics_result(
+                res, frame, model, node_id, node_type, threshold,
+                labels, custom_names, configured_classes, config
+            )
 
         # 2. Custom ONNX Runtime (.onnx)
         if engine_type == "onnx_custom":
@@ -922,6 +837,195 @@ class CustomModelRunner:
             return detections
 
         raise ValueError(f"Unknown engine: {engine_type}")
+
+    @classmethod
+    def _parse_ultralytics_result(
+        cls,
+        res: Any,
+        frame: Any,
+        model: Any,
+        node_id: str,
+        node_type: str,
+        threshold: float,
+        labels: list[str],
+        custom_names: list[str],
+        configured_classes: list[str],
+        config: dict,
+    ) -> list[dict]:
+        detections = []
+        if hasattr(res, "boxes") and res.boxes is not None and len(res.boxes) > 0:
+            boxes = res.boxes.xyxy.cpu().numpy()
+            confs = res.boxes.conf.cpu().numpy()
+            classes = res.boxes.cls.cpu().numpy()
+
+            masks_data = res.masks.data.cpu().numpy() if (hasattr(res, "masks") and res.masks is not None) else None
+
+            for i, box in enumerate(boxes):
+                score = float(confs[i])
+                if score < threshold:
+                    continue
+                cls_idx = int(classes[i])
+                if hasattr(model, "names") and isinstance(model.names, dict) and cls_idx in model.names:
+                    cls_name = model.names[cls_idx]
+                elif labels and cls_idx < len(labels):
+                    cls_name = labels[cls_idx]
+                elif custom_names and cls_idx < len(custom_names):
+                    cls_name = custom_names[cls_idx]
+                else:
+                    cls_name = f"class_{cls_idx}"
+                if configured_classes and str(cls_name).casefold() not in configured_classes:
+                    continue
+                x1, y1, x2, y2 = [float(v) for v in box]
+
+                item: dict[str, Any] = {
+                    "class": str(cls_name),
+                    "score": score,
+                    "bbox": [x1, y1, x2 - x1, y2 - y1],
+                    "sourceNodeId": node_id,
+                    "kind": "segmentation" if node_type == "segmenter" else "detection",
+                }
+                if masks_data is not None and i < len(masks_data):
+                    import cv2
+                    import numpy as np
+                    mask = (masks_data[i] > 0.5).astype(np.uint8) * 255
+                    mask_resized = cv2.resize(mask, (frame.shape[1], frame.shape[0]))
+                    contours, _ = cv2.findContours(mask_resized, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    if contours:
+                        c_poly = max(contours, key=cv2.contourArea).reshape(-1, 2)
+                        if len(c_poly) >= 3:
+                            item["mask"] = [[float(p[0]), float(p[1])] for p in c_poly]
+
+                # Extract 17 Keypoints (Human Pose Estimation)
+                kpts_data = res.keypoints.data.cpu().numpy() if (hasattr(res, "keypoints") and res.keypoints is not None and hasattr(res.keypoints, "data")) else None
+                if kpts_data is not None and i < len(kpts_data):
+                    person_kpts = kpts_data[i].tolist()
+                    item["keypoints"] = person_kpts
+                    try:
+                        from .pose_engine import COCO_KEYPOINT_NAMES, classify_human_posture, draw_human_skeleton
+                    except Exception:
+                        from pose_engine import COCO_KEYPOINT_NAMES, classify_human_posture, draw_human_skeleton
+
+                    item["keypoints_dict"] = {
+                        COCO_KEYPOINT_NAMES[idx]: person_kpts[idx]
+                        for idx in range(min(len(COCO_KEYPOINT_NAMES), len(person_kpts)))
+                    }
+                    pkey, plabel, pconf = classify_human_posture(person_kpts)
+                    item["posture"] = pkey
+                    item["posture_label"] = plabel
+                    item["posture_confidence"] = pconf
+
+                    if (node_type == "pose_detector" or config.get("showSkeleton", True)) and config.get("showSkeleton", True) is not False:
+                        draw_human_skeleton(frame, person_kpts, config, plabel if config.get("showPostureBadge", True) else "")
+
+                detections.append(item)
+            return detections
+
+        if hasattr(res, "probs") and res.probs is not None:
+            probs = res.probs.data.cpu().numpy()
+            top_k = int(config.get("topK", 1))
+            top_indices = probs.argsort()[-top_k:][::-1]
+            for idx in top_indices:
+                score = float(probs[idx])
+                if score >= threshold:
+                    cls_name = custom_names[idx] if idx < len(custom_names) else model.names.get(idx, labels[idx] if idx < len(labels) else f"class_{idx}")
+                    detections.append({
+                        "class": str(cls_name),
+                        "classId": int(idx),
+                        "score": score,
+                        "sourceNodeId": node_id,
+                        "kind": "classification",
+                    })
+            return detections
+        return detections
+
+    @classmethod
+    def run_batch(cls, frames: list, inference_node: dict) -> list[list[dict]]:
+        """Batched tensor inference runner for YOLO models with automatic multi-frame vectorization."""
+        if not frames:
+            return []
+        if len(frames) == 1:
+            return [cls.run_frame(frames[0], inference_node)]
+
+        config = inference_node.get("config", {})
+        node_id = inference_node.get("id", "detector")
+        node_type = inference_node.get("type", "detector")
+        engine_type = config.get("engine", "custom_auto")
+
+        # Fallback to per-frame for engines without native PyTorch list batching
+        if engine_type in ("roboflow_universe", "tflite", "tensorflow_keras"):
+            return [cls.run_frame(f, inference_node) for f in frames]
+
+        raw_path = custom_model_path(config)
+        if not raw_path and node_type == "pose_detector":
+            raw_path = "yolov8n-pose.pt"
+        if not raw_path:
+            raw_path = "yolov8n.pt"
+
+        model_path_obj = resolve_model_file(raw_path)
+        if engine_type in ("custom_auto", "auto") and model_path_obj.is_file():
+            engine_type = detect_model_engine(str(model_path_obj))
+
+        if engine_type in ("ultralytics_yolo", "yolo_world"):
+            try:
+                try:
+                    from .main import resolve_inference_device
+                except Exception:
+                    try:
+                        from main import resolve_inference_device
+                    except Exception:
+                        def resolve_inference_device(c):
+                            return "cpu", "CPU"
+                device, _ = resolve_inference_device(config)
+
+                if engine_type == "yolo_world":
+                    model = cls.get_or_load("yolo_world", raw_path or "yolov8s-worldv2.pt", device=device)
+                    custom_classes_str = str(config.get("customClasses") or config.get("classes") or "").strip()
+                    desired_classes = [c.strip() for c in custom_classes_str.split(",") if c.strip()] if custom_classes_str else ["person", "vehicle", "object"]
+                    if getattr(model, "_current_yolo_world_classes", None) != desired_classes:
+                        try:
+                            model.set_classes(desired_classes)
+                            model._current_yolo_world_classes = desired_classes
+                        except Exception:
+                            pass
+                else:
+                    model = cls.get_or_load(engine_type, str(model_path_obj), device=device)
+                    configure_nms_free(model, nms_free=config.get("nmsFree"), model_path=str(model_path_obj))
+
+                threshold = float(config.get("threshold", 0.5 if engine_type == "ultralytics_yolo" else 0.35))
+                iou_threshold = float(config.get("iouThreshold", config.get("nmsThreshold", 0.7)) or 0.7)
+                imgsz_val = int(config.get("imageSize", config.get("imgsz", 0)) or 0)
+                predict_kwargs = {
+                    "conf": threshold,
+                    "iou": iou_threshold,
+                    "device": device,
+                    "verbose": False,
+                }
+                if imgsz_val > 0:
+                    predict_kwargs["imgsz"] = imgsz_val
+
+                results = model.predict(frames, **predict_kwargs)
+                labels = _resolve_labels(config, str(model_path_obj))
+                custom_names = [c.strip() for c in str(config.get("customClasses") or "").split(",") if c.strip()]
+                configured_classes = [c.strip().casefold() for c in str(config.get("classes") or config.get("customClasses") or "").split(",") if c.strip()]
+
+                batch_dets = []
+                for idx, res in enumerate(results):
+                    frame_det = cls._parse_ultralytics_result(
+                        res, frames[idx], model, node_id, node_type, threshold,
+                        labels, custom_names, configured_classes, config
+                    )
+                    batch_dets.append(frame_det)
+                return batch_dets
+            except Exception as exc:
+                logger.warning("Batch inference error (%s); falling back to sequential execution.", exc)
+                return [cls.run_frame(f, inference_node) for f in frames]
+
+        return [cls.run_frame(f, inference_node) for f in frames]
+
+
+def run_custom_model_batch(frames: list, inference_node: dict) -> list[list[dict]]:
+    """Top-level helper for batched tensor inference on custom AI models."""
+    return CustomModelRunner.run_batch(frames, inference_node)
 
 
 def run_custom_model_frame(frame, inference_node: dict) -> list[dict]:

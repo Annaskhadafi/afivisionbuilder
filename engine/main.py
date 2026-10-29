@@ -1650,7 +1650,9 @@ def apply_image_processing(
             else:
                 conversions = {"hsv": cv2.COLOR_BGR2HSV, "lab": cv2.COLOR_BGR2LAB, "ycrcb": cv2.COLOR_BGR2YCrCb}
                 conversion = conversions.get(mode)
-                if conversion is None:
+                if conversion is not None:
+                    frame = cv2.cvtColor(frame, conversion)
+                else:
                     frame = cv2.cvtColor(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), cv2.COLOR_GRAY2BGR)
         elif node_type == "brightness_contrast":
             alpha = float(config.get("contrast", 1.0) or 1.0)
@@ -1677,6 +1679,8 @@ def apply_image_processing(
                         lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
                         l_chan, a_chan, b_chan = cv2.split(lab)
                         cl = clahe.apply(l_chan)
+                        merged_lab = cv2.merge((cl, a_chan, b_chan))
+                        frame = cv2.cvtColor(merged_lab, cv2.COLOR_LAB2BGR)
         elif node_type == "blur_sharpen":
             kernel = max(1, int(config.get("kernel", 5) or 5)) | 1
             op = str(config.get("operation", "blur")).strip().lower()
