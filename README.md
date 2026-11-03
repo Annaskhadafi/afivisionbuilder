@@ -351,6 +351,15 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 - **TrackTrack (CVPR — Harmonic Mean IoU + Track-Aware Initialization)**: Algoritma bawaan baru Ultralytics dengan akurasi asosiasi tinggi dan latensi postprocess super cepat (~3.78 ms pada CPU).
 - **FastTracker (Anti-Oklusi Kalman Rollback)**: Mengimplementasikan ring-buffer Kalman rollback yang memutar balik vektor kecepatan saat terjadi oklusi parah tanpa membebani GPU dengan model ReID berat.
 
+### 📐 52. Homography Ground Projector & Bird's Eye View (BEV) Pipeline (`homography_projector` & `bev_visualizer`)
+- **Transformasi Proyeksi Perspektif Ground Plane (Homography)**: Memproyeksikan deteksi kamera bersudut miring (*oblique perspective*) ke bidang 2D tampak atas (*Bird's Eye View* / BEV) menggunakan matriks homography $3 \times 3$ (`cv2.getPerspectiveTransform`).
+- **Interactive 4-Point Ground Calibration Drawer**: Dilengkapi alat gambar interaktif pada preview studio untuk menarik dan mengatur 4 titik sudut tanah (1: Top-Left, 2: Top-Right, 3: Bottom-Right, 4: Bottom-Left) secara visual dengan validasi kuadrilateral cembung (*convex check*).
+- **Ground Contact Feet Mapping & Heading Estimation**: Menghitung titik kontak permukaan tanah pada kaki/bawah bounding box (`cx, y2`), memfilter objek di luar poligon tanah, serta menghitung estimasi sudut orientasi pergerakan objek (`arctan2(dy, dx)`) dengan dead-zone dan smoothing eksponensial.
+- **Top-Down BEV Map Canvas & Rotated 2D Footprint**: Menghasilkan visualisasi tampak atas dengan simbol kotak 2D berotasi sesuai dimensi fisik kelas (`car`, `truck`, `bus`, `person`, `motorcycle`), jejak lintasan masa lalu (*motion trail polylines*), dan label badge identitas.
+- **Dukungan Multi-Background & Layout Fleksibel**: Mendukung latar belakang jalanan aspal gelap (*Dark Road*), *Blueprint Grid*, *Pastel*, *Warped Video Frame* (median temporal), atau *Upload Custom Floor Plan/Denah Lantai*, dengan format tata letak *Side-by-Side Dashboard Split*, *BEV Only*, maupun *Camera Mini-Map Overlay*.
+- **Estimasi Kecepatan Metrik Fisik**: Memungkinkan input skala dimensi nyata (lebar & panjang area dalam meter) untuk mengkalkulasi kecepatan gerak objek nyata secara langsung dalam km/jam atau m/s.
+
+
 ---
 
 

@@ -8010,68 +8010,27 @@ def interactive_zoom_crop(node_id: str) -> Response:
 
 
 @app.get("/api/preview/{node_id}")
-
-
-
-def preview(node_id: str, res: str = "720p") -> Response:
-
-
-
+async def preview(node_id: str, res: str = "720p") -> Response:
     with _lock:
-
-
-
         bucket = _previews_480p if res == "480p" else _previews
-
-
-
         data = bucket.get(node_id) or _previews.get(node_id)
-
-
-
+        if data is None and (node_id == "auto_preview" or not node_id or node_id not in _previews):
+            data = next(iter(bucket.values()), None) or next(iter(_previews.values()), None)
         running = _runner.is_running() if _runner else False
 
-
-
     if data is None and running:
-
-
-
-        for _ in range(25):
-
-
-
-            time.sleep(0.1)
-
-
-
+        for _ in range(15):
+            await asyncio.sleep(0.04)
             with _lock:
-
-
-
                 bucket = _previews_480p if res == "480p" else _previews
-
-
-
                 data = bucket.get(node_id) or _previews.get(node_id)
-
-
-
+                if data is None and (node_id == "auto_preview" or not node_id or node_id not in _previews):
+                    data = next(iter(bucket.values()), None) or next(iter(_previews.values()), None)
             if data is not None:
-
-
-
                 break
 
-
-
     if data is None:
-
-
-
         raise HTTPException(404, "preview not found")
-
-
 
     return Response(data, media_type="image/jpeg", headers={"Cache-Control": "no-store, must-revalidate"})
 
@@ -8095,6 +8054,8 @@ async def preview_stream(node_id: str, res: str = "720p"):
                 with _lock:
                     bucket = _previews_480p if res == "480p" else _previews
                     frame_bytes = bucket.get(node_id) or _previews.get(node_id)
+                    if frame_bytes is None and (node_id == "auto_preview" or not node_id or node_id not in _previews):
+                        frame_bytes = next(iter(bucket.values()), None) or next(iter(_previews.values()), None)
                     running = _runner.is_running() if _runner else False
                 if frame_bytes is not None:
                     if frame_bytes is not last_frame_bytes:
@@ -8109,7 +8070,7 @@ async def preview_stream(node_id: str, res: str = "720p"):
                         break
                 elif not running and (time.time() - start_wait > 5.0):
                     break
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0.005)
         except (GeneratorExit, asyncio.CancelledError, ConnectionResetError, BrokenPipeError, Exception):
             pass
 

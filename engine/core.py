@@ -779,7 +779,8 @@ def _process_track_event_nodes(
             "notification_dispatcher", "ptz_controller", "screenshot_capture", "telegram_notification", "ocr_reader", "object_timer",
             "face_detector", "face_analyzer", "face_tracker", "face_crop", "hand_skeleton",
             "dominant_color", "class_replacement", "man_down_detector", "lpr_license_plate", "overstack_detector",
-            "dashboard_sink", "incident_video_recorder", "mqtt_publisher", "crowd_density_heatmap", "ppe_compliance_matrix", "switch_case"
+            "dashboard_sink", "incident_video_recorder", "mqtt_publisher", "crowd_density_heatmap", "ppe_compliance_matrix", "switch_case",
+            "homography_projector", "bev_visualizer", "badminton_analytics"
         ):
             continue
         project_id = str(project_node.get("id") or "")
@@ -962,6 +963,22 @@ def _process_track_event_nodes(
             if hand_dets and any(cfg.get(key, True) is not False for key in ("showSkeleton", "showJoints", "showGestureBadge")):
                 draw_hand_skeleton(frame, hand_dets, cfg)
             detections.extend(hand_dets)
+        elif p_type == "badminton_analytics":
+            try:
+                from badminton_engine import BadmintonAnalyticsEngine, draw_badminton_overlay
+            except ImportError:
+                from .badminton_engine import BadmintonAnalyticsEngine, draw_badminton_overlay
+            state = event_runtime.setdefault(project_id, {})
+            cfg = project_node.get("config", {})
+            b_engine = state.get("_badminton_engine")
+            if b_engine is None:
+                b_engine = BadmintonAnalyticsEngine(cfg)
+                state["_badminton_engine"] = b_engine
+            # Separate players and potential shuttle detections
+            person_cands = candidates or detections or tracked
+            b_summary = b_engine.update(frame, person_cands, now=now)
+            extra_results.append({"type": "BADMINTON_RALLY", **b_summary})
+            draw_badminton_overlay(frame, b_summary, b_engine, cfg)
         elif p_type == "dominant_color":
             from dominant_color import inspect_dominant_color
             state = event_runtime.setdefault(project_id, {})
@@ -1136,6 +1153,52 @@ def _process_track_event_nodes(
                 tracked[:] = augmented_dets
             if detections:
                 detections[:] = augmented_dets
+        elif p_type == "homography_projector":
+            from homography_bev import HomographyEngine
+            state = event_runtime.setdefault(project_id, {})
+            engine_inst = state.get("engine")
+            if engine_inst is None:
+                engine_inst = HomographyEngine(node_id=project_id)
+                state["engine"] = engine_inst
+            augmented_dets, homography_telemetry = engine_inst.process_frame(
+                frame, tracked or candidates or detections, project_node.get("config", {}), now
+            )
+            extra_results.append(homography_telemetry)
+            if candidates:
+                candidates[:] = augmented_dets
+            if tracked:
+                tracked[:] = augmented_dets
+            if detections:
+                detections[:] = augmented_dets
+            event_runtime["_last_homography_engine"] = engine_inst
+        elif p_type == "bev_visualizer":
+            from homography_bev import BEVRenderer
+            state = event_runtime.setdefault(project_id, {})
+            renderer = state.get("renderer")
+            if renderer is None:
+                renderer = BEVRenderer(node_id=project_id)
+                state["renderer"] = renderer
+            engine_inst = event_runtime.get("_last_homography_engine")
+            H = engine_inst.homography_matrix if engine_inst else None
+            corners = engine_inst.source_points if engine_inst else None
+            bev_canvas = renderer.render_bev_canvas(
+                frame, tracked or candidates or detections, project_node.get("config", {}), H, corners
+            )
+            layout = project_node.get("config", {}).get("layout", "side_by_side")
+            composed = renderer.compose_layout(frame, bev_canvas, layout, corners)
+            if composed is not None and composed.size > 0:
+                h_orig, w_orig = frame.shape[:2]
+                if composed.shape == frame.shape:
+                    frame[:] = composed
+                else:
+                    resized = cv2.resize(composed, (w_orig, h_orig), interpolation=cv2.INTER_LINEAR)
+                    frame[:] = resized
+            extra_results.append({
+                "node_id": project_id,
+                "type": "bev_visualizer_rendered",
+                "layout": layout,
+                "timestamp": now,
+            })
         else:
             extra_results.extend(process_project_node(project_node, frame, candidates, event_runtime, now))
         if telemetry_callback and project_id:
@@ -2049,6 +2112,21 @@ def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict)
                 draw_overstack_overlay(frame, event_runtime.get("_last_detections", []), node.get("config", {}))
             except Exception:
                 pass
+        elif node.get("type") == "homography_projector" and node.get("enabled", True):
+            try:
+                from homography_bev import parse_points
+                cfg = node.get("config", {})
+                if cfg.get("showGroundPolygon", True):
+                    pts_arr = parse_points(cfg.get("points"), frame.shape[:2])
+                    if pts_arr is not None:
+                        cv2.polylines(frame, [pts_arr.astype(np.int32)], True, (245, 245, 245), 2, cv2.LINE_AA)
+                        for idx, pt in enumerate(pts_arr):
+                            p_int = tuple(np.rint(pt).astype(int))
+                            cv2.circle(frame, p_int, 5, (0, 165, 255), -1, cv2.LINE_AA)
+                            cv2.putText(frame, str(idx + 1), (p_int[0] + 6, p_int[1] - 6),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+            except Exception:
+                pass
 
     import cv2
     import math
@@ -2725,7 +2803,7 @@ def _is_live_source(input_config: dict) -> bool:
     engine.normalize_camera_source), so they are covered by the camera branch.
     """
     source_type = str(input_config.get("sourceType", "camera") or "camera").lower()
-    return source_type in ("camera", "daheng", "youtube")
+    return source_type in ("camera", "daheng", "youtube") or bool(input_config.get("dropFrames", False))
 
 
 class LatestSlot:
@@ -3355,6 +3433,19 @@ class WorkflowRunner:
         processed_queue = StageQueue(frame_queue_size, drop_oldest=drop_frames)
         detection_queue = StageQueue(frame_queue_size, drop_oldest=drop_frames)
         tracking_queue = StageQueue(frame_queue_size, drop_oldest=drop_frames)
+        display_queue = StageQueue(frame_queue_size, drop_oldest=drop_frames)
+        latest_results_lock = Lock()
+        latest_results: dict[str, Any] = {
+            "detections": [],
+            "tracked": [],
+            "filtered": [],
+            "crop_batches": {},
+            "object_records": [],
+            "count_records": [],
+            "workflow": workflow,
+            "script_frames": None,
+            "timestamp": 0.0,
+        }
         presentation_buffer: PresentationBuffer | None = None
         stage_failure = StageFailure()
         stage_threads: list[Thread] = []
@@ -3396,6 +3487,7 @@ class WorkflowRunner:
                 processed_queue.close()
                 detection_queue.close()
                 tracking_queue.close()
+                display_queue.close()
 
         def start_stage(name: str, target) -> None:
             thread = Thread(target=lambda: fail_safe(name, target), name=f"visonode-{name}", daemon=True)
@@ -3742,6 +3834,16 @@ class WorkflowRunner:
                                 last_input=_frame_summary(packet.frame),
                                 last_output={"bypassed": True},
                             )
+                    if drop_frames:
+                        display_queue.put(FramePacket(
+                            frame_id=packet.frame_id,
+                            frame=frame,
+                            timestamp=packet.timestamp,
+                            duration_ms=(time.monotonic() - started_at) * 1000,
+                            source_label=packet.source_label,
+                            workflow=packet_workflow,
+                            script_frames=packet.script_frames,
+                        ), self._stop_event)
                     if not processed_queue.put(FramePacket(
                         frame_id=packet.frame_id,
                         frame=frame,
@@ -3757,6 +3859,7 @@ class WorkflowRunner:
                         last_sampler_status_at = status_now
                         self._set_status(frameSamplers=frame_sampler_stats(sampler_runtime, status_now))
                 self._set_status(frameSamplers=frame_sampler_stats(sampler_runtime, time.monotonic()))
+                display_queue.close()
                 processed_queue.close()
 
             def detection_stage() -> None:
@@ -4310,6 +4413,16 @@ class WorkflowRunner:
                                 duration_ms=(time.monotonic() - filter_started_at) * 1000,
                                 sample={"filtered": _detection_sample(filtered)},
                             )
+                        if drop_frames:
+                            with latest_results_lock:
+                                latest_results["detections"] = list(detections)
+                                latest_results["tracked"] = list(tracked)
+                                latest_results["filtered"] = list(filtered)
+                                latest_results["crop_batches"] = dict(packet.crop_batches)
+                                latest_results["object_records"] = list(object_records)
+                                latest_results["count_records"] = list(count_records)
+                                latest_results["timestamp"] = packet.timestamp
+                                latest_results["workflow"] = workflow
                         if not tracking_queue.put(TrackingPacket(
                             frame_id=packet.frame_id,
                             frame=packet.frame,
@@ -4356,19 +4469,30 @@ class WorkflowRunner:
                         # queued frames count as dropped (also skipped in any
                         # saved video, which is inherently variable-rate live).
                         if drop_frames:
-                            packet = tracking_queue.get_latest(self._stop_event, timeout=0.1)
+                            packet = display_queue.get_latest(self._stop_event, timeout=0.1)
+                            if packet is None:
+                                break
+                            frame = packet.frame
+                            workflow = packet.workflow or base_workflow
+                            with latest_results_lock:
+                                frame_detections = list(latest_results.get("detections", []))
+                                frame_tracked = list(latest_results.get("tracked", []))
+                                frame_filtered = list(latest_results.get("filtered", []))
+                                frame_crop_batches = dict(latest_results.get("crop_batches", {}))
+                                frame_object_records = list(latest_results.get("object_records", []))
+                                frame_count_records = list(latest_results.get("count_records", []))
                         else:
                             packet = tracking_queue.get(self._stop_event, timeout=0.1)
-                        if packet is None:
-                            break
-                        frame = packet.frame
-                        workflow = packet.workflow or base_workflow
-                        frame_detections = packet.detections
-                        frame_tracked = packet.tracked
-                        frame_filtered = packet.filtered
-                        frame_crop_batches = packet.crop_batches
-                        frame_object_records = packet.object_records
-                        frame_count_records = packet.count_records
+                            if packet is None:
+                                break
+                            frame = packet.frame
+                            workflow = packet.workflow or base_workflow
+                            frame_detections = packet.detections
+                            frame_tracked = packet.tracked
+                            frame_filtered = packet.filtered
+                            frame_crop_batches = packet.crop_batches
+                            frame_object_records = packet.object_records
+                            frame_count_records = packet.count_records
                     else:
                         if drop_frames:
                             packet = processed_queue.get_latest(self._stop_event, timeout=0.1)
@@ -4856,6 +4980,7 @@ class WorkflowRunner:
                 "processed": processed_queue,
                 "detection": detection_queue,
                 "tracking": tracking_queue,
+                "display": display_queue,
             }
             if presentation_buffer is not None:
                 metric_queues["presentation"] = presentation_buffer
@@ -4935,6 +5060,7 @@ class WorkflowRunner:
             processed_queue.close()
             detection_queue.close()
             tracking_queue.close()
+            display_queue.close()
             if presentation_buffer is not None:
                 presentation_buffer.close()
             for thread in stage_threads:

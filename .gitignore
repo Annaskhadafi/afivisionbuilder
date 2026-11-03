@@ -70,3 +70,14 @@ skills-lock.json
 .pytest_cache_fresh/
 tests/
 weights/
+
+# Academic paper manuscripts & exports
+paper/
+scripts/generate_docx_paper.py
+scripts/generate_paper_charts.py
+scripts/generate_empirical_charts.py
+scripts/generate_dosen_docx_paper.py
+
+
+
+

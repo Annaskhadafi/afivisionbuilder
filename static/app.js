@@ -128,6 +128,8 @@
 
     man_down_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="6" cy="18" r="2"/><path d="m8 18 4-2 3 2 4-2"/><path d="M12 9V3"/><path d="m9 6 3-3 3 3"/></svg>',
 
+    badminton_analytics: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="m4 18 4-4"/><path d="m8 14 3 3"/><circle cx="15" cy="9" r="6"/><path d="m11 5 8 8"/><path d="m19 5-8 8"/><circle cx="5" cy="19" r="2"/></svg>',
+
     lpr_license_plate: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="5" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><path d="M8 10h8"/><path d="M8 14h5"/></svg>',
 
     overstack_detector: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M2 5h20"/><path d="m12 2 3 3-3 3"/><rect width="16" height="5" x="4" y="10" rx="1"/><rect width="18" height="5" x="3" y="16" rx="1"/></svg>',
@@ -139,6 +141,10 @@
     crowd_density_heatmap: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2c-4 4-6 7.5-6 10.5 0 3.3 2.7 6 6 6s6-2.7 6-6c0-3-2-6.5-6-10.5Z"/><path d="M12 8c-2 2-3 3.8-3 5.3 0 1.7 1.3 3 3 3s3-1.3 3-3c0-1.5-1-3.3-3-5.3Z"/></svg>',
 
     ppe_compliance_matrix: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v1h10V7a5 5 0 0 0-5-5Z"/><path d="M2 13h20"/><path d="M4 13v2a8 8 0 0 0 16 0v-2"/><path d="m9 17 2 2 4-4"/></svg>',
+
+    homography_projector: '<svg class="icon-svg" viewBox="0 0 24 24"><polygon points="3 18 9 6 21 6 15 18 3 18"/><circle cx="3" cy="18" r="1.5"/><circle cx="9" cy="6" r="1.5"/><circle cx="21" cy="6" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>',
+
+    bev_visualizer: '<svg class="icon-svg" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="12" cy="12" r="2.5"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="21"/><polygon points="8 10 12 6 16 10"/></svg>',
 
 
 
@@ -3498,6 +3504,13 @@
     detectPinch: 'Deteksi Gerakan Cubit (Air Pinch / Click)',
     pinchThreshold: 'Jarak Ambang Batas Cubit (Piksel)',
     showGestureBadge: 'Tampilkan Badge Nama Gestur & Jari',
+    matchMode: 'Mode Partai Tanding Bulu Tangkis',
+    showTopHud: 'Tampilkan HUD Telemetri Reli Atas',
+    showPlayerRings: 'Cincin Elips Kaki Pemain (Footprint Ring)',
+    showStatsCard: 'Kartu Statistik Jarak & Kalori Pemain',
+    showMinimap: 'Tampilkan Minimap 2D Peta Lapangan',
+    topHudOffsetY: 'Jarak Margin HUD Atas (Offset Y Px)',
+    playerWeightKg: 'Estimasi Berat Badan Pemain (kg)',
     hideUnknownGesture: 'Sembunyikan Label Gestur None',
     hysteresisDistance: 'Batas Toleransi Deadband (Anti-Jitter Px)',
     reArmCooldown: 'Jeda Waktu Re-Arm (Detik)',
@@ -10535,6 +10548,299 @@
 
 
 
+
+  function renderHomographyProjectorInspector(n, body) {
+    $('#inspectorTitle').innerHTML = `
+      <span style="display:inline-flex;align-items:center;gap:8px">
+        ${getIcon('homography_projector', 'icon-md')} ${n.title || 'Homography Ground Projector'}
+      </span>
+    `;
+
+    const desc = document.createElement('p');
+    desc.className = 'node-description';
+    desc.textContent = 'Proyeksikan deteksi kamera miring ke bidang datar tanah (BEV) memakai kalibrasi 4 titik interaktif.';
+    body.append(desc);
+
+    const isNodeEnabled = n.enabled !== false;
+    const activeRow = document.createElement('div');
+    activeRow.className = `inspector-active-row ${isNodeEnabled ? 'is-active' : 'is-bypassed'}`;
+    activeRow.innerHTML = `
+      <div class="active-row-label">
+        <strong style="color:${isNodeEnabled ? '#065f46' : '#b45309'}; font-weight:800; font-size:13.5px;">${isNodeEnabled ? '🟢 Node Aktif' : '🟠 Node Bypassed'}</strong>
+        <small style="color:${isNodeEnabled ? '#047857' : '#92400e'}; font-weight:600; font-size:11px;">${isNodeEnabled ? 'Aktif memproses data' : 'Bypass / Pass-Through (Data diteruskan)'}</small>
+      </div>
+      <label class="switch-toggle" style="cursor:pointer;">
+        <input type="checkbox" id="homographyEnabledToggle" ${isNodeEnabled ? 'checked' : ''}>
+        <span class="switch-slider"></span>
+      </label>
+    `;
+    activeRow.querySelector('#homographyEnabledToggle').onchange = (e) => {
+      n.enabled = e.target.checked;
+      markDirty();
+      renderCanvas();
+      renderInspector();
+    };
+    body.append(activeRow);
+
+    // Ground Plane Calibration Card
+    const calibCard = document.createElement('div');
+    calibCard.className = 'inspector-group-card';
+    calibCard.style.cssText = 'background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:12px;';
+
+    const parsePointsList = (val) => String(val || '0.2,0.6;0.8,0.6;0.95,0.95;0.05,0.95').split(';').map(p => {
+      const [x, y] = p.split(',').map(Number);
+      return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 };
+    });
+    const pts = parsePointsList(n.config?.points);
+
+    calibCard.innerHTML = `
+      <div style="font-weight:700; color:var(--text); font-size:13px; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+        <span>📐 Kalibrasi Ground Plane (Homography)</span>
+      </div>
+      <button type="button" class="button primary" id="openHomographyDrawerBtn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:12px;">
+        <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="3 18 9 6 21 6 15 18 3 18"/></svg>
+        <span>📐 Kalibrasi 4 Titik Ground Plane di Preview</span>
+      </button>
+      <div class="homography-calib-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px;">
+        <div class="homography-point-chip" style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-size:11px;">
+          <strong style="color:#0284c7;">1: TL (Kiri Atas)</strong>
+          <span style="font-family:monospace; color:var(--muted); font-size:10.5px;">(${pts[0]?.x.toFixed(2)}, ${pts[0]?.y.toFixed(2)})</span>
+        </div>
+        <div class="homography-point-chip" style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-size:11px;">
+          <strong style="color:#0284c7;">2: TR (Kanan Atas)</strong>
+          <span style="font-family:monospace; color:var(--muted); font-size:10.5px;">(${pts[1]?.x.toFixed(2)}, ${pts[1]?.y.toFixed(2)})</span>
+        </div>
+        <div class="homography-point-chip" style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-size:11px;">
+          <strong style="color:#ea580c;">3: BR (Kanan Bawah)</strong>
+          <span style="font-family:monospace; color:var(--muted); font-size:10.5px;">(${pts[2]?.x.toFixed(2)}, ${pts[2]?.y.toFixed(2)})</span>
+        </div>
+        <div class="homography-point-chip" style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-size:11px;">
+          <strong style="color:#ea580c;">4: BL (Kiri Bawah)</strong>
+          <span style="font-family:monospace; color:var(--muted); font-size:10.5px;">(${pts[3]?.x.toFixed(2)}, ${pts[3]?.y.toFixed(2)})</span>
+        </div>
+      </div>
+      <label class="checkbox" style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:6px; cursor:pointer;">
+        <input type="checkbox" id="showGroundPolygonChk" ${n.config?.showGroundPolygon !== false ? 'checked' : ''}>
+        <span>Tampilkan garis area tanah di video kamera</span>
+      </label>
+      <label class="checkbox" style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+        <input type="checkbox" id="filterOutsideGroundChk" ${n.config?.filterOutsideGround !== false ? 'checked' : ''}>
+        <span>Saring objek di luar area kalibrasi tanah</span>
+      </label>
+    `;
+    calibCard.querySelector('#openHomographyDrawerBtn').onclick = () => startHomographyCalibration(n);
+    calibCard.querySelector('#showGroundPolygonChk').onchange = (e) => {
+      n.config.showGroundPolygon = e.target.checked;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    calibCard.querySelector('#filterOutsideGroundChk').onchange = (e) => {
+      n.config.filterOutsideGround = e.target.checked;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    body.append(calibCard);
+
+    // Metric Scale & Dimensions Card
+    const metricCard = document.createElement('div');
+    metricCard.className = 'inspector-group-card';
+    metricCard.style.cssText = 'background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:12px;';
+    metricCard.innerHTML = `
+      <div style="font-weight:700; color:var(--text); font-size:13px; margin-bottom:8px;">Dimensi Fisik & Real-World (Opsional)</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+        <div>
+          <label style="font-size:11px; color:var(--muted); font-weight:600;">Lebar Area (m):</label>
+          <input type="number" id="realWidthMetersInp" class="input" step="0.5" min="0" value="${n.config?.realWidthMeters || 0}" style="width:100%; margin-top:2px;">
+        </div>
+        <div>
+          <label style="font-size:11px; color:var(--muted); font-weight:600;">Panjang Area (m):</label>
+          <input type="number" id="realLengthMetersInp" class="input" step="0.5" min="0" value="${n.config?.realLengthMeters || 0}" style="width:100%; margin-top:2px;">
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:11px; color:var(--muted); font-weight:600;">Panjang Jejak (Trail Frames):</label>
+        <input type="number" id="trailLengthInp" class="input" min="5" max="150" value="${n.config?.trailLength || 45}" style="width:100%; margin-top:2px;">
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div>
+          <label style="font-size:11px; color:var(--muted); font-weight:600;">BEV Width (px):</label>
+          <input type="number" id="bevWidthInp" class="input" step="10" min="160" value="${n.config?.bevWidth || 640}" style="width:100%; margin-top:2px;">
+        </div>
+        <div>
+          <label style="font-size:11px; color:var(--muted); font-weight:600;">BEV Height (px):</label>
+          <input type="number" id="bevHeightInp" class="input" step="10" min="160" value="${n.config?.bevHeight || 360}" style="width:100%; margin-top:2px;">
+        </div>
+      </div>
+    `;
+    metricCard.querySelector('#realWidthMetersInp').onchange = (e) => {
+      n.config.realWidthMeters = parseFloat(e.target.value) || 0;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    metricCard.querySelector('#realLengthMetersInp').onchange = (e) => {
+      n.config.realLengthMeters = parseFloat(e.target.value) || 0;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    metricCard.querySelector('#trailLengthInp').onchange = (e) => {
+      n.config.trailLength = parseInt(e.target.value, 10) || 45;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    metricCard.querySelector('#bevWidthInp').onchange = (e) => {
+      n.config.bevWidth = parseInt(e.target.value, 10) || 640;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    metricCard.querySelector('#bevHeightInp').onchange = (e) => {
+      n.config.bevHeight = parseInt(e.target.value, 10) || 360;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    body.append(metricCard);
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'danger-button';
+    delBtn.style.marginTop = '14px';
+    delBtn.textContent = 'Hapus Node Ini';
+    delBtn.onclick = deleteSelectedNode;
+    body.append(delBtn);
+  }
+
+  function renderBevVisualizerInspector(n, body) {
+    $('#inspectorTitle').innerHTML = `
+      <span style="display:inline-flex;align-items:center;gap:8px">
+        ${getIcon('bev_visualizer', 'icon-md')} ${n.title || 'BEV Map Visualizer'}
+      </span>
+    `;
+
+    const desc = document.createElement('p');
+    desc.className = 'node-description';
+    desc.textContent = "Visualisasikan perspektif Bird's Eye View (footprint 2D berotasi, jejak trail, peta denah/jalan).";
+    body.append(desc);
+
+    const isNodeEnabled = n.enabled !== false;
+    const activeRow = document.createElement('div');
+    activeRow.className = `inspector-active-row ${isNodeEnabled ? 'is-active' : 'is-bypassed'}`;
+    activeRow.innerHTML = `
+      <div class="active-row-label">
+        <strong style="color:${isNodeEnabled ? '#065f46' : '#b45309'}; font-weight:800; font-size:13.5px;">${isNodeEnabled ? '🟢 Node Aktif' : '🟠 Node Bypassed'}</strong>
+        <small style="color:${isNodeEnabled ? '#047857' : '#92400e'}; font-weight:600; font-size:11px;">${isNodeEnabled ? 'Aktif memproses data' : 'Bypass / Pass-Through (Data diteruskan)'}</small>
+      </div>
+      <label class="switch-toggle" style="cursor:pointer;">
+        <input type="checkbox" id="bevVisEnabledToggle" ${isNodeEnabled ? 'checked' : ''}>
+        <span class="switch-slider"></span>
+      </label>
+    `;
+    activeRow.querySelector('#bevVisEnabledToggle').onchange = (e) => {
+      n.enabled = e.target.checked;
+      markDirty();
+      renderCanvas();
+      renderInspector();
+    };
+    body.append(activeRow);
+
+    // Layout card
+    const layoutCard = document.createElement('div');
+    layoutCard.className = 'inspector-group-card';
+    layoutCard.style.cssText = 'background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:12px;';
+    const curLayout = n.config?.layout || 'side_by_side';
+    layoutCard.innerHTML = `
+      <div style="font-weight:700; color:var(--text); font-size:13px; margin-bottom:8px;">Tata Letak Visual (Layout)</div>
+      <select id="bevLayoutSelect" class="input" style="width:100%; margin-bottom:6px;">
+        <option value="side_by_side" ${curLayout === 'side_by_side' ? 'selected' : ''}>Dashboard Split (Kamera Kiri + BEV Kanan)</option>
+        <option value="bev_only" ${curLayout === 'bev_only' ? 'selected' : ''}>Hanya Peta Top-Down BEV</option>
+        <option value="camera_overlay" ${curLayout === 'camera_overlay' ? 'selected' : ''}>Kamera Utama + Mini Map Top-Right</option>
+      </select>
+    `;
+    layoutCard.querySelector('#bevLayoutSelect').onchange = (e) => {
+      n.config.layout = e.target.value;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    body.append(layoutCard);
+
+    // Map style card
+    const styleCard = document.createElement('div');
+    styleCard.className = 'inspector-group-card';
+    styleCard.style.cssText = 'background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:12px;';
+    const curStyle = n.config?.mapStyle || 'dark_road';
+    styleCard.innerHTML = `
+      <div style="font-weight:700; color:var(--text); font-size:13px; margin-bottom:8px;">Gaya Latar Belakang (Map Style)</div>
+      <select id="bevMapStyleSelect" class="input" style="width:100%; margin-bottom:8px;">
+        <option value="dark_road" ${curStyle === 'dark_road' ? 'selected' : ''}>Jalan Aspal Gelap (Dark Road)</option>
+        <option value="grid" ${curStyle === 'grid' ? 'selected' : ''}>Blueprint Kisi Grid (Grid Style)</option>
+        <option value="pastel" ${curStyle === 'pastel' ? 'selected' : ''}>Minimalist Pastel</option>
+        <option value="warped_frame" ${curStyle === 'warped_frame' ? 'selected' : ''}>Warped Video Frame (Transparan)</option>
+        <option value="custom" ${curStyle === 'custom' ? 'selected' : ''}>Gambar Peta / Denah Kustom (Upload)</option>
+      </select>
+      <div id="bevCustomImgWrap" style="display:${curStyle === 'custom' ? 'block' : 'none'}; margin-top:8px;">
+        <label style="font-size:11px; color:var(--muted); font-weight:600;">Path / File Denah Gambar:</label>
+        <input type="text" id="bevCustomImgInp" class="input" placeholder="contoh: public/uploads/floorplan.png" value="${escapeHtml(n.config?.customMapImage || '')}" style="width:100%; margin-top:2px;">
+      </div>
+    `;
+    const styleSel = styleCard.querySelector('#bevMapStyleSelect');
+    const customImgWrap = styleCard.querySelector('#bevCustomImgWrap');
+    styleSel.onchange = (e) => {
+      n.config.mapStyle = e.target.value;
+      customImgWrap.style.display = e.target.value === 'custom' ? 'block' : 'none';
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    styleCard.querySelector('#bevCustomImgInp').onchange = (e) => {
+      n.config.customMapImage = e.target.value.trim();
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    body.append(styleCard);
+
+    // Marker & Annotations card
+    const symbolCard = document.createElement('div');
+    symbolCard.className = 'inspector-group-card';
+    symbolCard.style.cssText = 'background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:12px;';
+    const curMarker = n.config?.markerType || 'footprint';
+    symbolCard.innerHTML = `
+      <div style="font-weight:700; color:var(--text); font-size:13px; margin-bottom:8px;">Simbol & Teks Objek</div>
+      <select id="bevMarkerTypeSelect" class="input" style="width:100%; margin-bottom:8px;">
+        <option value="footprint" ${curMarker === 'footprint' ? 'selected' : ''}>Footprint 2D Rotasi (Sesuai Ukuran Kelas)</option>
+        <option value="dot" ${curMarker === 'dot' ? 'selected' : ''}>Titik Lingkaran Sederhana (Dot Marker)</option>
+      </select>
+      <label class="checkbox" style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:6px; cursor:pointer;">
+        <input type="checkbox" id="bevShowIdsChk" ${n.config?.showIds !== false ? 'checked' : ''}>
+        <span>Tampilkan ID Objek / Badge</span>
+      </label>
+      <label class="checkbox" style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+        <input type="checkbox" id="bevShowSpeedChk" ${n.config?.showSpeed !== false ? 'checked' : ''}>
+        <span>Tampilkan Kecepatan (km/jam)</span>
+      </label>
+    `;
+    symbolCard.querySelector('#bevMarkerTypeSelect').onchange = (e) => {
+      n.config.markerType = e.target.value;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    symbolCard.querySelector('#bevShowIdsChk').onchange = (e) => {
+      n.config.showIds = e.target.checked;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    symbolCard.querySelector('#bevShowSpeedChk').onchange = (e) => {
+      n.config.showSpeed = e.target.checked;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    body.append(symbolCard);
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'danger-button';
+    delBtn.style.marginTop = '14px';
+    delBtn.textContent = 'Hapus Node Ini';
+    delBtn.onclick = deleteSelectedNode;
+    body.append(delBtn);
+  }
+
   function renderInspector() {
 
     const n = nodeFor(state.selected);
@@ -10598,6 +10904,22 @@
     if (n.type === 'multi_zone_occupancy') {
 
       renderMultiZoneOccupancyInspector(n, body);
+
+      return;
+
+    }
+
+    if (n.type === 'homography_projector') {
+
+      renderHomographyProjectorInspector(n, body);
+
+      return;
+
+    }
+
+    if (n.type === 'bev_visualizer') {
+
+      renderBevVisualizerInspector(n, body);
 
       return;
 
@@ -13020,6 +13342,11 @@
 
       ],
 
+      matchMode: [
+        ['auto', 'Otomatis (Deteksi Jumlah Pemain di Lapangan)'],
+        ['singles', 'Tunggal / Singles (2 Pemain: P1 vs P2)'],
+        ['doubles', 'Ganda / Doubles (4 Pemain: P1, P3 vs P2, P4)']
+      ],
       mode: (node.type === 'alarm_cooldown_gate') ? [
         ['suppress', 'Masa Hening (Bungkam Notifikasi saat Cooldown)'],
         ['escalate', 'Eskalasi Bertahap (Kirim Pengingat Berulang)'],
@@ -16823,9 +17150,285 @@
 
     $('#previewImage')?._cancelMultiZoneDrawing?.();
 
+    $('#previewImage')?._cancelHomographyCalibration?.();
+
   }
 
 
+
+  
+  function startHomographyCalibration(node) {
+    const img = $('#previewImage');
+    if (!img) return toast('Preview container tidak ditemukan', true);
+
+    if (!img.naturalWidth || img.hidden) {
+      const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+        <rect width="100%" height="100%" fill="#090d16"/>
+        <defs>
+          <pattern id="calibcamgrid" width="80" height="80" patternUnits="userSpaceOnUse">
+            <path d="M 80 0 L 0 0 0 80" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#calibcamgrid)" />
+        <text x="640" y="340" fill="#38bdf8" font-family="system-ui, sans-serif" font-size="24" text-anchor="middle" font-weight="600">📐 Kalibrasi Ground Plane (Homography)</text>
+        <text x="640" y="380" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="15" text-anchor="middle">Tarik 4 titik sudut tanah (1: TL, 2: TR, 3: BR, 4: BL) untuk mentransformasikan perspektif ke Bird's Eye View</text>
+      </svg>`;
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(placeholderSvg);
+      img.hidden = false;
+      $('#previewEmpty')?.setAttribute('hidden', 'true');
+      img.onload = () => startHomographyCalibration(node);
+      return;
+    }
+
+    cancelActiveZoneEditor();
+
+    const parsePoints = (value) => {
+      const parts = String(value || '').split(';').map((part) => {
+        const [x, y] = part.trim().split(',').map(Number);
+        return Number.isFinite(x) && Number.isFinite(y) ? { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) } : null;
+      }).filter(Boolean);
+      if (parts.length === 4) return parts;
+      return [
+        { x: 0.20, y: 0.60 },
+        { x: 0.80, y: 0.60 },
+        { x: 0.95, y: 0.95 },
+        { x: 0.05, y: 0.95 },
+      ];
+    };
+
+    const points = parsePoints(node.config?.points);
+    const originalPointsStr = node.config?.points || '0.2,0.6;0.8,0.6;0.95,0.95;0.05,0.95';
+
+    const parent = img.parentElement;
+    if (!parent) return;
+    if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('zone-preview-editor');
+    svg.setAttribute('role', 'application');
+    svg.setAttribute('aria-label', 'Editor Kalibrasi Homography Ground Plane');
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'zone-preview-toolbar';
+    toolbar.style.borderLeft = '4px solid #38bdf8';
+
+    const dragHandle = document.createElement('span');
+    dragHandle.className = 'multi-zone-drag-handle';
+    dragHandle.innerHTML = '<span style="font-size:12px;">📐</span> <strong>Ground Plane (Homography)</strong>';
+
+    const status = document.createElement('span');
+    status.className = 'zone-preview-status';
+    status.style.flex = '1';
+    status.style.marginLeft = '8px';
+
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.className = 'button ghost';
+    resetBtn.textContent = 'Reset Default';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'button ghost';
+    cancelBtn.textContent = 'Batal';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'button primary';
+    saveBtn.textContent = 'Simpan Kalibrasi';
+
+    toolbar.append(dragHandle, status, resetBtn, cancelBtn, saveBtn);
+
+    const oldToolbar = parent.parentElement ? parent.parentElement.querySelector('.zone-preview-toolbar') : null;
+    if (oldToolbar) oldToolbar.remove();
+
+    if (parent.parentElement) {
+      parent.parentElement.insertBefore(toolbar, parent);
+    } else {
+      parent.append(toolbar);
+    }
+    parent.append(svg);
+
+    const isConvexQuad = (pts) => {
+      if (pts.length !== 4) return false;
+      let sign = 0;
+      for (let i = 0; i < 4; i++) {
+        const p1 = pts[i];
+        const p2 = pts[(i + 1) % 4];
+        const p3 = pts[(i + 2) % 4];
+        const cp = (p2.x - p1.x) * (p3.y - p2.y) - (p2.y - p1.y) * (p3.x - p2.x);
+        if (Math.abs(cp) < 1e-6) return false;
+        if (sign === 0) sign = Math.sign(cp);
+        else if (Math.sign(cp) !== sign) return false;
+      }
+      return true;
+    };
+
+    const imageBox = () => {
+      const frame = parent.getBoundingClientRect();
+      const rect = img.getBoundingClientRect();
+      const fit = Math.min(rect.width / img.naturalWidth, rect.height / img.naturalHeight);
+      const width = img.naturalWidth * fit;
+      const height = img.naturalHeight * fit;
+      return { left: rect.left - frame.left + (rect.width - width) / 2, top: rect.top - frame.top + (rect.height - height) / 2, width, height };
+    };
+
+    let activePointIdx = -1;
+    let disposed = false;
+
+    const cleanup = () => {
+      if (disposed) return;
+      disposed = true;
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', renderOverlay);
+      svg.remove();
+      toolbar.remove();
+      delete img._cancelHomographyCalibration;
+    };
+
+    img._cancelHomographyCalibration = cleanup;
+
+    const cornerLabels = ['1 (TL)', '2 (TR)', '3 (BR)', '4 (BL)'];
+    const cornerColors = ['#0284c7', '#0284c7', '#ea580c', '#ea580c'];
+
+    const renderOverlay = () => {
+      if (disposed) return;
+      const box = imageBox();
+      svg.style.left = `${box.left}px`;
+      svg.style.top = `${box.top}px`;
+      svg.style.width = `${box.width}px`;
+      svg.style.height = `${box.height}px`;
+
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+      const convex = isConvexQuad(points);
+      if (convex) {
+        status.innerHTML = '<span style="color:#38bdf8; font-weight:600;">✅ Kuadrilateral Ground Plane Valid</span>';
+        saveBtn.disabled = false;
+      } else {
+        status.innerHTML = '<span style="color:#ef4444; font-weight:600;">⚠️ Titik menyilang! Bentuk harus cembung.</span>';
+        saveBtn.disabled = true;
+      }
+
+      // Draw Polygon
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      const ptsAttr = points.map(p => `${p.x * box.width},${p.y * box.height}`).join(' ');
+      polygon.setAttribute('points', ptsAttr);
+      polygon.setAttribute('fill', convex ? 'rgba(56, 189, 248, 0.22)' : 'rgba(239, 68, 68, 0.25)');
+      polygon.setAttribute('stroke', convex ? '#38bdf8' : '#ef4444');
+      polygon.setAttribute('stroke-width', '2.5');
+      polygon.setAttribute('stroke-dasharray', '5 3');
+      svg.append(polygon);
+
+      // Draw Edges Lines with Order Arrows
+      for (let i = 0; i < 4; i++) {
+        const pA = points[i];
+        const pB = points[(i + 1) % 4];
+        const mx = ((pA.x + pB.x) / 2) * box.width;
+        const my = ((pA.y + pB.y) / 2) * box.height;
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        arrow.setAttribute('cx', String(mx));
+        arrow.setAttribute('cy', String(my));
+        arrow.setAttribute('r', '3');
+        arrow.setAttribute('fill', '#fff');
+        svg.append(arrow);
+      }
+
+      // Draw 4 Draggable Handles
+      points.forEach((p, idx) => {
+        const px = p.x * box.width;
+        const py = p.y * box.height;
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.style.cursor = 'grab';
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', String(px));
+        circle.setAttribute('cy', String(py));
+        circle.setAttribute('r', activePointIdx === idx ? '11' : '8');
+        circle.setAttribute('fill', cornerColors[idx]);
+        circle.setAttribute('stroke', '#ffffff');
+        circle.setAttribute('stroke-width', '2.5');
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', String(px + 12));
+        text.setAttribute('y', String(py + 4));
+        text.setAttribute('fill', '#ffffff');
+        text.setAttribute('font-size', '11');
+        text.setAttribute('font-weight', 'bold');
+        text.setAttribute('filter', 'drop-shadow(0px 1px 3px rgba(0,0,0,0.8))');
+        text.textContent = cornerLabels[idx];
+
+        g.append(circle, text);
+
+        g.onmousedown = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          activePointIdx = idx;
+          circle.setAttribute('r', '11');
+
+          const onMouseMove = (moveEv) => {
+            const curBox = imageBox();
+            const parentRect = parent.getBoundingClientRect();
+            const mouseX = moveEv.clientX - parentRect.left - curBox.left;
+            const mouseY = moveEv.clientY - parentRect.top - curBox.top;
+            points[idx].x = Math.max(0, Math.min(1, mouseX / curBox.width));
+            points[idx].y = Math.max(0, Math.min(1, mouseY / curBox.height));
+            renderOverlay();
+          };
+
+          const onMouseUp = () => {
+            activePointIdx = -1;
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            renderOverlay();
+          };
+
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
+        };
+
+        svg.append(g);
+      });
+    };
+
+    resetBtn.onclick = () => {
+      points[0] = { x: 0.20, y: 0.60 };
+      points[1] = { x: 0.80, y: 0.60 };
+      points[2] = { x: 0.95, y: 0.95 };
+      points[3] = { x: 0.05, y: 0.95 };
+      renderOverlay();
+      toast('Titik sudut dikembalikan ke posisi awal');
+    };
+
+    cancelBtn.onclick = () => {
+      node.config.points = originalPointsStr;
+      cleanup();
+      toast('Kalibrasi dibatalkan');
+    };
+
+    saveBtn.onclick = async () => {
+      if (!isConvexQuad(points)) {
+        return toast('Titik sudut tidak boleh menyilang!', true);
+      }
+      const formatted = points.map(p => `${p.x.toFixed(4)},${p.y.toFixed(4)}`).join(';');
+      node.config.points = formatted;
+      markDirty();
+      await save();
+      await liveUpdateWorkflow();
+      renderInspector();
+      cleanup();
+      toast('Kalibrasi Ground Plane berhasil disimpan!');
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') cancelBtn.click();
+      if (e.key === 'Enter') saveBtn.click();
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', renderOverlay);
+
+    renderOverlay();
+  }
 
   function startPolygonZoneDrawing(node) {
 
@@ -24018,28 +24621,24 @@
 
 
   function invalidatePreview() {
-
     _previewGeneration += 1;
-
     if (_previewLoopTimer) {
       if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(_previewLoopTimer);
       clearTimeout(_previewLoopTimer);
     }
-
     _previewLoopTimer = null;
-
     _previewLoading = false;
-
     _currentActiveTarget = '';
-
+    const img = $('#previewImage');
+    if (img) img.dataset.streamUrl = '';
     const modal = $('#previewModal');
-
     const modalImg = $('#modalPreviewImage');
-
     if (modal?.open) modal.close();
-
-    if (modalImg) modalImg.src = '';
-
+    if (modalImg) {
+      modalImg.dataset.streamUrl = '';
+      modalImg.dataset.streamUrl = '';
+      modalImg.src = '';
+    }
   }
 
 
@@ -24250,122 +24849,73 @@
 
 
   function loadPreviewFrame(targetId, isRunning) {
-
     const img = $('#previewImage');
-
     const modalImg = $('#modalPreviewImage');
-
     const emptyEl = $('#previewEmpty');
-
     if (!img || !targetId || !previewOwnedByCurrentProject()) {
-
       if (img && !state.status?.running) {
-
         img.hidden = true;
-
         img.src = '';
-
+        img.dataset.streamUrl = '';
       }
-
       if (img && state.status?.running) img.hidden = true;
-
       if (emptyEl && !img?.src) emptyEl.hidden = false;
-
       return;
-
     }
-
-
 
     _currentActiveTarget = targetId;
-
     const generation = _previewGeneration;
-
     const projectId = state.project?.id;
-
-    const now = Date.now();
-
-    // Prevent overlapping network requests if one is still in-flight
-    if (_previewLoading && (now - _lastPreviewFetch < 250)) {
-
-      return;
-
-    }
-
-
-
-    _previewLoading = true;
-
-    _lastPreviewFetch = now;
-
-
-
     const resMode = $('#previewResSelect')?.value || '720p';
 
-    const frameUrl = `/api/preview/${encodeURIComponent(targetId)}?t=${now}&res=${resMode}`;
-
-    const preloader = new Image();
-
-
-
-    preloader.onload = () => {
-
-      _previewLoading = false;
-
-      if (generation !== _previewGeneration || projectId !== state.project?.id || !previewOwnedByCurrentProject() || _currentActiveTarget !== targetId) return;
-
-      img.src = preloader.src;
-
-      img.hidden = false;
-
-      if (emptyEl) emptyEl.hidden = true;
-
-      syncDrawTextPreviewEditor();
-
-
-
+    if (isRunning && state.status?.running) {
+      const streamUrl = `/api/preview/${encodeURIComponent(targetId)}/stream?res=${resMode}&wf=${encodeURIComponent(projectId || '')}`;
+      if (img.dataset.streamUrl !== streamUrl) {
+        img.dataset.streamUrl = streamUrl;
+        img.src = streamUrl;
+        img.hidden = false;
+        if (emptyEl) emptyEl.hidden = true;
+      }
       if (modalImg && $('#previewModal')?.open) {
-
-        modalImg.src = preloader.src;
-
+        if (modalImg.dataset.streamUrl !== streamUrl) {
+          modalImg.dataset.streamUrl = streamUrl;
+          modalImg.src = streamUrl;
+        }
       }
+      return;
+    }
 
-
-
-      if (isRunning && state.status?.running && _currentActiveTarget === targetId) {
-
-        scheduleNextPreview(targetId);
-
-      }
-
-    };
-
-
-
-    preloader.onerror = () => {
-
+    // Stopped/Paused: fetch single snapshot
+    img.dataset.streamUrl = '';
+    if (modalImg) modalImg.dataset.streamUrl = '';
+    const now = Date.now();
+    if (_previewLoading && (now - _lastPreviewFetch < 250)) {
+      return;
+    }
+    _previewLoading = true;
+    _lastPreviewFetch = now;
+    const frameUrl = `/api/preview/${encodeURIComponent(targetId)}?t=${now}&res=${resMode}`;
+    const preloader = new Image();
+    preloader.onload = () => {
       _previewLoading = false;
-
       if (generation !== _previewGeneration || projectId !== state.project?.id || !previewOwnedByCurrentProject() || _currentActiveTarget !== targetId) return;
-
-      if (!isRunning && !img.src) {
-
-        img.hidden = true;
-
-        if (emptyEl) emptyEl.hidden = false;
-
-      } else if (isRunning && state.status?.running && _currentActiveTarget === targetId) {
-
-        scheduleNextPreview(targetId);
-
+      img.src = preloader.src;
+      img.hidden = false;
+      if (emptyEl) emptyEl.hidden = true;
+      syncDrawTextPreviewEditor();
+      if (modalImg && $('#previewModal')?.open) {
+        modalImg.src = preloader.src;
       }
-
     };
-
-
-
+    preloader.onerror = () => {
+      _previewLoading = false;
+      if (generation !== _previewGeneration || projectId !== state.project?.id || !previewOwnedByCurrentProject() || _currentActiveTarget !== targetId) return;
+      if (!isRunning && !img.src) {
+        img.hidden = true;
+        if (emptyEl) emptyEl.hidden = false;
+      }
+    };
     preloader.src = frameUrl;
-
   }
 
 
@@ -24575,17 +25125,19 @@
       const previewImg = $('#previewImage');
 
       if (target && previewOwnedByCurrentProject()) {
-
-        modalImg.src = (previewImg && previewImg.src && !previewImg.hidden)
-
-          ? previewImg.src
-
-          : `/api/preview/${encodeURIComponent(target)}?t=${Date.now()}&res=${resMode}`;
-
+        if (state.status?.running) {
+          const streamUrl = `/api/preview/${encodeURIComponent(target)}/stream?res=${resMode}&wf=${encodeURIComponent(state.project?.id || '')}`;
+          modalImg.dataset.streamUrl = streamUrl;
+          modalImg.src = streamUrl;
+        } else {
+          modalImg.dataset.streamUrl = '';
+          modalImg.src = (previewImg && previewImg.src && !previewImg.hidden)
+            ? previewImg.src
+            : `/api/preview/${encodeURIComponent(target)}?t=${Date.now()}&res=${resMode}`;
+        }
       } else {
-
+        modalImg.dataset.streamUrl = '';
         modalImg.src = previewImg?.src || '';
-
       }
 
       $('#modalPreviewTitle').textContent = $('#previewTitle')?.textContent || 'Live Preview';
@@ -24600,6 +25152,7 @@
 
     } else {
 
+      modalImg.dataset.streamUrl = '';
       modalImg.src = '';
 
       const card = $('#interactiveZoomCard');
@@ -25158,19 +25711,12 @@
       // Preview frame
 
       const availablePreviews = data.previews || [];
-
       let targetPreviewId = state.previewNode;
-
       if (!targetPreviewId || !availablePreviews.includes(targetPreviewId)) {
-
-        targetPreviewId = availablePreviews[0];
-
+        targetPreviewId = availablePreviews[0] || state.workflow?.nodes?.find(n => n.type === 'preview')?.id || 'preview';
       }
 
-
-
-      if (sameProject && targetPreviewId && availablePreviews.includes(targetPreviewId)) {
-
+      if (sameProject && targetPreviewId && (availablePreviews.includes(targetPreviewId) || data.running)) {
         loadPreviewFrame(targetPreviewId, !!data.running);
 
         const nodeTitle = targetPreviewId === 'auto_preview' ? 'Live Pipeline Preview' : (nodeFor(targetPreviewId)?.title || targetPreviewId);

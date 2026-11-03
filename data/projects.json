@@ -2,6 +2,42 @@
   "active_project_id": "733240f514454a71bc65ae45f3fd9245",
   "projects": [
     {
+      "id": "8995fa03627e4d188d604dcabe0a4836",
+      "name": "Afi",
+      "created_at": "2026-10-30T05:36:36+00:00",
+      "modified_at": "2026-10-31T13:54:46+00:00"
+    },
+    {
+      "id": "bdd51f18ebfc4edcaed0f53613d0bd86",
+      "name": "Live Preview Smooth FPS Test 1793284280969",
+      "created_at": "2026-10-29T14:31:20+00:00",
+      "modified_at": "2026-10-29T14:31:20+00:00"
+    },
+    {
+      "id": "d9a4b0fee27a4c91abf20249a0e0acea",
+      "name": "Live Preview Smooth FPS Test 1793284226128",
+      "created_at": "2026-10-29T14:30:26+00:00",
+      "modified_at": "2026-10-29T14:30:26+00:00"
+    },
+    {
+      "id": "ea9518f40a58404c98a9f99f23cee2b2",
+      "name": "Live Preview Smooth FPS Test",
+      "created_at": "2026-10-29T14:26:08+00:00",
+      "modified_at": "2026-10-29T14:26:08+00:00"
+    },
+    {
+      "id": "56ee82f1cf65475f90f25e71580ed17c",
+      "name": "Live Preview Smooth FPS Test",
+      "created_at": "2026-10-29T14:24:18+00:00",
+      "modified_at": "2026-10-29T14:24:18+00:00"
+    },
+    {
+      "id": "d72841fd3a4d47fca4487a0b03250051",
+      "name": "Live Preview Smooth FPS Test",
+      "created_at": "2026-10-29T14:18:43+00:00",
+      "modified_at": "2026-10-29T14:18:43+00:00"
+    },
+    {
       "id": "154000f3bd1b4561aa09e4dac6ee1911",
       "name": "Tes",
       "created_at": "2026-10-29T10:05:56+00:00",
@@ -11,7 +47,7 @@
       "id": "d89828a3d2f341ea8aa96e15b2519bf4",
       "name": "AI Object Detection & Overlay Studio",
       "created_at": "2026-10-28T06:06:58+00:00",
-      "modified_at": "2026-10-29T09:31:59+00:00"
+      "modified_at": "2026-10-29T13:52:58+00:00"
     },
     {
       "id": "27e477b18d354dac92dee8fe2fd690dc",

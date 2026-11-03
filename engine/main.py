@@ -2071,6 +2071,7 @@ def active_analysis_pipeline(workflow: dict) -> bool:
         "face_analyzer",
         "face_tracker",
         "hand_skeleton",
+        "badminton_analytics",
         "object_counter",
         "line_counter",
         "dwell_zone",

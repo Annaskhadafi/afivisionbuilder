@@ -94,6 +94,8 @@ NODE_TYPE_TO_ENGINE_FILES = {
     "mqtt_publisher": {"mqtt_gateway.py"},
     "crowd_density_heatmap": {"crowd_heatmap.py"},
     "ppe_compliance_matrix": {"ppe_compliance.py"},
+    "homography_projector": {"homography_bev.py"},
+    "bev_visualizer": {"homography_bev.py"},
 }
 
 CORE_ENGINE_FILES = {
