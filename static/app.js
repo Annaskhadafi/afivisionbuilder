@@ -25142,6 +25142,18 @@
 
       $('#modalPreviewTitle').textContent = $('#previewTitle')?.textContent || 'Live Preview';
 
+      const modalBox = modal.querySelector('.modal-box');
+      if (modalBox) {
+        try {
+          const savedW = sessionStorage.getItem('visonode_preview_modal_w');
+          const savedH = sessionStorage.getItem('visonode_preview_modal_h');
+          if (savedW && savedH) {
+            modalBox.style.width = savedW;
+            modalBox.style.height = savedH;
+          }
+        } catch (_) {}
+      }
+
       modal.showModal();
 
       const card = $('#interactiveZoomCard');
@@ -28589,18 +28601,93 @@
       }
     });
 
-    $('#toggleFullscreenPreviewBtn')?.addEventListener('click', () => {
-
+    // Preview Modal Resizing & Fullscreen Controls
+    function initPreviewModalResize() {
       const modal = $('#previewModal');
+      const modalBox = modal?.querySelector('.modal-box');
+      const handle = $('#modalPreviewResizeHandle');
+      if (!modal || !modalBox || !handle) return;
 
-      if (modal) {
+      let isResizing = false;
+      let startX = 0, startY = 0, startW = 0, startH = 0;
 
+      const onPointerMove = (e) => {
+        if (!isResizing) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const maxW = Math.round(window.innerWidth * 0.98);
+        const maxH = Math.round(window.innerHeight * 0.98);
+        const newW = Math.max(480, Math.min(maxW, Math.round(startW + dx)));
+        const newH = Math.max(340, Math.min(maxH, Math.round(startH + dy)));
+
+        modalBox.style.width = `${newW}px`;
+        modalBox.style.height = `${newH}px`;
+        modalBox.style.maxWidth = `${maxW}px`;
+        modalBox.style.maxHeight = `${maxH}px`;
+      };
+
+      const finishResize = () => {
+        if (!isResizing) return;
+        isResizing = false;
+        modalBox.classList.remove('is-resizing');
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', finishResize);
+        window.removeEventListener('pointercancel', finishResize);
+        try {
+          if (modalBox.style.width && modalBox.style.height) {
+            sessionStorage.setItem('visonode_preview_modal_w', modalBox.style.width);
+            sessionStorage.setItem('visonode_preview_modal_h', modalBox.style.height);
+          }
+        } catch (_) {}
+      };
+
+      handle.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 && e.button !== undefined) return;
+        e.preventDefault();
+        e.stopPropagation();
+        isResizing = true;
+        modal.classList.remove('is-fullscreen');
+        modalBox.classList.add('is-resizing');
+
+        const rect = modalBox.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        startW = rect.width;
+        startH = rect.height;
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', finishResize);
+        window.addEventListener('pointercancel', finishResize);
+      });
+
+      $('#resetPreviewModalSizeBtn')?.addEventListener('click', () => {
+        modal.classList.remove('is-fullscreen');
+        modalBox.style.width = 'min(96vw, 1720px)';
+        modalBox.style.height = 'min(92vh, 980px)';
+        modalBox.style.maxWidth = '98vw';
+        modalBox.style.maxHeight = '96vh';
+        try {
+          sessionStorage.removeItem('visonode_preview_modal_w');
+          sessionStorage.removeItem('visonode_preview_modal_h');
+        } catch (_) {}
+      });
+
+      $('#toggleFullscreenPreviewBtn')?.addEventListener('click', () => {
+        const willBeFullscreen = !modal.classList.contains('is-fullscreen');
         modal.classList.toggle('is-fullscreen');
+        if (willBeFullscreen) {
+          modalBox.dataset.prevWidth = modalBox.style.width || '';
+          modalBox.dataset.prevHeight = modalBox.style.height || '';
+          modalBox.style.width = '';
+          modalBox.style.height = '';
+        } else {
+          if (modalBox.dataset.prevWidth) modalBox.style.width = modalBox.dataset.prevWidth;
+          if (modalBox.dataset.prevHeight) modalBox.style.height = modalBox.dataset.prevHeight;
+        }
+      });
+    }
 
-      }
-
-    });
-
+    initPreviewModalResize();
     initInteractiveZoomUI();
 
 

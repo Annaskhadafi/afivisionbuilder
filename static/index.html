@@ -1495,6 +1495,9 @@
           <h2 id="modalPreviewTitle">Live Preview</h2>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
+          <button class="icon-button" id="resetPreviewModalSizeBtn" title="Kembalikan ke Ukuran Besar Default">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </button>
           <button class="icon-button" id="toggleFullscreenPreviewBtn" title="Perbesar / Layar Penuh">
             <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
           </button>
@@ -1505,6 +1508,16 @@
       </div>
       <div class="expanded-preview-wrap">
         <img id="modalPreviewImage" alt="Expanded preview">
+      </div>
+      <div class="modal-resize-handle" id="modalPreviewResizeHandle" title="Tarik untuk mengubah ukuran preview live">
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+          <circle cx="13" cy="13" r="1.5"/>
+          <circle cx="9" cy="13" r="1.5"/>
+          <circle cx="13" cy="9" r="1.5"/>
+          <circle cx="5" cy="13" r="1.5"/>
+          <circle cx="9" cy="9" r="1.5"/>
+          <circle cx="13" cy="5" r="1.5"/>
+        </svg>
       </div>
     </div>
   </dialog>
