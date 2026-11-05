@@ -978,6 +978,13 @@ class CustomModelRunner:
                     item["posture"] = pkey
                     item["posture_label"] = plabel
                     item["posture_confidence"] = pconf
+                    item["showSkeleton"] = config.get("showSkeleton", True)
+                    item["showJoints"] = config.get("showJoints", True)
+                    item["showFaceLines"] = config.get("showFaceLines", False)
+                    item["showPostureBadge"] = config.get("showPostureBadge", True)
+                    item["keypointThreshold"] = config.get("keypointThreshold", 0.35)
+                    item["skeletonThickness"] = config.get("skeletonThickness", 2)
+                    item["jointRadius"] = config.get("jointRadius", 4)
 
                     if (node_type == "pose_detector" or config.get("showSkeleton", True)) and config.get("showSkeleton", True) is not False:
                         draw_human_skeleton(frame, person_kpts, config, plabel if config.get("showPostureBadge", True) else "")

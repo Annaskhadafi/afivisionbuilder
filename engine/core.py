@@ -963,6 +963,7 @@ def _process_track_event_nodes(
             if hand_dets and any(cfg.get(key, True) is not False for key in ("showSkeleton", "showJoints", "showGestureBadge")):
                 draw_hand_skeleton(frame, hand_dets, cfg)
             detections.extend(hand_dets)
+            extra_results.extend(hand_dets)
         elif p_type == "badminton_analytics":
             try:
                 from badminton_engine import BadmintonAnalyticsEngine, draw_badminton_overlay
@@ -3045,6 +3046,17 @@ def performance_status_snapshot(
     }
 
 
+def _default_inference_engine_for_node(inference_node: dict | None) -> str:
+    if not isinstance(inference_node, dict):
+        return "rfdetr"
+    ntype = inference_node.get("type")
+    if ntype == "pose_detector":
+        return "ultralytics_yolo"
+    if ntype == "efficientad":
+        return "efficientad"
+    return "rfdetr"
+
+
 class WorkflowRunner:
     """Runs a workflow on a background thread and reports through callbacks.
 
@@ -3540,7 +3552,7 @@ class WorkflowRunner:
             if inference_nodes:
                 for inference_node in inference_nodes:
                     config = inference_node.get("config", {})
-                    eng = config.get("engine", "rfdetr")
+                    eng = config.get("engine") or _default_inference_engine_for_node(inference_node)
                     if eng not in ("sam3", "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx", "convnext", "efficientad", "ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                         raise RuntimeError(
                             f"Backend runtime does not support inference engine '{eng}'."
@@ -3973,7 +3985,7 @@ class WorkflowRunner:
                                     script_frames=batch[index].script_frames,
                                 ) for index in eligible_indices
                             ]
-                        eng = config.get("engine", "rfdetr")
+                        eng = config.get("engine") or _default_inference_engine_for_node(inference_node)
                         inference_started_at = time.monotonic()
                         if eng == "sam3":
                             node_results = [
@@ -5155,7 +5167,7 @@ class WorkflowRunner:
                 device_labels = []
                 for inference_node in inference_nodes:
                     config = inference_node.get("config", {})
-                    eng = config.get("engine", "rfdetr")
+                    eng = config.get("engine") or _default_inference_engine_for_node(inference_node)
                     if eng not in ("sam3", "rfdetr", "rfdetr_tensorrt", "rfdetr_onnx", "convnext", "efficientad", "ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "tflite", "tensorflow_keras", "custom_auto"):
                         raise RuntimeError(
                             f"Backend runtime does not support inference engine '{eng}'."
@@ -5425,7 +5437,7 @@ class WorkflowRunner:
                                 processing_nodes=branch_script_nodes,
                                 script_frames=script_frames,
                             )
-                        eng = config.get("engine", "rfdetr")
+                        eng = config.get("engine") or _default_inference_engine_for_node(inference_node)
                         if eng == "sam3":
                             inference_started_at = time.monotonic()
                             node_detections = engine.run_sam3_frame(

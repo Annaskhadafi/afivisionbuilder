@@ -237,6 +237,11 @@ class HandTrackerEngine:
                 "indexTip": [float(index_tip[0]), float(index_tip[1])],
                 "thumbTip": [float(thumb_tip[0]), float(thumb_tip[1])],
                 "keypoints": pts_px,
+                "showSkeleton": cfg.get("showSkeleton", True),
+                "showJoints": cfg.get("showJoints", True),
+                "showGestureBadge": cfg.get("showGestureBadge", True),
+                "skeletonThickness": cfg.get("skeletonThickness", 2),
+                "jointRadius": cfg.get("jointRadius", 4),
             }
             detections.append(det_item)
 

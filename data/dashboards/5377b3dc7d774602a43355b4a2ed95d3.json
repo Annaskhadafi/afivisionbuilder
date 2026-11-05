@@ -1,0 +1,13 @@
+{
+  "id": "5377b3dc7d774602a43355b4a2ed95d3",
+  "project_id": "5377b3dc7d774602a43355b4a2ed95d3",
+  "name": "TIRE ROAD HAZARD Dashboard",
+  "theme": "light",
+  "canvas": {
+    "width": 1440,
+    "height": 960,
+    "bgColor": "#ffffff",
+    "fontFamily": "'Inter', -apple-system, sans-serif"
+  },
+  "widgets": []
+}

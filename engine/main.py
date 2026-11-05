@@ -6630,6 +6630,49 @@ def draw_detections(frame, detections: list[dict], preview: dict, counter_state:
                 cv2.fillPoly(overlay, [points - (x0, y0)], color)
                 cv2.addWeighted(overlay, mask_opacity, sub, 1 - mask_opacity, 0, dst=sub)
             cv2.polylines(frame, [points], True, color, 2)
+
+        # Draw anatomical human pose skeleton or hand tracker skeleton onto frame
+        kpts = detection.get("keypoints")
+        if kpts:
+            if len(kpts) == 17:
+                try:
+                    from pose_engine import draw_human_skeleton
+                except ImportError:
+                    try:
+                        from .pose_engine import draw_human_skeleton
+                    except ImportError:
+                        draw_human_skeleton = None
+                if draw_human_skeleton is not None:
+                    pose_cfg = {
+                        "showSkeleton": detection.get("showSkeleton", config.get("showSkeleton", True)),
+                        "showJoints": detection.get("showJoints", config.get("showJoints", True)),
+                        "showFaceLines": detection.get("showFaceLines", config.get("showFaceLines", False)),
+                        "showPostureBadge": detection.get("showPostureBadge", config.get("showPostureBadge", True)),
+                        "keypointThreshold": detection.get("keypointThreshold", config.get("keypointThreshold", 0.35)),
+                        "skeletonThickness": detection.get("skeletonThickness", config.get("skeletonThickness", 2)),
+                        "jointRadius": detection.get("jointRadius", config.get("jointRadius", 4)),
+                    }
+                    if pose_cfg.get("showSkeleton") or pose_cfg.get("showJoints") or pose_cfg.get("showPostureBadge"):
+                        draw_human_skeleton(frame, kpts, pose_cfg, detection.get("posture_label", ""))
+            elif len(kpts) == 21:
+                try:
+                    from hand_engine import draw_hand_skeleton
+                except ImportError:
+                    try:
+                        from .hand_engine import draw_hand_skeleton
+                    except ImportError:
+                        draw_hand_skeleton = None
+                if draw_hand_skeleton is not None:
+                    hand_cfg = {
+                        "showSkeleton": detection.get("showSkeleton", config.get("showSkeleton", True)),
+                        "showJoints": detection.get("showJoints", config.get("showJoints", True)),
+                        "showGestureBadge": detection.get("showGestureBadge", config.get("showGestureBadge", True)),
+                        "skeletonThickness": detection.get("skeletonThickness", config.get("skeletonThickness", 2)),
+                        "jointRadius": detection.get("jointRadius", config.get("jointRadius", 4)),
+                    }
+                    if hand_cfg.get("showSkeleton") or hand_cfg.get("showJoints") or hand_cfg.get("showGestureBadge"):
+                        draw_hand_skeleton(frame, [detection], hand_cfg)
+
         if show_boxes:
             # Main rectangle
             box_thick = 2 if "lineDirection" in detection else 1
