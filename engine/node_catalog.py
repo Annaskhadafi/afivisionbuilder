@@ -415,6 +415,15 @@ TRACKING_ALGORITHM_OPTIONS = [
     ("ocsort", "OC-SORT"),
     ("cbiou", "C-BIoU (Buffered Motion)"),
 ]
+REID_MODEL_OPTIONS = (
+    "osnet_x1_0_msmt17_combineall",
+    "fastreid_mot17_sbs50",
+    "osnet_x1_0_mot17",
+    "osnet_x1_0_sportsmot",
+    "osnet_x1_0_dancetrack",
+    "osnet_x1_0_soccernet",
+)
+REID_DEVICE_OPTIONS = ("cpu", "cuda", "auto")
 BOT_SORT_CMC_OPTIONS = [
     ("sparseOptFlow", "Sparse optical flow"),
     ("orb", "ORB features"),
@@ -426,12 +435,8 @@ OBSOLETE_TRACKER_CONFIG_KEYS = (
     "proximityThreshold",
     "appearanceThreshold",
     "withReid",
-    "reidModel",
     "reidModelPath",
-    "reidDevice",
     "reidHalfPrecision",
-    "reidBatchSize",
-    "reidAppearanceThreshold",
     "botSortMatchThreshold",
     "botSortSecondMatchThreshold",
     "botSortUnconfirmedThreshold",
@@ -450,6 +455,13 @@ TRACKER_CONFIG_DEFAULTS = {
     "trackBuffer": 90,
     "minimumConsecutiveFrames": 1,
     "trackerFrameRate": 30,
+    # Optional Roboflow ReID embedding association (disabled by default).
+    "enableReid": False,
+    "reidModel": "osnet_x1_0_msmt17_combineall",
+    "reidDevice": "cpu",
+    "reidAppearanceThreshold": 0.75,
+    "reidMaxCenterDistance": 4.0,
+    "reidBatchSize": 16,
     # Roboflow BoT-SORT association and camera-motion settings.
     "botSortFirstIouThreshold": 0.2,
     "botSortSecondIouThreshold": 0.5,
@@ -509,6 +521,25 @@ def migrate_tracker_config(config: dict) -> None:
         config["enableSmoothing"] = TRACKER_CONFIG_DEFAULTS["enableSmoothing"]
     if "smoothingAlpha" not in config:
         config["smoothingAlpha"] = TRACKER_CONFIG_DEFAULTS["smoothingAlpha"]
+    if not isinstance(config.get("enableReid"), bool):
+        config["enableReid"] = TRACKER_CONFIG_DEFAULTS["enableReid"]
+    if config.get("reidModel") not in REID_MODEL_OPTIONS:
+        config["reidModel"] = TRACKER_CONFIG_DEFAULTS["reidModel"]
+    if config.get("reidDevice") not in REID_DEVICE_OPTIONS:
+        config["reidDevice"] = TRACKER_CONFIG_DEFAULTS["reidDevice"]
+    for key, fallback in (("reidAppearanceThreshold", 0.75), ("reidMaxCenterDistance", 4.0)):
+        try:
+            value = float(config.get(key, fallback))
+            invalid = not 0.0 <= value <= 1.0 if key == "reidAppearanceThreshold" else not 0.0 < value <= 16.0
+            if invalid:
+                raise ValueError
+            config[key] = value
+        except (TypeError, ValueError):
+            config[key] = fallback
+    try:
+        config["reidBatchSize"] = max(1, min(128, int(config.get("reidBatchSize", 16))))
+    except (TypeError, ValueError):
+        config["reidBatchSize"] = 16
     for key in OBSOLETE_TRACKER_CONFIG_KEYS:
         config.pop(key, None)
     config["trackerConfigVersion"] = TRACKER_CONFIG_VERSION

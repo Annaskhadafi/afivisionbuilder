@@ -164,6 +164,8 @@ def _determine_required_packages(graph: dict) -> set[str]:
 
         elif ntype in {"tracker", "zone", "line_counter", "speed_estimator", "zone_timer", "zone_exit_event", "multi_zone_occupancy"}:
             packages.update({"supervision", "trackers"})
+            if ntype == "tracker" and config.get("enableReid"):
+                packages.update({"reid", "torch", "torchvision"})
 
         elif ntype == "input" and (config.get("sourceType") == "youtube" or config.get("youtubeUrl")):
             packages.add("yt-dlp")

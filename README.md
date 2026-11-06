@@ -64,6 +64,11 @@ Gunakan slider **Ukuran layar** di panel Live Preview untuk memperbesar atau mem
 - **Anti-Jitter Line Counter Cooldown**: Perbaikan mekanisme hysteresis dan rearm cooldown garis hitung (`line_counter`) pada pergerakan frame awal.
 - **Proteksi Modular Runtime & Export**: Isolasi impor modul opsional pada rendering overlay sehingga workflow mandiri dapat diekspor dan dijalankan pada edge device tanpa dependensi modul yang tidak digunakan.
 
+### 🔁 Roboflow ReID untuk Object Tracking
+- **Re-association Appearance per Kamera**: Opsi `Aktifkan Appearance ReID` pada node Object Tracking membandingkan embedding tampilan setelah track terputus; kelas, ambang cosine, kedekatan spasial, dan track buffer tetap membatasi pencocokan.
+- **Pengaturan dan ekspor**: Pilih model OSNet/FastReID, perangkat CPU/CUDA/otomatis, dan ambang kemiripan. ReID nonaktif secara default; workflow yang mengaktifkannya mengekspor dependency `reid`.
+- **Catatan model**: Model pretrained yang disediakan dilatih pada orang atau pemain olahraga. Kualitas pencocokan tire/truck perlu diverifikasi dengan rekaman berlabel.
+
 
 ### 🍽️ 1. Restaurant Table Occupancy & Dining Dwell Time Tracker
 - **Pemantauan Meja Restoran dan Kafe Real-Time**: Mendeteksi otomatis status keterisian meja (`VACANT` ➔ `CONFIRMING` ➔ `OCCUPIED` ➔ `PENDING_VACANT`).

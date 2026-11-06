@@ -29,6 +29,7 @@ uniface>=4.0.0
 # Tracking & Multi-Object Analytics
 supervision>=0.25.0,<=0.30.9
 trackers==2.5.0.post0
+reid==0.1.0
 
 # YouTube Streaming & Multimodal NLP / Zero-Shot
 yt-dlp>=2024.0.0

@@ -1510,6 +1510,22 @@
 
     },
 
+    enableReid: {
+
+      text: 'Sambungkan ulang ID objek memakai kemiripan tampilan setelah deteksi terputus.',
+
+      guide: 'ReID melakukan inferensi tambahan di CPU/GPU. Model bawaan dilatih untuk orang atau pemain olahraga; hasil ban dan truk perlu diuji pada rekaman berlabel.'
+
+    },
+
+    reidAppearanceThreshold: {
+
+      text: 'Skor cosine minimum untuk memakai ulang ID lama.',
+
+      guide: 'Nilai lebih tinggi mengurangi salah sambung, tetapi dapat melewatkan objek yang sama setelah perubahan sudut atau pencahayaan.'
+
+    },
+
     trackHighThreshold: {
 
       text: 'Pisahkan deteksi kuat untuk pencocokan utama dari deteksi lemah untuk pemulihan track.',
@@ -3750,6 +3766,16 @@
     borderMode: 'Mode Batas Tepi Rotasi',
 
     trackerConfigVersion: 'Versi Konfigurasi Tracker',
+
+    enableReid: 'Aktifkan Appearance ReID',
+
+    reidModel: 'Model Roboflow ReID',
+
+    reidDevice: 'Perangkat Inferensi ReID',
+
+    reidAppearanceThreshold: 'Ambang Kemiripan ReID',
+
+    reidMaxCenterDistance: 'Batas Jarak Pusat untuk ReID',
 
     enableClassLock: 'Kunci Kelas Objek (Class Lock)',
 
@@ -12230,6 +12256,8 @@
 
       if (key === 'trackerConfigVersion') return false;
 
+      if (!cfg.enableReid && ['reidModel', 'reidDevice', 'reidAppearanceThreshold', 'reidMaxCenterDistance', 'reidBatchSize'].includes(key)) return false;
+
       if (algo === 'bytetrack') {
 
         if (key.startsWith('botSort') || key.startsWith('ocSort')) return false;
@@ -12418,6 +12446,10 @@
     newTrackThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
 
     matchThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+
+    reidAppearanceThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
+
+    reidMaxCenterDistance: { min: 1.0, max: 8.0, step: 0.25, isSlider: true, unit: '× diagonal' },
 
     botSortFirstIouThreshold: { min: 0.0, max: 1.0, step: 0.01, isSlider: true, unit: '' },
 
@@ -13324,6 +13356,21 @@
 
         ['cbiou', 'C-BIoU (Buffered Motion / Sampled Frames)']
 
+      ],
+
+      reidModel: [
+        ['osnet_x1_0_msmt17_combineall', 'OSNet MSMT17 (Umum / Person)'],
+        ['osnet_x1_0_mot17', 'OSNet MOT17'],
+        ['fastreid_mot17_sbs50', 'FastReID MOT17'],
+        ['osnet_x1_0_sportsmot', 'OSNet SportsMOT'],
+        ['osnet_x1_0_dancetrack', 'OSNet DanceTrack'],
+        ['osnet_x1_0_soccernet', 'OSNet SoccerNet']
+      ],
+
+      reidDevice: [
+        ['cpu', 'CPU'],
+        ['cuda', 'CUDA'],
+        ['auto', 'Otomatis']
       ],
 
       provider: (node.type === 'ai_agent') ? [

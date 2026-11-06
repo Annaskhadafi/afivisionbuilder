@@ -16,7 +16,7 @@ from typing import Hashable
 
 import numpy as np
 import supervision as sv
-from node_catalog import TRACKER_CONFIG_DEFAULTS
+from node_catalog import TRACKER_CONFIG_DEFAULTS, REID_MODEL_OPTIONS
 
 ROBOFLOW_TRACKERS_INSTALLED = False
 try:
@@ -218,6 +218,23 @@ class RoboflowTracker:
             self.smoothing_alpha = float(self.config.get("smoothingAlpha", 0.7))
         except (TypeError, ValueError):
             self.smoothing_alpha = 0.7
+        self.smoothing_algorithm = str(self.config.get("smoothingAlgorithm", "kalman_or_ema")).lower()
+        self.enable_reid = bool(self.config.get("enableReid", False))
+        self.reid_model_name = str(self.config.get("reidModel", REID_MODEL_OPTIONS[0]))
+        if self.reid_model_name not in REID_MODEL_OPTIONS:
+            self.reid_model_name = REID_MODEL_OPTIONS[0]
+        self.reid_device = str(self.config.get("reidDevice", "cpu")).lower()
+        if self.reid_device not in {"cpu", "cuda", "auto"}:
+            self.reid_device = "cpu"
+        self.reid_appearance_threshold = self._probability(
+            self.config.get("reidAppearanceThreshold", 0.75), 0.75
+        )
+        self.reid_max_center_distance = self._positive_float(
+            self.config.get("reidMaxCenterDistance", 4.0), 4.0
+        )
+        self.reid_batch_size = self._positive_int(self.config.get("reidBatchSize", 16), 16)
+        self._reid_model = None
+        self._reid_gallery: dict[int, dict] = {}
         self._runtimes: dict[Hashable, object] = {}
         self._global_ids: dict[tuple[Hashable, int], int] = {}
         self._track_state: dict[int, dict] = {}
@@ -230,15 +247,17 @@ class RoboflowTracker:
 
     def status_label(self) -> str:
         if self.algorithm in ("tracktrack", "fasttrack", "deepocsort"):
-            return f"{self.algorithm} · Ultralytics native tracker"
+            label = f"{self.algorithm} · Ultralytics native tracker"
+            return f"{label} + Roboflow ReID" if self.enable_reid else label
         detail = " + CMC" if (
             self.algorithm == "botsort"
             and bool(self.config.get("botSortGmc", True))
         ) else ""
-        return (
+        label = (
             f"{self.algorithm}{detail} · Roboflow trackers "
             f"{self.library_version}"
         )
+        return f"{label} + Roboflow ReID" if self.enable_reid else label
 
     def update(
         self,
@@ -249,6 +268,7 @@ class RoboflowTracker:
         timestamp: float | None = None,
     ) -> list[dict]:
         self._check_source_continuity(frame_id, timestamp)
+        self._prune_reid_gallery(timestamp, frame_id)
 
         indexed = self._valid_detections(detections)
         grouped: dict[Hashable, list[tuple[int, dict, list[float], float]]] = {}
@@ -265,13 +285,23 @@ class RoboflowTracker:
         for scope, runtime in list(self._runtimes.items()):
             items = grouped.get(scope, [])
             library_input = self._to_supervision(items)
+            embeddings = self._extract_reid_embeddings(library_input, items, frame)
             library_frame = frame if self.algorithm == "botsort" else None
             tracked = runtime.update(library_input, frame=library_frame)
+            used_global_ids = {
+                self._global_ids[(scope, int(local_id))]
+                for local_id in (tracked.tracker_id if tracked.tracker_id is not None else [])
+                if (scope, int(local_id)) in self._global_ids
+            }
             scope_outputs, scope_matches = self._matched_outputs(
                 scope,
                 runtime,
                 tracked,
                 detections,
+                embeddings=embeddings,
+                frame_id=frame_id,
+                timestamp=timestamp,
+                used_global_ids=used_global_ids,
             )
             # Ensure any detection in items that was omitted by tracker thresholds is preserved
             covered_indices = {out[0] for out in scope_outputs}
@@ -429,7 +459,7 @@ class RoboflowTracker:
                 continue
             try:
                 x, y, width, height = [float(value) for value in bbox[:4]]
-                score = float(detection.get("score", 0))
+                score = float(detection.get("score", detection.get("confidence", 0)))
             except (TypeError, ValueError):
                 continue
             if not all(math.isfinite(value) for value in (x, y, width, height, score)):
@@ -467,9 +497,15 @@ class RoboflowTracker:
         runtime,
         tracked: sv.Detections,
         source_detections: list[dict],
+        *,
+        embeddings: dict[int, np.ndarray] | None = None,
+        frame_id: int | None = None,
+        timestamp: float | None = None,
+        used_global_ids: set[int] | None = None,
     ) -> tuple[list[tuple[int, dict]], set[tuple[Hashable, int]]]:
         outputs = []
         matches: set[tuple[Hashable, int]] = set()
+        used_global_ids = used_global_ids if used_global_ids is not None else set()
         tracker_ids = tracked.tracker_id
         source_indices = tracked.data.get(SOURCE_INDEX_KEY)
         if tracker_ids is None or source_indices is None:
@@ -491,6 +527,8 @@ class RoboflowTracker:
                     ),
                 ))
                 continue
+            track_key = (scope, local_id)
+            is_new_track = track_key not in self._global_ids
             global_id = self._global_id(scope, local_id)
             detection = dict(source_detections[source_index])
             score = (
@@ -508,6 +546,23 @@ class RoboflowTracker:
                 None,
             )
             library_age = max(1, int(getattr(tracklet, "age", 0)) + 1)
+            embedding = (embeddings or {}).get(source_index)
+            if self.enable_reid and is_new_track and embedding is not None:
+                matched_id = self._find_reid_match(
+                    scope, global_id, detection, box, embedding,
+                    timestamp, frame_id, used_global_ids or set(),
+                )
+                if matched_id is not None:
+                    self._global_ids[track_key] = matched_id
+                    for old_key, old_id in list(self._global_ids.items()):
+                        if old_id == matched_id and old_key != track_key:
+                            self._global_ids.pop(old_key, None)
+                    if not any(
+                        other_id == global_id and other_key != track_key
+                        for other_key, other_id in self._global_ids.items()
+                    ):
+                        self._track_state.pop(global_id, None)
+                    global_id = matched_id
             smoothed_box = self._update_track_state(
                 global_id,
                 detection,
@@ -515,13 +570,97 @@ class RoboflowTracker:
                 score,
                 library_age=library_age,
             )
+            if embedding is not None:
+                self._reid_gallery[global_id] = {
+                    "scope": scope,
+                    "class": str(detection.get("class", detection.get("class_name", ""))).casefold(),
+                    "embedding": embedding,
+                    "box": list(box),
+                    "timestamp": timestamp,
+                    "frame_id": frame_id,
+                }
             effective_box = smoothed_box if self.enable_smoothing else box
             outputs.append((
                 source_index,
                 self._decorate_detection(global_id, detection, effective_box, score, 0),
             ))
             matches.add((scope, local_id))
+            used_global_ids.add(global_id)
         return outputs, matches
+
+    def _load_reid_model(self):
+        try:
+            from reid import ReIDModel
+        except ImportError as exc:
+            raise RuntimeError(
+                "ReID is enabled but the 'reid' package is unavailable. Install requirements.txt."
+            ) from exc
+        return ReIDModel.from_pretrained(
+            self.reid_model_name,
+            device=self.reid_device,
+        )
+
+    def _extract_reid_embeddings(self, library_input, items, frame) -> dict[int, np.ndarray]:
+        if not self.enable_reid or not items:
+            return {}
+        if frame is None:
+            raise ValueError("ReID requires the source video frame.")
+        if self._reid_model is None:
+            self._reid_model = self._load_reid_model()
+        values = np.asarray(
+            self._reid_model.extract_embeddings(
+                library_input, frame, batch_size=self.reid_batch_size
+            ),
+            dtype=np.float32,
+        )
+        if values.ndim != 2 or values.shape[0] != len(items) or not np.isfinite(values).all():
+            raise RuntimeError("ReID model returned invalid embeddings for the current detections.")
+        norms = np.linalg.norm(values, axis=1, keepdims=True)
+        values = values / np.maximum(norms, 1e-12)
+        return {int(item[0]): values[index] for index, item in enumerate(items)}
+
+    def _find_reid_match(
+        self, scope, new_global_id, detection, box, embedding, timestamp, frame_id,
+        used_global_ids,
+    ) -> int | None:
+        label = str(detection.get("class", detection.get("class_name", ""))).casefold()
+        x1, y1, x2, y2 = box
+        cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+        best_id, best_score = None, self.reid_appearance_threshold
+        for global_id, entry in self._reid_gallery.items():
+            if global_id == new_global_id or global_id in used_global_ids:
+                continue
+            if entry["scope"] != scope or entry["class"] != label:
+                continue
+            if not self._reid_entry_is_fresh(entry, timestamp, frame_id):
+                continue
+            old_box = entry["box"]
+            old_cx, old_cy = (old_box[0] + old_box[2]) / 2, (old_box[1] + old_box[3]) / 2
+            old_diag = math.hypot(old_box[2] - old_box[0], old_box[3] - old_box[1])
+            new_diag = math.hypot(x2 - x1, y2 - y1)
+            # ponytail: a bounded center-distance gate is the cheap motion check; calibrate it on labeled clips before adding camera-motion compensation.
+            if math.hypot(cx - old_cx, cy - old_cy) > self.reid_max_center_distance * max(old_diag, new_diag, 1.0):
+                continue
+            score = float(np.dot(embedding, entry["embedding"]))
+            if score > best_score:
+                best_id, best_score = global_id, score
+        return best_id
+
+    def _reid_entry_is_fresh(self, entry, timestamp, frame_id) -> bool:
+        if timestamp is not None and entry["timestamp"] is not None:
+            max_age = self._lost_buffer_for_algorithm() / 30.0
+            return 0 <= timestamp - entry["timestamp"] <= max_age
+        if frame_id is not None and entry["frame_id"] is not None:
+            return 0 <= frame_id - entry["frame_id"] <= self.track_buffer
+        return False
+
+    def _prune_reid_gallery(self, timestamp, frame_id) -> None:
+        if timestamp is None and frame_id is None:
+            return
+        self._reid_gallery = {
+            global_id: entry for global_id, entry in self._reid_gallery.items()
+            if self._reid_entry_is_fresh(entry, timestamp, frame_id)
+        }
 
     def _lost_outputs(
         self,
@@ -579,12 +718,15 @@ class RoboflowTracker:
         result = dict(detection)
 
         # Track Class Lock: majority voting across rolling history
+        # Edge Case per task 2.md: objek baru masuk (t < 3 frame) gunakan raw detection sampai sampel stabil
         if self.enable_class_lock and state.get("class_history"):
             history = state["class_history"]
-            if history:
+            if len(history) >= 3:
                 locked_class = Counter(history).most_common(1)[0][0]
                 result["rawClass"] = result.get("class", "")
                 result["class"] = locked_class
+            elif history:
+                result["rawClass"] = result.get("class", "")
 
         result["bbox"] = [
             box[0],
@@ -593,7 +735,10 @@ class RoboflowTracker:
             max(0.0, box[3] - box[1]),
         ]
         result["score"] = score
+        result["confidence"] = score
         result["trackId"] = global_id
+        result["track_id"] = global_id
+        result["xyxy"] = [box[0], box[1], box[2], box[3]]
         result["trackAge"] = int(state["hits"])
         result["trackLost"] = int(lost)
         result["trackingAlgorithm"] = self.algorithm
@@ -609,8 +754,10 @@ class RoboflowTracker:
     ) -> dict:
         result = dict(detection)
         result["bbox"] = [box[0], box[1], max(0.0, box[2] - box[0]), max(0.0, box[3] - box[1])]
+        result["xyxy"] = [box[0], box[1], box[2], box[3]]
         result["score"] = score
-        for key in ("trackId", "trackAge", "trackLost", "trail"):
+        result["confidence"] = score
+        for key in ("trackId", "track_id", "trackAge", "trackLost", "trail"):
             result.pop(key, None)
         result["trackingAlgorithm"] = self.algorithm
         result["trackingLibrary"] = "roboflow-trackers"
