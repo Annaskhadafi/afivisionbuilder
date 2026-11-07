@@ -67,13 +67,15 @@ def compute_camera_focus_score(
     else:
         gray = frame
 
-    # Crop or mask ROI if specified
+    # Crop to ROI if specified
     if roi_str:
         pts = parse_roi_points(roi_str, w, h)
         if pts is not None:
-            mask = np.zeros((h, w), dtype=np.uint8)
-            cv2.fillPoly(mask, [pts], 255)
             x, y, rw, rh = cv2.boundingRect(pts)
+            x = max(0, min(w - 1, x))
+            y = max(0, min(h - 1, y))
+            rw = max(0, min(w - x, rw))
+            rh = max(0, min(h - y, rh))
             if rw > 10 and rh > 10:
                 gray = gray[y:y+rh, x:x+rw]
 

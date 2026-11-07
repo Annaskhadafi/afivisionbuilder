@@ -48,6 +48,7 @@ Prioritas pengguna: node workshop/warehouse terlebih dahulu, kemudian fondasi op
 - [x] P06. Validasi API untuk konfigurasi baru dan template awal yang meminta model custom.
 - [x] P07. Pemeriksaan browser: kedua node muncul, field setting tersedia, perubahan konfirmasi tersimpan dan terbaca ulang, tanpa undefined pada inspector timer.
 - [x] P07a. Buktikan tambah/geser/hapus titik, Batal, Simpan/reload, dan letterbox editor polygon di browser dengan preview sintetis.
+- [x] P07b. Full-Screen Calibration & Annotation Studio (CAD / Figma Grade) dengan viewport 90vw, zoom & pan mouse/spacebar, sub-pixel loupe magnifier 3x, auto-freeze/live-stream control, dan multi-zone drawer terverifikasi E2E 100%.
 - [ ] P08. Uji gambar polygon pada preview nyata dan kalibrasi model/rekaman beranotasi.
 - [ ] P09. Lanjutkan multi-camera, persistensi sesi, dan ERP durable sesuai fase B/D/G.
 

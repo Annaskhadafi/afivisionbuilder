@@ -58,6 +58,25 @@ Gunakan slider **Ukuran layar** di panel Live Preview untuk memperbesar atau mem
 
 ## ✨ Fitur Unggulan Terbaru
 
+### 📐 Full-Screen Calibration & Annotation Studio (CAD / Figma Grade)
+- **Viewport Studio Layar Penuh (90vw / Max Viewport)**: Menggantikan batasan gambar sempit di sidebar (320px). Saat mengklik tombol kalibrasi atau gambar pada Inspector (Garis, Poligon, Zona, Titik BEV, atau ROI), studio layar penuh beresolusi tinggi otomatis terbuka dengan tampilan aerospace dark cockpit (`#060a14`) dan hairlines transparan.
+- **Navigasi Presisi Tinggi CAD / Figma**:
+  - **Mouse Wheel Zoom**: Pembesaran/pengecilan (0.3x hingga 8.0x) berpusat langsung pada titik kursor mouse.
+  - **Spacebar + Drag (Pan)**: Navigasi geser kanvas bebas dengan kursor haptik (`grab` / `grabbing`).
+  - **Tombol Fit Screen (🔲) & 1:1 Pixel (🔍)**: Penyesuaian viewport otomatis ke ukuran layar atau ukuran piksel asli kamera.
+- **Sub-Pixel Loupe Magnifier 3x**: Kaca pembesar circular melayang otomatis saat kursor mouse bergerak di atas kanvas, menampilkan pembesaran piksel 3x dengan bidik silang (*crosshair*) sub-piksel dan koordinat normalisasi `(X, Y)`.
+- **Auto-Freeze & Kontrol Live Stream**:
+  - **Auto-Frozen Mode**: Secara default membekukan frame saat studio dibuka untuk kenyamanan dan presisi menggambar objek/garis diam.
+  - **Live Stream Toggle (▶️ / ⏸️)**: Beralih ke umpan video bergerak langsung kapan saja dengan 1 klik.
+  - **Ambil Frame Baru (📸)**: Menangkap snapshot frame video terkini secara instan ke studio.
+- **Dukungan Terpadu Seluruh Node Vision**:
+  - **Line Counter**: Gambar garis hitung multi-line, indikator panah arah `IN` ➔ `OUT`, dan pembalikan arah.
+  - **Polygon Zones (Activity, Occupancy, Exit Event)**: Penambahan vertex dinamis, pemindahan titik sudut dengan drag & drop, pembatalan (*Undo* via `Ctrl+Z`), dan pembersihan kanvas.
+  - **Multi-Zone Occupancy**: Panel drawer samping untuk menambah, memilih zona aktif, dan mengedit kapasitas serta warna masing-masing zona.
+  - **Homography Ground Plane (BEV 4-Point)**: Kalibrasi perspektif tanah dengan 4 titik sudut (`1: Top-Left`, `2: Top-Right`, `3: Bottom-Right`, `4: Bottom-Left`) dan garis bantu diagonal.
+  - **ROI Filter / Cropping**: Pemilihan area persegi panjang dengan kontrol resize sudut dan dark backdrop mask.
+- **Penyimpanan 1-Klik**: Tombol *Simpan & Terapkan* langsung memperbarui konfigurasi node, menyimpan alur kerja (`markDirty()`), dan menyelaraskan pratinjau live secara real-time.
+
 ### 🛡️ Computer Vision Engine Audit & Pipeline Stabilization
 - **Penyempurnaan Pemrosesan OpenCV (CLAHE & Color Space)**: Perbaikan rekombinasi kanal LAB dan konversi kembali ke BGR pada CLAHE adaptif low-light, serta eksekusi konversi warna penuh untuk mode HSV, LAB, dan YCrCb.
 - **Standardisasi Track ID Spasial (`trackId`)**: Penyelarasan identitas objek pada seluruh node analisis spasial (`spatial_measurement.py`) dengan engine pelacak Roboflow & supervision.

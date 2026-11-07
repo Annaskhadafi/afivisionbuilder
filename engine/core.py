@@ -805,23 +805,53 @@ def _process_track_event_nodes(
             candidates = engine.apply_logic_nodes(workflow, project_id, candidates, logic_runtime, now)
         if p_type == "multi_zone_occupancy":
             from multi_zone_occupancy import process_multi_zone_occupancy
-            extra_results.extend(process_multi_zone_occupancy(project_node, frame, candidates, event_runtime, now))
+            zone_evs = process_multi_zone_occupancy(project_node, frame, candidates, event_runtime, now)
+            for ev in zone_evs:
+                if isinstance(ev, dict):
+                    ev.setdefault("sourceNodeId", project_id)
+                    ev.setdefault("node_id", project_id)
+                    ev.setdefault("kind", ev.get("type", "zone_occupancy_event"))
+            extra_results.extend(zone_evs)
+            detections.extend(zone_evs)
         elif p_type == "distance_measurement":
             from spatial_measurement import measure_distance_between_objects, draw_distance_measurement_overlay
             state = event_runtime.setdefault(project_id, {})
             measurements, dist_events = measure_distance_between_objects(frame, candidates, project_node.get("config", {}), state)
+            for ev in dist_events:
+                if isinstance(ev, dict):
+                    ev.setdefault("sourceNodeId", project_id)
+                    ev.setdefault("node_id", project_id)
+                    ev.setdefault("kind", ev.get("event_type", "distance_alarm"))
             extra_results.extend(dist_events)
+            detections.extend(dist_events)
             if project_node.get("config", {}).get("showOverlay", True):
                 draw_distance_measurement_overlay(frame, measurements)
         elif p_type == "size_measurement":
             from spatial_measurement import measure_object_dimensions
             augmented, size_events = measure_object_dimensions(frame, candidates, project_node.get("config", {}))
+            for ev in size_events:
+                if isinstance(ev, dict):
+                    ev.setdefault("sourceNodeId", project_id)
+                    ev.setdefault("node_id", project_id)
+                    ev.setdefault("kind", ev.get("event_type", "size_violation"))
             extra_results.extend(size_events)
+            detections.extend(size_events)
+            if augmented:
+                if candidates:
+                    candidates[:] = augmented
+                if tracked:
+                    tracked[:] = augmented
         elif p_type == "camera_focus":
             from classical_cv import compute_camera_focus_score
             state = event_runtime.setdefault(project_id, {})
             score, is_blur, focus_events = compute_camera_focus_score(frame, project_node.get("config", {}), state)
+            for ev in focus_events:
+                if isinstance(ev, dict):
+                    ev.setdefault("sourceNodeId", project_id)
+                    ev.setdefault("node_id", project_id)
+                    ev.setdefault("kind", ev.get("event_type", "camera_blur_alarm"))
             extra_results.extend(focus_events)
+            detections.extend(focus_events)
         elif p_type == "auto_rotate_edges":
             from classical_cv import auto_rotate_edges
             frame, angle = auto_rotate_edges(frame, project_node.get("config", {}))
@@ -829,14 +859,36 @@ def _process_track_event_nodes(
             from advanced_logic import analyze_overlap
             state = event_runtime.setdefault(project_id, {})
             augmented, overlap_events = analyze_overlap(candidates, project_node.get("config", {}), state, now)
+            for ev in overlap_events:
+                if isinstance(ev, dict):
+                    ev.setdefault("sourceNodeId", project_id)
+                    ev.setdefault("node_id", project_id)
+                    ev.setdefault("kind", ev.get("event_type", "overlap_violation"))
             extra_results.extend(overlap_events)
+            detections.extend(overlap_events)
+            if augmented:
+                if candidates:
+                    candidates[:] = augmented
+                if tracked:
+                    tracked[:] = augmented
         elif p_type == "velocity_calculator":
             from video_kinematics import calculate_object_velocities
             state = event_runtime.setdefault(project_id, {})
             augmented, speed_events = calculate_object_velocities(
                 candidates, project_node.get("config", {}), state, now, node_id=project_id
             )
+            for ev in speed_events:
+                if isinstance(ev, dict):
+                    ev.setdefault("sourceNodeId", project_id)
+                    ev.setdefault("node_id", project_id)
+                    ev.setdefault("kind", ev.get("event_type", "overspeed_detected"))
             extra_results.extend(speed_events)
+            detections.extend(speed_events)
+            if augmented:
+                if candidates:
+                    candidates[:] = augmented
+                if tracked:
+                    tracked[:] = augmented
         elif p_type == "path_deviation":
             from video_kinematics import check_path_deviation
             state = event_runtime.setdefault(project_id, {})
@@ -844,16 +896,32 @@ def _process_track_event_nodes(
             augmented, dev_events = check_path_deviation(
                 candidates, project_node.get("config", {}), state, f_shape, now, node_id=project_id
             )
+            for ev in dev_events:
+                if isinstance(ev, dict):
+                    ev.setdefault("sourceNodeId", project_id)
+                    ev.setdefault("node_id", project_id)
+                    ev.setdefault("kind", ev.get("event_type", "path_deviation_detected"))
             extra_results.extend(dev_events)
+            detections.extend(dev_events)
+            if augmented:
+                if candidates:
+                    candidates[:] = augmented
+                if tracked:
+                    tracked[:] = augmented
         elif p_type == "switch_case":
             from advanced_logic import route_switch_case
             routed_dict = route_switch_case(candidates, project_node.get("config", {}))
-            extra_results.append({
+            ev = {
+                "sourceNodeId": project_id,
                 "node_id": project_id,
+                "kind": "switch_case_routed",
                 "type": "switch_case_routed",
                 "summary": {k: len(v) for k, v in routed_dict.items()},
+                "routed_detections": routed_dict,
                 "timestamp": now,
-            })
+            }
+            extra_results.append(ev)
+            detections.append(ev)
         elif p_type == "delta_filter":
             from advanced_logic import evaluate_delta_filter
             state = event_runtime.setdefault(project_id, {})
@@ -863,15 +931,42 @@ def _process_track_event_nodes(
             state = event_runtime.setdefault(project_id, {})
             diff_result, diff_event = compare_detections_difference(candidates, None, project_node.get("config", {}), state)
             if diff_event:
+                if isinstance(diff_event, dict):
+                    diff_event.setdefault("sourceNodeId", project_id)
+                    diff_event.setdefault("node_id", project_id)
+                    diff_event.setdefault("kind", diff_event.get("event_type", "detections_difference_alarm"))
                 extra_results.append(diff_event)
+                detections.append(diff_event)
         elif p_type == "data_aggregator":
             from data_aggregation import aggregate_events
             state = event_runtime.setdefault(project_id, {})
             summary = aggregate_events(extra_results, project_node.get("config", {}), state, now)
+            if summary:
+                agg_ev = {
+                    "sourceNodeId": project_id,
+                    "node_id": project_id,
+                    "kind": "data_aggregator_summary",
+                    "type": "data_aggregator_summary",
+                    "summary": summary,
+                    "timestamp": now,
+                }
+                extra_results.append(agg_ev)
+                detections.append(agg_ev)
         elif p_type == "csv_formatter":
             from data_aggregation import format_events_as_csv
             if extra_results:
                 csv_line, out_path = format_events_as_csv(extra_results, project_node.get("config", {}))
+                csv_ev = {
+                    "sourceNodeId": project_id,
+                    "node_id": project_id,
+                    "kind": "csv_export_ready",
+                    "type": "csv_export_ready",
+                    "csv_line": csv_line,
+                    "file_path": out_path,
+                    "timestamp": now,
+                }
+                extra_results.append(csv_ev)
+                detections.append(csv_ev)
         elif p_type == "s3_sink":
             from cloud_sinks import upload_to_s3
             if extra_results and project_node.get("config", {}).get("endpointUrl"):
@@ -1271,8 +1366,18 @@ def _merge_slicer_detections(all_tile_detections: list[dict], iou_threshold: flo
     import cv2
     if not all_tile_detections:
         return []
-    boxes = [[int(d.get("x", 0)), int(d.get("y", 0)), int(d.get("width", 0)), int(d.get("height", 0))] for d in all_tile_detections]
-    scores = [float(d.get("score", 0.0)) for d in all_tile_detections]
+
+    def _box(d):
+        bbox = d.get("bbox")
+        if bbox and len(bbox) >= 4:
+            return [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])]
+        xyxy = d.get("xyxy")
+        if xyxy and len(xyxy) >= 4:
+            return [int(xyxy[0]), int(xyxy[1]), int(xyxy[2] - xyxy[0]), int(xyxy[3] - xyxy[1])]
+        return [int(d.get("x", 0)), int(d.get("y", 0)), int(d.get("width", 0)), int(d.get("height", 0))]
+
+    boxes = [_box(d) for d in all_tile_detections]
+    scores = [float(d.get("score") if d.get("score") is not None else (d.get("confidence") or 0.0)) for d in all_tile_detections]
     indices = cv2.dnn.NMSBoxes(boxes, scores, score_threshold=0.01, nms_threshold=iou_threshold)
     if len(indices) == 0:
         return []
@@ -6073,13 +6178,22 @@ class WorkflowRunner:
         # ponytail: existing webhook transport is in-memory; durable ERP delivery
         # remains a separate task. Do not claim restart-safe external delivery.
         """
-        sparse = [event for event in events if event.get("kind") in ("zone_activity_event", "zone_exit", "ai_agent_event", "ocr_text_read", "text_detected")]
+        sparse = [
+            event for event in events
+            if isinstance(event, dict) and (
+                event.get("kind") or event.get("type") or event.get("event") or event.get("event_type")
+            )
+        ]
         if not sparse:
             return
         for output in sorted(workflow.get("nodes", []), key=lambda node: node.get("type") != "image_output"):
             output_id = str(output.get("id") or "")
             output_type = output.get("type")
-            if output_type not in ("image_output", "alert", "webhook_output", "database_output", "screenshot_capture", "telegram_notification") or not output.get("enabled", True):
+            if output_type not in (
+                "image_output", "alert", "webhook_output", "database_output",
+                "screenshot_capture", "telegram_notification", "notification_dispatcher",
+                "s3_sink", "mqtt_publisher"
+            ) or not output.get("enabled", True):
                 continue
             candidates = engine.results_for_node(workflow, output_id, sparse, [])
             with logic_lock if logic_lock is not None else nullcontext():
@@ -6107,22 +6221,55 @@ class WorkflowRunner:
                 for event in candidates:
                     tg_res = dispatch_telegram_alert(event, f_snap, output.get("config", {}), state, async_dispatch=True)
                     self._emit_log(f"Telegram alert dispatched: {tg_res.get('status')}")
+            elif output_type == "notification_dispatcher":
+                from cloud_sinks import dispatch_notification
+                state = getattr(self, "_notification_runtime", None)
+                if state is None:
+                    self._notification_runtime = {}
+                    state = self._notification_runtime
+                f_snap = frame.copy() if hasattr(frame, "copy") else frame
+                for event in candidates:
+                    dispatch_res = dispatch_notification(event, f_snap, output.get("config", {}), state, async_dispatch=True)
+                    self._emit_log(f"Notification dispatched: {dispatch_res.get('status')}")
+            elif output_type == "s3_sink":
+                from cloud_sinks import upload_to_s3
+                f_snap = frame.copy() if hasattr(frame, "copy") else frame
+                upload_res = upload_to_s3(f_snap, None, {"events": candidates}, output.get("config", {}), async_dispatch=True)
+                self._emit_log(f"S3 upload queued: {upload_res.get('status')}")
+            elif output_type == "mqtt_publisher":
+                from mqtt_gateway import process_mqtt_publisher
+                state = getattr(self, "_mqtt_runtime", None)
+                if state is None:
+                    self._mqtt_runtime = {}
+                    state = self._mqtt_runtime
+                mqtt_status, mqtt_events = process_mqtt_publisher(output, candidates, state, now)
+                self._emit_log(f"MQTT published: {mqtt_status.get('status')}")
             elif output_type == "alert":
-                if any(c.get("kind") in ("ocr_text_read", "text_detected") for c in candidates):
-                    first_txt = next((c.get("text") for c in candidates if c.get("text")), "")
-                    default_msg = f"OCR Text Detected: {first_txt}" if first_txt else "OCR Text Read"
-                elif any(c.get("kind") == "ai_agent_event" for c in candidates):
-                    default_msg = "AI Agent Alert"
+                msg_candidate = None
+                for c in candidates:
+                    msg = c.get("message") or c.get("detail") or c.get("text") or c.get("title") or c.get("description")
+                    if msg:
+                        msg_candidate = str(msg)
+                        break
+                if not msg_candidate:
+                    if any(c.get("kind") in ("ocr_text_read", "text_detected") for c in candidates):
+                        default_msg = "OCR Text Read"
+                    elif any(c.get("kind") == "ai_agent_event" for c in candidates):
+                        default_msg = "AI Agent Alert"
+                    else:
+                        default_msg = "Vision Event"
                 else:
-                    default_msg = "Zone event"
+                    default_msg = msg_candidate
                 title = str(output.get("config", {}).get("message") or default_msg)
                 self._on_event(title, json.dumps(candidates, ensure_ascii=False))
             else:
                 for database_node, writer in self._database_outputs:
                     if str(database_node.get("id") or "") == output_id and output.get("config", {}).get("saveEvents", True):
                         for event in candidates:
-                            writer.event(timestamp_ms=int(time.time() * 1000), title=event["kind"],
-                                         detail=json.dumps(event, ensure_ascii=False), node_id=str(event.get("sourceNodeId") or ""))
+                            ev_title = str(event.get("kind") or event.get("type") or event.get("event") or "vision_event")
+                            node_origin = str(event.get("sourceNodeId") or event.get("node_id") or "")
+                            writer.event(timestamp_ms=int(time.time() * 1000), title=ev_title,
+                                         detail=json.dumps(event, ensure_ascii=False), node_id=node_origin)
 
     def _emit_log(self, line: str) -> None:
         self._on_log(line)

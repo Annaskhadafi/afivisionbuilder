@@ -31,6 +31,63 @@ def normalize_efficientad_config(config: dict) -> dict:
     return config
 
 
+def normalize_detection(d: dict) -> dict:
+    """Normalize a detection dictionary to comply with DetectionRecord contract.
+    Ensures both score and confidence, track_id and trackId, class and class_name,
+    bbox [x, y, w, h] and xyxy [x1, y1, x2, y2] are present and synchronized.
+    """
+    if not isinstance(d, dict):
+        return d
+
+    # Score / confidence synchronization
+    score = d.get("score")
+    confidence = d.get("confidence")
+    if score is not None and confidence is None:
+        try:
+            d["confidence"] = float(score)
+        except (ValueError, TypeError):
+            d["confidence"] = score
+    elif confidence is not None and score is None:
+        try:
+            d["score"] = float(confidence)
+        except (ValueError, TypeError):
+            d["score"] = confidence
+
+    # Track ID synchronization
+    tid = d.get("track_id")
+    track_id_camel = d.get("trackId")
+    if tid is not None and track_id_camel is None:
+        d["trackId"] = tid
+    elif track_id_camel is not None and tid is None:
+        d["track_id"] = track_id_camel
+
+    # Class synchronization
+    cls = d.get("class")
+    cls_name = d.get("class_name")
+    if cls is not None and cls_name is None:
+        d["class_name"] = str(cls)
+    elif cls_name is not None and cls is None:
+        d["class"] = str(cls_name)
+
+    # Bounding box & xyxy synchronization
+    bbox = d.get("bbox")
+    xyxy = d.get("xyxy")
+    if bbox is not None and len(bbox) >= 4 and xyxy is None:
+        try:
+            x, y, w, h = float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])
+            d["xyxy"] = [x, y, x + w, y + h]
+        except (ValueError, TypeError):
+            pass
+    elif xyxy is not None and len(xyxy) >= 4 and bbox is None:
+        try:
+            x1, y1, x2, y2 = float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3])
+            d["bbox"] = [x1, y1, max(0.0, x2 - x1), max(0.0, y2 - y1)]
+        except (ValueError, TypeError):
+            pass
+
+    return d
+
+
 IMAGE_PROCESSING_NODE_TYPES = (
     "resize",
     "crop",
@@ -417,6 +474,7 @@ TRACKING_ALGORITHM_OPTIONS = [
 ]
 REID_MODEL_OPTIONS = (
     "osnet_x1_0_msmt17_combineall",
+    "osnet_x0_25",
     "fastreid_mot17_sbs50",
     "osnet_x1_0_mot17",
     "osnet_x1_0_sportsmot",
@@ -481,6 +539,7 @@ TRACKER_CONFIG_DEFAULTS = {
     "classLockWindow": 10,
     "enableSmoothing": True,
     "smoothingAlpha": 0.7,
+    "smoothingAlgorithm": "kalman_or_ema",
     # Settings shared by every tracker.
     "batchSize": 1,
     "classAgnostic": False,

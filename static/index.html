@@ -2214,6 +2214,123 @@
     </div>
   </dialog>
 
+  <!-- Full-Screen Calibration & Annotation Studio Modal -->
+  <dialog id="fullScreenAnnotationStudioModal" class="annotation-studio-modal" role="dialog" aria-modal="true" aria-label="Calibration & Annotation Studio">
+    <div class="annotation-studio-shell">
+      <!-- Top Aerospace HUD Header -->
+      <header class="annotation-studio-header">
+        <div class="studio-header-left">
+          <div class="studio-brand-icon">
+            <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="3 18 9 6 21 6 15 18 3 18"/><circle cx="3" cy="18" r="1.5"/><circle cx="9" cy="6" r="1.5"/><circle cx="21" cy="6" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+          </div>
+          <div class="studio-title-meta">
+            <div class="studio-title-row">
+              <span class="studio-eyebrow">VISION CALIBRATION & ANNOTATION STUDIO</span>
+              <span class="studio-node-badge" id="studioNodeBadge">Line Counter</span>
+            </div>
+            <h2 id="studioHeadline" class="studio-headline">Kalibrasi Deteksi Spasial</h2>
+          </div>
+        </div>
+
+        <div class="studio-header-center">
+          <div class="studio-status-pill frozen" id="studioStreamStatusPill">
+            <span class="status-indicator-dot" id="studioStatusDot"></span>
+            <span id="studioStatusText">FRAME BEKU (AUTO-FROZEN)</span>
+          </div>
+          <div class="studio-meta-tag" id="studioResolutionTag">1280 × 720</div>
+          <div class="studio-meta-tag" id="studioZoomBadge">Zoom: 100%</div>
+        </div>
+
+        <div class="studio-header-right">
+          <div class="studio-shortcuts-hint">
+            <kbd>Space</kbd> + Drag = Pan · <kbd>Wheel</kbd> = Zoom · <kbd>Ctrl+Z</kbd> = Undo
+          </div>
+          <button type="button" class="studio-close-btn" id="studioCloseBtn" title="Tutup Studio (ESC)" aria-label="Close Studio">
+            <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Stage Container (Canvas & Video with transform matrix) -->
+      <div class="annotation-studio-body" id="annotationStudioBody">
+        <div class="annotation-studio-viewport" id="annotationStudioViewport">
+          <div class="annotation-studio-canvas-wrap" id="annotationStudioCanvasWrap">
+            <img id="annotationStudioImg" alt="Frame Kalibrasi Studio" draggable="false" />
+            <svg id="annotationStudioSvg" class="annotation-studio-svg" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+
+        <!-- Sub-pixel Loupe Magnifier Inset -->
+        <div class="studio-loupe-magnifier" id="studioLoupeMagnifier" hidden>
+          <canvas id="studioLoupeCanvas" width="130" height="130"></canvas>
+          <div class="studio-loupe-crosshair"></div>
+          <div class="studio-loupe-badge" id="studioLoupeCoordBadge">X: 0.00 Y: 0.00</div>
+        </div>
+
+        <!-- Sidebar Drawer for Multi-Zone / Zone Config (if active) -->
+        <aside class="studio-zone-drawer" id="studioZoneDrawer" hidden>
+          <div class="zone-drawer-header">
+            <div class="zone-drawer-title">
+              <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="3 3 21 3 21 21 3 21"/></svg>
+              <span>Daftar Zona (Multi-Zone)</span>
+            </div>
+            <button type="button" class="button small secondary" id="studioAddZoneBtn">+ Tambah Zona</button>
+          </div>
+          <div class="zone-drawer-list" id="studioZoneList">
+            <!-- Dynamic Zone Cards -->
+          </div>
+        </aside>
+      </div>
+
+      <!-- Floating HUD Action Dock (Bottom Center) -->
+      <footer class="annotation-studio-dock">
+        <div class="studio-dock-group">
+          <button type="button" class="studio-dock-btn" id="studioToggleFreezeBtn" title="Beralih antara Frame Diam (Beku) atau Live Stream">
+            <span class="dock-btn-icon" id="studioToggleFreezeIcon">▶️</span>
+            <span id="studioToggleFreezeLabel">Live Stream</span>
+          </button>
+          <button type="button" class="studio-dock-btn" id="studioSnapFrameBtn" title="Ambil snapshot frame terbaru dari video live">
+            <span class="dock-btn-icon">📸</span>
+            <span>Ambil Frame Baru</span>
+          </button>
+        </div>
+
+        <div class="studio-dock-separator"></div>
+
+        <div class="studio-dock-group">
+          <button type="button" class="studio-dock-btn" id="studioZoomFitBtn" title="Sesuaikan Ukuran dengan Layar (Fit)">
+            <span class="dock-btn-icon">🔲</span>
+            <span>Fit Layar</span>
+          </button>
+          <button type="button" class="studio-dock-btn" id="studioZoom100Btn" title="Zoom 100% (Ukuran Piksel Asli)">
+            <span class="dock-btn-icon">🔍</span>
+            <span>1:1</span>
+          </button>
+          <button type="button" class="studio-dock-btn" id="studioUndoBtn" title="Batalkan Titik Terakhir (Ctrl+Z)" disabled>
+            <span class="dock-btn-icon">↩️</span>
+            <span>Undo</span>
+          </button>
+          <button type="button" class="studio-dock-btn" id="studioClearBtn" title="Bersihkan Semua Titik / Gambar">
+            <span class="dock-btn-icon">🗑️</span>
+            <span>Bersihkan</span>
+          </button>
+        </div>
+
+        <div class="studio-dock-separator"></div>
+
+        <div class="studio-dock-group">
+          <button type="button" class="studio-dock-btn secondary" id="studioCancelBtn" title="Batal dan Tutup (ESC)">
+            <span>Batal</span>
+          </button>
+          <button type="button" class="studio-dock-btn primary" id="studioSaveApplyBtn" title="Simpan koordinat ke node dan terapkan ke alur kerja">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Simpan & Terapkan</span>
+          </button>
+        </div>
+      </footer>
+    </div>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

@@ -39,12 +39,14 @@ class SupervisionByteTrackAdapter:
         threshold = float(kwargs.get("track_activation_threshold", 0.5) or 0.5)
         buffer = int(kwargs.get("lost_track_buffer", 30) or 30)
         rate = int(kwargs.get("frame_rate", 30) or 30)
+        min_frames = int(kwargs.get("minimum_consecutive_frames", 1) or 1)
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=FutureWarning)
             self.tracker = sv.ByteTrack(
                 track_activation_threshold=threshold,
                 lost_track_buffer=buffer,
                 frame_rate=rate,
+                minimum_consecutive_frames=min_frames,
             )
 
     def update(self, detections, frame=None):
@@ -52,6 +54,19 @@ class SupervisionByteTrackAdapter:
 
     def reset(self):
         self.tracker.reset()
+
+    @property
+    def tracks(self):
+        class TrackProxy:
+            def __init__(self, t):
+                self.tracker_id = getattr(t, "external_track_id", getattr(t, "tracker_id", -1))
+                self.age = getattr(t, "tracklet_len", 1)
+                self.time_since_update = getattr(t, "frame_id", 1)
+
+        return [
+            TrackProxy(t)
+            for t in getattr(self.tracker, "tracked_tracks", []) + getattr(self.tracker, "lost_tracks", [])
+        ]
 
 
 class UltralyticsTrackerAdapter:
@@ -146,6 +161,19 @@ class UltralyticsTrackerAdapter:
     def reset(self):
         if hasattr(self.tracker, "reset"):
             self.tracker.reset()
+
+    @property
+    def tracks(self):
+        class TrackProxy:
+            def __init__(self, t):
+                self.tracker_id = getattr(t, "track_id", -1)
+                self.age = getattr(t, "tracklet_len", 1)
+                self.time_since_update = getattr(t, "frame_id", 1)
+
+        return [
+            TrackProxy(t)
+            for t in getattr(self.tracker, "tracked_stracks", []) + getattr(self.tracker, "lost_stracks", [])
+        ]
 
 
 SOURCE_INDEX_KEY = "visonode_source_index"
@@ -248,7 +276,7 @@ class RoboflowTracker:
     def status_label(self) -> str:
         if self.algorithm in ("tracktrack", "fasttrack", "deepocsort"):
             label = f"{self.algorithm} · Ultralytics native tracker"
-            return f"{label} + Roboflow ReID" if self.enable_reid else label
+            return f"{label} + Roboflow ReID ({self.reid_model_name})" if self.enable_reid else label
         detail = " + CMC" if (
             self.algorithm == "botsort"
             and bool(self.config.get("botSortGmc", True))
@@ -257,7 +285,7 @@ class RoboflowTracker:
             f"{self.algorithm}{detail} · Roboflow trackers "
             f"{self.library_version}"
         )
-        return f"{label} + Roboflow ReID" if self.enable_reid else label
+        return f"{label} + Roboflow ReID ({self.reid_model_name})" if self.enable_reid else label
 
     def update(
         self,
@@ -800,15 +828,26 @@ class RoboflowTracker:
             if len(history) > window:
                 del history[:-window]
 
-        # Bounding Box Stabilizer (EMA)
+        # Bounding Box Stabilizer (EMA / Kalman-Adaptive Smoothing)
         if self.enable_smoothing:
             if is_new or "smoothed_box" not in state:
                 smoothed_box = list(box)
             else:
                 prev_box = state["smoothed_box"]
                 alpha = max(0.01, min(1.0, self.smoothing_alpha))
+                # Adaptive EMA: if kalman_or_ema, dynamically scale alpha with centroid displacement
+                if self.smoothing_algorithm in ("kalman", "kalman_or_ema"):
+                    diag = max(1.0, math.hypot(box[2] - box[0], box[3] - box[1]))
+                    cur_cx, cur_cy = (box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0
+                    prev_cx, prev_cy = (prev_box[0] + prev_box[2]) / 2.0, (prev_box[1] + prev_box[3]) / 2.0
+                    displacement = math.hypot(cur_cx - prev_cx, cur_cy - prev_cy)
+                    motion_ratio = min(1.0, displacement / diag)
+                    # When stationary/slow: lower alpha for maximum jitter reduction; when fast: increase alpha to eliminate lag
+                    effective_alpha = max(alpha * 0.6, min(0.98, alpha + motion_ratio * (1.0 - alpha) * 0.8))
+                else:
+                    effective_alpha = alpha
                 smoothed_box = [
-                    float(alpha * cur + (1.0 - alpha) * prev)
+                    float(effective_alpha * cur + (1.0 - effective_alpha) * prev)
                     for cur, prev in zip(box, prev_box)
                 ]
         else:
@@ -875,6 +914,7 @@ class RoboflowTracker:
         self._runtimes.clear()
         self._global_ids.clear()
         self._track_state.clear()
+        self._reid_gallery.clear()
 
     def _prune_metadata(self, current_matches: set[tuple[Hashable, int]] | None = None) -> None:
         alive_keys = {

@@ -2527,17 +2527,31 @@ def results_for_node(
 
     project_sources = {
         str(node.get("id") or "") for node in workflow.get("nodes", [])
-        if node.get("type") in ("zone_activity_timer", "zone_exit_event", "multi_zone_occupancy", "ocr_reader", "object_timer", "face_tracker", "velocity_calculator", "path_deviation")
+        if node.get("type") in (
+            "zone_activity_timer", "zone_exit_event", "multi_zone_occupancy", "ocr_reader",
+            "object_timer", "face_tracker", "velocity_calculator", "path_deviation",
+            "distance_measurement", "size_measurement", "camera_focus", "overlap_analysis",
+            "detections_difference", "data_aggregator", "csv_formatter", "man_down_detector",
+            "overstack_detector", "ppe_compliance_matrix", "lpr_license_plate",
+            "incident_video_recorder", "badminton_analytics", "switch_case", "dominant_color"
+        )
         and node.get("enabled", True)
         and str(node.get("id") or "") != node_id
         and has_active_path(workflow, str(node.get("id") or ""), node_id)
     }
     if project_sources and target and target.get("type") in (
         "alert", "webhook_output", "image_output", "database_output", "ai_agent",
+        "screenshot_capture", "telegram_notification", "notification_dispatcher",
+        "s3_sink", "mqtt_publisher", "dashboard_sink", "csv_formatter", "data_aggregator"
     ):
-        events = [item for item in detections
-                  if item.get("kind") in ("zone_activity_event", "zone_exit", "zone_occupied", "zone_vacated", "zone_overstay", "ocr_text_read", "text_detected", "object_timer_alert", "overspeed_detected", "path_deviation_detected")
-                  and str(item.get("sourceNodeId") or "") in project_sources]
+        events = [
+            item for item in detections
+            if item.get("kind") != "zone_activity"
+            and (
+                item.get("kind") or item.get("type") or item.get("event") or item.get("event_type")
+            )
+            and str(item.get("sourceNodeId") or item.get("node_id") or "") in project_sources
+        ]
         return filter_project_inputs(workflow, node_id, events, after_sources=project_sources)
     tracker = active_tracking_node(workflow) or active_vlm_box_tracker_node(workflow)
     tracker_id = str(tracker.get("id") or tracker.get("type") or "tracker") if tracker else "tracker"
@@ -2584,14 +2598,23 @@ def results_for_node(
         event_kinds = {
             "track_snapshot", "count_event", "line_crossing", "loitering_alert",
             "object_classification", "anomaly", "zone_activity", "zone_activity_event",
-            "zone_exit", "ocr_text_read", "text_detected", "barcode_read", "object_timer_alert", "face_identified", "overspeed_detected", "path_deviation_detected"
+            "zone_exit", "ocr_text_read", "text_detected", "barcode_read", "object_timer_alert",
+            "face_identified", "overspeed_detected", "path_deviation_detected",
+            "zone_occupied", "zone_vacated", "zone_overstay", "distance_alarm", "proximity_violation",
+            "size_violation", "camera_blur_alarm", "overlap_violation", "ppe_non_compliant",
+            "detections_difference_alarm", "data_aggregator_summary", "csv_export_ready",
+            "man_down_alert", "overstack_alert", "ppe_violation", "license_plate_detected",
+            "incident_recorded", "badminton_rally", "switch_case_routed", "color_match",
+            "THRESHOLD_ALERT", "threshold_alert", "mqtt_published", "telegram_dispatched",
+            "screenshot_captured", "spoof_detected", "distance_event", "size_event",
+            "camera_focus_alarm", "overlap_event", "speeding_event", "path_deviation_event"
         }
         results.extend(
             item for item in detections
-            if item.get("kind") in event_kinds
+            if (item.get("kind") in event_kinds or item.get("type") in event_kinds)
             and has_active_path(
                 workflow,
-                str(item.get("sourceNodeId") or ""),
+                str(item.get("sourceNodeId") or item.get("node_id") or ""),
                 node_id,
             )
         )

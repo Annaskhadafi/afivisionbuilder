@@ -16383,6 +16383,8 @@
 
         markDirty();
 
+        if (node.type === 'tracker' && key === 'enableReid') renderInspector();
+
         if (node.type === 'hand_skeleton' && key === 'hideUnknownGesture') liveUpdateWorkflow();
 
       };
@@ -16563,106 +16565,1210 @@
 
 
 
+  
+  /* ==========================================================================
+     Full-Screen Calibration & Annotation Studio (CAD / Figma Grade)
+     ========================================================================== */
+  const AnnotationStudio = {
+    initialized: false,
+    modal: null,
+    node: null,
+    mode: 'polygon', // 'line', 'polygon', 'multi_zone', 'homography_bev', 'roi'
+    options: {},
+    img: null,
+    svg: null,
+    viewport: null,
+    canvasWrap: null,
+    loupeEl: null,
+    loupeCanvas: null,
+    loupeBadge: null,
+
+    // Dimensions & Transform
+    imgW: 1280,
+    imgH: 720,
+    scale: 1.0,
+    panX: 0,
+    panY: 0,
+    isPanning: false,
+    spacePressed: false,
+    startClientX: 0,
+    startClientY: 0,
+    startPanX: 0,
+    startPanY: 0,
+
+    // Video stream sync
+    isFrozen: true,
+    streamTimer: null,
+
+    // Geometry data
+    points: [], // for polygon, homography
+    lines: [], // for line counter
+    zones: [], // for multi-zone
+    activeZoneIdx: 0,
+    roi: null, // {x, y, w, h}
+    activeVertexIdx: -1,
+    draggedItem: null,
+    history: [],
+
+    init() {
+      if (this.initialized) return;
+      this.initialized = true;
+
+      this.modal = document.getElementById('fullScreenAnnotationStudioModal');
+      this.viewport = document.getElementById('annotationStudioViewport');
+      this.canvasWrap = document.getElementById('annotationStudioCanvasWrap');
+      this.img = document.getElementById('annotationStudioImg');
+      this.svg = document.getElementById('annotationStudioSvg');
+      this.loupeEl = document.getElementById('studioLoupeMagnifier');
+      this.loupeCanvas = document.getElementById('studioLoupeCanvas');
+      this.loupeBadge = document.getElementById('studioLoupeCoordBadge');
+
+      if (!this.modal) return;
+
+      // Header controls
+      document.getElementById('studioCloseBtn')?.addEventListener('click', () => this.close());
+      document.getElementById('studioCancelBtn')?.addEventListener('click', () => this.close());
+
+      // Action dock controls
+      document.getElementById('studioToggleFreezeBtn')?.addEventListener('click', () => this.toggleFreeze());
+      document.getElementById('studioSnapFrameBtn')?.addEventListener('click', () => this.snapFreshFrame());
+      document.getElementById('studioZoomFitBtn')?.addEventListener('click', () => this.zoomFit());
+      document.getElementById('studioZoom100Btn')?.addEventListener('click', () => this.zoom100());
+      document.getElementById('studioUndoBtn')?.addEventListener('click', () => this.undo());
+      document.getElementById('studioClearBtn')?.addEventListener('click', () => this.clearAll());
+      document.getElementById('studioSaveApplyBtn')?.addEventListener('click', () => this.saveAndApply());
+      document.getElementById('studioAddZoneBtn')?.addEventListener('click', () => this.addMultiZone());
+
+      // Global keyboard navigation
+      window.addEventListener('keydown', (e) => {
+        if (!this.modal || !this.modal.open) return;
+        if (e.code === 'Space' && !e.target.matches('input, textarea')) {
+          e.preventDefault();
+          this.spacePressed = true;
+          this.viewport?.classList.add('panning');
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          this.undo();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          this.close();
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') {
+          this.spacePressed = false;
+          if (!this.isPanning) {
+            this.viewport?.classList.remove('panning');
+          }
+        }
+      });
+
+      // Mouse Wheel Zoom
+      this.viewport?.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 1.15 : 0.87;
+        const rect = this.viewport.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        this.zoomAtPoint(delta, mouseX, mouseY);
+      }, { passive: false });
+
+      // Viewport Mouse interactions
+      this.viewport?.addEventListener('mousedown', (e) => this.onMouseDown(e));
+      window.addEventListener('mousemove', (e) => this.onMouseMove(e));
+      window.addEventListener('mouseup', (e) => this.onMouseUp(e));
+
+      // Hide loupe when cursor leaves viewport
+      this.viewport?.addEventListener('mouseleave', () => {
+        if (this.loupeEl) this.loupeEl.hidden = true;
+      });
+    },
+
+    open(node, mode, options = {}) {
+      this.init();
+      this.node = node;
+      this.mode = mode;
+      this.options = options;
+      this.history = [];
+      this.activeVertexIdx = -1;
+      this.draggedItem = null;
+
+      // Update Header Metadata
+      const badge = document.getElementById('studioNodeBadge');
+      const headline = document.getElementById('studioHeadline');
+      if (badge) badge.textContent = node.title || node.type || 'Vision Node';
+
+      if (mode === 'line') {
+        const lineIdx = options.lineIndex || 0;
+        if (headline) headline.textContent = `Kalibrasi Garis Hitung: ${options.lineName || ('Garis ' + (lineIdx + 1))}`;
+      } else if (mode === 'polygon') {
+        if (headline) headline.textContent = `Kalibrasi Poligon Zona: ${node.title || 'Zona Area'}`;
+      } else if (mode === 'multi_zone') {
+        if (headline) headline.textContent = `Editor Multi-Zone & Okupansi Kapasitas: ${node.title || 'Multi-Zone'}`;
+      } else if (mode === 'homography_bev') {
+        if (headline) headline.textContent = `Kalibrasi Ground Plane (Homography) Bird's Eye View 4-Titik`;
+      } else if (mode === 'roi') {
+        if (headline) headline.textContent = `Pemilihan Area Pemotongan / Filter (ROI)`;
+      }
+
+      // Drawer toggle
+      const zoneDrawer = document.getElementById('studioZoneDrawer');
+      if (zoneDrawer) {
+        zoneDrawer.hidden = (mode !== 'multi_zone');
+      }
+
+      // Load image & geometry
+      this.loadFrame();
+      this.loadEntities();
+
+      if (mode === 'multi_zone') {
+        this.renderMultiZoneDrawer();
+      }
+
+      // Reset zoom to fit screen
+      setTimeout(() => {
+        this.zoomFit();
+        this.render();
+      }, 30);
+
+      // Show modal
+      if (this.modal && typeof this.modal.showModal === 'function') {
+        this.modal.showModal();
+      } else if (this.modal) {
+        this.modal.setAttribute('open', '');
+      }
+
+      // Start in frozen mode by default for drawing precision
+      this.isFrozen = true;
+      this.updateFreezeUI();
+    },
+
+    close() {
+      if (this.streamTimer) {
+        clearInterval(this.streamTimer);
+        this.streamTimer = null;
+      }
+      if (this.loupeEl) this.loupeEl.hidden = true;
+      if (this.modal) {
+        if (typeof this.modal.close === 'function') {
+          this.modal.close();
+        } else {
+          this.modal.removeAttribute('open');
+        }
+      }
+    },
+
+    loadFrame() {
+      const sourceImg = document.querySelector('#previewPopupImg') || document.querySelector('#previewModalImg') || $('#previewImage');
+      if (sourceImg && sourceImg.src && !sourceImg.hidden && sourceImg.naturalWidth) {
+        this.img.src = sourceImg.src;
+        this.imgW = sourceImg.naturalWidth || 1280;
+        this.imgH = sourceImg.naturalHeight || 720;
+      } else {
+        const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+          <rect width="100%" height="100%" fill="#070c18"/>
+          <defs>
+            <pattern id="calibStudioGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#calibStudioGrid)"/>
+          <rect x="30" y="30" width="1220" height="660" fill="none" stroke="rgba(56,189,248,0.25)" stroke-width="1.5" stroke-dasharray="6 6"/>
+          <circle cx="640" cy="360" r="120" fill="none" stroke="rgba(34,197,94,0.15)" stroke-width="1"/>
+          <line x1="640" y1="200" x2="640" y2="520" stroke="rgba(34,197,94,0.2)" stroke-width="1"/>
+          <line x1="480" y1="360" x2="800" y2="360" stroke="rgba(34,197,94,0.2)" stroke-width="1"/>
+          <text x="640" y="340" fill="#38bdf8" font-family="system-ui, sans-serif" font-size="22" text-anchor="middle" font-weight="700">📐 Vision Calibration Studio</text>
+          <text x="640" y="380" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="14" text-anchor="middle">Frame acuan kalibrasi siap. Hubungkan video alur kerja untuk stream live.</text>
+        </svg>`;
+        this.img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(placeholderSvg);
+        this.imgW = 1280;
+        this.imgH = 720;
+      }
+
+      this.canvasWrap.style.width = this.imgW + 'px';
+      this.canvasWrap.style.height = this.imgH + 'px';
+      this.svg.setAttribute('viewBox', `0 0 ${this.imgW} ${this.imgH}`);
+
+      const resTag = document.getElementById('studioResolutionTag');
+      if (resTag) resTag.textContent = `${this.imgW} × ${this.imgH}`;
+    },
+
+    loadEntities() {
+      const cfg = this.node.config || {};
+
+      if (this.mode === 'line') {
+        const rawLines = getOrCreateNodeLines(this.node);
+        const lineIdx = this.options.lineIndex || 0;
+        this.lines = JSON.parse(JSON.stringify(rawLines));
+        this.lines.forEach((l) => {
+          if (l.startPoint && typeof l.startPoint === 'string') {
+            const [x1, y1] = l.startPoint.split(',').map(Number);
+            l.p1 = { x: Number.isFinite(x1) ? x1 : 0.25, y: Number.isFinite(y1) ? y1 : 0.5 };
+          } else {
+            l.p1 = { x: 0.25, y: 0.5 };
+          }
+          if (l.endPoint && typeof l.endPoint === 'string') {
+            const [x2, y2] = l.endPoint.split(',').map(Number);
+            l.p2 = { x: Number.isFinite(x2) ? x2 : 0.75, y: Number.isFinite(y2) ? y2 : 0.5 };
+          } else {
+            l.p2 = { x: 0.75, y: 0.5 };
+          }
+        });
+      } else if (this.mode === 'polygon') {
+        const rawPoints = cfg.points || cfg.zone || cfg.polygonPoints || '';
+        this.points = this.parsePointsStr(rawPoints);
+        if (this.points.length === 0) {
+          this.points = [
+            { x: 0.20, y: 0.20 },
+            { x: 0.80, y: 0.20 },
+            { x: 0.80, y: 0.80 },
+            { x: 0.20, y: 0.80 }
+          ];
+        }
+      } else if (this.mode === 'multi_zone') {
+        let rawZones = cfg.zones;
+        if (typeof rawZones === 'string') {
+          try { rawZones = JSON.parse(rawZones); } catch { rawZones = null; }
+        }
+        if (!Array.isArray(rawZones) || rawZones.length === 0) {
+          rawZones = [
+            { id: 'zone_1', name: 'Zona A', capacity: 4, lineColor: '#22c55e', points: '0.15,0.20; 0.45,0.20; 0.45,0.80; 0.15,0.80' },
+            { id: 'zone_2', name: 'Zona B', capacity: 2, lineColor: '#38bdf8', points: '0.55,0.20; 0.85,0.20; 0.85,0.80; 0.55,0.80' }
+          ];
+        }
+        this.zones = rawZones.map((z) => ({
+          ...z,
+          parsedPoints: this.parsePointsStr(z.points)
+        }));
+        this.activeZoneIdx = 0;
+      } else if (this.mode === 'homography_bev') {
+        this.points = this.parsePointsStr(cfg.points);
+        if (this.points.length !== 4) {
+          this.points = [
+            { x: 0.20, y: 0.60 }, // 1: Top-Left
+            { x: 0.80, y: 0.60 }, // 2: Top-Right
+            { x: 0.95, y: 0.95 }, // 3: Bottom-Right
+            { x: 0.05, y: 0.95 }  // 4: Bottom-Left
+          ];
+        }
+      } else if (this.mode === 'roi') {
+        const rawRoi = cfg.roi;
+        if (rawRoi && typeof rawRoi === 'string') {
+          const [rx, ry, rw, rh] = rawRoi.split(',').map(Number);
+          if ([rx, ry, rw, rh].every(Number.isFinite)) {
+            this.roi = { x: rx, y: ry, w: rw, h: rh };
+          }
+        }
+        if (!this.roi) {
+          const x = Number(cfg.x) || 0;
+          const y = Number(cfg.y) || 0;
+          const w = Number(cfg.w) || (this.imgW * 0.6);
+          const h = Number(cfg.h) || (this.imgH * 0.6);
+          this.roi = {
+            x: Math.max(0, Math.min(1, x / (this.imgW || 1))),
+            y: Math.max(0, Math.min(1, y / (this.imgH || 1))),
+            w: Math.max(0.05, Math.min(1, w / (this.imgW || 1))),
+            h: Math.max(0.05, Math.min(1, h / (this.imgH || 1)))
+          };
+        }
+      }
+    },
+
+    parsePointsStr(str) {
+      if (!str || typeof str !== 'string') return [];
+      return str.split(';').map((part) => {
+        const [x, y] = part.trim().split(',').map(Number);
+        return Number.isFinite(x) && Number.isFinite(y)
+          ? { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) }
+          : null;
+      }).filter(Boolean);
+    },
+
+    pushHistory() {
+      let snapshot = null;
+      if (this.mode === 'line') snapshot = JSON.parse(JSON.stringify(this.lines));
+      else if (this.mode === 'polygon' || this.mode === 'homography_bev') snapshot = JSON.parse(JSON.stringify(this.points));
+      else if (this.mode === 'multi_zone') snapshot = JSON.parse(JSON.stringify(this.zones));
+      else if (this.mode === 'roi') snapshot = JSON.parse(JSON.stringify(this.roi));
+
+      this.history.push(snapshot);
+      if (this.history.length > 20) this.history.shift();
+      const undoBtn = document.getElementById('studioUndoBtn');
+      if (undoBtn) undoBtn.disabled = this.history.length === 0;
+    },
+
+    undo() {
+      if (this.history.length === 0) return;
+      const prev = this.history.pop();
+      if (this.mode === 'line') this.lines = prev;
+      else if (this.mode === 'polygon' || this.mode === 'homography_bev') this.points = prev;
+      else if (this.mode === 'multi_zone') {
+        this.zones = prev;
+        this.renderMultiZoneDrawer();
+      } else if (this.mode === 'roi') this.roi = prev;
+
+      const undoBtn = document.getElementById('studioUndoBtn');
+      if (undoBtn) undoBtn.disabled = this.history.length === 0;
+      this.render();
+      toast('Perubahan terakhir dibatalkan (Undo)');
+    },
+
+    clearAll() {
+      this.pushHistory();
+      if (this.mode === 'line') {
+        const lineIdx = this.options.lineIndex || 0;
+        if (this.lines[lineIdx]) {
+          this.lines[lineIdx].p1 = { x: 0.1, y: 0.5 };
+          this.lines[lineIdx].p2 = { x: 0.9, y: 0.5 };
+        }
+      } else if (this.mode === 'polygon') {
+        this.points = [];
+      } else if (this.mode === 'multi_zone') {
+        if (this.zones[this.activeZoneIdx]) {
+          this.zones[this.activeZoneIdx].parsedPoints = [];
+        }
+      } else if (this.mode === 'homography_bev') {
+        this.points = [
+          { x: 0.2, y: 0.6 }, { x: 0.8, y: 0.6 },
+          { x: 0.95, y: 0.95 }, { x: 0.05, y: 0.95 }
+        ];
+      } else if (this.mode === 'roi') {
+        this.roi = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
+      }
+      this.render();
+      toast('Kanvas dibersihkan');
+    },
+
+    toggleFreeze() {
+      this.isFrozen = !this.isFrozen;
+      this.updateFreezeUI();
+    },
+
+    updateFreezeUI() {
+      const statusPill = document.getElementById('studioStreamStatusPill');
+      const statusText = document.getElementById('studioStatusText');
+      const icon = document.getElementById('studioToggleFreezeIcon');
+      const label = document.getElementById('studioToggleFreezeLabel');
+
+      if (this.isFrozen) {
+        if (statusPill) statusPill.className = 'studio-status-pill frozen';
+        if (statusText) statusText.textContent = 'FRAME BEKU (AUTO-FROZEN)';
+        if (icon) icon.textContent = '▶️';
+        if (label) label.textContent = 'Live Stream';
+        if (this.streamTimer) { clearInterval(this.streamTimer); this.streamTimer = null; }
+      } else {
+        if (statusPill) statusPill.className = 'studio-status-pill live';
+        if (statusText) statusText.textContent = '• LIVE STREAM BERJALAN';
+        if (icon) icon.textContent = '⏸️';
+        if (label) label.textContent = 'Bekukan Frame';
+        this.streamTimer = setInterval(() => {
+          if (!this.modal || !this.modal.open || this.isFrozen) return;
+          const liveSource = document.querySelector('#previewPopupImg') || document.querySelector('#previewModalImg') || $('#previewImage');
+          if (liveSource && liveSource.src && liveSource.src !== this.img.src) {
+            this.img.src = liveSource.src;
+          }
+        }, 150);
+      }
+    },
+
+    snapFreshFrame() {
+      const liveSource = document.querySelector('#previewPopupImg') || document.querySelector('#previewModalImg') || $('#previewImage');
+      if (liveSource && liveSource.src) {
+        this.img.src = liveSource.src;
+        if (liveSource.naturalWidth) {
+          this.imgW = liveSource.naturalWidth;
+          this.imgH = liveSource.naturalHeight;
+          this.canvasWrap.style.width = this.imgW + 'px';
+          this.canvasWrap.style.height = this.imgH + 'px';
+          this.svg.setAttribute('viewBox', `0 0 ${this.imgW} ${this.imgH}`);
+          const resTag = document.getElementById('studioResolutionTag');
+          if (resTag) resTag.textContent = `${this.imgW} × ${this.imgH}`;
+        }
+        toast('Frame terkini berhasil ditangkap!');
+      } else {
+        toast('Tidak ada stream video yang sedang aktif untuk diambil frame.', true);
+      }
+    },
+
+    zoomAtPoint(delta, mouseX, mouseY) {
+      const oldScale = this.scale;
+      let newScale = oldScale * delta;
+      newScale = Math.max(0.3, Math.min(8.0, newScale));
+
+      this.panX = mouseX - (mouseX - this.panX) * (newScale / oldScale);
+      this.panY = mouseY - (mouseY - this.panY) * (newScale / oldScale);
+      this.scale = newScale;
+      this.applyTransform();
+    },
+
+    zoomFit() {
+      if (!this.viewport) return;
+      const vpW = this.viewport.clientWidth || 1000;
+      const vpH = this.viewport.clientHeight || 700;
+      const scaleX = (vpW - 48) / (this.imgW || 1280);
+      const scaleY = (vpH - 48) / (this.imgH || 720);
+      this.scale = Math.max(0.2, Math.min(scaleX, scaleY, 1.2));
+      this.panX = (vpW - this.imgW * this.scale) / 2;
+      this.panY = (vpH - this.imgH * this.scale) / 2;
+      this.applyTransform();
+    },
+
+    zoom100() {
+      if (!this.viewport) return;
+      const vpW = this.viewport.clientWidth || 1000;
+      const vpH = this.viewport.clientHeight || 700;
+      this.scale = 1.0;
+      this.panX = (vpW - this.imgW) / 2;
+      this.panY = (vpH - this.imgH) / 2;
+      this.applyTransform();
+    },
+
+    applyTransform() {
+      if (this.canvasWrap) {
+        this.canvasWrap.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+      }
+      const badge = document.getElementById('studioZoomBadge');
+      if (badge) badge.textContent = `Zoom: ${Math.round(this.scale * 100)}%`;
+    },
+
+    clientToNormalized(clientX, clientY) {
+      const rect = this.canvasWrap.getBoundingClientRect();
+      const normX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const normY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+      return { normX, normY };
+    },
+
+    updateLoupe(normX, normY, clientX, clientY) {
+      if (!this.loupeEl || !this.loupeCanvas || !this.img) return;
+      this.loupeEl.hidden = false;
+      this.loupeEl.style.left = `${clientX}px`;
+      this.loupeEl.style.top = `${clientY}px`;
+      if (this.loupeBadge) {
+        this.loupeBadge.textContent = `X:${normX.toFixed(3)} Y:${normY.toFixed(3)}`;
+      }
+
+      const ctx = this.loupeCanvas.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, 130, 130);
+      const pxX = normX * this.imgW;
+      const pxY = normY * this.imgH;
+      const srcSize = 130 / 3; // 3x zoom
+      try {
+        ctx.drawImage(
+          this.img,
+          pxX - srcSize / 2,
+          pxY - srcSize / 2,
+          srcSize,
+          srcSize,
+          0,
+          0,
+          130,
+          130
+        );
+      } catch (err) {
+        // SVG cross-origin or load timing safe
+      }
+    },
+
+    onMouseDown(e) {
+      if (this.spacePressed || e.button === 1) {
+        e.preventDefault();
+        this.isPanning = true;
+        this.startClientX = e.clientX;
+        this.startClientY = e.clientY;
+        this.startPanX = this.panX;
+        this.startPanY = this.panY;
+        this.viewport?.classList.add('panning');
+        return;
+      }
+
+      if (e.button !== 0) return;
+
+      const target = e.target;
+      const { normX, normY } = this.clientToNormalized(e.clientX, e.clientY);
+
+      if (target.dataset && target.dataset.vertexIdx !== undefined) {
+        this.pushHistory();
+        this.activeVertexIdx = parseInt(target.dataset.vertexIdx, 10);
+        this.draggedItem = target.dataset.itemType || 'vertex';
+        e.preventDefault();
+        return;
+      }
+
+      if (this.mode === 'polygon') {
+        this.pushHistory();
+        this.points.push({ x: normX, y: normY });
+        this.activeVertexIdx = this.points.length - 1;
+        this.draggedItem = 'vertex';
+        this.render();
+      } else if (this.mode === 'multi_zone') {
+        this.pushHistory();
+        const activeZ = this.zones[this.activeZoneIdx];
+        if (activeZ) {
+          if (!activeZ.parsedPoints) activeZ.parsedPoints = [];
+          activeZ.parsedPoints.push({ x: normX, y: normY });
+          this.activeVertexIdx = activeZ.parsedPoints.length - 1;
+          this.draggedItem = 'vertex';
+          this.render();
+        }
+      }
+    },
+
+    onMouseMove(e) {
+      const { normX, normY } = this.clientToNormalized(e.clientX, e.clientY);
+
+      if (this.isPanning) {
+        const dx = e.clientX - this.startClientX;
+        const dy = e.clientY - this.startClientY;
+        this.panX = this.startPanX + dx;
+        this.panY = this.startPanY + dy;
+        this.applyTransform();
+        return;
+      }
+
+      if (!this.spacePressed) {
+        this.updateLoupe(normX, normY, e.clientX, e.clientY);
+      }
+
+      if (this.activeVertexIdx >= 0) {
+        if (this.mode === 'polygon' || this.mode === 'homography_bev') {
+          if (this.points[this.activeVertexIdx]) {
+            this.points[this.activeVertexIdx].x = normX;
+            this.points[this.activeVertexIdx].y = normY;
+            this.render();
+          }
+        } else if (this.mode === 'multi_zone') {
+          const activeZ = this.zones[this.activeZoneIdx];
+          if (activeZ && activeZ.parsedPoints && activeZ.parsedPoints[this.activeVertexIdx]) {
+            activeZ.parsedPoints[this.activeVertexIdx].x = normX;
+            activeZ.parsedPoints[this.activeVertexIdx].y = normY;
+            this.render();
+          }
+        } else if (this.mode === 'line') {
+          const lineIdx = this.options.lineIndex || 0;
+          const line = this.lines[lineIdx];
+          if (line) {
+            if (this.activeVertexIdx === 0) {
+              line.p1 = { x: normX, y: normY };
+            } else if (this.activeVertexIdx === 1) {
+              line.p2 = { x: normX, y: normY };
+            }
+            this.render();
+          }
+        } else if (this.mode === 'roi') {
+          if (this.roi) {
+            if (this.activeVertexIdx === 0) {
+              const r = this.roi.x + this.roi.w;
+              const b = this.roi.y + this.roi.h;
+              this.roi.x = Math.min(normX, r - 0.02);
+              this.roi.y = Math.min(normY, b - 0.02);
+              this.roi.w = r - this.roi.x;
+              this.roi.h = b - this.roi.y;
+            } else if (this.activeVertexIdx === 1) {
+              this.roi.w = Math.max(0.02, normX - this.roi.x);
+              this.roi.h = Math.max(0.02, normY - this.roi.y);
+            }
+            this.render();
+          }
+        }
+      }
+    },
+
+    onMouseUp(e) {
+      if (this.isPanning) {
+        this.isPanning = false;
+        if (!this.spacePressed) {
+          this.viewport?.classList.remove('panning');
+        }
+      }
+      this.activeVertexIdx = -1;
+      this.draggedItem = null;
+    },
+
+    render() {
+      if (!this.svg) return;
+      this.svg.innerHTML = '';
+
+      if (this.mode === 'line') {
+        this.renderLineMode();
+      } else if (this.mode === 'polygon') {
+        this.renderPolygonMode();
+      } else if (this.mode === 'multi_zone') {
+        this.renderMultiZoneMode();
+      } else if (this.mode === 'homography_bev') {
+        this.renderHomographyMode();
+      } else if (this.mode === 'roi') {
+        this.renderRoiMode();
+      }
+    },
+
+    renderLineMode() {
+      const lineIdx = this.options.lineIndex || 0;
+      this.lines.forEach((l, idx) => {
+        const isActive = (idx === lineIdx);
+        const color = l.lineColor || (isActive ? '#22c55e' : '#64748b');
+        const x1 = l.p1.x * this.imgW, y1 = l.p1.y * this.imgH;
+        const x2 = l.p2.x * this.imgW, y2 = l.p2.y * this.imgH;
+
+        const lineEl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        lineEl.setAttribute('x1', x1);
+        lineEl.setAttribute('y1', y1);
+        lineEl.setAttribute('x2', x2);
+        lineEl.setAttribute('y2', y2);
+        lineEl.setAttribute('stroke', color);
+        lineEl.setAttribute('stroke-width', isActive ? '4' : '2.5');
+        lineEl.setAttribute('stroke-linecap', 'round');
+        lineEl.setAttribute('class', 'studio-svg-line');
+        this.svg.appendChild(lineEl);
+
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const perpAngle = angle + (l.invertDirection ? -Math.PI / 2 : Math.PI / 2);
+        const arrowLen = 22;
+        const arrowTipX = midX + Math.cos(perpAngle) * arrowLen;
+        const arrowTipY = midY + Math.sin(perpAngle) * arrowLen;
+
+        const arrowEl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        arrowEl.setAttribute('x1', midX);
+        arrowEl.setAttribute('y1', midY);
+        arrowEl.setAttribute('x2', arrowTipX);
+        arrowEl.setAttribute('y2', arrowTipY);
+        arrowEl.setAttribute('stroke', color);
+        arrowEl.setAttribute('stroke-width', '2.5');
+        arrowEl.setAttribute('stroke-dasharray', '3 2');
+        this.svg.appendChild(arrowEl);
+
+        const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        const a1 = perpAngle + Math.PI * 0.85;
+        const a2 = perpAngle - Math.PI * 0.85;
+        const h1x = arrowTipX + Math.cos(a1) * 8, h1y = arrowTipY + Math.sin(a1) * 8;
+        const h2x = arrowTipX + Math.cos(a2) * 8, h2y = arrowTipY + Math.sin(a2) * 8;
+        arrowHead.setAttribute('points', `${arrowTipX},${arrowTipY} ${h1x},${h1y} ${h2x},${h2y}`);
+        arrowHead.setAttribute('fill', color);
+        this.svg.appendChild(arrowHead);
+
+        const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        labelText.setAttribute('x', midX);
+        labelText.setAttribute('y', midY - 12);
+        labelText.setAttribute('fill', '#fff');
+        labelText.setAttribute('class', 'studio-svg-label');
+        labelText.textContent = `${l.name || ('Line ' + (idx + 1))} (${l.inLabel || 'IN'} ➔ ${l.outLabel || 'OUT'})`;
+        this.svg.appendChild(labelText);
+
+        if (isActive) {
+          [l.p1, l.p2].forEach((pt, pIdx) => {
+            const hX = pt.x * this.imgW;
+            const hY = pt.y * this.imgH;
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', hX);
+            circle.setAttribute('cy', hY);
+            circle.setAttribute('r', '8');
+            circle.setAttribute('fill', color);
+            circle.setAttribute('stroke', '#fff');
+            circle.setAttribute('stroke-width', '2.5');
+            circle.setAttribute('class', 'studio-svg-vertex');
+            circle.dataset.vertexIdx = pIdx;
+            circle.dataset.itemType = 'line_vertex';
+            this.svg.appendChild(circle);
+          });
+        }
+      });
+    },
+
+    renderPolygonMode() {
+      if (this.points.length === 0) return;
+      const ptsStr = this.points.map(p => `${p.x * this.imgW},${p.y * this.imgH}`).join(' ');
+
+      const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      poly.setAttribute('points', ptsStr);
+      poly.setAttribute('fill', 'rgba(34, 197, 94, 0.22)');
+      poly.setAttribute('stroke', '#22c55e');
+      poly.setAttribute('stroke-width', '3');
+      poly.setAttribute('class', 'studio-svg-poly');
+      this.svg.appendChild(poly);
+
+      this.points.forEach((p, idx) => {
+        const cx = p.x * this.imgW;
+        const cy = p.y * this.imgH;
+        const vertex = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        vertex.setAttribute('cx', cx);
+        vertex.setAttribute('cy', cy);
+        vertex.setAttribute('r', '8');
+        vertex.setAttribute('fill', '#fff');
+        vertex.setAttribute('stroke', '#16a34a');
+        vertex.setAttribute('stroke-width', '2.5');
+        vertex.setAttribute('class', 'studio-svg-vertex');
+        vertex.dataset.vertexIdx = idx;
+        vertex.dataset.itemType = 'polygon_vertex';
+        this.svg.appendChild(vertex);
+
+        const badge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        badge.setAttribute('x', cx);
+        badge.setAttribute('y', cy - 12);
+        badge.setAttribute('fill', '#4ade80');
+        badge.setAttribute('class', 'studio-svg-label');
+        badge.textContent = `P${idx + 1}`;
+        this.svg.appendChild(badge);
+      });
+    },
+
+    renderMultiZoneMode() {
+      this.zones.forEach((z, zIdx) => {
+        const isActive = (zIdx === this.activeZoneIdx);
+        const color = z.lineColor || (isActive ? '#38bdf8' : '#64748b');
+        const pts = z.parsedPoints || [];
+        if (pts.length === 0) return;
+
+        const ptsStr = pts.map(p => `${p.x * this.imgW},${p.y * this.imgH}`).join(' ');
+
+        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        poly.setAttribute('points', ptsStr);
+        poly.setAttribute('fill', isActive ? 'rgba(56, 189, 248, 0.25)' : 'rgba(100, 116, 139, 0.15)');
+        poly.setAttribute('stroke', color);
+        poly.setAttribute('stroke-width', isActive ? '3.5' : '2');
+        poly.setAttribute('class', 'studio-svg-poly');
+        this.svg.appendChild(poly);
+
+        let avgX = 0, avgY = 0;
+        pts.forEach(p => { avgX += p.x * this.imgW; avgY += p.y * this.imgH; });
+        avgX /= pts.length;
+        avgY /= pts.length;
+
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', avgX);
+        label.setAttribute('y', avgY);
+        label.setAttribute('fill', '#fff');
+        label.setAttribute('class', 'studio-svg-label');
+        label.textContent = `${z.name || ('Zona ' + (zIdx + 1))} (Maks: ${z.capacity || 1})`;
+        this.svg.appendChild(label);
+
+        if (isActive) {
+          pts.forEach((p, idx) => {
+            const cx = p.x * this.imgW;
+            const cy = p.y * this.imgH;
+            const vertex = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            vertex.setAttribute('cx', cx);
+            vertex.setAttribute('cy', cy);
+            vertex.setAttribute('r', '8');
+            vertex.setAttribute('fill', '#fff');
+            vertex.setAttribute('stroke', color);
+            vertex.setAttribute('stroke-width', '2.5');
+            vertex.setAttribute('class', 'studio-svg-vertex');
+            vertex.dataset.vertexIdx = idx;
+            vertex.dataset.itemType = 'zone_vertex';
+            this.svg.appendChild(vertex);
+          });
+        }
+      });
+    },
+
+    renderHomographyMode() {
+      if (this.points.length !== 4) return;
+      const ptsStr = this.points.map(p => `${p.x * this.imgW},${p.y * this.imgH}`).join(' ');
+
+      const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      poly.setAttribute('points', ptsStr);
+      poly.setAttribute('fill', 'rgba(56, 189, 248, 0.2)');
+      poly.setAttribute('stroke', '#38bdf8');
+      poly.setAttribute('stroke-width', '3');
+      poly.setAttribute('class', 'studio-svg-poly');
+      this.svg.appendChild(poly);
+
+      const p = this.points.map(pt => ({ x: pt.x * this.imgW, y: pt.y * this.imgH }));
+      const d1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      d1.setAttribute('x1', p[0].x); d1.setAttribute('y1', p[0].y);
+      d1.setAttribute('x2', p[2].x); d1.setAttribute('y2', p[2].y);
+      d1.setAttribute('stroke', 'rgba(56, 189, 248, 0.4)');
+      d1.setAttribute('stroke-dasharray', '4 4');
+      this.svg.appendChild(d1);
+
+      const d2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      d2.setAttribute('x1', p[1].x); d2.setAttribute('y1', p[1].y);
+      d2.setAttribute('x2', p[3].x); d2.setAttribute('y2', p[3].y);
+      d2.setAttribute('stroke', 'rgba(56, 189, 248, 0.4)');
+      d2.setAttribute('stroke-dasharray', '4 4');
+      this.svg.appendChild(d2);
+
+      const cornerLabels = ['1: Top-Left', '2: Top-Right', '3: Bottom-Right', '4: Bottom-Left'];
+      this.points.forEach((pt, idx) => {
+        const cx = pt.x * this.imgW;
+        const cy = pt.y * this.imgH;
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', cx);
+        circle.setAttribute('cy', cy);
+        circle.setAttribute('r', '9');
+        circle.setAttribute('fill', '#38bdf8');
+        circle.setAttribute('stroke', '#fff');
+        circle.setAttribute('stroke-width', '2.5');
+        circle.setAttribute('class', 'studio-svg-vertex');
+        circle.dataset.vertexIdx = idx;
+        circle.dataset.itemType = 'homography_vertex';
+        this.svg.appendChild(circle);
+
+        const lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        lbl.setAttribute('x', cx);
+        lbl.setAttribute('y', cy - 14);
+        lbl.setAttribute('fill', '#7dd3fc');
+        lbl.setAttribute('class', 'studio-svg-label');
+        lbl.textContent = cornerLabels[idx];
+        this.svg.appendChild(lbl);
+      });
+    },
+
+    renderRoiMode() {
+      if (!this.roi) return;
+      const rx = this.roi.x * this.imgW;
+      const ry = this.roi.y * this.imgH;
+      const rw = this.roi.w * this.imgW;
+      const rh = this.roi.h * this.imgH;
+
+      const pathMask = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pathMask.setAttribute('d', `M0,0 H${this.imgW} V${this.imgH} H0 Z M${rx},${ry} V${ry + rh} H${rx + rw} V${ry} Z`);
+      pathMask.setAttribute('fill', 'rgba(0, 0, 0, 0.55)');
+      pathMask.setAttribute('fill-rule', 'evenodd');
+      this.svg.appendChild(pathMask);
+
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', rx);
+      rect.setAttribute('y', ry);
+      rect.setAttribute('width', rw);
+      rect.setAttribute('height', rh);
+      rect.setAttribute('fill', 'rgba(34, 197, 94, 0.1)');
+      rect.setAttribute('stroke', '#22c55e');
+      rect.setAttribute('stroke-width', '2.5');
+      rect.setAttribute('stroke-dasharray', '5 4');
+      this.svg.appendChild(rect);
+
+      [[rx, ry, 0], [rx + rw, ry + rh, 1]].forEach(([hx, hy, vIdx]) => {
+        const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        handle.setAttribute('cx', hx);
+        handle.setAttribute('cy', hy);
+        handle.setAttribute('r', '8');
+        handle.setAttribute('fill', '#22c55e');
+        handle.setAttribute('stroke', '#fff');
+        handle.setAttribute('stroke-width', '2');
+        handle.setAttribute('class', 'studio-svg-vertex');
+        handle.dataset.vertexIdx = vIdx;
+        handle.dataset.itemType = 'roi_vertex';
+        this.svg.appendChild(handle);
+      });
+
+      const badge = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      badge.setAttribute('x', rx + rw / 2);
+      badge.setAttribute('y', ry - 10);
+      badge.setAttribute('fill', '#4ade80');
+      badge.setAttribute('class', 'studio-svg-label');
+      badge.textContent = `ROI Area: ${Math.round(rw)} × ${Math.round(rh)} px`;
+      this.svg.appendChild(badge);
+    },
+
+    renderMultiZoneDrawer() {
+      const container = document.getElementById('studioZoneList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      this.zones.forEach((z, idx) => {
+        const card = document.createElement('div');
+        card.className = `studio-zone-card ${idx === this.activeZoneIdx ? 'active' : ''}`;
+        card.innerHTML = `
+          <div class="studio-zone-card-top">
+            <div class="studio-zone-pill">
+              <span class="studio-zone-dot" style="background:${z.lineColor || '#38bdf8'};"></span>
+              <strong>${z.name || ('Zona ' + (idx + 1))}</strong>
+            </div>
+            <span style="font-size:11px; color:#94a3b8;">${(z.parsedPoints || []).length} Titik</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748b; margin-top:4px;">
+            <span>Kapasitas: ${z.capacity || 1} orang</span>
+            <button type="button" class="button small secondary studio-del-zone-btn" style="padding:1px 6px; font-size:10px;">Hapus</button>
+          </div>
+        `;
+
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.studio-del-zone-btn')) {
+            e.stopPropagation();
+            if (this.zones.length <= 1) return toast('Minimal harus ada 1 zona', true);
+            this.pushHistory();
+            this.zones.splice(idx, 1);
+            if (this.activeZoneIdx >= this.zones.length) this.activeZoneIdx = this.zones.length - 1;
+            this.renderMultiZoneDrawer();
+            this.render();
+            return;
+          }
+          this.activeZoneIdx = idx;
+          this.renderMultiZoneDrawer();
+          this.render();
+        });
+
+        container.appendChild(card);
+      });
+    },
+
+    addMultiZone() {
+      this.pushHistory();
+      const newId = `zone_${Date.now()}`;
+      const colors = ['#38bdf8', '#22c55e', '#f59e0b', '#ec4899', '#a855f7'];
+      const color = colors[this.zones.length % colors.length];
+      const newZone = {
+        id: newId,
+        name: `Zona ${String.fromCharCode(65 + this.zones.length)}`,
+        capacity: 2,
+        lineColor: color,
+        parsedPoints: [
+          { x: 0.3, y: 0.3 },
+          { x: 0.6, y: 0.3 },
+          { x: 0.6, y: 0.7 },
+          { x: 0.3, y: 0.7 }
+        ]
+      };
+      this.zones.push(newZone);
+      this.activeZoneIdx = this.zones.length - 1;
+      this.renderMultiZoneDrawer();
+      this.render();
+      toast('Zona baru ditambahkan');
+    },
+
+    saveAndApply() {
+      if (!this.node) return;
+      if (!this.node.config) this.node.config = {};
+
+      if (this.mode === 'line') {
+        const lineIdx = this.options.lineIndex || 0;
+        const currentLines = getOrCreateNodeLines(this.node);
+        this.lines.forEach((l, idx) => {
+          if (!currentLines[idx]) currentLines[idx] = { ...l };
+          currentLines[idx].startPoint = `${l.p1.x.toFixed(3)},${l.p1.y.toFixed(3)}`;
+          currentLines[idx].endPoint = `${l.p2.x.toFixed(3)},${l.p2.y.toFixed(3)}`;
+          currentLines[idx].lineColor = l.lineColor || '#22c55e';
+        });
+        this.node.config.lines = currentLines;
+        if (currentLines[lineIdx]) {
+          this.node.config.startPoint = currentLines[lineIdx].startPoint;
+          this.node.config.endPoint = currentLines[lineIdx].endPoint;
+          this.node.config.lineStart = currentLines[lineIdx].startPoint;
+          this.node.config.lineEnd = currentLines[lineIdx].endPoint;
+        }
+      } else if (this.mode === 'polygon') {
+        const pointsStr = this.points.map(p => `${p.x.toFixed(3)},${p.y.toFixed(3)}`).join(';');
+        this.node.config.points = pointsStr;
+        this.node.config.zone = pointsStr;
+        if (this.node.config.polygonPoints !== undefined) {
+          this.node.config.polygonPoints = pointsStr;
+        }
+      } else if (this.mode === 'multi_zone') {
+        const exportedZones = this.zones.map(z => ({
+          id: z.id,
+          name: z.name,
+          capacity: Number(z.capacity) || 1,
+          lineColor: z.lineColor || '#38bdf8',
+          points: (z.parsedPoints || []).map(p => `${p.x.toFixed(3)},${p.y.toFixed(3)}`).join(';')
+        }));
+        this.node.config.zones = exportedZones;
+      } else if (this.mode === 'homography_bev') {
+        const pointsStr = this.points.map(p => `${p.x.toFixed(3)},${p.y.toFixed(3)}`).join(';');
+        this.node.config.points = pointsStr;
+      } else if (this.mode === 'roi') {
+        if (this.roi) {
+          const { x, y, w, h } = this.roi;
+          this.node.config.x = Math.round(x * this.imgW);
+          this.node.config.y = Math.round(y * this.imgH);
+          this.node.config.w = Math.round(w * this.imgW);
+          this.node.config.h = Math.round(h * this.imgH);
+          this.node.config.roi = `${x.toFixed(3)},${y.toFixed(3)},${w.toFixed(3)},${h.toFixed(3)}`;
+        }
+      }
+
+      if (typeof markDirty === 'function') markDirty();
+      toast(`✅ Kalibrasi ${this.node.title || this.mode} berhasil disimpan dan diterapkan!`);
+      this.close();
+
+      if (typeof renderInspector === 'function') {
+        renderInspector();
+      }
+    }
+  };
+  window.AnnotationStudio = AnnotationStudio;
+
+
   function startRoiDrawing(node) {
+    if (window.AnnotationStudio) return window.AnnotationStudio.open(node, "roi");
+    let img = document.querySelector('#previewPopupImg') || document.querySelector('#previewModalImg') || $('#previewImage');
+    if (!img) return toast('Preview container tidak ditemukan. Jalankan pipeline terlebih dahulu.', true);
 
-    const img = $('#previewImage');
+    // If preview image is hidden or empty, generate calibration background frame
+    if (!img.naturalWidth || img.hidden) {
+      const placeholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+        <rect width="100%" height="100%" fill="#090d16"/>
+        <defs>
+          <pattern id="roigrid" width="80" height="80" patternUnits="userSpaceOnUse">
+            <path d="M 80 0 L 0 0 0 80" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#roigrid)" />
+        <rect x="40" y="40" width="1200" height="640" fill="none" stroke="rgba(34,197,94,0.3)" stroke-width="1.5" stroke-dasharray="6 6"/>
+        <text x="640" y="340" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="24" text-anchor="middle" font-weight="600">📐 Frame Kalibrasi Area ROI</text>
+        <text x="640" y="380" fill="#64748b" font-family="system-ui, sans-serif" font-size="15" text-anchor="middle">Tarik mouse untuk menentukan area pemotongan atau filter (ROI)</text>
+      </svg>`;
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(placeholderSvg);
+      img.hidden = false;
+      $('#previewEmpty')?.setAttribute('hidden', 'true');
+      img.onload = () => startRoiDrawing(node);
+      return;
+    }
 
-    if (!img) return toast('Select a Preview node or start pipeline to draw ROI', true);
+    // Clean up existing temporary overlays
+    $('#tempRoiOverlay')?.remove();
+    $('#tempDrawOverlay')?.remove();
 
-    toast('Click and drag on the preview image to select ROI region...');
+    const parent = img.parentElement;
+    if (parent && getComputedStyle(parent).position === 'static') {
+      parent.style.position = 'relative';
+    }
 
+    toast('Tarik mouse di atas video preview untuk memilih area ROI (ESC untuk batal)...');
     img.style.cursor = 'crosshair';
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.id = 'tempRoiOverlay';
+    svg.style.position = 'absolute';
+    svg.style.top = img.offsetTop + 'px';
+    svg.style.left = img.offsetLeft + 'px';
+    svg.style.width = img.clientWidth + 'px';
+    svg.style.height = img.clientHeight + 'px';
+    svg.style.pointerEvents = 'none';
+    svg.style.zIndex = '60';
+
+    const rectEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rectEl.setAttribute('fill', 'rgba(34, 197, 94, 0.22)');
+    rectEl.setAttribute('stroke', '#22c55e');
+    rectEl.setAttribute('stroke-width', '2');
+    rectEl.setAttribute('stroke-dasharray', '5 4');
+    rectEl.style.display = 'none';
+    svg.appendChild(rectEl);
+
+    // Dimension badge
+    const badgeG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    badgeG.style.display = 'none';
+    const badgeBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    badgeBg.setAttribute('fill', 'rgba(15, 23, 42, 0.88)');
+    badgeBg.setAttribute('stroke', '#22c55e');
+    badgeBg.setAttribute('stroke-width', '1');
+    badgeBg.setAttribute('rx', '4');
+    badgeBg.setAttribute('height', '22');
+    const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    badgeText.setAttribute('fill', '#4ade80');
+    badgeText.setAttribute('font-family', 'system-ui, monospace, sans-serif');
+    badgeText.setAttribute('font-size', '11');
+    badgeText.setAttribute('font-weight', '600');
+    badgeText.setAttribute('y', '15');
+    badgeG.appendChild(badgeBg);
+    badgeG.appendChild(badgeText);
+    svg.appendChild(badgeG);
+
+    if (parent) parent.appendChild(svg);
 
     let startX = 0, startY = 0, isDrawing = false;
 
+    const cleanup = () => {
+      img.style.cursor = 'default';
+      img.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('keydown', onKeyDown);
+      svg.remove();
+    };
 
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        cleanup();
+        toast('Pemilihan area ROI dibatalkan.');
+      }
+    };
 
     const onMouseDown = (e) => {
-
+      if (e.button !== 0) return;
       const rect = img.getBoundingClientRect();
-
-      startX = (e.clientX - rect.left) / rect.width;
-
-      startY = (e.clientY - rect.top) / rect.height;
-
+      startX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      startY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
       isDrawing = true;
-
+      rectEl.style.display = 'block';
+      badgeG.style.display = 'block';
       e.preventDefault();
-
     };
 
-
-
-    const onMouseUp = (e) => {
-
+    const onMouseMove = (e) => {
       if (!isDrawing) return;
+      const rect = img.getBoundingClientRect();
+      const curX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const curY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
 
+      const x1 = Math.min(startX, curX) * svg.clientWidth;
+      const y1 = Math.min(startY, curY) * svg.clientHeight;
+      const w = Math.abs(curX - startX) * svg.clientWidth;
+      const h = Math.abs(curY - startY) * svg.clientHeight;
+
+      rectEl.setAttribute('x', String(x1));
+      rectEl.setAttribute('y', String(y1));
+      rectEl.setAttribute('width', String(w));
+      rectEl.setAttribute('height', String(h));
+
+      // Real image scale dimensions
+      const naturalW = img.naturalWidth || 1280;
+      const naturalH = img.naturalHeight || 720;
+      const realW = Math.round(Math.abs(curX - startX) * naturalW);
+      const realH = Math.round(Math.abs(curY - startY) * naturalH);
+      const textLabel = ` ${realW} × ${realH} px `;
+      badgeText.textContent = textLabel;
+      badgeText.setAttribute('x', String(x1 + 6));
+      badgeBg.setAttribute('x', String(x1));
+      badgeBg.setAttribute('y', String(Math.max(2, y1 - 25)));
+      badgeBg.setAttribute('width', String(Math.max(60, textLabel.length * 7.5)));
+      badgeText.setAttribute('y', String(Math.max(17, y1 - 10)));
+    };
+
+    const onMouseUp = async (e) => {
+      if (!isDrawing) return;
       isDrawing = false;
 
-      img.style.cursor = 'default';
-
-      img.removeEventListener('mousedown', onMouseDown);
-
-      window.removeEventListener('mouseup', onMouseUp);
-
-
-
       const rect = img.getBoundingClientRect();
-
-      const endX = (e.clientX - rect.left) / rect.width;
-
-      const endY = (e.clientY - rect.top) / rect.height;
-
-
+      const endX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const endY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
 
       const w = img.naturalWidth || 1280;
-
       const h = img.naturalHeight || 720;
 
-
-
       const x1 = Math.max(0, Math.min(startX, endX));
-
       const y1 = Math.max(0, Math.min(startY, endY));
-
       const x2 = Math.min(1, Math.max(startX, endX));
-
       const y2 = Math.min(1, Math.max(startY, endY));
 
-
-
       const boxX = Math.round(x1 * w);
-
       const boxY = Math.round(y1 * h);
-
       const boxW = Math.max(10, Math.round((x2 - x1) * w));
-
       const boxH = Math.max(10, Math.round((y2 - y1) * h));
 
+      if (boxW >= 10 && boxH >= 10) {
+        if (!node.config) node.config = {};
+        node.config.x = boxX;
+        node.config.y = boxY;
+        node.config.width = boxW;
+        node.config.height = boxH;
+        markDirty();
+        renderInspector();
+        await save();
+        await liveUpdateWorkflow();
+        toast(`Area ROI tersimpan: ${boxW} × ${boxH} px pada (${boxX}, ${boxY})`);
+      }
 
-
-      node.config.x = boxX;
-
-      node.config.y = boxY;
-
-      node.config.width = boxW;
-
-      node.config.height = boxH;
-
-      markDirty();
-
-      renderInspector();
-
-      toast(`ROI region set: ${boxW}x${boxH} at (${boxX}, ${boxY})`);
-
+      cleanup();
     };
 
-
-
     img.addEventListener('mousedown', onMouseDown);
-
+    window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-
+    window.addEventListener('keydown', onKeyDown);
   }
 
 
@@ -17006,6 +18112,7 @@
 
 
   function startLineDrawing(node, lineIndex = 0) {
+    if (window.AnnotationStudio) return window.AnnotationStudio.open(node, "line", { lineIndex });
 
     const img = $('#previewImage');
 
@@ -17205,6 +18312,7 @@
 
   
   function startHomographyCalibration(node) {
+    if (window.AnnotationStudio) return window.AnnotationStudio.open(node, "homography_bev");
     const img = $('#previewImage');
     if (!img) return toast('Preview container tidak ditemukan', true);
 
@@ -17478,6 +18586,7 @@
   }
 
   function startPolygonZoneDrawing(node) {
+    if (window.AnnotationStudio) return window.AnnotationStudio.open(node, "polygon");
 
     const img = $('#previewImage');
 
@@ -17908,6 +19017,7 @@
 
 
   function startMultiZoneDrawing(node) {
+    if (window.AnnotationStudio) return window.AnnotationStudio.open(node, "multi_zone");
 
     const img = $('#previewImage');
 

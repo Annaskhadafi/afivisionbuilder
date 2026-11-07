@@ -63,7 +63,8 @@ class RFDETRONNXRuntime:
         std = np.asarray((0.229, 0.224, 0.225), dtype=np.float32).reshape(3, 1, 1)
         for index, frame in enumerate(frames):
             resized = cv2.resize(frame, (self.width, self.height), interpolation=cv2.INTER_LINEAR)
-            batch[index] = resized[:, :, ::-1].transpose(2, 0, 1)
+            rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+            batch[index] = np.ascontiguousarray(rgb.transpose(2, 0, 1))
         batch /= 255.0
         batch -= mean
         batch /= std
