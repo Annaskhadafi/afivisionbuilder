@@ -3527,6 +3527,13 @@
     showMinimap: 'Tampilkan Minimap 2D Peta Lapangan',
     topHudOffsetY: 'Jarak Margin HUD Atas (Offset Y Px)',
     playerWeightKg: 'Estimasi Berat Badan Pemain (kg)',
+    postprocessType: 'Metode Penggabungan Ubin (Postprocess)',
+    matchMetric: 'Metrik Kecocokan Tumpang Tindih',
+    includeFullFrame: 'Sertakan Prediksi Gambar Utuh (Full-Frame)',
+    showSlicingGrid: 'Tampilkan Garis Kisi Ubin SAHI di Pratinjau',
+    sliceWidth: 'Lebar Ubin Pemotong (Slice Width Px)',
+    sliceHeight: 'Tinggi Ubin Pemotong (Slice Height Px)',
+    overlapRatio: 'Rasio Tumpang Tindih Ubin (Overlap Ratio)',
     hideUnknownGesture: 'Sembunyikan Label Gestur None',
     hysteresisDistance: 'Batas Toleransi Deadband (Anti-Jitter Px)',
     reArmCooldown: 'Jeda Waktu Re-Arm (Detik)',
@@ -13393,6 +13400,14 @@
         ['auto', 'Otomatis (Deteksi Jumlah Pemain di Lapangan)'],
         ['singles', 'Tunggal / Singles (2 Pemain: P1 vs P2)'],
         ['doubles', 'Ganda / Doubles (4 Pemain: P1, P3 vs P2, P4)']
+      ],
+      postprocessType: [
+        ['NMM', 'NMM (Non-Maximum Merging — Rekomendasi SAHI)'],
+        ['NMS', 'NMS (Non-Maximum Suppression — Standar)']
+      ],
+      matchMetric: [
+        ['IOU', 'IoU (Intersection over Union — Standar)'],
+        ['IOS', 'IOS (Intersection over Smaller Area — Objek Bertumpuk)']
       ],
       mode: (node.type === 'alarm_cooldown_gate') ? [
         ['suppress', 'Masa Hening (Bungkam Notifikasi saat Cooldown)'],

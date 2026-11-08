@@ -383,6 +383,13 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 - **Dukungan Multi-Background & Layout Fleksibel**: Mendukung latar belakang jalanan aspal gelap (*Dark Road*), *Blueprint Grid*, *Pastel*, *Warped Video Frame* (median temporal), atau *Upload Custom Floor Plan/Denah Lantai*, dengan format tata letak *Side-by-Side Dashboard Split*, *BEV Only*, maupun *Camera Mini-Map Overlay*.
 - **Estimasi Kecepatan Metrik Fisik**: Memungkinkan input skala dimensi nyata (lebar & panjang area dalam meter) untuk mengkalkulasi kecepatan gerak objek nyata secara langsung dalam km/jam atau m/s.
 
+### 🧩 53. Ultralytics SAHI Tiled Inference & Greedy Non-Maximum Merging (`slicer`)
+- **Peningkatan Inferensi Berpetak SAHI (Slicing Aided Hyper Inference)**: Mengadopsi standar resmi panduan Ultralytics SAHI untuk mendeteksi objek kecil mikro pada citra beresolusi tinggi (4K/2K, kamera drone, CCTV gerbang tol) tanpa kehilangan detail piksel akibat kompresi downscale.
+- **Greedy Non-Maximum Merging (NMM)**: Menggantikan NMS biasa dengan algoritma fusi kotak berbobot keyakinan (*score-weighted bounding box fusion*), menyatukan deteksi yang terpotong di perbatasan ubin bersebelahan secara mulus.
+- **Metrik IoU & IOS (Intersection over Smaller Area)**: Mendukung evaluasi tumpang tindih IoU standar dan IOS untuk objek kecil yang bersarang di dalam objek lain atau bersinggungan di batas ubin.
+- **Dual-Mode Full-Frame + Slices Merging**: Mampu menggabungkan deteksi makro dari bingkai utuh (`includeFullFrame: True`) dengan ubin mikro secara terpadu.
+- **Overlay Garis Kisi Ubin (Slicing Grid Visualizer)**: Opsi visual menampilkan garis kisi pembagian ubin transparan di video Live Preview untuk memudahkan operator mengkalibrasi ukuran ubin.
+
 
 ---
 
@@ -459,7 +466,7 @@ Berikut adalah katalog referensi komprehensif seluruh node yang didukung oleh Af
 | `draw_boxes` | Kotak Deteksi Kustom | Menggambar bounding box beranotasi dengan warna dan ketebalan dinamis. | `colorPalette`, `lineWidth` | ✅ Supported (Visual Annotations) |
 | `draw_text` | Anotasi Teks Kanvas | Menampilkan teks keterangan atau nilai telemetri di atas layar video. | `fontSize`, `position`, `textColor` | ✅ Supported (Visual Annotations) |
 | `interactive_zoom` | Zoom Kanvas Interaktif | Pembesaran citra secara digital pada koordinat minat pengguna. | `zoomFactor`, `centerCoords` | ✅ Supported (Inspector Zoom) |
-| `slicer` | Pemotong Grid Resolusi | Memotong citra ultra-tinggi menjadi ubin kecil untuk deteksi objek mini (SAHI). | `sliceWidth`, `sliceHeight`, `overlapRatio` | ✅ Supported (SAHI Preprocessing) |
+| `slicer` | Small Object Slicer (SAHI) | Inferensi berpetak SAHI dengan Non-Maximum Merging (NMM) & fusi ubin full-frame. | `sliceWidth`, `postprocessType`, `matchMetric` | ✅ Supported (SAHI Preprocessing) |
 | `track_snapshot` | Tangkapan Objek Terbaik | Menyimpan gambar crop dengan resolusi dan kualitas terbaik dari tiap ID tracking. | `saveBestCrop`, `minQualityScore` | ✅ Supported (Snapshot Gallery & Standalone) |
 | `face_detector` | Detektor Wajah UniFace | Deteksi wajah presisi tinggi berbasis RetinaFace / YuNet. | `confThresh`, `nmsThresh` | ✅ Supported (Face Strip & Standalone) |
 | `face_analyzer` | Analisis Demografi Wajah | Estimasi usia, jenis kelamin, dan ekspresi wajah menggunakan model UniFace. | `classifyEmotion`, `estimateAgeGender`, `showFaceBadges`, `showCornerHUD` | Preview dan data workflow |

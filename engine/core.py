@@ -1362,27 +1362,120 @@ def _generate_slicer_tiles(frame, slicer_node: dict):
     return tiles
 
 
-def _merge_slicer_detections(all_tile_detections: list[dict], iou_threshold: float = 0.45) -> list[dict]:
-    import cv2
+def _compute_box_overlap(b1: tuple[float, float, float, float], b2: tuple[float, float, float, float], metric: str = "IOU") -> float:
+    """Compute Intersection over Union (IOU) or Intersection over Smaller area (IOS) for SAHI matching."""
+    x1, y1, w1, h1 = b1
+    x2, y2, w2, h2 = b2
+    xi1 = max(x1, x2)
+    yi1 = max(y1, y2)
+    xi2 = min(x1 + w1, x2 + w2)
+    yi2 = min(y1 + h1, y2 + h2)
+    inter_w = max(0.0, xi2 - xi1)
+    inter_h = max(0.0, yi2 - yi1)
+    inter_area = inter_w * inter_h
+    if inter_area <= 0.0:
+        return 0.0
+    area1 = max(1.0, w1 * h1)
+    area2 = max(1.0, w2 * h2)
+    denom = min(area1, area2) if metric.upper() == "IOS" else (area1 + area2 - inter_area)
+    return float(inter_area / denom) if denom > 0.0 else 0.0
+
+
+def _merge_slicer_detections(
+    all_tile_detections: list[dict],
+    iou_threshold: float = 0.45,
+    postprocess_type: str = "NMM",
+    match_metric: str = "IOU",
+) -> list[dict]:
+    """Merge sliced tile detections using SAHI-grade Non-Maximum Merging (NMM) or NMS."""
     if not all_tile_detections:
         return []
 
     def _box(d):
         bbox = d.get("bbox")
         if bbox and len(bbox) >= 4:
-            return [int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])]
+            return float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])
         xyxy = d.get("xyxy")
         if xyxy and len(xyxy) >= 4:
-            return [int(xyxy[0]), int(xyxy[1]), int(xyxy[2] - xyxy[0]), int(xyxy[3] - xyxy[1])]
-        return [int(d.get("x", 0)), int(d.get("y", 0)), int(d.get("width", 0)), int(d.get("height", 0))]
+            return float(xyxy[0]), float(xyxy[1]), float(xyxy[2] - xyxy[0]), float(xyxy[3] - xyxy[1])
+        return float(d.get("x", 0.0)), float(d.get("y", 0.0)), float(d.get("width", 0.0)), float(d.get("height", 0.0))
 
-    boxes = [_box(d) for d in all_tile_detections]
-    scores = [float(d.get("score") if d.get("score") is not None else (d.get("confidence") or 0.0)) for d in all_tile_detections]
-    indices = cv2.dnn.NMSBoxes(boxes, scores, score_threshold=0.01, nms_threshold=iou_threshold)
-    if len(indices) == 0:
-        return []
-    indices = [int(i[0] if hasattr(i, "__iter__") else i) for i in indices]
-    return [all_tile_detections[i] for i in indices]
+    from collections import defaultdict
+    sorted_dets = sorted(
+        all_tile_detections,
+        key=lambda d: float(d.get("score") if d.get("score") is not None else (d.get("confidence") or 0.0)),
+        reverse=True,
+    )
+
+    class_groups = defaultdict(list)
+    for d in sorted_dets:
+        cls_key = str(d.get("class", "object")).lower()
+        class_groups[cls_key].append(d)
+
+    final_results = []
+    is_nmm = str(postprocess_type).upper() == "NMM"
+
+    for cls_name, dets in class_groups.items():
+        survived = []
+        while dets:
+            best = dict(dets.pop(0))
+            best_box = list(_box(best))
+            best_score = float(best.get("score") if best.get("score") is not None else (best.get("confidence") or 0.0))
+
+            if is_nmm:
+                # SAHI Greedy Non-Maximum Merging: Score-weighted bounding box fusion
+                total_w_box = [coord * best_score for coord in best_box]
+                total_score = best_score
+                max_score = best_score
+                remaining = []
+
+                for other in dets:
+                    other_box = _box(other)
+                    other_score = float(other.get("score") if other.get("score") is not None else (other.get("confidence") or 0.0))
+                    overlap = _compute_box_overlap(tuple(best_box), tuple(other_box), match_metric)
+                    if overlap >= iou_threshold:
+                        for i in range(4):
+                            total_w_box[i] += other_box[i] * other_score
+                        total_score += other_score
+                        max_score = max(max_score, other_score)
+                    else:
+                        remaining.append(other)
+
+                dets = remaining
+                merged_box = [round(c / total_score, 1) for c in total_w_box] if total_score > 0 else best_box
+                best["x"] = merged_box[0]
+                best["y"] = merged_box[1]
+                best["width"] = merged_box[2]
+                best["height"] = merged_box[3]
+                best["bbox"] = merged_box
+                best["score"] = round(max_score, 4)
+                if "confidence" in best:
+                    best["confidence"] = round(max_score, 4)
+                survived.append(best)
+            else:
+                # Standard NMS suppression
+                remaining = [
+                    o for o in dets
+                    if _compute_box_overlap(tuple(best_box), tuple(_box(o)), match_metric) < iou_threshold
+                ]
+                dets = remaining
+                survived.append(best)
+
+        final_results.extend(survived)
+
+    return final_results
+
+
+def _draw_slicing_grid(frame: np.ndarray, tiles: list, slicer_node: dict) -> None:
+    """Draw clean semi-transparent SAHI slicing tile boundaries in live preview."""
+    if frame is None or not hasattr(frame, "shape") or not tiles:
+        return
+    import cv2
+    fh, fw = frame.shape[:2]
+    grid_overlay = frame.copy()
+    for _, tx, ty, tw, th in tiles:
+        cv2.rectangle(grid_overlay, (tx, ty), (tx + tw, ty + th), (56, 189, 248), 1)
+    cv2.addWeighted(grid_overlay, 0.40, frame, 0.60, 0, frame)
 
 
 def _parse_point(val, w: int, h: int) -> tuple[int, int]:
@@ -4140,13 +4233,18 @@ class WorkflowRunner:
                         slicer_nodes = [n for n in workflow.get("nodes", []) if n.get("type") == "slicer" and n.get("enabled", True)]
                         if slicer_nodes and inference_node.get("type") in ("detector", "segmenter") and eng in ("ultralytics_yolo", "yolo_world", "roboflow_universe", "onnx_custom", "custom_auto"):
                             slicer = slicer_nodes[0]
-                            iou_th = float(slicer.get("config", {}).get("iouThreshold", 0.45) or 0.45)
+                            s_cfg = slicer.get("config", {})
+                            iou_th = float(s_cfg.get("iouThreshold", 0.45) or 0.45)
+                            postproc = str(s_cfg.get("postprocessType", "NMM"))
+                            metric = str(s_cfg.get("matchMetric", "IOU"))
+                            include_full = bool(s_cfg.get("includeFullFrame", True) is not False)
+                            show_grid = bool(s_cfg.get("showSlicingGrid", False))
+
                             for r_idx, b_idx in enumerate(eligible_indices):
-                                tiles = _generate_slicer_tiles(
-                                    inference_frames[eligible_indices.index(b_idx)], slicer
-                                )
+                                target_frame = inference_frames[eligible_indices.index(b_idx)]
+                                tiles = _generate_slicer_tiles(target_frame, slicer)
                                 if tiles:
-                                    accumulated = list(node_results[r_idx])
+                                    accumulated = list(node_results[r_idx]) if include_full else []
                                     for tile_img, ox, oy, _, _ in tiles:
                                         t_dets = run_custom_model_frame(tile_img, runtime_inference_node)
                                         for td in t_dets:
@@ -4154,7 +4252,11 @@ class WorkflowRunner:
                                             shifted["x"] = float(shifted.get("x", 0)) + ox
                                             shifted["y"] = float(shifted.get("y", 0)) + oy
                                             accumulated.append(shifted)
-                                    node_results[r_idx] = _merge_slicer_detections(accumulated, iou_th)
+                                    node_results[r_idx] = _merge_slicer_detections(
+                                        accumulated, iou_threshold=iou_th, postprocess_type=postproc, match_metric=metric
+                                    )
+                                    if show_grid:
+                                        _draw_slicing_grid(target_frame, tiles, slicer)
 
                         self._refresh_inference_device_status(inference_nodes, device_labels)
                         last_inference_by_node[node_id] = time.monotonic()

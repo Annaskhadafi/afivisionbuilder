@@ -2,6 +2,30 @@
   "active_project_id": "733240f514454a71bc65ae45f3fd9245",
   "projects": [
     {
+      "id": "a3a5b3ba9a84454c8ec087b08b9ee9a0",
+      "name": "segmentasi orang",
+      "created_at": "2026-11-06T01:21:07+00:00",
+      "modified_at": "2026-11-06T01:24:30+00:00"
+    },
+    {
+      "id": "f79dd009f31d441eaf277094f14efa8e",
+      "name": "script",
+      "created_at": "2026-11-06T01:02:17+00:00",
+      "modified_at": "2026-11-06T01:02:17+00:00"
+    },
+    {
+      "id": "c4e8d4ef6cf94207a779b51b32772008",
+      "name": "Persistence Verification",
+      "created_at": "2026-11-06T01:02:12+00:00",
+      "modified_at": "2026-11-06T01:02:12+00:00"
+    },
+    {
+      "id": "b1cfcb90fe374633ac6e0993e3872aae",
+      "name": "Vision Workflow",
+      "created_at": "2026-11-06T01:02:00+00:00",
+      "modified_at": "2026-11-06T01:02:00+00:00"
+    },
+    {
       "id": "4e77d5df1f5c41f1aa712c0494faa2f7",
       "name": "script",
       "created_at": "2026-11-04T23:41:25+00:00",

@@ -751,8 +751,8 @@ NODE_BLUEPRINTS = {
         },
     },
     "slicer": {
-        "title": "Small Object Slicer",
-        "subtitle": "Inferensi berpetak (SAHI) untuk objek kecil pada resolusi tinggi",
+        "title": "Small Object Slicer (SAHI)",
+        "subtitle": "Inferensi berpetak (SAHI) untuk objek kecil resolusi tinggi dengan Non-Maximum Merging (NMM)",
         "category": "Image Preprocessing",
         "x": 330,
         "y": 145,
@@ -761,6 +761,10 @@ NODE_BLUEPRINTS = {
             "sliceHeight": 640,
             "overlapRatio": 0.2,
             "iouThreshold": 0.45,
+            "postprocessType": "NMM",
+            "matchMetric": "IOU",
+            "includeFullFrame": True,
+            "showSlicingGrid": False,
         },
     },
     "camera_focus": {
