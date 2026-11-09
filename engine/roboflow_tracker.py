@@ -288,8 +288,10 @@ class RoboflowTracker:
             self.config.get("reidMaxCenterDistance", 4.0), 4.0
         )
         self.reid_batch_size = self._positive_int(self.config.get("reidBatchSize", 16), 16)
+        self.reid_refresh_interval = self._positive_int(self.config.get("reidRefreshInterval", 30), 30)
         self._reid_model = None
         self._reid_gallery: dict[int, dict] = {}
+        self._reid_last_embedded: dict[int, int] = {}
         self._runtimes: dict[Hashable, object] = {}
         self._global_ids: dict[tuple[Hashable, int], int] = {}
         self._track_state: dict[int, dict] = {}
@@ -340,9 +342,45 @@ class RoboflowTracker:
         for scope, runtime in list(self._runtimes.items()):
             items = grouped.get(scope, [])
             library_input = self._to_supervision(items)
-            embeddings = self._extract_reid_embeddings(library_input, items, frame)
             library_frame = frame if self.algorithm == "botsort" else None
             tracked = runtime.update(library_input, frame=library_frame)
+
+            # Smart on-demand ReID embedding extraction
+            embeddings = {}
+            if self.enable_reid and frame is not None and len(items) > 0:
+                tracker_ids = tracked.tracker_id
+                source_indices = tracked.data.get(SOURCE_INDEX_KEY)
+                items_by_src = {int(item[0]): item for item in items}
+                items_to_embed = []
+                if tracker_ids is not None and source_indices is not None:
+                    for row, raw_local_id in enumerate(tracker_ids):
+                        local_id = int(raw_local_id)
+                        if local_id < 0:
+                            continue
+                        track_key = (scope, local_id)
+                        is_new_track = track_key not in self._global_ids
+                        global_id = self._global_ids.get(track_key)
+
+                        need = False
+                        if is_new_track or global_id is None:
+                            need = True
+                        elif global_id not in self._reid_gallery:
+                            need = True
+                        elif self.reid_refresh_interval == 1:
+                            need = True
+                        elif self.reid_refresh_interval > 1 and frame_id is not None:
+                            last_embedded = self._reid_last_embedded.get(global_id, 0)
+                            if frame_id - last_embedded >= self.reid_refresh_interval:
+                                need = True
+
+                        if need:
+                            src_idx = int(source_indices[row])
+                            if src_idx in items_by_src:
+                                items_to_embed.append(items_by_src[src_idx])
+
+                if items_to_embed:
+                    sub_lib_input = self._to_supervision(items_to_embed)
+                    embeddings = self._extract_reid_embeddings(sub_lib_input, items_to_embed, frame)
             used_global_ids = {
                 self._global_ids[(scope, int(local_id))]
                 for local_id in (tracked.tracker_id if tracked.tracker_id is not None else [])
@@ -634,6 +672,8 @@ class RoboflowTracker:
                     "timestamp": timestamp,
                     "frame_id": frame_id,
                 }
+                if frame_id is not None:
+                    self._reid_last_embedded[global_id] = frame_id
             effective_box = smoothed_box if self.enable_smoothing else box
             outputs.append((
                 source_index,
@@ -650,29 +690,67 @@ class RoboflowTracker:
             raise RuntimeError(
                 "ReID is enabled but the 'reid' package is unavailable. Install requirements.txt."
             ) from exc
-        return ReIDModel.from_pretrained(
-            self.reid_model_name,
-            device=self.reid_device,
-        )
+        device = self.reid_device
+        if device == "auto":
+            try:
+                import torch
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+            except Exception:
+                device = "cpu"
+        try:
+            return ReIDModel.from_pretrained(
+                self.reid_model_name,
+                device=device,
+            )
+        except Exception as exc:
+            warnings.warn(f"ReID model '{self.reid_model_name}' failed to load on {device}: {exc}", UserWarning)
+            return None
 
     def _extract_reid_embeddings(self, library_input, items, frame) -> dict[int, np.ndarray]:
         if not self.enable_reid or not items:
             return {}
-        if frame is None:
-            raise ValueError("ReID requires the source video frame.")
+        if frame is None or not hasattr(frame, "shape") or getattr(frame, "size", 0) == 0:
+            return {}
         if self._reid_model is None:
             self._reid_model = self._load_reid_model()
-        values = np.asarray(
-            self._reid_model.extract_embeddings(
-                library_input, frame, batch_size=self.reid_batch_size
-            ),
-            dtype=np.float32,
-        )
-        if values.ndim != 2 or values.shape[0] != len(items) or not np.isfinite(values).all():
-            raise RuntimeError("ReID model returned invalid embeddings for the current detections.")
+        if self._reid_model is None:
+            return {}
+
+        # Safely filter out boxes with zero or negative area / outside frame
+        frame_h, frame_w = frame.shape[:2]
+        valid_indices = []
+        for idx in range(len(library_input)):
+            box = library_input.xyxy[idx]
+            x1, y1, x2, y2 = float(box[0]), float(box[1]), float(box[2]), float(box[3])
+            if not (math.isfinite(x1) and math.isfinite(y1) and math.isfinite(x2) and math.isfinite(y2)):
+                continue
+            cx1, cy1 = max(0, min(frame_w - 1, x1)), max(0, min(frame_h - 1, y1))
+            cx2, cy2 = max(0, min(frame_w, x2)), max(0, min(frame_h, y2))
+            if cx2 - cx1 >= 4 and cy2 - cy1 >= 4:
+                valid_indices.append(idx)
+
+        if not valid_indices:
+            return {}
+
+        filtered_input = library_input[valid_indices]
+        try:
+            import torch
+            with torch.inference_mode():
+                values = np.asarray(
+                    self._reid_model.extract_embeddings(
+                        filtered_input, frame, batch_size=self.reid_batch_size
+                    ),
+                    dtype=np.float32,
+                )
+        except Exception as exc:
+            warnings.warn(f"ReID embedding extraction failed: {exc}", UserWarning)
+            return {}
+
+        if values.ndim != 2 or values.shape[0] != len(valid_indices) or not np.isfinite(values).all():
+            return {}
         norms = np.linalg.norm(values, axis=1, keepdims=True)
         values = values / np.maximum(norms, 1e-12)
-        return {int(item[0]): values[index] for index, item in enumerate(items)}
+        return {int(items[item_idx][0]): values[rank] for rank, item_idx in enumerate(valid_indices)}
 
     def _find_reid_match(
         self, scope, new_global_id, detection, box, embedding, timestamp, frame_id,
@@ -715,6 +793,10 @@ class RoboflowTracker:
         self._reid_gallery = {
             global_id: entry for global_id, entry in self._reid_gallery.items()
             if self._reid_entry_is_fresh(entry, timestamp, frame_id)
+        }
+        self._reid_last_embedded = {
+            gid: fid for gid, fid in self._reid_last_embedded.items()
+            if gid in self._reid_gallery
         }
 
     def _lost_outputs(
@@ -942,6 +1024,7 @@ class RoboflowTracker:
         self._global_ids.clear()
         self._track_state.clear()
         self._reid_gallery.clear()
+        self._reid_last_embedded.clear()
 
     def _prune_metadata(self, current_matches: set[tuple[Hashable, int]] | None = None) -> None:
         alive_keys = {

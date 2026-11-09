@@ -26,35 +26,45 @@ test('Object Tracking can enable and persist Roboflow ReID settings', async ({ a
   }, projectName);
   expect(created.ok).toBe(true);
 
-  await app.open('/');
-  await browser.locator('#hubProjectsTab').click();
-  const project = browser.locator(`.hub-project-card:has-text("${projectName}") .hub-open-workflow-btn`).first();
-  await expect(project).toBeVisible({ timeout: 10000 });
-  await project.click();
-  await expect(browser.locator('#viewStudio')).toBeVisible({ timeout: 15000 });
-  await browser.locator('.node-card:has-text("Object Tracking") .node-head').click();
+  try {
+    await app.open('/');
+    await browser.locator('#hubProjectsTab').click();
+    const project = browser.locator(`.hub-project-card:has-text("${projectName}") .hub-open-workflow-btn`).first();
+    await expect(project).toBeVisible({ timeout: 10000 });
+    await project.click();
+    await expect(browser.locator('#viewStudio')).toBeVisible({ timeout: 15000 });
+    await browser.locator('.node-card:has-text("Object Tracking") .node-head').click();
 
-  const enable = browser.locator('[data-field-key="enableReid"] input[type="checkbox"]');
-  await expect(enable).toBeVisible();
-  await enable.check();
-  const model = browser.locator('[data-field-key="reidModel"] select');
-  const device = browser.locator('[data-field-key="reidDevice"] select');
-  await expect(model).toBeVisible();
-  await model.selectOption({ value: 'osnet_x1_0_msmt17_combineall' });
-  await device.selectOption({ value: 'cpu' });
-  await expect(browser.locator('[data-field-key="reidAppearanceThreshold"] input[type="range"]')).toBeVisible();
-  await app.screenshot('reid-enabled-tracker-inspector');
+    const enable = browser.locator('[data-field-key="enableReid"] input[type="checkbox"]');
+    await expect(enable).toBeVisible();
+    await enable.check();
+    const model = browser.locator('[data-field-key="reidModel"] select');
+    const device = browser.locator('[data-field-key="reidDevice"] select');
+    await expect(model).toBeVisible();
+    await model.selectOption({ value: 'osnet_x1_0_msmt17_combineall' });
+    await device.selectOption({ value: 'cpu' });
+    await expect(browser.locator('[data-field-key="reidAppearanceThreshold"] input[type="range"]')).toBeVisible();
+    await expect(browser.locator('[data-field-key="reidRefreshInterval"] input')).toBeVisible();
+    await app.screenshot('reid-enabled-tracker-inspector');
 
-  await browser.locator('#saveBtn').click();
-  await expect(browser.locator('.toast')).toBeVisible({ timeout: 5000 });
+    await browser.locator('#saveBtn').click();
+    await expect(browser.locator('.toast')).toBeVisible({ timeout: 5000 });
 
-  await app.open('/');
-  await browser.locator('#hubProjectsTab').click();
-  await browser.locator(`.hub-project-card:has-text("${projectName}") .hub-open-workflow-btn`).first().click();
-  await expect(browser.locator('#viewStudio')).toBeVisible({ timeout: 15000 });
-  await browser.locator('.node-card:has-text("Object Tracking") .node-head').click();
-  await expect(browser.locator('[data-field-key="enableReid"] input[type="checkbox"]')).toBeChecked();
-  await expect(browser.locator('[data-field-key="reidModel"] select')).toHaveValue('osnet_x1_0_msmt17_combineall');
-  await expect(browser.locator('[data-field-key="reidDevice"] select')).toHaveValue('cpu');
-  await app.screenshot('reid-tracker-settings-after-reload');
+    await app.open('/');
+    await browser.locator('#hubProjectsTab').click();
+    await browser.locator(`.hub-project-card:has-text("${projectName}") .hub-open-workflow-btn`).first().click();
+    await expect(browser.locator('#viewStudio')).toBeVisible({ timeout: 15000 });
+    await browser.locator('.node-card:has-text("Object Tracking") .node-head').click();
+    await expect(browser.locator('[data-field-key="enableReid"] input[type="checkbox"]')).toBeChecked();
+    await expect(browser.locator('[data-field-key="reidModel"] select')).toHaveValue('osnet_x1_0_msmt17_combineall');
+    await expect(browser.locator('[data-field-key="reidDevice"] select')).toHaveValue('cpu');
+    await expect(browser.locator('[data-field-key="reidRefreshInterval"] input')).toHaveValue('30');
+    await app.screenshot('reid-tracker-settings-after-reload');
+  } finally {
+    await browser.evaluate(async (pid) => {
+      if (pid) {
+        await fetch(`/api/projects/${pid}`, { method: 'DELETE' });
+      }
+    }, created.body?.id);
+  }
 });

@@ -483,7 +483,6 @@ TRACKING_ALGORITHM_OPTIONS = [
 ]
 REID_MODEL_OPTIONS = (
     "osnet_x1_0_msmt17_combineall",
-    "osnet_x0_25",
     "fastreid_mot17_sbs50",
     "osnet_x1_0_mot17",
     "osnet_x1_0_sportsmot",
@@ -529,6 +528,7 @@ TRACKER_CONFIG_DEFAULTS = {
     "reidAppearanceThreshold": 0.75,
     "reidMaxCenterDistance": 4.0,
     "reidBatchSize": 16,
+    "reidRefreshInterval": 30,
     # Roboflow BoT-SORT association and camera-motion settings.
     "botSortFirstIouThreshold": 0.2,
     "botSortSecondIouThreshold": 0.5,
@@ -608,6 +608,10 @@ def migrate_tracker_config(config: dict) -> None:
         config["reidBatchSize"] = max(1, min(128, int(config.get("reidBatchSize", 16))))
     except (TypeError, ValueError):
         config["reidBatchSize"] = 16
+    try:
+        config["reidRefreshInterval"] = max(0, min(300, int(config.get("reidRefreshInterval", 30))))
+    except (TypeError, ValueError):
+        config["reidRefreshInterval"] = 30
     for key in OBSOLETE_TRACKER_CONFIG_KEYS:
         config.pop(key, None)
     config["trackerConfigVersion"] = TRACKER_CONFIG_VERSION

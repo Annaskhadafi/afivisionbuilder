@@ -3791,6 +3791,7 @@
     reidAppearanceThreshold: 'Ambang Kemiripan ReID',
 
     reidMaxCenterDistance: 'Batas Jarak Pusat untuk ReID',
+    reidRefreshInterval: 'Interval Refresh ReID (Frame)',
 
     enableClassLock: 'Kunci Kelas Objek (Class Lock)',
 
@@ -12622,7 +12623,7 @@
 
       if (key === 'trackerConfigVersion') return false;
 
-      if (!cfg.enableReid && ['reidModel', 'reidDevice', 'reidAppearanceThreshold', 'reidMaxCenterDistance', 'reidBatchSize'].includes(key)) return false;
+      if (!cfg.enableReid && ['reidModel', 'reidDevice', 'reidAppearanceThreshold', 'reidMaxCenterDistance', 'reidBatchSize', 'reidRefreshInterval'].includes(key)) return false;
 
       if (algo === 'bytetrack') {
 
@@ -13725,12 +13726,12 @@
       ],
 
       reidModel: [
-        ['osnet_x1_0_msmt17_combineall', 'OSNet MSMT17 (Umum / Person)'],
-        ['osnet_x1_0_mot17', 'OSNet MOT17'],
-        ['fastreid_mot17_sbs50', 'FastReID MOT17'],
-        ['osnet_x1_0_sportsmot', 'OSNet SportsMOT'],
-        ['osnet_x1_0_dancetrack', 'OSNet DanceTrack'],
-        ['osnet_x1_0_soccernet', 'OSNet SoccerNet']
+        ['osnet_x1_0_msmt17_combineall', 'OSNet MSMT17 (Rekomendasi Cepat - Person/Umum)'],
+        ['fastreid_mot17_sbs50', 'FastReID MOT17 (ResNet-50 - Akurasi Tinggi / GPU)'],
+        ['osnet_x1_0_mot17', 'OSNet MOT17 (Pedestrian Standar)'],
+        ['osnet_x1_0_sportsmot', 'OSNet SportsMOT (Olahraga & Gerakan Cepat)'],
+        ['osnet_x1_0_dancetrack', 'OSNet DanceTrack (Oklusi Rumit & Pose Ekstrem)'],
+        ['osnet_x1_0_soccernet', 'OSNet SoccerNet (Pemain Sepakbola)']
       ],
 
       reidDevice: [

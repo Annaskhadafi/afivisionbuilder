@@ -46,7 +46,9 @@ def test_reid_reuses_id_after_gap_for_same_class_and_appearance():
     first, final, calls = _track_after_gap()
 
     assert first["trackId"] == final["trackId"]
-    assert calls == 3
+    # Smart ReID only runs on new tracks (frame 1) and reappearance after gap (frame 3).
+    # Continuous active track (frame 4) skips redundant inference to eliminate stream latency.
+    assert calls == 2
 
 
 def test_reid_rejects_different_appearance_class_and_spatial_match():
@@ -133,3 +135,50 @@ def test_reid_gallery_clears_on_source_reset_and_uses_tracker_buffer_units():
     entry = next(iter(tracker._reid_gallery.values()))
     assert ocsort._reid_entry_is_fresh(entry, 1.29, 2)
     assert not ocsort._reid_entry_is_fresh(entry, 1.31, 2)
+
+def test_reid_safe_fallback_when_frame_is_none_or_corrupt():
+    # Tracker must not raise ValueError or crash when frame is None or corrupt
+    tracker = RoboflowTracker({"algorithm": "bytetrack", "enableReid": True})
+    tracker._reid_model = FakeReIDModel()
+    
+    # None frame
+    res_none = tracker.update([_det(10)], frame=None, frame_id=1, timestamp=1 / 30)
+    assert len(res_none) == 1
+    assert "trackId" in res_none[0]
+    
+    # Empty 0-size frame
+    res_empty = tracker.update([_det(11)], frame=np.empty((0, 0, 3), dtype=np.uint8), frame_id=2, timestamp=2 / 30)
+    assert len(res_empty) == 1
+    
+    # Degenerate 0-width bbox
+    degenerate_det = {"bbox": [10, 10, 1, 1], "score": 0.9, "class": "tire"}
+    res_degen = tracker.update([degenerate_det], frame=np.zeros((100, 100, 3), dtype=np.uint8), frame_id=3, timestamp=3 / 30)
+    assert len(res_degen) == 1
+
+
+def test_reid_refresh_interval_controls_periodic_extraction():
+    tracker = RoboflowTracker({
+        "algorithm": "bytetrack",
+        "enableReid": True,
+        "reidRefreshInterval": 3,
+        "minimumConsecutiveFrames": 1,
+    })
+    fake = FakeReIDModel()
+    tracker._reid_model = fake
+    frame = np.zeros((100, 100, 3), dtype=np.uint8)
+
+    # Frame 1: initial track -> call 1
+    tracker.update([_det(10)], frame, frame_id=1, timestamp=1 / 30)
+    assert fake.calls == 1
+
+    # Frame 2: active track, delta=1 < 3 -> no new call
+    tracker.update([_det(11)], frame, frame_id=2, timestamp=2 / 30)
+    assert fake.calls == 1
+
+    # Frame 3: active track, delta=2 < 3 -> no new call
+    tracker.update([_det(12)], frame, frame_id=3, timestamp=3 / 30)
+    assert fake.calls == 1
+
+    # Frame 4: active track, delta=3 >= 3 -> refresh triggered -> call 2
+    tracker.update([_det(13)], frame, frame_id=4, timestamp=4 / 30)
+    assert fake.calls == 2
