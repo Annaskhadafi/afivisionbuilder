@@ -1366,7 +1366,7 @@
           <span class="vital-pill">CPU <strong>18%</strong></span>
           <span class="vital-pill">RAM <strong>3.4G</strong></span>
           <span class="vital-pill">DISK <strong>142G</strong></span>
-          <span class="vital-pill status-ok">● 8/8 ONLINE</span>
+          <span class="vital-pill status-ok" id="nvrHeaderVitalsOnline">● 0/0 ONLINE</span>
         </div>
         <!-- Layout Switchers (Exact Open-NVR layouts: 1x1, 2x2, 3x3, 1+5, 1+7) -->
         <div class="nvr-layout-btn-group" id="nvrLiveLayoutGroup">
@@ -1388,6 +1388,10 @@
       <div class="open-nvr-stage-split">
         <!-- Left Sidebar: Camera Tree & Groups -->
         <aside class="open-nvr-sidebar" id="openNvrSidebar">
+          <div class="nvr-sidebar-actions" style="padding: 10px 12px; display:flex; gap:6px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <button class="button primary small" id="openNvrSidebarAddBtn" type="button" style="flex:1;">➕ Tambah Kamera</button>
+            <button class="button secondary small" id="openNvrSidebarScanBtn" type="button" title="Pindai Jaringan (Scan LAN)">📡 Scan</button>
+          </div>
           <div class="open-nvr-sidebar-search">
             <input type="text" id="nvrCamSearchInput" placeholder="🔍 Cari kamera atau area..." />
           </div>
@@ -1415,10 +1419,10 @@
                 <span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>Now</span>
               </div>
               <div class="nvr-timeline-track" id="nvrTimelineTrack">
-                <!-- Event tick marks in red/orange -->
-                <div class="nvr-timeline-tick" style="left: 35%;" title="🚨 08:24 - Pelanggaran Garis Masuk"></div>
-                <div class="nvr-timeline-tick" style="left: 58%;" title="🚨 14:10 - Peringatan Kecepatan"></div>
-                <div class="nvr-timeline-tick" style="left: 82%;" title="🚨 19:45 - Gerakan Tak Dikenal"></div>
+                <!-- Event tick marks rendered dynamically from real recordings -->
+
+
+
                 <div class="nvr-timeline-playhead" style="left: 95%;"></div>
               </div>
             </div>
@@ -1458,7 +1462,7 @@
           </div>
           <div class="nvr-vital-card">
             <div class="vital-label">ONLINE CAMERAS</div>
-            <div class="vital-val font-mono text-green">8 / 8<span class="vital-unit">ACTIVE</span></div>
+            <div class="vital-val font-mono text-green" id="nvrDashOnlineCamsVal">0 / 0<span class="vital-unit">ACTIVE</span></div>
             <div class="vital-sub">Bitrate Total: 18.6 Mbps · 200 FPS</div>
             <div class="vital-bar"><div class="vital-bar-fill fill-green" style="width: 100%;"></div></div>
           </div>
@@ -1481,40 +1485,10 @@
           <div class="nvr-dash-panel">
             <div class="nvr-dash-head">
               <span class="dash-title">🚨 ALARMS & INCIDENTS (HARI INI)</span>
-              <span class="dash-badge-danger">3 INSIDEN KRITIS</span>
+              <span class="dash-badge-danger" id="nvrIncidentsCountBadge">0 INSIDEN</span>
             </div>
-            <div class="nvr-alarms-feed">
-              <div class="alarm-item danger">
-                <span class="alarm-badge critical">CRITICAL</span>
-                <div class="alarm-content">
-                  <strong>Pelanggaran Garis Batas K3 (Tripwire Crossed)</strong>
-                  <span>Workshop Bay 1 · 08:24:12 · Terdeteksi 1 Pekerja Tanpa Rompi APD</span>
-                </div>
-                <button class="button small secondary btn-view-clip" data-clip="0824_ws01">▶️ Klip</button>
-              </div>
-              <div class="alarm-item warn">
-                <span class="alarm-badge warning">WARNING</span>
-                <div class="alarm-content">
-                  <strong>Peringatan Kecepatan Melebihi Batas (Speed Alert)</strong>
-                  <span>Warehouse Gate 2 · 14:10:45 · Forklift melaju 24 km/jam (Maks: 15 km/jam)</span>
-                </div>
-                <button class="button small secondary btn-view-clip" data-clip="1410_wh02">▶️ Klip</button>
-              </div>
-              <div class="alarm-item warn">
-                <span class="alarm-badge warning">WARNING</span>
-                <div class="alarm-content">
-                  <strong>Objek Mencurigakan di Zona Terlarang (Dwell Overtime)</strong>
-                  <span>Warehouse Gate 1 · 19:45:02 · Kotak teronggok di jalur darurat > 5 menit</span>
-                </div>
-                <button class="button small secondary btn-view-clip" data-clip="1945_wh01">▶️ Klip</button>
-              </div>
-              <div class="alarm-item ok">
-                <span class="alarm-badge ok">RESOLVED</span>
-                <div class="alarm-content">
-                  <strong>Area Kembali Steril (Auto-Clear)</strong>
-                  <span>Workshop Bay 3 · 21:00:15 · Seluruh personel telah meninggalkan area kerja</span>
-                </div>
-              </div>
+            <div class="nvr-alarms-feed" id="nvrAlarmsFeedContainer">
+              <!-- Dynamically populated from real recordings -->
             </div>
           </div>
         </div>
@@ -2485,26 +2459,44 @@
       <div class="modal-body-pad nvr-body">
         <!-- NVR Nav Tabs -->
         <div class="nvr-tabs-bar">
-          <button class="nvr-tab-btn active" data-tab="discover">🔍 Pindai Jaringan (Auto-Scan)</button>
-          <button class="nvr-tab-btn" data-tab="manual">➕ Tambah / Hubungkan Kamera</button>
-          <button class="nvr-tab-btn" data-tab="registered">📋 Kamera Terdaftar (<span id="nvrCamCountBadge">0</span>)</button>
-          <button class="nvr-tab-btn" data-tab="matrix">🔲 Matriks CCTV Live (Wall)</button>
-          <button class="nvr-tab-btn" data-tab="recordings">🎞️ Klip Bukti (Evidence Vault)</button>
+          <button class="nvr-tab-btn active" data-tab="discover" type="button">
+            <span class="nvr-tab-icon">📡</span>
+            <span class="nvr-tab-label">Pindai Otomatis</span>
+          </button>
+          <button class="nvr-tab-btn" data-tab="manual" type="button">
+            <span class="nvr-tab-icon">➕</span>
+            <span class="nvr-tab-label">Tambah Kamera</span>
+          </button>
+          <button class="nvr-tab-btn" data-tab="registered" type="button">
+            <span class="nvr-tab-icon">📋</span>
+            <span class="nvr-tab-label">Kamera Terdaftar</span>
+            <span id="nvrCamCountBadge" class="nvr-badge">0</span>
+          </button>
+          <button class="nvr-tab-btn" data-tab="matrix" type="button">
+            <span class="nvr-tab-icon">🔲</span>
+            <span class="nvr-tab-label">Live Matrix Wall</span>
+          </button>
+          <button class="nvr-tab-btn" data-tab="recordings" type="button">
+            <span class="nvr-tab-icon">🎞️</span>
+            <span class="nvr-tab-label">Klip Bukti</span>
+          </button>
         </div>
 
         <!-- Tab 1: Discover -->
         <div class="nvr-tab-panel active" id="nvrTabDiscover">
           <div class="nvr-scan-banner">
-            <div class="scan-radar-icon">📡</div>
+            <div class="scan-radar-badge">
+              <span class="scan-radar-icon">📡</span>
+            </div>
             <div class="scan-banner-text">
               <h4>Pindai Kamera CCTV Otomatis di Jaringan Lokal</h4>
               <p>Mencari kamera ONVIF (Hikvision, Dahua, Ezviz, TP-Link Tapo, Bardi, Uniview) via WS-Discovery & Probing Port SOAP tanpa perlu tahu IP kamera sebelumnya.</p>
             </div>
-            <button class="button primary" id="nvrStartScanBtn" type="button">
+            <button class="button primary nvr-btn-scan" id="nvrStartScanBtn" type="button">
               <span>🚀 Mulai Pindai Jaringan</span>
             </button>
           </div>
-          <div id="nvrScanProgress" class="progress-bar-wrap" style="display:none; margin: 12px 0;">
+          <div id="nvrScanProgress" class="progress-bar-wrap" style="display:none; margin: 16px 0;">
             <div class="progress-bar-indeterminate"></div>
           </div>
           <div class="nvr-discovered-grid" id="nvrDiscoveredGrid">
@@ -2514,7 +2506,57 @@
 
         <!-- Tab 2: Manual Connect -->
         <div class="nvr-tab-panel" id="nvrTabManual" style="display:none;">
-          <div class="nvr-form-grid">
+          <!-- Mode Tabs -->
+          <div class="nvr-subnav">
+            <button class="nvr-subnav-btn active" id="nvrModeDirectBtn" type="button">
+              <span>⚡ Input Langsung via RTSP / URL Stream</span>
+            </button>
+            <button class="nvr-subnav-btn" id="nvrModeOnvifBtn" type="button">
+              <span>📡 Auto-Probe via ONVIF (IP & Port)</span>
+            </button>
+          </div>
+
+          <!-- Section 1: Direct RTSP Stream Form (Default) -->
+          <div id="nvrDirectFormWrap" class="nvr-form-grid">
+            <div class="form-group">
+              <label>Nama Kamera CCTV</label>
+              <input type="text" id="nvrDirectCamName" placeholder="Contoh: Kamera Workshop Bay 1" class="input-text" />
+            </div>
+            <div class="form-group">
+              <label>Area / Grup Kategori</label>
+              <input type="text" id="nvrDirectCamGroup" placeholder="Workshop / Gudang / Umum" value="Umum" class="input-text" />
+            </div>
+            <div class="form-group full-width">
+              <label>URL Stream RTSP / HTTP Video</label>
+              <input type="text" id="nvrDirectCamRtsp" placeholder="rtsp://admin:password@192.168.1.100:554/live" class="input-text" />
+              <span class="nvr-field-hint">💡 Mendukung RTSP (rtsp://user:pass@ip:554/stream), link HTTP/HLS (.m3u8), IP webcam ponsel, atau file video MP4.</span>
+            </div>
+            <div class="form-group">
+              <label>Resolusi Target</label>
+              <select id="nvrDirectCamResolution" class="input-select">
+                <option value="1080p">1080p (Full HD 1920×1080)</option>
+                <option value="720p" selected>720p (HD 1280×720)</option>
+                <option value="480p">480p (SD 640×360)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Akselerasi Dekoder Hardware</label>
+              <select id="nvrDirectCamHwaccel" class="input-select">
+                <option value="cpu">CPU Software Decode (Universal)</option>
+                <option value="cuda">NVIDIA CUDA / NVDEC (Hardware GPU)</option>
+                <option value="qsv">Intel QuickSync Video (QSV)</option>
+                <option value="dshow">Windows DirectShow / MSMF</option>
+              </select>
+            </div>
+            <div class="form-group full-width" style="margin-top: 8px;">
+              <button class="button primary nvr-btn-submit" id="nvrDirectSaveBtn" type="button">
+                <span>💾 Simpan & Daftarkan Kamera CCTV</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Section 2: ONVIF Auto-Probe Form -->
+          <div id="nvrOnvifFormWrap" class="nvr-form-grid" style="display:none;">
             <div class="form-group">
               <label>Alamat IP Kamera / Host</label>
               <input type="text" id="nvrManualIp" placeholder="192.168.1.64" class="input-text" />
@@ -2540,8 +2582,8 @@
                 <option value="dshow">Windows DirectShow / MSMF</option>
               </select>
             </div>
-            <div class="form-group full-width">
-              <button class="button primary" id="nvrTestConnectBtn" type="button">
+            <div class="form-group full-width" style="margin-top: 8px;">
+              <button class="button primary nvr-btn-submit" id="nvrTestConnectBtn" type="button">
                 <span>⚡ Uji Koneksi & Ambil Profil Stream</span>
               </button>
             </div>
@@ -2553,6 +2595,16 @@
 
         <!-- Tab 3: Registered Cameras -->
         <div class="nvr-tab-panel" id="nvrTabRegistered" style="display:none;">
+          <div class="nvr-panel-toolbar">
+            <div class="nvr-panel-title">
+              <span class="eyebrow">INVENTARIS KAMERA CCTV</span>
+              <h3>Daftar Kamera Terdaftar di Sistem</h3>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="button small secondary" id="nvrRefreshRegisteredBtn" type="button">🔄 Segarkan</button>
+              <button class="button small primary" id="nvrAddFromRegBtn" type="button">➕ Tambah Kamera</button>
+            </div>
+          </div>
           <div class="nvr-cameras-grid" id="nvrRegisteredGrid">
             <!-- Camera cards -->
           </div>
@@ -2562,11 +2614,11 @@
         <div class="nvr-tab-panel" id="nvrTabMatrix" style="display:none;">
           <div class="matrix-controls-bar">
             <div class="matrix-layout-toggle">
-              <button class="btn-layout active" data-layout="2x2">2 × 2 Matrix</button>
-              <button class="btn-layout" data-layout="3x3">3 × 3 Matrix</button>
-              <button class="btn-layout" data-layout="1x1">Fokus 1 Layar</button>
+              <button class="btn-layout active" data-layout="2x2" type="button">2 × 2 Matrix</button>
+              <button class="btn-layout" data-layout="3x3" type="button">3 × 3 Matrix</button>
+              <button class="btn-layout" data-layout="1x1" type="button">Fokus 1 Layar</button>
             </div>
-            <button class="button secondary small" id="nvrRefreshMatrixBtn">🔄 Segarkan Frame</button>
+            <button class="button secondary small" id="nvrRefreshMatrixBtn" type="button">🔄 Segarkan Frame</button>
           </div>
           <div class="cctv-wall-grid layout-2x2" id="cctvWallGrid">
             <!-- 4 to 9 camera video feeds -->
@@ -2576,8 +2628,11 @@
         <!-- Tab 5: Evidence Vault -->
         <div class="nvr-tab-panel" id="nvrTabRecordings" style="display:none;">
           <div class="recordings-toolbar">
-            <span class="eyebrow">REKAMAN KEJADIAN PRE-ROLL / POST-ROLL</span>
-            <button class="button secondary small" id="nvrRefreshRecordingsBtn">🔄 Segarkan Bukti</button>
+            <div>
+              <span class="eyebrow">EVIDENCE VAULT</span>
+              <h3 style="margin:2px 0 0 0; font-size:15px; color:#f8fafc;">Rekaman Bukti Kejadian (Pre/Post-Roll)</h3>
+            </div>
+            <button class="button secondary small" id="nvrRefreshRecordingsBtn" type="button">🔄 Segarkan Bukti</button>
           </div>
           <div class="recordings-grid" id="nvrRecordingsGrid">
             <!-- Video recordings clips list -->
@@ -2706,5 +2761,65 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Modal: Ubah Konfigurasi Kamera CCTV -->
+  <dialog id="nvrEditCameraModal" class="nvr-modal" style="max-width: 540px; border-radius: 12px; background: #0f172a; color: #f8fafc; border: 1px solid rgba(56, 189, 248, 0.3); box-shadow: 0 20px 40px rgba(0,0,0,0.7); padding: 0;">
+    <div style="display:flex; justify-content:space-between; align-items:center; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.08); background:#1e293b;">
+      <h3 style="margin:0; font-size:15px; font-weight:700; color:#38bdf8; display:flex; align-items:center; gap:8px;">
+        <span>✏️</span> Ubah Konfigurasi Kamera CCTV
+      </h3>
+      <button class="icon-button" id="closeNvrEditModalBtn" type="button" style="color:#94a3b8; font-size:16px;">✕</button>
+    </div>
+    <form id="nvrEditCameraForm" style="padding: 18px; display:flex; flex-direction:column; gap:12px;">
+      <input type="hidden" id="editCamId" />
+      <div>
+        <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">NAMA KAMERA</label>
+        <input type="text" id="editCamName" class="input-text" required placeholder="Contoh: Kamera Workshop Depan" style="width:100%; box-sizing:border-box;" />
+      </div>
+      <div>
+        <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">URL STREAM RTSP / VIDEO</label>
+        <input type="text" id="editCamRtsp" class="input-text" required placeholder="rtsp://admin:password@192.168.1.100:554/live" style="width:100%; box-sizing:border-box;" />
+      </div>
+      <div style="display:grid; grid-template-columns: 2fr 1fr; gap:10px;">
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">IP / HOST</label>
+          <input type="text" id="editCamIp" class="input-text" placeholder="192.168.1.100" style="width:100%; box-sizing:border-box;" />
+        </div>
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">PORT</label>
+          <input type="number" id="editCamPort" class="input-text" value="80" style="width:100%; box-sizing:border-box;" />
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">USERNAME</label>
+          <input type="text" id="editCamUser" class="input-text" value="admin" style="width:100%; box-sizing:border-box;" />
+        </div>
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">PASSWORD</label>
+          <input type="password" id="editCamPass" class="input-text" placeholder="••••••••" style="width:100%; box-sizing:border-box;" />
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">AREA / GRUP KATEGORI</label>
+          <input type="text" id="editCamGroup" class="input-text" placeholder="Workshop / Gudang / Umum" style="width:100%; box-sizing:border-box;" />
+        </div>
+        <div>
+          <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">RESOLUSI</label>
+          <select id="editCamResolution" class="input-select" style="width:100%; box-sizing:border-box;">
+            <option value="1080p">1080p (Full HD)</option>
+            <option value="720p">720p (HD)</option>
+            <option value="480p">480p (SD)</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px; border-top:1px solid rgba(255,255,255,0.06); padding-top:12px;">
+        <button type="button" class="button secondary" id="btnCancelEditCam">Batal</button>
+        <button type="submit" class="button primary" id="btnSaveEditCam">💾 Simpan Perubahan</button>
+      </div>
+    </form>
+  </dialog>
+
 </body>
 </html>

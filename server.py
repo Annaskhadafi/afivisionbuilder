@@ -9737,78 +9737,17 @@ _cameras_lock = threading.Lock()
 
 
 def _read_cameras() -> list[dict]:
-
-
-
     with _cameras_lock:
-
-
-
         if _CAMERAS_FILE.exists():
-
-
-
             try:
-
-
-
                 data = json.loads(_CAMERAS_FILE.read_text(encoding="utf-8"))
-
-
-
-                if isinstance(data, list) and len(data) > 0:
-
-
-
+                if isinstance(data, list):
                     return data
-
-
-
+                elif isinstance(data, dict):
+                    return list(data.values())
             except Exception:
-
-
-
                 pass
-
-
-
-        # Initialize default cameras
-
-
-
-        cameras = [dict(c) for c in DEFAULT_OPERATIONAL_CAMERAS]
-
-
-
-        for c in cameras:
-
-
-
-            c.setdefault("resolution", "1080p")
-
-
-
-            c.setdefault("assignedProjectId", "")
-
-
-
-        _CAMERAS_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-
-
-        temp_file = _CAMERAS_FILE.with_name(f"cameras.{uuid.uuid4().hex}.tmp")
-
-
-
-        temp_file.write_text(json.dumps(cameras, indent=2), encoding="utf-8")
-
-
-
-        temp_file.replace(_CAMERAS_FILE)
-
-
-
-        return cameras
+        return []
 
 
 

@@ -396,26 +396,23 @@
 
 
 
-  const api = async (url, options) => {
-
-    const res = await fetch(url, options);
-
-    let data = null;
-
-    try {
-
-      data = await res.json();
-
-    } catch {}
-
-    if (!res.ok) {
-
-      throw new Error(data?.detail || data?.error || `Request failed (${res.status})`);
-
+  const api = async (url, options = {}) => {
+    const opts = { ...options };
+    if (opts.body && typeof opts.body === 'string') {
+      opts.headers = { 'Content-Type': 'application/json', ...opts.headers };
     }
-
+    const res = await fetch(url, opts);
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {}
+    if (!res.ok) {
+      const errMsg = Array.isArray(data?.detail)
+        ? data.detail.map(d => d.msg || JSON.stringify(d)).join(', ')
+        : (data?.detail || data?.error || `Request failed (${res.status})`);
+      throw new Error(errMsg);
+    }
     return data;
-
   };
 
 
@@ -33444,6 +33441,8 @@
 
 
 
+
+
     function openModal() {
 
       if (!fleetModal) return;
@@ -33587,12 +33586,75 @@
   // --- Open-NVR & CCTV Hub Manager ---
   function initNvrCameraHub() {
     const nvrModal = $('#nvrCameraModal');
+    // Wire Manual Mode Tabs (Direct RTSP vs ONVIF Auto-Probe)
+    const btnModeDirect = $('#nvrModeDirectBtn');
+    const btnModeOnvif = $('#nvrModeOnvifBtn');
+    const wrapDirect = $('#nvrDirectFormWrap');
+    const wrapOnvif = $('#nvrOnvifFormWrap');
+
+    if (btnModeDirect && btnModeOnvif) {
+      btnModeDirect.addEventListener('click', () => {
+        btnModeDirect.classList.add('active');
+        btnModeOnvif.classList.remove('active');
+        if (wrapDirect) wrapDirect.style.display = 'grid';
+        if (wrapOnvif) wrapOnvif.style.display = 'none';
+      });
+      btnModeOnvif.addEventListener('click', () => {
+        btnModeDirect.classList.remove('active');
+        btnModeOnvif.classList.add('active');
+        if (wrapDirect) wrapDirect.style.display = 'none';
+        if (wrapOnvif) wrapOnvif.style.display = 'grid';
+      });
+    }
+
+    // Direct RTSP Save Handler
+    $('#nvrDirectSaveBtn')?.addEventListener('click', async () => {
+      const name = ($('#nvrDirectCamName')?.value || '').trim() || 'Kamera CCTV';
+      const group = ($('#nvrDirectCamGroup')?.value || '').trim() || 'Umum';
+      const rtsp_url = ($('#nvrDirectCamRtsp')?.value || '').trim();
+      const resolution = $('#nvrDirectCamResolution')?.value || '720p';
+      const hwaccel = $('#nvrDirectCamHwaccel')?.value || 'cpu';
+
+      if (!rtsp_url) {
+        toast('URL stream RTSP atau HTTP wajib diisi!', true);
+        return;
+      }
+
+      try {
+        await api('/api/nvr/cameras', {
+          method: 'POST',
+          body: JSON.stringify({
+            name,
+            group,
+            rtsp_url,
+            resolution,
+            hwaccel,
+            enabled: true,
+          }),
+        });
+        toast(`Kamera ${name} berhasil didaftarkan ke CCTV Hub!`);
+        $('#nvrDirectCamName').value = '';
+        $('#nvrDirectCamRtsp').value = '';
+        // Switch to registered tab
+        nvrModal?.querySelectorAll('.nvr-tab-btn').forEach(tb => {
+          if (tb.getAttribute('data-tab') === 'registered') tb.click();
+        });
+        if (typeof window.initOrRefreshOpenNvrLive === 'function') {
+          window.initOrRefreshOpenNvrLive();
+        }
+      } catch (err) {
+        toast('Gagal menambahkan kamera: ' + err.message, true);
+      }
+    });
+
     const openBtn = $('#openNvrHubBtn');
     const closeBtn = $('#closeNvrModalBtn');
     const scanBtn = $('#nvrStartScanBtn');
     const testConnectBtn = $('#nvrTestConnectBtn');
     const refreshMatrixBtn = $('#nvrRefreshMatrixBtn');
     const refreshRecordingsBtn = $('#nvrRefreshRecordingsBtn');
+    const refreshRegisteredBtn = $('#nvrRefreshRegisteredBtn');
+    const addFromRegBtn = $('#nvrAddFromRegBtn');
     let matrixTimer = null;
 
     // Tab switcher
@@ -33612,6 +33674,30 @@
           if (targetTab === 'recordings') loadNvrRecordings();
         });
       });
+
+      // Matrix layout switcher (2x2, 3x3, 1x1)
+      nvrModal.querySelectorAll('.matrix-layout-toggle .btn-layout').forEach(btn => {
+        btn.addEventListener('click', () => {
+          nvrModal.querySelectorAll('.matrix-layout-toggle .btn-layout').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const layout = btn.getAttribute('data-layout') || '2x2';
+          const wallGrid = $('#cctvWallGrid');
+          if (wallGrid) {
+            wallGrid.className = `cctv-wall-grid layout-${layout}`;
+          }
+        });
+      });
+    }
+
+    if (refreshRegisteredBtn) {
+      refreshRegisteredBtn.addEventListener('click', loadRegisteredNvrCameras);
+    }
+    if (addFromRegBtn) {
+      addFromRegBtn.addEventListener('click', () => {
+        nvrModal?.querySelectorAll('.nvr-tab-btn').forEach(tb => {
+          if (tb.getAttribute('data-tab') === 'manual') tb.click();
+        });
+      });
     }
 
     async function loadRegisteredNvrCameras() {
@@ -33623,7 +33709,31 @@
         const cams = res.cameras || [];
         if (badge) badge.textContent = cams.length;
         if (cams.length === 0) {
-          grid.innerHTML = '<div style="grid-column: 1/-1; padding: 24px; text-align: center; color: #94a3b8;">Belum ada kamera CCTV terdaftar. Pindai jaringan otomatis atau hubungkan manual via tab di atas.</div>';
+          grid.innerHTML = `
+            <div class="nvr-empty-card">
+              <div class="nvr-empty-icon">📹</div>
+              <h4 class="nvr-empty-title">Belum Ada Kamera CCTV Terdaftar</h4>
+              <p class="nvr-empty-sub">Hubungkan kamera pertama Anda menggunakan URL stream RTSP / IP webcam, atau pindai perangkat ONVIF otomatis di jaringan lokal.</p>
+              <div style="display:flex; gap:10px; margin-top:6px;">
+                <button class="button primary small" id="nvrEmptyAddBtn" type="button">
+                  <span>➕ Tambah Kamera Sekarang</span>
+                </button>
+                <button class="button secondary small" id="nvrEmptyScanBtn" type="button">
+                  <span>📡 Pindai Jaringan</span>
+                </button>
+              </div>
+            </div>
+          `;
+          $('#nvrEmptyAddBtn')?.addEventListener('click', () => {
+            nvrModal?.querySelectorAll('.nvr-tab-btn').forEach(tb => {
+              if (tb.getAttribute('data-tab') === 'manual') tb.click();
+            });
+          });
+          $('#nvrEmptyScanBtn')?.addEventListener('click', () => {
+            nvrModal?.querySelectorAll('.nvr-tab-btn').forEach(tb => {
+              if (tb.getAttribute('data-tab') === 'discover') tb.click();
+            });
+          });
           return;
         }
         grid.innerHTML = cams.map(c => `
@@ -33634,13 +33744,16 @@
             </div>
             <img class="cctv-card-thumb" src="/api/nvr/preview/${encodeURIComponent(c.id)}?t=${Date.now()}" alt="${escapeHtml(c.name)}" />
             <div class="cctv-meta-row">
-              <span>🌐 ${escapeHtml(c.ip)}:${c.port || 80}</span>
-              <span>⚡ ${escapeHtml(c.selected_profile || 'SubStream')}</span>
+              <span>🌐 ${escapeHtml(c.ip || 'Stream URL')}:${c.port || 554}</span>
+              <span>⚡ ${escapeHtml(c.resolution || c.selected_profile || '720p')}</span>
               <span>${c.is_online ? '<strong style=\"color:#22c55e\">● ONLINE</strong>' : '<span style=\"color:#94a3b8\">○ SIAGA</span>'}</span>
             </div>
             <div style="display:flex; gap:8px; margin-top:4px;">
               <button class="button primary small" style="flex:1;" data-nvr-add-canvas="${escapeHtml(c.id)}">
                 <span>➕ Pasang ke Kanvas</span>
+              </button>
+              <button class="button secondary small" data-nvr-edit="${escapeHtml(c.id)}" title="Ubah Nama & Grup Kamera">
+                <span>✏️</span>
               </button>
               <button class="button danger small" data-nvr-del="${escapeHtml(c.id)}" title="Hapus Kamera">
                 <span>🗑️</span>
@@ -33666,6 +33779,18 @@
           });
         });
 
+        // Wire Edit buttons
+        grid.querySelectorAll('[data-nvr-edit]').forEach(b => {
+          b.addEventListener('click', () => {
+            const camId = b.getAttribute('data-nvr-edit');
+            const targetCam = cams.find(x => x.id === camId);
+            if (!targetCam) return;
+            if (typeof window.openNvrEditModal === 'function') {
+              window.openNvrEditModal(targetCam);
+            }
+          });
+        });
+
         // Wire Delete buttons
         grid.querySelectorAll('[data-nvr-del]').forEach(b => {
           b.addEventListener('click', async () => {
@@ -33675,6 +33800,9 @@
               await api(`/api/nvr/cameras/${encodeURIComponent(camId)}`, { method: 'DELETE' });
               toast('Kamera CCTV berhasil dihapus.');
               loadRegisteredNvrCameras();
+              if (typeof window.initOrRefreshOpenNvrLive === 'function') {
+                window.initOrRefreshOpenNvrLive();
+              }
             } catch (err) {
               toast('Gagal menghapus kamera: ' + err.message, true);
             }
@@ -33689,13 +33817,27 @@
       const grid = $('#nvrDiscoveredGrid');
       const progress = $('#nvrScanProgress');
       if (progress) progress.style.display = 'block';
-      if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#38bdf8;">Memindai jaringan lokal (WS-Discovery UDP & Probing Port ONVIF)...</div>';
+      if (grid) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:28px; color:#38bdf8;">Memindai jaringan lokal (WS-Discovery UDP & Probing Port ONVIF)...</div>';
       try {
         const res = await api('/api/nvr/discover', { method: 'POST', body: JSON.stringify({ timeout: 2.5 }) });
         if (progress) progress.style.display = 'none';
         const devices = res.devices || [];
         if (devices.length === 0) {
-          grid.innerHTML = '<div style="grid-column: 1/-1; padding: 24px; text-align: center; color: #94a3b8;">Tidak ada kamera ONVIF baru ditemukan pada subnet lokal. Pastikan kamera CCTV menyala dan terhubung ke jaringan LAN/WiFi yang sama, atau gunakan tab Tambah Manual.</div>';
+          grid.innerHTML = `
+            <div class="nvr-empty-card">
+              <div class="nvr-empty-icon">📡</div>
+              <h4 class="nvr-empty-title">Tidak Ada Kamera ONVIF Ditemukan di Subnet Lokal</h4>
+              <p class="nvr-empty-sub">Pastikan kamera CCTV menyala, mendukung protokol ONVIF, dan terhubung ke jaringan LAN/WiFi yang sama dengan server. Anda juga dapat mendaftarkan URL stream RTSP langsung tanpa scan.</p>
+              <button class="button primary small" id="nvrBtnSwitchToDirect" type="button" style="margin-top:6px;">
+                <span>⚡ Input Langsung via RTSP / URL Stream</span>
+              </button>
+            </div>
+          `;
+          $('#nvrBtnSwitchToDirect')?.addEventListener('click', () => {
+            nvrModal?.querySelectorAll('.nvr-tab-btn').forEach(tb => {
+              if (tb.getAttribute('data-tab') === 'manual') tb.click();
+            });
+          });
           return;
         }
         grid.innerHTML = devices.map(d => `
@@ -33724,6 +33866,8 @@
             nvrModal.querySelectorAll('.nvr-tab-btn').forEach(tb => {
               if (tb.getAttribute('data-tab') === 'manual') tb.click();
             });
+            // Switch to ONVIF subtab
+            $('#nvrModeOnvifBtn')?.click();
           });
         });
       } catch (err) {
@@ -33758,7 +33902,7 @@
         if (resultBox) {
           resultBox.style.display = 'block';
           resultBox.innerHTML = `
-            <div style="background:rgba(15,23,42,0.8); border:1px solid rgba(56,189,248,0.3); border-radius:10px; padding:16px; margin-top:14px;">
+            <div style="background:rgba(15,23,42,0.85); border:1px solid rgba(56,189,248,0.3); border-radius:10px; padding:16px; margin-top:14px;">
               <h4 style="color:#38bdf8; margin:0 0 8px 0;">✅ Berhasil Terhubung ke ${escapeHtml(dev.manufacturer || 'ONVIF')} (${escapeHtml(dev.model || 'IP Camera')})</h4>
               <p style="font-size:12px; color:#94a3b8; margin:0 0 12px 0;">Firmware: ${escapeHtml(dev.firmware || 'Unknown')} | Serial: ${escapeHtml(dev.serial || 'Unknown')}</p>
               <label style="font-size:12px; font-weight:700; color:#f8fafc; display:block; margin-bottom:6px;">Pilih Profil Aliran Video:</label>
@@ -33809,6 +33953,9 @@
               nvrModal.querySelectorAll('.nvr-tab-btn').forEach(tb => {
                 if (tb.getAttribute('data-tab') === 'registered') tb.click();
               });
+              if (typeof window.initOrRefreshOpenNvrLive === 'function') {
+                window.initOrRefreshOpenNvrLive();
+              }
             } catch (err) {
               toast('Gagal menyimpan kamera: ' + err.message, true);
             }
@@ -33831,7 +33978,21 @@
         const res = await api('/api/nvr/cameras');
         const cams = res.cameras || [];
         if (cams.length === 0) {
-          grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:#94a3b8;">Belum ada kamera CCTV terdaftar untuk ditampilkan di Matriks Live Wall.</div>';
+          grid.innerHTML = `
+            <div class="nvr-empty-card" style="min-height:360px;">
+              <div class="nvr-empty-icon">🔲</div>
+              <h4 class="nvr-empty-title">Matriks Live Wall Belum Memiliki Siaran</h4>
+              <p class="nvr-empty-sub">Daftarkan kamera CCTV pada tab Tambah Kamera untuk menampilkan siaran langsung multi-layar 2×2 atau 3×3.</p>
+              <button class="button primary small" id="nvrMatrixAddBtn" type="button" style="margin-top:8px;">
+                <span>➕ Tambah Kamera CCTV</span>
+              </button>
+            </div>
+          `;
+          $('#nvrMatrixAddBtn')?.addEventListener('click', () => {
+            nvrModal?.querySelectorAll('.nvr-tab-btn').forEach(tb => {
+              if (tb.getAttribute('data-tab') === 'manual') tb.click();
+            });
+          });
           return;
         }
         grid.innerHTML = cams.map(c => `
@@ -33920,7 +34081,13 @@
         const res = await api('/api/nvr/recordings');
         const clips = res.recordings || [];
         if (clips.length === 0) {
-          grid.innerHTML = '<div style="grid-column: 1/-1; padding: 24px; text-align: center; color: #94a3b8;">Belum ada klip bukti kejadian terekam di Evidence Vault. Klip otomatis tersimpan saat terjadi alarm atau pelanggaran garis virtual.</div>';
+          grid.innerHTML = `
+            <div class="nvr-empty-card" style="min-height:300px;">
+              <div class="nvr-empty-icon">🛡️</div>
+              <h4 class="nvr-empty-title">Evidence Vault Masih Kosong</h4>
+              <p class="nvr-empty-sub">Klip bukti rekaman MP4 (5 detik sebelum kejadian + 10 detik sesudah kejadian) akan tersimpan otomatis saat alur kerja memicu alarm zona atau garis batas.</p>
+            </div>
+          `;
           return;
         }
         grid.innerHTML = clips.map(cl => `
@@ -34000,6 +34167,7 @@
     const clockEl = $('#openNvrLiveClock');
     const countBadge = $('#nvrLiveCamsOnlineCount');
     const metaEl = $('#nvrSelectedCamMeta');
+    const headerOnlinePill = $('#nvrHeaderVitalsOnline');
 
     // 0. Open-NVR Sub Navigation
     document.querySelectorAll('.nvr-nav-link').forEach(link => {
@@ -34023,28 +34191,70 @@
     function renderDashboardPage() {
       const miniGrid = $('#nvrMiniWallGrid');
       const tableBody = $('#nvrHealthTableBody');
-      if (miniGrid) {
-        const top4 = allCams.slice(0, 4);
-        miniGrid.innerHTML = top4.map(c => `
-          <div class="nvr-mini-wall-tile">
-            <img src="/api/nvr/preview/${encodeURIComponent(c.id)}?t=${Date.now()}" alt="${escapeHtml(c.name)}" />
-            <span class="nvr-mini-tile-name">${escapeHtml(c.name)}</span>
-          </div>
-        `).join('');
+      const alarmsContainer = $('#nvrAlarmsFeedContainer');
+      const incidentsBadge = $('#nvrIncidentsCountBadge');
+      const dashOnlineVal = $('#nvrDashOnlineCamsVal');
+
+      const onlineCount = allCams.filter(c => c.is_online).length;
+      if (dashOnlineVal) {
+        dashOnlineVal.innerHTML = `${onlineCount} / ${allCams.length}<span class="vital-unit">ACTIVE</span>`;
       }
+
+      if (miniGrid) {
+        if (allCams.length === 0) {
+          miniGrid.innerHTML = '<div style="grid-column:1/-1; padding:36px; text-align:center; color:#94a3b8; font-size:13px;">Belum ada kamera terdaftar untuk ditampilkan di Mini Wall.</div>';
+        } else {
+          const top4 = allCams.slice(0, 4);
+          miniGrid.innerHTML = top4.map(c => `
+            <div class="nvr-mini-wall-tile">
+              <img src="/api/nvr/preview/${encodeURIComponent(c.id)}?t=${Date.now()}" alt="${escapeHtml(c.name)}" />
+              <span class="nvr-mini-tile-name">${escapeHtml(c.name)}</span>
+            </div>
+          `).join('');
+        }
+      }
+
       if (tableBody) {
-        tableBody.innerHTML = allCams.map(c => `
-          <tr>
-            <td class="font-mono" style="color:#38bdf8;">${escapeHtml(c.id)}</td>
-            <td><strong>${escapeHtml(c.name)}</strong></td>
-            <td class="font-mono text-muted">${escapeHtml(c.ip || '192.168.1.x')}</td>
-            <td class="font-mono">${c.width || 1920}×${c.height || 1080} @ ${c.fps || 25} FPS</td>
-            <td class="font-mono text-muted">2.4 Mbps</td>
-            <td><span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;font-size:10px;">YOLO26 NMS-Free</span></td>
-            <td><span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;font-size:10px;">CUDA/NVDEC</span></td>
-            <td><span style="color:#22c55e;font-weight:700;font-size:11px;">● ONLINE</span></td>
-          </tr>
-        `).join('');
+        if (allCams.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:28px; color:#94a3b8;">Belum ada kamera CCTV terdaftar di sistem OpenNVR.</td></tr>';
+        } else {
+          tableBody.innerHTML = allCams.map(c => `
+            <tr>
+              <td class="font-mono" style="color:#38bdf8;">${escapeHtml(c.id)}</td>
+              <td><strong>${escapeHtml(c.name)}</strong></td>
+              <td class="font-mono text-muted">${escapeHtml(c.ip || c.rtsp_url || 'RTSP')}</td>
+              <td class="font-mono">${c.width || 1280}×${c.height || 720} @ ${c.fps || 25} FPS</td>
+              <td class="font-mono text-muted">${c.is_online ? '2.4 Mbps' : '0.0 Mbps'}</td>
+              <td><span class="badge" style="background:rgba(56,189,248,0.15);color:#38bdf8;font-size:10px;">YOLO26 NMS-Free</span></td>
+              <td><span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;font-size:10px;">${escapeHtml((c.hwaccel || 'CPU').toUpperCase())}</span></td>
+              <td><span style="color:${c.is_online ? '#22c55e' : '#94a3b8'};font-weight:700;font-size:11px;">${c.is_online ? '● ONLINE' : '○ SIAGA'}</span></td>
+            </tr>
+          `).join('');
+        }
+      }
+
+      // Populate Alarms from real recordings
+      if (alarmsContainer) {
+        api('/api/nvr/recordings').then(res => {
+          const clips = res.recordings || [];
+          if (incidentsBadge) incidentsBadge.textContent = `${clips.length} INSIDEN`;
+          if (clips.length === 0) {
+            alarmsContainer.innerHTML = '<div style="padding:32px 16px; text-align:center; color:#94a3b8; font-size:13px;">✅ Tidak ada peringatan / insiden baru tercatat hari ini. Seluruh zona dalam kondisi normal.</div>';
+          } else {
+            alarmsContainer.innerHTML = clips.slice(0, 6).map(cl => `
+              <div class="alarm-item warn">
+                <span class="alarm-badge warning">EVENT</span>
+                <div class="alarm-content">
+                  <strong>🚨 ${escapeHtml(cl.event_name || 'Alarm Deteksi')}</strong>
+                  <span>Kamera: ${escapeHtml(cl.camera_id)} · ${escapeHtml(cl.date_str || '')} · ${escapeHtml(cl.detail || 'Pemicu AI aktif')}</span>
+                </div>
+                <a href="/api/nvr/recordings/${encodeURIComponent(cl.filename)}" target="_blank" class="button small secondary btn-view-clip" style="text-decoration:none;">▶️ Klip</a>
+              </div>
+            `).join('');
+          }
+        }).catch(() => {
+          if (alarmsContainer) alarmsContainer.innerHTML = '<div style="padding:24px; text-align:center; color:#94a3b8;">Tidak ada insiden tercatat.</div>';
+        });
       }
     }
 
@@ -34055,7 +34265,7 @@
         const res = await api('/api/nvr/recordings');
         const clips = res.recordings || [];
         if (clips.length === 0) {
-          grid.innerHTML = '<div style="grid-column: 1/-1; padding: 32px; text-align: center; color: #94a3b8;">Belum ada klip bukti kejadian. Klip 15 detik (5 detik pre-roll + 10 detik post-roll) tersimpan otomatis saat pemicu alarm AI terdeteksi.</div>';
+          grid.innerHTML = '<div style="grid-column: 1/-1; padding: 48px; text-align: center; color: #94a3b8; background: rgba(15,23,42,0.4); border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px;"><div style="font-size:36px; margin-bottom:8px;">🎞️</div><h4 style="color:#f8fafc; margin:0 0 6px 0;">Evidence Vault Bersih</h4><p style="font-size:13px; margin:0;">Belum ada klip bukti insiden terekam. Klip 15 detik otomatis tersimpan saat pemicu alarm AI terdeteksi pada aliran kamera.</p></div>';
           return;
         }
         grid.innerHTML = clips.map(cl => `
@@ -34068,10 +34278,28 @@
                 <a href="/api/nvr/recordings/${encodeURIComponent(cl.filename)}" target="_blank" class="button primary small" style="flex:1; text-align:center; text-decoration:none;">
                   <span>▶️ Putar Video</span>
                 </a>
+                <button class="button danger small" data-del-vault-clip="${escapeHtml(cl.filename)}" title="Hapus Klip Bukti">
+                  <span>🗑️</span>
+                </button>
               </div>
             </div>
           </div>
         `).join('');
+
+        // Wire Vault Delete buttons
+        grid.querySelectorAll('[data-del-vault-clip]').forEach(b => {
+          b.addEventListener('click', async () => {
+            const fn = b.getAttribute('data-del-vault-clip');
+            if (!confirm('Hapus berkas video bukti ini?')) return;
+            try {
+              await api(`/api/nvr/recordings/${encodeURIComponent(fn)}`, { method: 'DELETE' });
+              toast('Klip rekaman berhasil dihapus.');
+              renderVaultPage();
+            } catch (e) {
+              toast('Gagal menghapus rekaman: ' + e.message, true);
+            }
+          });
+        });
       } catch (e) {
         grid.innerHTML = `<div style="color:#ef4444; padding:20px;">Gagal memuat Evidence Vault: ${escapeHtml(e.message)}</div>`;
       }
@@ -34080,20 +34308,105 @@
     function renderDevicesPage() {
       const grid = $('#nvrDevicesGrid');
       if (!grid) return;
+      if (allCams.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column: 1/-1; padding: 48px 24px; text-align: center; color: #94a3b8; background: rgba(15,23,42,0.4); border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px;">
+            <div style="font-size: 38px; margin-bottom: 8px;">📹</div>
+            <h4 style="color:#f8fafc; margin: 0 0 6px 0; font-size:16px;">Belum Ada Kamera CCTV Terdaftar</h4>
+            <p style="font-size: 13px; margin: 0 0 16px 0; max-width:480px; margin-left:auto; margin-right:auto;">Tambahkan URL stream RTSP kamera CCTV Anda secara manual atau gunakan Pindai Jaringan untuk mendeteksi kamera ONVIF lokal secara otomatis.</p>
+            <div style="display:flex; justify-content:center; gap:10px;">
+              <button class="button primary small" id="btnDevEmptyAddManual">+ Tambah Kamera Manual (RTSP)</button>
+              <button class="button secondary small" id="btnDevEmptyScan">📡 Pindai Jaringan (ONVIF)</button>
+            </div>
+          </div>
+        `;
+        $('#btnDevEmptyAddManual')?.addEventListener('click', () => {
+          const m = $('#nvrCameraModal');
+          if (m) {
+            m.showModal();
+            m.querySelectorAll('.nvr-tab-btn').forEach(b => { if (b.getAttribute('data-tab') === 'manual') b.click(); });
+          }
+        });
+        $('#btnDevEmptyScan')?.addEventListener('click', () => {
+          const m = $('#nvrCameraModal');
+          if (m) {
+            m.showModal();
+            m.querySelectorAll('.nvr-tab-btn').forEach(b => { if (b.getAttribute('data-tab') === 'discover') b.click(); });
+            $('#nvrStartScanBtn')?.click();
+          }
+        });
+        return;
+      }
+
       grid.innerHTML = allCams.map(c => `
         <div class="cctv-card">
           <div class="cctv-card-head">
-            <span class="cctv-title">${escapeHtml(c.name)}</span>
-            <span class="cctv-vendor-badge">${escapeHtml(c.manufacturer || 'Universal ONVIF')}</span>
+            <span class="cctv-title">${escapeHtml(c.name || c.id)}</span>
+            <span class="cctv-vendor-badge">${escapeHtml(c.group || 'Umum')}</span>
           </div>
           <img class="cctv-card-thumb" src="/api/nvr/preview/${encodeURIComponent(c.id)}?t=${Date.now()}" alt="${escapeHtml(c.name)}" />
           <div class="cctv-meta-row">
-            <span>🌐 ${escapeHtml(c.ip || '192.168.1.x')}:${c.port || 80}</span>
-            <span>⚡ ${escapeHtml(c.selected_profile || 'SubStream')}</span>
-            <span style="color:#22c55e; font-weight:700;">● ONLINE</span>
+            <span>🌐 ${escapeHtml(c.ip || c.rtsp_url || 'RTSP')}</span>
+            <span>⚡ ${escapeHtml(c.resolution || '720p')}</span>
+            <span>${c.is_online ? '<strong style="color:#22c55e">● ONLINE</strong>' : '<span style="color:#94a3b8">○ SIAGA</span>'}</span>
+          </div>
+          <div style="display:flex; gap:6px; margin-top:8px;">
+            <button class="button primary small" style="flex:1;" data-dev-add-canvas="${escapeHtml(c.id)}">
+              <span>➕ Ke Kanvas</span>
+            </button>
+            <button class="button secondary small" data-dev-edit="${escapeHtml(c.id)}" title="Ubah Konfigurasi Kamera">
+              <span>✏️ Ubah</span>
+            </button>
+            <button class="button danger small" data-dev-del="${escapeHtml(c.id)}" title="Hapus Kamera">
+              <span>🗑️</span>
+            </button>
           </div>
         </div>
       `).join('');
+
+      // Wire Add to Canvas
+      grid.querySelectorAll('[data-dev-add-canvas]').forEach(b => {
+        b.addEventListener('click', () => {
+          const cid = b.getAttribute('data-dev-add-canvas');
+          const target = allCams.find(x => x.id === cid);
+          if (!target) return;
+          addNode('ip_camera', 60, 120, {
+            nvrCameraId: target.id,
+            streamUrl: target.rtsp_url,
+            name: target.name,
+            sourceType: 'camera',
+          });
+          toast(`Kamera ${target.name} berhasil dipasang ke kanvas studio!`);
+        });
+      });
+
+      // Wire Edit
+      grid.querySelectorAll('[data-dev-edit]').forEach(b => {
+        b.addEventListener('click', () => {
+          const cid = b.getAttribute('data-dev-edit');
+          const target = allCams.find(x => x.id === cid);
+          if (target && typeof window.openNvrEditModal === 'function') {
+            window.openNvrEditModal(target);
+          }
+        });
+      });
+
+      // Wire Delete
+      grid.querySelectorAll('[data-dev-del]').forEach(b => {
+        b.addEventListener('click', async () => {
+          const cid = b.getAttribute('data-dev-del');
+          const target = allCams.find(x => x.id === cid);
+          const name = target ? target.name : cid;
+          if (!confirm(`Hapus kamera "${name}" dari sistem OpenNVR?`)) return;
+          try {
+            await api(`/api/nvr/cameras/${encodeURIComponent(cid)}`, { method: 'DELETE' });
+            toast(`Kamera ${name} berhasil dihapus.`);
+            loadCameras();
+          } catch (err) {
+            toast('Gagal menghapus kamera: ' + err.message, true);
+          }
+        });
+      });
     }
 
     // 1. Clock
@@ -34117,18 +34430,8 @@
       });
     });
 
-    // 3. Header Quick Actions
-    $('#openNvrScanQuickBtn')?.addEventListener('click', () => {
-      const nvrModal = $('#nvrCameraModal');
-      if (nvrModal) {
-        nvrModal.showModal();
-        nvrModal.querySelectorAll('.nvr-tab-btn').forEach(b => {
-          if (b.getAttribute('data-tab') === 'discover') b.click();
-        });
-      }
-    });
-
-    $('#openNvrAddQuickBtn')?.addEventListener('click', () => {
+    // 3. Quick Actions Wiring
+    $('#openNvrSidebarAddBtn')?.addEventListener('click', () => {
       const nvrModal = $('#nvrCameraModal');
       if (nvrModal) {
         nvrModal.showModal();
@@ -34136,6 +34439,42 @@
           if (b.getAttribute('data-tab') === 'manual') b.click();
         });
       }
+    });
+
+    $('#openNvrSidebarScanBtn')?.addEventListener('click', () => {
+      const nvrModal = $('#nvrCameraModal');
+      if (nvrModal) {
+        nvrModal.showModal();
+        nvrModal.querySelectorAll('.nvr-tab-btn').forEach(b => {
+          if (b.getAttribute('data-tab') === 'discover') b.click();
+        });
+        $('#nvrStartScanBtn')?.click();
+      }
+    });
+
+    $('#nvrDevicesAddBtn')?.addEventListener('click', () => {
+      const nvrModal = $('#nvrCameraModal');
+      if (nvrModal) {
+        nvrModal.showModal();
+        nvrModal.querySelectorAll('.nvr-tab-btn').forEach(b => {
+          if (b.getAttribute('data-tab') === 'manual') b.click();
+        });
+      }
+    });
+
+    $('#nvrDevicesScanBtn')?.addEventListener('click', () => {
+      const nvrModal = $('#nvrCameraModal');
+      if (nvrModal) {
+        nvrModal.showModal();
+        nvrModal.querySelectorAll('.nvr-tab-btn').forEach(b => {
+          if (b.getAttribute('data-tab') === 'discover') b.click();
+        });
+        $('#nvrStartScanBtn')?.click();
+      }
+    });
+
+    $('#nvrVaultRefreshBtn')?.addEventListener('click', () => {
+      renderVaultPage();
     });
 
     $('#openNvrFullscreenBtn')?.addEventListener('click', () => {
@@ -34147,13 +34486,8 @@
     });
 
     $('#btnOpenEvidenceVault')?.addEventListener('click', () => {
-      const nvrModal = $('#nvrCameraModal');
-      if (nvrModal) {
-        nvrModal.showModal();
-        nvrModal.querySelectorAll('.nvr-tab-btn').forEach(b => {
-          if (b.getAttribute('data-tab') === 'recordings') b.click();
-        });
-      }
+      // Switch OpenNVR to vault page
+      document.querySelector('.nvr-nav-link[data-nvr-page="vault"]')?.click();
     });
 
     // 4. Load Cameras & Render
@@ -34161,18 +34495,68 @@
       try {
         const res = await api('/api/nvr/cameras');
         allCams = res.cameras || [];
+        const onlineCount = allCams.filter(c => c.is_online).length;
         if (countBadge) {
           countBadge.textContent = `${allCams.length} Kamera Terdaftar`;
         }
+        if (headerOnlinePill) {
+          headerOnlinePill.textContent = `● ${onlineCount}/${allCams.length} ONLINE`;
+          headerOnlinePill.className = onlineCount > 0 ? 'vital-pill status-ok' : 'vital-pill';
+        }
         renderSidebarTree();
         renderWallGrid();
+        renderTimelineTicks();
+        renderDevicesPage();
+        renderDashboardPage();
       } catch (err) {
         console.warn('Failed to load NVR cameras for live view:', err);
       }
     }
 
+    async function renderTimelineTicks() {
+      const track = $('#nvrTimelineTrack');
+      if (!track) return;
+      try {
+        const res = await api('/api/nvr/recordings');
+        const clips = res.recordings || [];
+        // Keep the playhead
+        track.innerHTML = '<div class="nvr-timeline-playhead" style="left: 95%;"></div>';
+        clips.forEach(cl => {
+          let pct = 50;
+          if (cl.date_str) {
+            const timePart = cl.date_str.split(' ')[1];
+            if (timePart) {
+              const [h, m] = timePart.split(':').map(Number);
+              pct = Math.min(99, Math.max(1, ((h * 60 + m) / 1440) * 100));
+            }
+          }
+          const tick = document.createElement('div');
+          tick.className = 'nvr-timeline-tick';
+          tick.style.left = `${pct}%`;
+          tick.title = `🚨 ${cl.event_name || 'Event'} (${cl.date_str || ''})`;
+          tick.addEventListener('click', () => {
+            window.open(`/api/nvr/recordings/${encodeURIComponent(cl.filename)}`, '_blank');
+          });
+          track.appendChild(tick);
+        });
+      } catch (e) {}
+    }
+
     function renderSidebarTree(filterText = '') {
       if (!treeEl) return;
+      if (allCams.length === 0) {
+        treeEl.innerHTML = `
+          <div style="padding: 24px 12px; text-align: center; color: #94a3b8; font-size: 12px;">
+            <p style="margin: 0 0 10px 0;">Belum ada kamera CCTV terdaftar.</p>
+            <button class="button primary small" id="btnSidebarQuickAdd" style="width: 100%;">+ Tambah Kamera</button>
+          </div>
+        `;
+        $('#btnSidebarQuickAdd')?.addEventListener('click', () => {
+          $('#openNvrSidebarAddBtn')?.click();
+        });
+        return;
+      }
+
       const filtered = allCams.filter(c => {
         if (!filterText) return true;
         const q = filterText.toLowerCase();
@@ -34189,26 +34573,56 @@
 
       treeEl.innerHTML = Object.keys(groups).map(gName => `
         <div class="nvr-tree-group">
-          <div class="nvr-tree-group-title">📂 ${escapeHtml(gName)} (${groups[gName].length})</div>
+          <div class="nvr-tree-group-title">📂 ${escapeHtml(gName.toUpperCase())} (${groups[gName].length})</div>
           ${groups[gName].map(c => `
             <div class="nvr-tree-cam-item" data-focus-cam="${escapeHtml(c.id)}">
-              <span class="status-dot-green"></span>
+              <span class="${c.is_online ? 'status-dot-green' : 'status-dot-grey'}" style="width:7px; height:7px; border-radius:50%; background:${c.is_online ? '#22c55e' : '#64748b'}; display:inline-block; margin-right:6px;"></span>
               <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(c.name)}</span>
-              <small style="color:#64748b; font-size:10px;">${c.width || 1280}p</small>
+              <button class="icon-btn-tiny" data-tree-edit="${escapeHtml(c.id)}" title="Ubah Kamera" style="background:transparent; border:none; cursor:pointer; font-size:11px; padding:0 3px;">✏️</button>
+              <button class="icon-btn-tiny" data-tree-del="${escapeHtml(c.id)}" title="Hapus Kamera" style="background:transparent; border:none; cursor:pointer; font-size:11px; padding:0 3px;">🗑️</button>
             </div>
           `).join('')}
         </div>
       `).join('');
 
       treeEl.querySelectorAll('[data-focus-cam]').forEach(item => {
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('[data-tree-edit]') || e.target.closest('[data-tree-del]')) return;
           const cid = item.getAttribute('data-focus-cam');
           const target = allCams.find(x => x.id === cid);
           if (target && metaEl) {
-            metaEl.textContent = `${target.name} (${target.width || 1920}x${target.height || 1080} @ ${target.fps || 25} FPS)`;
+            metaEl.textContent = `${target.name} (${target.width || 1280}x${target.height || 720} @ ${target.fps || 25} FPS)`;
           }
           treeEl.querySelectorAll('.nvr-tree-cam-item').forEach(el => el.classList.remove('active'));
           item.classList.add('active');
+        });
+      });
+
+      treeEl.querySelectorAll('[data-tree-edit]').forEach(b => {
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const cid = b.getAttribute('data-tree-edit');
+          const target = allCams.find(x => x.id === cid);
+          if (target && typeof window.openNvrEditModal === 'function') {
+            window.openNvrEditModal(target);
+          }
+        });
+      });
+
+      treeEl.querySelectorAll('[data-tree-del]').forEach(b => {
+        b.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const cid = b.getAttribute('data-tree-del');
+          const target = allCams.find(x => x.id === cid);
+          const name = target ? target.name : cid;
+          if (!confirm(`Hapus kamera "${name}"?`)) return;
+          try {
+            await api(`/api/nvr/cameras/${encodeURIComponent(cid)}`, { method: 'DELETE' });
+            toast(`Kamera ${name} berhasil dihapus.`);
+            loadCameras();
+          } catch (err) {
+            toast('Gagal menghapus: ' + err.message, true);
+          }
         });
       });
     }
@@ -34221,6 +34635,28 @@
       if (!wallGrid) return;
       wallGrid.className = `open-nvr-wall-grid layout-${activeLayout.replace('+', 'plus')}`;
 
+      if (allCams.length === 0) {
+        wallGrid.innerHTML = `
+          <div class="nvr-wall-empty-state" style="grid-column: 1/-1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:70px 20px; background:rgba(15,23,42,0.6); border:1px dashed rgba(255,255,255,0.15); border-radius:12px; text-align:center;">
+            <div style="font-size:52px; margin-bottom:14px;">📹</div>
+            <h3 style="font-size:19px; color:#f8fafc; margin:0 0 8px 0; font-weight:700;">Belum Ada Kamera CCTV Terdaftar</h3>
+            <p style="font-size:13px; color:#94a3b8; max-width:460px; margin:0 0 24px 0; line-height:1.5;">Hubungkan kamera CCTV industri Anda secara langsung via URL stream RTSP / IP atau lakukan pemindaian otomatis di jaringan lokal (LAN).</p>
+            <div style="display:flex; gap:12px;">
+              <button class="button primary" id="btnEmptyAddManual">+ Tambah Kamera Manual (RTSP)</button>
+              <button class="button secondary" id="btnEmptyScan">📡 Pindai Jaringan (ONVIF)</button>
+            </div>
+          </div>
+        `;
+        $('#btnEmptyAddManual')?.addEventListener('click', () => {
+          $('#openNvrSidebarAddBtn')?.click();
+        });
+        $('#btnEmptyScan')?.addEventListener('click', () => {
+          $('#openNvrSidebarScanBtn')?.click();
+        });
+        if (metaEl) metaEl.textContent = 'Tidak ada kamera aktif';
+        return;
+      }
+
       // Decide how many tiles
       let tileCount = 4;
       if (activeLayout === '1x1') tileCount = 1;
@@ -34230,16 +34666,13 @@
       else if (activeLayout === '1+7') tileCount = 8;
 
       const displayCams = allCams.slice(0, tileCount);
-      while (displayCams.length < tileCount && allCams.length > 0) {
-        displayCams.push(allCams[displayCams.length % allCams.length]);
-      }
 
       wallGrid.innerHTML = displayCams.map((c, idx) => `
         <div class="nvr-wall-cell" data-cam-index="${idx}">
           <img id="nvrLiveImg_${idx}" src="/api/nvr/preview/${encodeURIComponent(c.id)}?t=${Date.now()}" alt="${escapeHtml(c.name)}" />
           <div class="nvr-cell-header">
             <span class="nvr-cell-title">
-              <span class="status-dot-green"></span>
+              <span class="${c.is_online ? 'status-dot-green' : 'status-dot-grey'}" style="width:7px; height:7px; border-radius:50%; background:${c.is_online ? '#22c55e' : '#64748b'}; display:inline-block; margin-right:5px;"></span>
               ${escapeHtml(c.name)}
             </span>
             <span class="nvr-cell-badge">⚡ YOLO26 NMS-Free</span>
@@ -34254,6 +34687,28 @@
           </div>
         </div>
       `).join('');
+
+      // Extra empty slots if cameras < tileCount
+      if (displayCams.length < tileCount) {
+        for (let i = displayCams.length; i < tileCount; i++) {
+          const emptySlot = document.createElement('div');
+          emptySlot.className = 'nvr-wall-cell';
+          emptySlot.style.display = 'flex';
+          emptySlot.style.flexDirection = 'column';
+          emptySlot.style.alignItems = 'center';
+          emptySlot.style.justifyContent = 'center';
+          emptySlot.style.background = '#0a0e17';
+          emptySlot.style.border = '1px dashed rgba(255,255,255,0.08)';
+          emptySlot.innerHTML = `
+            <div style="color:#64748b; font-size:12px; margin-bottom:8px;">Slot Kamera ${i + 1} Siaga</div>
+            <button class="button ghost small" data-slot-add style="font-size:11px;">+ Tambah Kamera</button>
+          `;
+          emptySlot.querySelector('[data-slot-add]')?.addEventListener('click', () => {
+            $('#openNvrSidebarAddBtn')?.click();
+          });
+          wallGrid.appendChild(emptySlot);
+        }
+      }
 
       // Wire PTZ buttons
       wallGrid.querySelectorAll('.ptz-btn').forEach(btn => {
@@ -34303,11 +34758,80 @@
           const img = document.getElementById(`nvrLiveImg_${idx}`);
           if (img) img.src = `/api/nvr/preview/${encodeURIComponent(c.id)}?t=${Date.now()}`;
         });
-      }, 1000);
+      }, 1200);
     }
 
     loadCameras();
   }
+
+  // Global Edit Camera Dialog Engine
+  window.openNvrEditModal = function(cam) {
+    const modal = $('#nvrEditCameraModal');
+    if (!modal) return;
+    $('#editCamId').value = cam.id || '';
+    $('#editCamName').value = cam.name || '';
+    $('#editCamRtsp').value = cam.rtsp_url || cam.streamUrl || '';
+    $('#editCamIp').value = cam.ip || '';
+    $('#editCamPort').value = cam.port || 80;
+    $('#editCamUser').value = cam.username || 'admin';
+    $('#editCamPass').value = cam.password || '';
+    $('#editCamGroup').value = cam.group || 'Umum';
+    if ($('#editCamResolution')) $('#editCamResolution').value = cam.resolution || '720p';
+
+    modal.showModal();
+  };
+
+  // Wire Edit Modal Buttons
+  $('#closeNvrEditModalBtn')?.addEventListener('click', () => {
+    $('#nvrEditCameraModal')?.close();
+  });
+  $('#btnCancelEditCam')?.addEventListener('click', () => {
+    $('#nvrEditCameraModal')?.close();
+  });
+
+  $('#nvrEditCameraForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = $('#editCamId').value;
+    const name = $('#editCamName').value.trim();
+    const rtsp_url = $('#editCamRtsp').value.trim();
+    const ip = $('#editCamIp').value.trim();
+    const port = parseInt($('#editCamPort').value || '80', 10);
+    const username = $('#editCamUser').value.trim();
+    const password = $('#editCamPass').value.trim();
+    const group = $('#editCamGroup').value.trim() || 'Umum';
+    const resolution = $('#editCamResolution').value;
+
+    if (!name || !rtsp_url) {
+      toast('Nama dan URL stream RTSP wajib diisi!', true);
+      return;
+    }
+
+    try {
+      await api('/api/nvr/cameras', {
+        method: 'POST',
+        body: JSON.stringify({
+          id,
+          name,
+          rtsp_url,
+          ip,
+          port,
+          username,
+          password,
+          group,
+          resolution,
+          enabled: true,
+        }),
+      });
+      toast(`Kamera "${name}" berhasil diperbarui!`);
+      $('#nvrEditCameraModal')?.close();
+      if (typeof window.initOrRefreshOpenNvrLive === 'function') {
+        window.initOrRefreshOpenNvrLive();
+      }
+    } catch (err) {
+      toast('Gagal memperbarui kamera: ' + err.message, true);
+    }
+  });
+
   window.initOrRefreshOpenNvrLive = initOpenNvrLiveView;
 
   // --- Bootstrap ---

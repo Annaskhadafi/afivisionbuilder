@@ -12985,11 +12985,42 @@ dialog.annotation-studio-modal::backdrop {
 }
 
 .nvr-modal .nvr-box {
-  max-width: 1040px;
+  max-width: 1060px;
   width: 95vw;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+  background: #090e17 !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(56, 189, 248, 0.15) !important;
+  overflow: hidden;
+}
+
+.nvr-head {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, #0f172a 0%, #090e17 100%);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.nvr-head h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 4px 0 0 0;
+  letter-spacing: -0.02em;
+}
+
+.nvr-head .eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+  text-transform: uppercase;
 }
 
 .nvr-head-title {
@@ -12999,107 +13030,351 @@ dialog.annotation-studio-modal::backdrop {
 }
 
 .nvr-icon-badge {
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: 12px;
   background: linear-gradient(135deg, #0284c7, #0369a1);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.35);
   flex-shrink: 0;
+  border: 1px solid rgba(56, 189, 248, 0.3);
 }
 
 .nvr-subtitle {
   font-size: 13px;
-  color: var(--text-muted, #94a3b8);
+  color: #94a3b8;
   margin-top: 4px;
   line-height: 1.45;
 }
 
-.nvr-tabs-bar {
-  display: flex;
-  gap: 8px;
-  border-bottom: 1px solid var(--border-color, #334155);
-  padding-bottom: 12px;
-  margin-bottom: 18px;
-  flex-wrap: wrap;
-}
-
-.nvr-tab-btn {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted, #94a3b8);
-  padding: 8px 16px;
+.nvr-modal #closeNvrModalBtn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
+.nvr-modal #closeNvrModalBtn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+.nvr-body {
+  padding: 22px 24px;
+  overflow-y: auto;
+  flex: 1;
+  background: #090e17;
+}
+
+.nvr-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.85);
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 22px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nvr-tabs-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.nvr-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .nvr-tab-btn:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: var(--text-main, #f8fafc);
+  color: #f8fafc;
 }
 
 .nvr-tab-btn.active {
-  background: rgba(14, 165, 233, 0.15);
-  border-color: rgba(56, 189, 248, 0.4);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.2) 0%, rgba(2, 132, 199, 0.28) 100%);
+  border-color: rgba(56, 189, 248, 0.45);
   color: #38bdf8;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.25);
+}
+
+.nvr-tab-btn .nvr-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 9999px;
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.nvr-tab-btn.active .nvr-badge {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #38bdf8;
 }
 
 .nvr-scan-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px dashed rgba(56, 189, 248, 0.3);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.28);
   border-radius: 12px;
-  padding: 16px 20px;
-  gap: 16px;
-  margin-bottom: 16px;
+  padding: 18px 22px;
+  gap: 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-.scan-radar-icon {
-  font-size: 32px;
+.scan-radar-badge {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
 }
 
 .scan-banner-text h4 {
-  margin: 0 0 4px 0;
+  margin: 0 0 5px 0;
   font-size: 15px;
+  font-weight: 700;
   color: #f8fafc;
 }
 
 .scan-banner-text p {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 13px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.nvr-btn-scan,
+.nvr-btn-submit {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3) !important;
+  white-space: nowrap;
+}
+
+.nvr-btn-scan:hover,
+.nvr-btn-submit:hover {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important;
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.45) !important;
+  transform: translateY(-1px);
+}
+
+.nvr-subnav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  width: fit-content;
+}
+
+.nvr-subnav-btn {
+  background: transparent;
+  border: 1px solid transparent;
   color: #94a3b8;
+  padding: 8px 16px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nvr-subnav-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nvr-subnav-btn.active {
+  background: #1e293b;
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.nvr-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 22px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nvr-form-grid .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nvr-form-grid .form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.nvr-form-grid .form-group label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nvr-field-hint {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 4px;
   line-height: 1.4;
+}
+
+.nvr-form-grid .input-text,
+.nvr-form-grid .input-select {
+  background: #0b101b !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+  border-radius: 8px !important;
+  padding: 10px 14px !important;
+  font-size: 13px !important;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.nvr-form-grid .input-text:focus,
+.nvr-form-grid .input-select:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
+  outline: none;
+}
+
+.nvr-panel-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nvr-panel-title .eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #38bdf8;
+  text-transform: uppercase;
+}
+
+.nvr-panel-title h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 2px 0 0 0;
+}
+
+.nvr-empty-card {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 44px 24px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  gap: 12px;
+}
+
+.nvr-empty-icon {
+  font-size: 38px;
+  margin-bottom: 2px;
+}
+
+.nvr-empty-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 0;
+}
+
+.nvr-empty-sub {
+  font-size: 13px;
+  color: #94a3b8;
+  max-width: 440px;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .nvr-discovered-grid,
 .nvr-cameras-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
   gap: 16px;
 }
 
 .cctv-card {
-  background: rgba(30, 41, 59, 0.7);
+  background: rgba(15, 23, 42, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .cctv-card:hover {
   border-color: rgba(56, 189, 248, 0.4);
   transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .cctv-card-head {
@@ -13135,9 +13410,50 @@ dialog.annotation-studio-modal::backdrop {
   width: 100%;
   height: 160px;
   border-radius: 8px;
-  background: #0f172a;
+  background: #020617;
   object-fit: cover;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.matrix-controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.matrix-layout-toggle {
+  display: flex;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.matrix-layout-toggle .btn-layout {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.matrix-layout-toggle .btn-layout:hover {
+  color: #f8fafc;
+}
+
+.matrix-layout-toggle .btn-layout.active {
+  background: #1e293b;
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .cctv-wall-grid {
@@ -13161,7 +13477,7 @@ dialog.annotation-studio-modal::backdrop {
 
 .cctv-wall-tile {
   position: relative;
-  background: #090d16;
+  background: #020617;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   overflow: hidden;
@@ -13191,10 +13507,11 @@ dialog.annotation-studio-modal::backdrop {
 .cctv-tile-name {
   font-size: 11px;
   font-weight: 700;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.75);
   padding: 3px 8px;
   border-radius: 4px;
   color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .cctv-ptz-overlay {
@@ -13233,6 +13550,15 @@ dialog.annotation-studio-modal::backdrop {
   background: #0284c7;
 }
 
+.recordings-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .recordings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -13241,12 +13567,18 @@ dialog.annotation-studio-modal::backdrop {
 }
 
 .recording-card {
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.recording-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.35);
 }
 
 .recording-card-thumb {
@@ -13257,10 +13589,10 @@ dialog.annotation-studio-modal::backdrop {
 }
 
 .recording-card-body {
-  padding: 12px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .recording-card-title {
@@ -13269,9 +13601,44 @@ dialog.annotation-studio-modal::backdrop {
   color: #f8fafc;
 }
 
-.recording-card-meta {
-  font-size: 11px;
-  color: #94a3b8;
+#nvrEditCameraModal {
+  max-width: 540px !important;
+  border-radius: 14px !important;
+  background: #090e17 !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(56, 189, 248, 0.2) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+#nvrEditCameraModal .modal-head,
+#nvrEditCameraModal > div:first-child {
+  padding: 16px 20px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: linear-gradient(180deg, #0f172a 0%, #090e17 100%) !important;
+}
+
+#nvrEditCameraForm {
+  background: #090e17 !important;
+  padding: 20px 22px !important;
+}
+
+#nvrEditCameraForm .input-text,
+#nvrEditCameraForm .input-select {
+  background: #0b101b !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+  border-radius: 8px !important;
+  padding: 9px 12px !important;
+  font-size: 13px !important;
+}
+
+#nvrEditCameraForm .input-text:focus,
+#nvrEditCameraForm .input-select:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
+  outline: none;
 }
 
 /* ==========================================================================

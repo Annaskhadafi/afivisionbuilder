@@ -391,11 +391,15 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 - **Overlay Garis Kisi Ubin (Slicing Grid Visualizer)**: Opsi visual menampilkan garis kisi pembagian ubin transparan di video Live Preview untuk memudahkan operator mengkalibrasi ukuran ubin.
 
 ### 🎥 54. AFI Open-NVR & CCTV Hub (Auto-Discovery, Single-Ingest Hub, Live Wall & Evidence Vault)
+- **Eliminasi Total Data Dummy & Standby Frame Teknis**: Seluruh data kamera tiruan bawaan telah dibersihkan secara permanen. Jika kamera fisik belum terhubung atau offline, sistem menampilkan frame standby teknis bertaraf industri *CCTV NO SIGNAL / CAMERA OFFLINE* (dark matte grid dengan retikel bidik pusat, ID/nama kamera, dan timestamp aktual) menggantikan gambar sintetis dummy.
+- **Pendaftaran Kamera Ganda (ONVIF Probe & Direct RTSP/HTTP)**: Mendukung deteksi otomatis via ONVIF SOAP/WS-Discovery serta mode pendaftaran langsung *Direct RTSP Stream* untuk kamera mandiri, CCTV IP modern, link HLS/HTTP, maupun aplikasi RTSP webcam ponsel tanpa kewajiban respon handshake ONVIF.
+- **Dialog Modal Edit & Manajemen Siklus Lengkap Kamera**: Dialog modal edit kamera terpadu (`Ubah Konfigurasi Kamera`) memungkinkan pengubahan Nama Kamera, URL Stream RTSP, IP, Port, Username, Password, Kelompok Area, dan Resolusi secara instan dari Live Wall, Sidebar Tree, maupun halaman *Cameras & Devices*.
+- **Vitals Dinamis & Empty State Elegan**: Metrik sistem header (`0/0 ONLINE`) dan hitungan insiden dikalkulasi secara dinamis dari database riil. Halaman Live Wall, Devices, dan Evidence Vault dilengkapi kartu Empty State informatif dengan tombol aksi cepat saat sistem belum memiliki kamera terdaftar.
 - **Pemindaian Otomatis (WS-Discovery & SOAP Probing)**: Memindai seluruh subnet lokal via UDP Multicast (`239.255.255.250:3702`) dan probe port kandidat untuk mendeteksi kamera ONVIF (Hikvision, Dahua, Ezviz, TP-Link Tapo, Bardi, Uniview) tanpa perlu mengetahui alamat IP sebelumnya.
 - **Autentikasi Ganda (HTTP Digest & WS-Security)**: Menembus proteksi keamanan vendor CCTV modern dengan enkripsi digest SHA-1 tanpa dependensi pustaka luar.
 - **Single-Ingest Multi-Consumer Hub**: Kamera CCTV fisik hanya ditarik satu kali ke dalam buffer memori bersama, lalu didistribusikan ke banyak alur kerja AI dan tampilan dashboard secara simultan tanpa membuat kamera freeze.
 - **Motion Gate (Penyaring Gerakan CCTV)**: Memeriksa pergerakan optik (<1% CPU) dan melewati inferensi AI saat area pengawasan statis, menghemat 70–85% daya komputasi server.
-- **Perekam Klip Bukti (Evidence Vault Pre/Post-Roll)**: Otomatis mengekspor klip MP4 15 detik (5s sebelum kejadian + 10s setelah kejadian) beserta thumbnail momen saat terjadi pelanggaran atau pemicu alarm.
+- **Perekam Klip Bukti (Evidence Vault Pre/Post-Roll)**: Otomatis mengekspor klip MP4 15 detik (5s sebelum kejadian + 10s setelah kejadian) beserta thumbnail momen saat terjadi pelanggaran atau pemicu alarm, lengkap dengan fitur pratinjau dan penghapusan klip rekaman.
 - **Privacy & Exclusion Mask**: Memblokir false alarm akibat goyangan ditiup angin atau jalan raya dengan zona masking poligon fleksibel.
 - **Akselerasi Dekoder Hardware**: Pilihan akselerasi GPU otomatis (NVIDIA CUDA/NVDEC, Intel QuickSync, VA-API, dan Windows DirectShow).
 

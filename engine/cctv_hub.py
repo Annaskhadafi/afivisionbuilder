@@ -211,7 +211,7 @@ class CCTVHubManager:
         os.makedirs(os.path.dirname(CAMERAS_CONFIG_PATH), exist_ok=True)
         try:
             with open(CAMERAS_CONFIG_PATH, "w", encoding="utf-8") as f:
-                json.dump(self._cameras, f, indent=2)
+                json.dump(list(self._cameras.values()), f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save cameras.json: {e}")
 
@@ -238,9 +238,19 @@ class CCTVHubManager:
             return None
 
     def add_or_update_camera(self, data: dict[str, Any]) -> dict[str, Any]:
-        cam_id = data.get("id") or f"cctv_{int(time.time())}"
+        cam_id = data.get("id") or f"cctv_{int(time.time() * 1000)}"
         name = data.get("name") or f"Kamera {cam_id}"
-        rtsp_url = data.get("rtsp_url") or data.get("stream_uri") or ""
+        rtsp_url = data.get("rtsp_url") or data.get("stream_uri") or data.get("streamUrl") or ""
+
+        width = int(data.get("width") or 1280)
+        height = int(data.get("height") or 720)
+        resolution = str(data.get("resolution") or f"{height}p")
+        if "1080" in resolution:
+            width, height = 1920, 1080
+        elif "720" in resolution:
+            width, height = 1280, 720
+        elif "480" in resolution or "360" in resolution:
+            width, height = 640, 360
 
         cam_record = {
             "id": cam_id,
@@ -249,15 +259,17 @@ class CCTVHubManager:
             "port": int(data.get("port", 80)),
             "scheme": data.get("scheme", "http"),
             "username": data.get("username", "admin"),
+            "password": data.get("password", ""),
             "rtsp_url": rtsp_url,
             "selected_profile": data.get("selected_profile", "SubStream"),
             "manufacturer": data.get("manufacturer", "Universal ONVIF"),
             "model": data.get("model", "Generic IP Camera"),
-            "width": int(data.get("width", 640)),
-            "height": int(data.get("height", 360)),
-            "fps": int(data.get("fps", 25)),
+            "resolution": resolution,
+            "width": width,
+            "height": height,
+            "fps": int(data.get("fps") or 25),
             "hwaccel": str(data.get("hwaccel", "cpu")).lower(),
-            "group": data.get("group", "Umum"),
+            "group": data.get("group") or "Umum",
             "enabled": bool(data.get("enabled", True)),
             "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
@@ -306,25 +318,11 @@ class CCTVHubManager:
             if f is not None:
                 return f
 
-        cam = self._cameras.get(camera_id, {})
-        cam_name = cam.get("name", camera_id)
-        is_warehouse = "warehouse" in camera_id.lower() or "wh-" in camera_id.lower() or "gate" in cam_name.lower()
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if is_warehouse:
-            sample_file = os.path.join(base_dir, "static", "assets", "templates", "custom-warehouse-exit.jpg")
-            if not os.path.exists(sample_file):
-                sample_file = os.path.join(base_dir, "static", "assets", "templates", "warehouse_gate_exit.jpg")
-        else:
-            sample_file = os.path.join(base_dir, "static", "sample_workshop.jpg")
-            if not os.path.exists(sample_file):
-                sample_file = os.path.join(base_dir, "static", "assets", "templates", "custom-workshop-zone.jpg")
-
-        if os.path.exists(sample_file):
-            return cv2.imread(sample_file)
+        # Offline cameras return no active numpy frame to prevent downstream AI hallucination
         return None
 
     def get_jpeg(self, camera_id: str) -> Optional[bytes]:
-        """Fetch latest JPEG frame from shared stream buffer, with realistic OSD fallback."""
+        """Fetch latest JPEG frame from shared stream buffer, or authentic CCTV NO SIGNAL standby card."""
         with self._lock:
             stream = self._streams.get(camera_id)
             if not stream:
@@ -338,38 +336,41 @@ class CCTVHubManager:
             if jpg:
                 return jpg
 
-        # High-fidelity CCTV Fallback with live OSD timestamp from REA sample assets
+        # Clean, professional CCTV NO SIGNAL frame (eliminated dummy sample workshop graphics)
         cam = self._cameras.get(camera_id, {})
         cam_name = cam.get("name", camera_id)
-        is_warehouse = "warehouse" in camera_id.lower() or "wh-" in camera_id.lower() or "gate" in cam_name.lower()
+        rtsp_url = cam.get("rtsp_url", "")
+        ip_addr = cam.get("ip", "")
 
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if is_warehouse:
-            sample_file = os.path.join(base_dir, "static", "assets", "templates", "custom-warehouse-exit.jpg")
-            if not os.path.exists(sample_file):
-                sample_file = os.path.join(base_dir, "static", "assets", "templates", "warehouse_gate_exit.jpg")
-        else:
-            sample_file = os.path.join(base_dir, "static", "sample_workshop.jpg")
-            if not os.path.exists(sample_file):
-                sample_file = os.path.join(base_dir, "static", "assets", "templates", "custom-workshop-zone.jpg")
+        w, h = 640, 360
+        img = np.full((h, w, 3), (22, 17, 13), dtype=np.uint8)  # Deep matte dark slate (BGR)
 
-        img = None
-        if os.path.exists(sample_file):
-            img = cv2.imread(sample_file)
+        # Draw subtle technical matrix grid lines
+        for x in range(0, w, 40):
+            cv2.line(img, (x, 0), (x, h), (32, 25, 20), 1)
+        for y in range(0, h, 40):
+            cv2.line(img, (0, y), (w, y), (32, 25, 20), 1)
 
-        if img is None:
-            img = np.zeros((360, 640, 3), dtype=np.uint8)
+        # Center reticle
+        cx, cy = w // 2, h // 2
+        cv2.circle(img, (cx, cy), 50, (55, 45, 35), 1)
+        cv2.line(img, (cx - 65, cy), (cx + 65, cy), (55, 45, 35), 1)
+        cv2.line(img, (cx, cy - 65), (cx, cy + 65), (55, 45, 35), 1)
 
-        # Draw realistic CCTV OSD overlay (Timestamp in seconds + Camera ID + REC dot)
-        h, w = img.shape[:2]
+        # OSD Header bar
         now_str = time.strftime("%Y-%m-%d %H:%M:%S")
-        osd_text = f"{cam_name.upper()} | {now_str} | REC"
-        cv2.rectangle(img, (12, 12), (min(w - 12, 440), 44), (10, 15, 25), -1)
-        cv2.rectangle(img, (12, 12), (min(w - 12, 440), 44), (56, 189, 248), 1)
-        cv2.putText(img, osd_text, (22, 34), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (255, 255, 255), 1, cv2.LINE_AA)
-        cv2.circle(img, (min(w - 30, 420), 28), 5, (0, 0, 255), -1)
+        osd_title = f"{cam_name.upper()[:24]} | {now_str}"
+        cv2.rectangle(img, (12, 12), (min(w - 12, 420), 42), (10, 14, 22), -1)
+        cv2.rectangle(img, (12, 12), (min(w - 12, 420), 42), (56, 189, 248), 1)
+        cv2.putText(img, osd_title, (20, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.44, (241, 245, 249), 1, cv2.LINE_AA)
+        cv2.circle(img, (min(w - 30, 400), 27), 4, (100, 116, 139), -1)
 
-        _, enc = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 75])
+        # Center "NO SIGNAL / OFFLINE" message
+        cv2.putText(img, "NO SIGNAL / OFFLINE", (cx - 130, cy - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (148, 163, 184), 2, cv2.LINE_AA)
+        sub_info = f"Menunggu Sinyal RTSP ({rtsp_url[:35] if rtsp_url else ip_addr or camera_id})"
+        cv2.putText(img, sub_info, (cx - 150, cy + 24), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (100, 116, 139), 1, cv2.LINE_AA)
+
+        _, enc = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 80])
         return enc.tobytes()
 
 
