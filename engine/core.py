@@ -3541,6 +3541,54 @@ class WorkflowRunner:
             self._active_workflow["nodes"] = workflow.get("nodes", [])
             self._active_workflow["edges"] = workflow.get("edges", [])
 
+        # Sync video playback controller settings
+        speed_node = next((n for n in workflow.get("nodes", []) if n.get("type") == "video_speed_controller"), None)
+        inp_source = getattr(self, "_input_source", None)
+        if speed_node and inp_source:
+            cfg = speed_node.get("config", {})
+            inp_source.set_playback_speed(cfg.get("playbackSpeed", 1.0))
+            inp_source.set_paused(cfg.get("pause", False))
+            if cfg.get("jumpToMiddle"):
+                inp_source.seek_to_percent(50.0)
+                cfg["jumpToMiddle"] = False
+
+    def seek_video(self, percent: float | None = None, seconds: float | None = None, frame: int | None = None) -> dict:
+        inp = getattr(self, "_input_source", None)
+        if inp is None:
+            return {"ok": False, "error": "No active input source"}
+        if percent is not None:
+            ok = inp.seek_to_percent(percent)
+        elif seconds is not None:
+            ok = inp.seek_to_seconds(seconds)
+        elif frame is not None:
+            ok = inp.seek_to_frame(frame)
+        else:
+            ok = False
+        return {"ok": ok, "status": inp.get_playback_status()}
+
+    def set_playback_speed(self, speed: float = 1.0, pause: bool | None = None) -> dict:
+        inp = getattr(self, "_input_source", None)
+        if inp is None:
+            return {"ok": False, "error": "No active input source"}
+        inp.set_playback_speed(speed)
+        if pause is not None:
+            inp.set_paused(pause)
+        if hasattr(self, "_active_workflow") and isinstance(self._active_workflow, dict):
+            for n in self._active_workflow.get("nodes", []):
+                if n.get("type") == "video_speed_controller":
+                    n.setdefault("config", {})["playbackSpeed"] = speed
+                    if pause is not None:
+                        n["config"]["pause"] = pause
+        return {"ok": True, "status": inp.get_playback_status()}
+
+    def get_video_status(self) -> dict:
+        inp = getattr(self, "_input_source", None)
+        if inp is None:
+            return {"active": False}
+        res = inp.get_playback_status()
+        res["active"] = True
+        return res
+
     def reset_counter(self, node_id: str | None = None, line_id: str | None = None) -> None:
         """Reset object or line counter counts."""
         rt = getattr(self, "_event_runtime", None)
@@ -3724,6 +3772,7 @@ class WorkflowRunner:
             input_node = engine.active_input_node(workflow)
             input_config = input_node.get("config", {})
             input_source = engine.OpenCVInputSource(cv2, input_config)
+            self._input_source = input_source
             source_label, actual_width, actual_height = input_source.open()
             self._emit_log(f"Opened {source_label} ({actual_width}x{actual_height})")
             preview_nodes = _active_preview_nodes(workflow, source_id)
@@ -3979,6 +4028,44 @@ class WorkflowRunner:
                         last_input={"kind": "source", "label": source_label},
                         last_output={"frame": [frame.shape[1], frame.shape[0], 3], "frameId": frame_id},
                     )
+                    active_wf = getattr(self, "_active_workflow", base_workflow) or base_workflow
+                    speed_node = next((n for n in active_wf.get("nodes", []) if n.get("type") == "video_speed_controller" and n.get("enabled", True)), None)
+                    if speed_node is not None:
+                        sp_cfg = speed_node.get("config", {})
+                        sp_val = float(sp_cfg.get("playbackSpeed", 1.0) or 1.0)
+                        sp_pause = bool(sp_cfg.get("pause", False))
+                        input_source.set_playback_speed(sp_val)
+                        input_source.set_paused(sp_pause)
+                        if sp_cfg.get("jumpToMiddle"):
+                            input_source.seek_to_percent(50.0)
+                            sp_cfg["jumpToMiddle"] = False
+                        if sp_cfg.get("loopSection"):
+                            start_p = float(sp_cfg.get("loopStartPercent", 0.0) or 0.0)
+                            end_p = float(sp_cfg.get("loopEndPercent", 100.0) or 100.0)
+                            if input_source._frame_count > 0:
+                                end_f = int((end_p / 100.0) * input_source._frame_count)
+                                if input_source._current_frame_pos >= end_f:
+                                    input_source.seek_to_percent(start_p)
+                        if getattr(input_source, "_finite_video", False) or getattr(input_source, "_youtube_url", None):
+                            native_fps = max(1.0, float(input_source.fps) if input_source.fps > 0 else 30.0)
+                            sp_mode = str(sp_cfg.get("speedMode", "smooth") or "smooth")
+                            if sp_val >= 2.0 and sp_mode == "fast_forward" and input_source.capture is not None:
+                                for _ in range(int(sp_val) - 1):
+                                    input_source.capture.grab()
+                            target_interval = 1.0 / (native_fps * sp_val)
+                            elapsed_s = time.monotonic() - read_started_at
+                            remainder = target_interval - elapsed_s
+                            if remainder > 0.001:
+                                time.sleep(remainder)
+                        pb_stat = input_source.get_playback_status()
+                        self.record_node_telemetry(
+                            str(speed_node.get("id") or "video_speed_controller"),
+                            status="paused" if sp_pause else "success",
+                            latency_ms=duration_ms,
+                            item_count=1,
+                            last_input={"source": source_label, "nativeFps": input_source.fps},
+                            last_output=pb_stat,
+                        )
                     if self._debug_enabled:
                         frame_summary = _frame_summary(frame)
                         self._emit_node_debug(
@@ -5359,6 +5446,7 @@ class WorkflowRunner:
             input_node = engine.active_input_node(workflow)
             input_config = input_node.get("config", {})
             input_source = engine.OpenCVInputSource(cv2, input_config)
+            self._input_source = input_source
             source_label, actual_width, actual_height = input_source.open()
             self._emit_log(f"Opened {source_label} ({actual_width}x{actual_height})")
             preview_nodes = _active_preview_nodes(workflow, source_id)

@@ -99,6 +99,7 @@ IMAGE_PROCESSING_NODE_TYPES = (
     "undistort",
     "background_subtract",
     "python_script",
+    "video_speed_controller",
 )
 DRAWING_NODE_TYPES = ("overlay_annotate", "interactive_zoom")
 LEGACY_DRAWING_NODE_TYPES = ("draw_text", "draw_boxes")
@@ -246,6 +247,14 @@ DRAWING_VARIABLES_BY_NODE_TYPE = {
     "input": (
         ("{image.width}", "Image width"),
         ("{image.height}", "Image height"),
+    ),
+    "video_speed_controller": (
+        ("{playback.speed}", "Playback speed multiplier"),
+        ("{playback.current_time}", "Current video time in mm:ss"),
+        ("{playback.duration}", "Total video duration in mm:ss"),
+        ("{playback.percent}", "Timeline progress percentage"),
+        ("{playback.frame}", "Current frame index"),
+        ("{playback.total_frames}", "Total frame count"),
     ),
     "pose_detector": (
         ("{detection.count}", "Person count"),
@@ -626,6 +635,27 @@ NODE_BLUEPRINTS = {
             "postRollSeconds": 10.0,
             "targetFps": 15,
             "saveThumbnail": True,
+        },
+    },
+    "video_speed_controller": {
+        "title": "Video Speed & Timeline Controller",
+        "subtitle": "Atur kecepatan playback (0.25x - 4x) & timeline seek (ke tengah / menit tertentu) untuk video/YouTube",
+        "category": "Sources",
+        "x": 330,
+        "y": 60,
+        "config": {
+            "playbackSpeed": 1.0,
+            "speedMode": "smooth",
+            "timelinePercent": 0.0,
+            "seekTimestampSec": 0.0,
+            "seekMode": "percent",
+            "jumpToMiddle": False,
+            "pause": False,
+            "loopSection": False,
+            "loopStartPercent": 0.0,
+            "loopEndPercent": 100.0,
+            "showOverlayHud": False,
+            "hudPosition": "top_left",
         },
     },
     "input": {

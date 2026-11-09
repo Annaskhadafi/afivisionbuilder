@@ -77,6 +77,7 @@ FRAME_SAMPLER_NODE_TYPE = "frame_sampler"
 IMAGE_PROCESSING_NODE_TYPES = (
     "resize", "crop", "rotate_flip", "color_convert", "brightness_contrast",
     "blur_sharpen", "perspective", "undistort", "background_subtract", "python_script",
+    "video_speed_controller",
 )
 DRAWING_NODE_TYPES = ALL_DRAWING_NODE_TYPES
 LOGIC_NODE_TYPES = (
@@ -1724,6 +1725,11 @@ def apply_image_processing(
             frame = cv2.cvtColor(cached["subtractor"].apply(frame), cv2.COLOR_GRAY2BGR)
         elif node_type == "python_script":
             frame = run_python_script_node(frame, node, runtime, script_frames)
+        elif node_type == "video_speed_controller":
+            from engine.video_playback import render_playback_hud
+            if bool(config.get("showOverlayHud", False)):
+                node_status = runtime.get(node_id, {})
+                frame = render_playback_hud(frame, config, node_status)
         if debug_callback:
             debug_callback(node, before_frame, frame, (time.monotonic() - started_at) * 1000)
     return frame
@@ -3704,7 +3710,17 @@ class DahengInputSource:
 _YOUTUBE_URL_PATTERN = re.compile(
     r"(?i)^(https?://)?(www\.|m\.)?(youtube\.com/(watch\?v=|live/|embed/|v/)|youtu\.be/)([\w\-]+)"
 )
-_YOUTUBE_STREAM_CACHE: dict[str, tuple[float, str, bool, str]] = {}
+_YOUTUBE_STREAM_CACHE: dict[str, tuple] = {}
+
+
+def get_cached_youtube_duration(url: str, quality: str = "720p") -> float:
+    clean_url = str(url or "").strip()
+    quality_str = str(quality or "720p").lower()
+    cache_key = f"{clean_url}_{quality_str}"
+    entry = _YOUTUBE_STREAM_CACHE.get(cache_key)
+    if entry and len(entry) >= 5:
+        return float(entry[4] or 0.0)
+    return 0.0
 
 
 def is_youtube_url(url: str) -> bool:
@@ -3726,7 +3742,8 @@ def resolve_youtube_stream_url(url: str, quality: str = "720p") -> tuple[str, bo
     cache_key = f"{clean_url}_{quality_str}"
     now = time.monotonic()
     if cache_key in _YOUTUBE_STREAM_CACHE:
-        cached_time, cached_stream_url, cached_is_live, cached_title = _YOUTUBE_STREAM_CACHE[cache_key]
+        entry = _YOUTUBE_STREAM_CACHE[cache_key]
+        cached_time, cached_stream_url, cached_is_live, cached_title = entry[:4]
         if now - cached_time < 7200:  # Direct GoogleVideo URLs expire in ~4-6 hours
             return cached_stream_url, cached_is_live, cached_title
 
@@ -3771,7 +3788,8 @@ def resolve_youtube_stream_url(url: str, quality: str = "720p") -> tuple[str, bo
 
             is_live = bool(info.get("is_live") or info.get("was_live") or info.get("live_status") == "is_live")
             title = str(info.get("title") or "YouTube Stream")
-            _YOUTUBE_STREAM_CACHE[cache_key] = (now, stream_url, is_live, title)
+            duration = float(info.get("duration") or 0.0)
+            _YOUTUBE_STREAM_CACHE[cache_key] = (now, stream_url, is_live, title, duration)
             return stream_url, is_live, title
     except Exception as exc:
         raise RuntimeError(f"Error resolving YouTube stream: {exc}") from exc
@@ -3791,6 +3809,12 @@ class OpenCVInputSource:
         self._youtube_url = None
         self._youtube_quality = "720p"
         self._youtube_is_live = False
+        self._youtube_duration = 0.0
+        self._playback_speed = 1.0
+        self._is_paused = False
+        self._paused_frame = None
+        self._current_frame_pos = 0
+        self._pending_seek_frame = None
 
     def open(self) -> tuple[str, int, int]:
         # Check if this input is backed by AFI Open-NVR Hub
@@ -3860,6 +3884,7 @@ class OpenCVInputSource:
             self._youtube_url = yt_url
             self._youtube_quality = quality
             self._youtube_is_live = is_live
+            self._youtube_duration = get_cached_youtube_duration(yt_url, quality)
             self.label = f"YouTube: {title}"
             self.capture = self.cv2.VideoCapture(stream_url)
             self.capture.set(self.cv2.CAP_PROP_BUFFERSIZE, 2)
@@ -3870,6 +3895,9 @@ class OpenCVInputSource:
             width = int(self.capture.get(self.cv2.CAP_PROP_FRAME_WIDTH) or 0)
             height = int(self.capture.get(self.cv2.CAP_PROP_FRAME_HEIGHT) or 0)
             self._frame_count = int(self.capture.get(self.cv2.CAP_PROP_FRAME_COUNT) or 0) if not is_live else 0
+            if not is_live and self._frame_count <= 0 and self._youtube_duration > 0:
+                fps = float(self.capture.get(self.cv2.CAP_PROP_FPS) or 30.0)
+                self._frame_count = int(self._youtube_duration * (fps if fps > 0 else 30.0))
             self._finite_video = not is_live and self._frame_count > 0
             return self.label, width, height
 
@@ -4032,6 +4060,84 @@ class OpenCVInputSource:
         position = self.capture.get(self.cv2.CAP_PROP_POS_FRAMES)
         return position >= self._frame_count
 
+    def seek_to_frame(self, target_frame: int) -> bool:
+        if self.capture is None:
+            return False
+        total = self._frame_count
+        if total > 0:
+            target_frame = max(0, min(int(target_frame), total - 1))
+        else:
+            target_frame = max(0, int(target_frame))
+        ok = bool(self.capture.set(self.cv2.CAP_PROP_POS_FRAMES, target_frame))
+        self._current_frame_pos = target_frame
+        self._paused_frame = None
+        return ok
+
+    def seek_to_percent(self, percent: float) -> bool:
+        if self.capture is None:
+            return False
+        percent = max(0.0, min(100.0, float(percent)))
+        total = self._frame_count
+        if total > 0:
+            target_frame = int((percent / 100.0) * total)
+            return self.seek_to_frame(target_frame)
+        if getattr(self, "_youtube_duration", 0) > 0:
+            target_msec = (percent / 100.0) * self._youtube_duration * 1000.0
+            ok = bool(self.capture.set(self.cv2.CAP_PROP_POS_MSEC, target_msec))
+            self._paused_frame = None
+            return ok
+        return False
+
+    def seek_to_seconds(self, seconds: float) -> bool:
+        if self.capture is None:
+            return False
+        fps = self.fps if self.fps > 0 else 30.0
+        target_frame = int(max(0.0, float(seconds)) * fps)
+        return self.seek_to_frame(target_frame)
+
+    def set_playback_speed(self, speed: float) -> None:
+        try:
+            self._playback_speed = max(0.1, min(10.0, float(speed)))
+        except (ValueError, TypeError):
+            self._playback_speed = 1.0
+
+    def set_paused(self, paused: bool) -> None:
+        self._is_paused = bool(paused)
+        if not self._is_paused:
+            self._paused_frame = None
+
+    def get_playback_status(self) -> dict:
+        total = self._frame_count
+        fps = self.fps if self.fps > 0 else 30.0
+        current_f = self._current_frame_pos
+        if self.capture is not None:
+            try:
+                pos = int(self.capture.get(self.cv2.CAP_PROP_POS_FRAMES) or 0)
+                if pos > 0:
+                    current_f = pos
+            except Exception:
+                pass
+        duration_sec = (total / fps) if total > 0 and fps > 0 else getattr(self, "_youtube_duration", 0.0)
+        current_sec = (current_f / fps) if fps > 0 else 0.0
+        percent = (current_f / total * 100.0) if total > 0 else 0.0
+        from engine.video_playback import format_seconds_to_time
+        return {
+            "is_video": self._finite_video or bool(self._youtube_url),
+            "is_youtube": bool(self._youtube_url),
+            "source_type": self.config.get("sourceType", "camera"),
+            "current_frame": current_f,
+            "total_frames": total,
+            "fps": round(fps, 2),
+            "current_sec": round(current_sec, 2),
+            "duration_sec": round(duration_sec, 2),
+            "current_time_str": format_seconds_to_time(current_sec),
+            "duration_str": format_seconds_to_time(duration_sec),
+            "progress_percent": round(percent, 2),
+            "speed": getattr(self, "_playback_speed", 1.0),
+            "is_paused": getattr(self, "_is_paused", False),
+            "label": self.label,
+        }
+
     def read(self):
         if self.daheng is not None:
             return self.daheng.read()
@@ -4039,8 +4145,32 @@ class OpenCVInputSource:
             return True, self.image.copy()
         if self.capture is None:
             return False, None
+
+        if self._pending_seek_frame is not None:
+            tgt = self._pending_seek_frame
+            self._pending_seek_frame = None
+            self.seek_to_frame(tgt)
+
+        if self._is_paused:
+            if self._paused_frame is not None:
+                return True, self._paused_frame.copy()
+            ok, frame = self.capture.read()
+            if ok:
+                self._paused_frame = frame.copy()
+                return True, frame
+            return False, None
+
         ok, frame = self.capture.read()
         if ok:
+            self._paused_frame = frame.copy()
+            try:
+                pos = int(self.capture.get(self.cv2.CAP_PROP_POS_FRAMES) or 0)
+                if pos > 0:
+                    self._current_frame_pos = pos
+                else:
+                    self._current_frame_pos += 1
+            except Exception:
+                self._current_frame_pos += 1
             return True, frame
 
         # If it's a YouTube source, handle looping or auto-reconnect

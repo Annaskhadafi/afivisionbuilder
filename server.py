@@ -132,7 +132,7 @@ from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile, Web
 
 
 
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 
 
 
@@ -268,11 +268,23 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts or ["*"])
 
 
 
+class NoCacheStaticFiles(StaticFiles):
+    """StaticFiles provider with aggressive no-cache headers to prevent stale UI assets."""
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
+
+
 if (ROOT / "static").exists():
 
 
 
-    app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
+    app.mount("/static", NoCacheStaticFiles(directory=ROOT / "static"), name="static")
 
 
 
@@ -288,7 +300,7 @@ _outputs.mkdir(parents=True, exist_ok=True)
 
 
 
-app.mount("/outputs", StaticFiles(directory=_outputs), name="outputs")
+app.mount("/outputs", NoCacheStaticFiles(directory=_outputs), name="outputs")
 
 
 
@@ -7868,6 +7880,46 @@ def live_update_workflow(request: Request, body: dict) -> dict:
     return {"ok": True, "updated": False}
 
 
+@app.get("/api/video/playback-status")
+def get_video_playback_status() -> dict:
+    with _lock:
+        runner = _runner
+        if runner and runner.is_running():
+            return runner.get_video_status()
+    return {"active": False, "is_video": False}
+
+
+@app.post("/api/video/seek")
+def seek_video_playback(request: Request, body: dict) -> dict:
+    _write_allowed(request)
+    with _lock:
+        runner = _runner
+        if not runner or not runner.is_running():
+            raise HTTPException(400, "Workflow pipeline is not currently running")
+        percent = body.get("percent")
+        seconds = body.get("seconds")
+        frame = body.get("frame")
+        res = runner.seek_video(
+            percent=float(percent) if percent is not None else None,
+            seconds=float(seconds) if seconds is not None else None,
+            frame=int(frame) if frame is not None else None,
+        )
+        return res
+
+
+@app.post("/api/video/playback-speed")
+def set_video_playback_speed(request: Request, body: dict) -> dict:
+    _write_allowed(request)
+    with _lock:
+        runner = _runner
+        if not runner or not runner.is_running():
+            raise HTTPException(400, "Workflow pipeline is not currently running")
+        speed = float(body.get("speed", 1.0) or 1.0)
+        pause = body.get("pause")
+        res = runner.set_playback_speed(speed=speed, pause=bool(pause) if pause is not None else None)
+        return res
+
+
 
 
 
@@ -11759,7 +11811,12 @@ def public_dashboard_view(dashboard_id: str) -> Response:
 
 
 
-        return FileResponse(path)
+        html_content = _inject_cache_busting(path.read_text(encoding="utf-8"))
+        resp = HTMLResponse(html_content)
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
 
 
 
@@ -13977,6 +14034,22 @@ async def gateway_register_stream(request: Request) -> dict:
 
 
 
+def _inject_cache_busting(html_content: str) -> str:
+    """Inject file modification timestamps into CSS/JS asset query strings."""
+    try:
+        app_js_mtime = int((ROOT / "static" / "app.js").stat().st_mtime)
+        style_mtime = int((ROOT / "static" / "style.css").stat().st_mtime)
+        dash_mtime = int((ROOT / "static" / "dashboard_builder.js").stat().st_mtime)
+    except Exception:
+        app_js_mtime = style_mtime = dash_mtime = int(time.time())
+
+    html_content = re.sub(r'style\.css(\?v=[^"\'\s>]*)?', f'style.css?v={style_mtime}', html_content)
+    html_content = re.sub(r'app\.js(\?v=[^"\'\s>]*)?', f'app.js?v={app_js_mtime}', html_content)
+    html_content = re.sub(r'dashboard_builder\.js(\?v=[^"\'\s>]*)?', f'dashboard_builder.js?v={dash_mtime}', html_content)
+    return html_content
+
+
+
 @app.get("/")
 
 
@@ -13993,7 +14066,12 @@ def index() -> Response:
 
 
 
-        return FileResponse(path)
+        html_content = _inject_cache_busting(path.read_text(encoding="utf-8"))
+        resp = HTMLResponse(html_content)
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
 
 
 
@@ -14081,7 +14159,18 @@ if __name__ == "__main__":
 
 
 
-    uvicorn.run(app, host=host, port=port, loop="asyncio")
+    reload_enabled = os.getenv("VISONODE_RELOAD", "1").lower() in ("1", "true", "yes")
+    if reload_enabled:
+        uvicorn.run(
+            "server:app",
+            host=host,
+            port=port,
+            loop="asyncio",
+            reload=True,
+            reload_dirs=[str(ROOT), str(ROOT / "engine")],
+        )
+    else:
+        uvicorn.run(app, host=host, port=port, loop="asyncio")
 
 
 

@@ -459,7 +459,7 @@
 
   function categoryFor(type) {
 
-    if (type === 'input' || type === 'ip_camera') return 'Sources';
+    if (type === 'input' || type === 'ip_camera' || type === 'video_speed_controller') return 'Sources';
 
     if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison', 'face_detector', 'face_analyzer', 'face_crop', 'lpr_license_plate'].includes(type)) return 'AI Vision Models';
 
@@ -6489,6 +6489,11 @@
 
       }
 
+            if (n.type === 'video_speed_controller') {
+        const sp = n.config?.playbackSpeed || 1.0;
+        const p = n.config?.timelinePercent || 0;
+        subtitleText = `Speed: ${sp}x | Timeline: ${p}%`;
+      }
       meta.textContent = subtitleText;
 
 
@@ -10043,6 +10048,281 @@
 
 
 
+  function renderVideoSpeedControllerInspector(node, body) {
+    if (!node.config) node.config = {};
+    const cfg = node.config;
+    if (cfg.playbackSpeed === undefined) cfg.playbackSpeed = 1.0;
+    if (cfg.timelinePercent === undefined) cfg.timelinePercent = 0.0;
+    if (cfg.pause === undefined) cfg.pause = false;
+    if (cfg.speedMode === undefined) cfg.speedMode = 'smooth';
+    if (cfg.showOverlayHud === undefined) cfg.showOverlayHud = false;
+
+    const titleRow = document.createElement('div');
+    titleRow.className = 'inspector-header-row';
+    titleRow.innerHTML = `
+      <span class="inspector-title-text">Node settings</span>
+      <span class="inspector-node-badge" style="background:rgba(59,130,246,0.15); color:#60a5fa;">Playback &amp; Timeline</span>
+    `;
+    const titleEl = $('#inspectorTitle');
+    if (titleEl) titleEl.replaceChildren(titleRow);
+
+    const subtitle = document.createElement('p');
+    subtitle.className = 'inspector-subtitle';
+    subtitle.textContent = 'Atur kecepatan video (0.25x - 4x) & timeline seek (ke tengah / menit tertentu) untuk video file & YouTube.';
+    body.append(subtitle);
+
+    const tabs = document.createElement('div');
+    tabs.className = 'inspector-tabs';
+    tabs.innerHTML = `
+      <button class="inspector-tab ${state.inspectorTab !== 'logs' ? 'active' : ''}" id="vscTabBasic">Kontrol Playback</button>
+      <button class="inspector-tab ${state.inspectorTab === 'logs' ? 'active' : ''}" id="vscTabLogs">Telemetri &amp; Log</button>
+    `;
+    tabs.querySelector('#vscTabBasic').onclick = () => { state.inspectorTab = 'basic'; renderInspector(); };
+    tabs.querySelector('#vscTabLogs').onclick = () => { state.inspectorTab = 'logs'; renderInspector(); };
+    body.append(tabs);
+
+    if (state.inspectorTab === 'logs') {
+      renderInspectorTelemetryLogs(node, body);
+      return;
+    }
+
+    const timelineCard = document.createElement('div');
+    timelineCard.className = 'video-speed-inspector-card';
+
+    const latestTelem = (state.status?.nodeTelemetry || {})[node.id]?.lastOutput || {};
+    const curTimeStr = latestTelem.current_time_str || '00:00';
+    const durTimeStr = latestTelem.duration_str || '00:00';
+    const progressVal = latestTelem.progress_percent !== undefined ? latestTelem.progress_percent : cfg.timelinePercent;
+    const isPaused = cfg.pause || latestTelem.is_paused;
+    const currentSpeed = cfg.playbackSpeed || latestTelem.speed || 1.0;
+
+    timelineCard.innerHTML = `
+      <div class="video-speed-hud-header">
+        <div class="video-speed-hud-title">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24" style="color:#38bdf8;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>Timeline Scrubber</span>
+        </div>
+        <span class="video-speed-status-pill ${isPaused ? 'paused' : ''}" id="vscStatusPill">
+          ${isPaused ? '⏸️ PAUSED' : '▶️ ' + currentSpeed + 'x'}
+        </span>
+      </div>
+
+      <div class="video-timeline-display">
+        <span id="vscCurrentTime">${curTimeStr}</span>
+        <span style="color:#94a3b8; font-size:11px;" id="vscPercentText">${Number(progressVal).toFixed(1)}%</span>
+        <span id="vscTotalDuration">${durTimeStr}</span>
+      </div>
+
+      <input type="range" class="video-timeline-slider" id="vscTimelineSlider" min="0" max="100" step="0.1" value="${progressVal}">
+
+      <div class="video-quick-jump-row">
+        <button type="button" class="video-quick-jump-btn" id="vscJump0" title="Loncat ke awal video (0%)">⏮️ 0%</button>
+        <button type="button" class="video-quick-jump-btn" id="vscJumpMinus10" title="Mundur 10 detik">⏪ -10s</button>
+        <button type="button" class="video-quick-jump-btn highlight" id="vscJump50" title="Loncat ke tengah video (50%)">🎯 Tengah (50%)</button>
+        <button type="button" class="video-quick-jump-btn" id="vscJumpPlus10" title="Maju 10 detik">⏩ +10s</button>
+        <button type="button" class="video-quick-jump-btn" id="vscJump75" title="Loncat ke 75% video">⏭️ 75%</button>
+      </div>
+
+      <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
+        <input type="text" id="vscTimeInput" placeholder="Contoh: 01:30 atau 90" style="flex:1; height: 30px; font-size: 11px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-surface); color: inherit;">
+        <button type="button" class="button small secondary" id="vscTimeJumpBtn" style="height:30px; font-size:11px; white-space:nowrap;">Lompat ke Waktu</button>
+      </div>
+    `;
+
+    const slider = timelineCard.querySelector('#vscTimelineSlider');
+    const percentText = timelineCard.querySelector('#vscPercentText');
+    slider.oninput = () => {
+      percentText.textContent = `${Number(slider.value).toFixed(1)}%`;
+    };
+    slider.onchange = async () => {
+      const val = parseFloat(slider.value);
+      cfg.timelinePercent = val;
+      markDirty();
+      try {
+        await api('/api/video/seek', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ percent: val }),
+        });
+      } catch (e) {}
+      liveUpdateWorkflow();
+    };
+
+    async function doSeekPercent(p) {
+      cfg.timelinePercent = p;
+      slider.value = p;
+      percentText.textContent = `${p.toFixed(1)}%`;
+      markDirty();
+      try {
+        await api('/api/video/seek', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ percent: p }),
+        });
+      } catch (e) {}
+      liveUpdateWorkflow();
+      toast(`Video dilompatkan ke ${p}%`);
+    }
+
+    timelineCard.querySelector('#vscJump0').onclick = () => doSeekPercent(0.0);
+    timelineCard.querySelector('#vscJump50').onclick = () => doSeekPercent(50.0);
+    timelineCard.querySelector('#vscJump75').onclick = () => doSeekPercent(75.0);
+
+    timelineCard.querySelector('#vscJumpMinus10').onclick = async () => {
+      const curSec = latestTelem.current_sec || (cfg.timelinePercent / 100 * (latestTelem.duration_sec || 60));
+      const targetSec = Math.max(0, curSec - 10);
+      try {
+        await api('/api/video/seek', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ seconds: targetSec }),
+        });
+        toast('Mundur 10 detik');
+      } catch (e) {}
+    };
+
+    timelineCard.querySelector('#vscJumpPlus10').onclick = async () => {
+      const curSec = latestTelem.current_sec || (cfg.timelinePercent / 100 * (latestTelem.duration_sec || 60));
+      const targetSec = curSec + 10;
+      try {
+        await api('/api/video/seek', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ seconds: targetSec }),
+        });
+        toast('Maju 10 detik');
+      } catch (e) {}
+    };
+
+    timelineCard.querySelector('#vscTimeJumpBtn').onclick = async () => {
+      const raw = timelineCard.querySelector('#vscTimeInput').value.trim();
+      if (!raw) return;
+      let sec = 0;
+      if (raw.includes(':')) {
+        const parts = raw.split(':');
+        sec = parts.length === 2 ? parseFloat(parts[0]) * 60 + parseFloat(parts[1]) : parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+      } else {
+        sec = parseFloat(raw);
+      }
+      if (isNaN(sec) || sec < 0) return;
+      try {
+        await api('/api/video/seek', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ seconds: sec }),
+        });
+        toast(`Lompat ke ${raw}`);
+      } catch (e) {}
+    };
+
+    body.append(timelineCard);
+
+    const speedCard = document.createElement('div');
+    speedCard.className = 'video-speed-inspector-card';
+    speedCard.innerHTML = `
+      <div class="video-speed-hud-header">
+        <div class="video-speed-hud-title">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24" style="color:#60a5fa;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Kecepatan Video (Playback Speed)</span>
+        </div>
+        <span style="font-size:12px; font-weight:700; color:#3b82f6;" id="vscSpeedValText">${currentSpeed}x</span>
+      </div>
+
+      <div class="video-speed-buttons-grid" id="vscSpeedButtonsGrid">
+        <button type="button" class="video-speed-pill-btn ${currentSpeed === 0.25 ? 'active' : ''}" data-speed="0.25">0.25x</button>
+        <button type="button" class="video-speed-pill-btn ${currentSpeed === 0.5 ? 'active' : ''}" data-speed="0.5">0.5x</button>
+        <button type="button" class="video-speed-pill-btn ${currentSpeed === 0.75 ? 'active' : ''}" data-speed="0.75">0.75x</button>
+        <button type="button" class="video-speed-pill-btn ${currentSpeed === 1.0 ? 'active' : ''}" data-speed="1.0">1.0x (Normal)</button>
+        <button type="button" class="video-speed-pill-btn ${currentSpeed === 1.25 ? 'active' : ''}" data-speed="1.25">1.25x</button>
+        <button type="button" class="video-speed-pill-btn ${currentSpeed === 1.5 ? 'active' : ''}" data-speed="1.5">1.5x</button>
+        <button type="button" class="video-speed-pill-btn ${currentSpeed === 2.0 ? 'active' : ''}" data-speed="2.0">2.0x</button>
+        <button type="button" class="video-speed-pill-btn ${currentSpeed === 4.0 ? 'active' : ''}" data-speed="4.0">4.0x</button>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:11px; color:#94a3b8;">Presisi:</span>
+        <input type="range" id="vscSpeedSlider" min="0.25" max="4.0" step="0.05" value="${currentSpeed}" style="flex:1; height:6px; accent-color:#3b82f6;">
+      </div>
+
+      <button type="button" class="video-playback-toggle-btn ${isPaused ? 'play' : 'pause'}" id="vscPlayPauseToggle">
+        ${isPaused ? '▶️ Lanjutkan Pemutaran (Play)' : '⏸️ Jeda Pemutaran (Pause)'}
+      </button>
+    `;
+
+    async function setSpeed(sp) {
+      cfg.playbackSpeed = sp;
+      markDirty();
+      speedCard.querySelector('#vscSpeedValText').textContent = `${sp}x`;
+      speedCard.querySelector('#vscSpeedSlider').value = sp;
+      speedCard.querySelectorAll('.video-speed-pill-btn').forEach(btn => {
+        btn.classList.toggle('active', parseFloat(btn.dataset.speed) === sp);
+      });
+      try {
+        await api('/api/video/playback-speed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ speed: sp }),
+        });
+      } catch (e) {}
+      liveUpdateWorkflow();
+    }
+
+    speedCard.querySelectorAll('.video-speed-pill-btn').forEach(btn => {
+      btn.onclick = () => setSpeed(parseFloat(btn.dataset.speed));
+    });
+
+    const speedSlider = speedCard.querySelector('#vscSpeedSlider');
+    speedSlider.oninput = () => {
+      const sp = parseFloat(speedSlider.value);
+      speedCard.querySelector('#vscSpeedValText').textContent = `${sp.toFixed(2)}x`;
+    };
+    speedSlider.onchange = () => {
+      setSpeed(parseFloat(speedSlider.value));
+    };
+
+    speedCard.querySelector('#vscPlayPauseToggle').onclick = async () => {
+      const nextPaused = !cfg.pause;
+      cfg.pause = nextPaused;
+      markDirty();
+      try {
+        await api('/api/video/playback-speed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ speed: cfg.playbackSpeed || 1.0, pause: nextPaused }),
+        });
+      } catch (e) {}
+      liveUpdateWorkflow();
+      renderInspector();
+    };
+
+    body.append(speedCard);
+
+    const optionsSection = document.createElement('div');
+    optionsSection.className = 'inspector-section';
+
+    const hudLabel = document.createElement('label');
+    hudLabel.className = 'field-check';
+    const hudToggle = document.createElement('input');
+    hudToggle.type = 'checkbox';
+    hudToggle.checked = Boolean(cfg.showOverlayHud);
+    hudToggle.onchange = () => {
+      cfg.showOverlayHud = hudToggle.checked;
+      markDirty();
+      liveUpdateWorkflow();
+    };
+    hudLabel.append(hudToggle, document.createTextNode('Tampilkan HUD Timeline & Speed pada Video Frame'));
+    optionsSection.append(hudLabel);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'danger-button';
+    delBtn.style.marginTop = '16px';
+    delBtn.innerHTML = '<svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Delete This Node';
+    delBtn.onclick = deleteSelectedNode;
+    optionsSection.append(delBtn);
+
+    body.append(optionsSection);
+  }
+
   function renderMultiZoneOccupancyInspector(node, body) {
 
     if (!node.config) node.config = {};
@@ -10987,6 +11267,11 @@
     }
 
 
+
+    if (n.type === 'video_speed_controller') {
+      renderVideoSpeedControllerInspector(n, body);
+      return;
+    }
 
     if (n.type === 'export_code') {
 
@@ -32580,6 +32865,34 @@
       if (moreDropdown) moreDropdown.hidden = true;
 
       window.open('/docs', '_blank');
+
+    });
+
+
+
+    $('#forceReloadAppBtn')?.addEventListener('click', async () => {
+
+      if (moreDropdown) moreDropdown.hidden = true;
+
+      try {
+
+        if ('caches' in window) {
+
+          const names = await caches.keys();
+
+          await Promise.all(names.map(k => caches.delete(k)));
+
+        }
+
+      } catch (_) {}
+
+      try { sessionStorage.clear(); } catch (_) {}
+
+      const targetUrl = new URL(window.location.href);
+
+      targetUrl.searchParams.set('_t', Date.now().toString());
+
+      window.location.replace(targetUrl.toString());
 
     });
 

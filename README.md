@@ -410,6 +410,27 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 
 ---
 
+### ⏩ 55. Video Speed & Timeline Controller (Kontrol Kecepatan & Timeline Video / YouTube)
+- **Node Type**: `video_speed_controller` (Kategori: `Sources` / `Image Preprocessing`).
+- **Kontrol Kecepatan Playback (0.25x - 4.0x)**: Memperlambat video untuk inspeksi visual detail (0.25x slow-mo, 0.5x, 0.75x) atau mempercepat video untuk scanning rekaman panjang (1.25x, 1.5x, 2.0x fast-forward, 4.0x).
+- **Timeline Seeking Interaktif**: Dilengkapi slider scrubber visual dan tombol pintasan 1-klik untuk loncat langsung ke posisi video:
+  - `🎯 Pindah ke Tengah (50%)`: Lompat seketika ke titik tengah durasi video atau stream YouTube.
+  - `⏮️ 0% (Awal)`: Reset ke detik pertama video.
+  - `⏪ -10s / ⏩ +10s`: Lompat relatif maju atau mundur 10 detik.
+  - `Lompat ke Timestamp`: Masukkan waktu spesifik (misal `01:30` atau `90` detik) untuk navigasi presisi.
+- **Dukungan Penuh YouTube Stream & File Video**: Bekerja otomatis pada file video lokal (MP4, MKV, AVI) maupun video streaming YouTube (via tautan `https://www.youtube.com/watch?v=...` dengan mesin `yt-dlp`).
+- **Live REST API Seeking & Speed Sync**: Mengubah posisi timeline atau kecepatan pemutaran via endpoint `/api/video/seek` dan `/api/video/playback-speed` seketika saat pipeline alur kerja sedang berjalan tanpa perlu menghentikan alur kerja.
+- **On-Screen HUD & Telemetri**: Opsi menampilkan HUD waktu dan kecepatan langsung di frame video (`showOverlayHud`) serta telemetri real-time terhubung ke Dashboard.
+- **Dukungan Standalone Code Export**: Terintegrasi penuh ke dalam generator `WorkflowRunner` dan `export_code.py` untuk ekspor skrip Python mandiri.
+
+### 🚀 56. Dynamic Asset Cache-Busting & Developer Hot-Reload
+- **Dynamic File-Timestamp Cache-Busting**: Server FastAPI menyuntikkan stempel waktu modifikasi file terkini (`?v={mtime}`) secara otomatis ke seluruh aset statis (`app.js`, `style.css`, `dashboard_builder.js`) setiap kali halaman diakses. Browser pengguna selalu memuat versi kode terbaru secara instan tanpa perlu membersihkan cache browser secara manual.
+- **Aggressive No-Cache Headers**: Seluruh endpoint dokumen (`/`, `/dashboard/public/{id}`) dan file statis (`/static/*`, `/outputs/*`) dilengkapi header `Cache-Control: no-cache, no-store, must-revalidate, max-age=0` dan `Pragma: no-cache` untuk menjamin tidak ada aset usang yang tersimpan di disk cache.
+- **Backend Python Auto-Reload (Uvicorn WatchFiles)**: Perubahan kode Python di folder `engine/` atau `server.py` dimuat ulang secara otomatis dalam ~1-2 detik tanpa perlu mematikan dan menjalankan ulang terminal server.
+- **Tombol Pintasan "Muat Ulang & Hapus Cache" di Topbar**: Menu dropdown aksi `...` di topbar menyediakan opsi *Muat Ulang & Hapus Cache* yang menghapus Service Worker, sessionStorage, dan menyegel query string unik untuk memuat ulang antarmuka ke kondisi bersih terbaru dengan 1 klik.
+
+---
+
 ## 📦 Katalog Lengkap 89 Node Vision Studio (5 Tabel Kategori Modular)
 
 Berikut adalah katalog referensi komprehensif seluruh node yang didukung oleh Afi Vision Builder, mencakup 61 node baru hasil ekspansi Fase 1 s/d Fase 5, lengkap dengan parameter kunci, kesiapan ekspor kode mandiri, dan integrasi Dashboard:
@@ -510,6 +531,7 @@ Berikut adalah katalog referensi komprehensif seluruh node yang didukung oleh Af
 ### 🔌 6. Node Inti Masukan, Segmentasi & Utilitas Sistem
 | Node Type | Nama / Label | Kegunaan Utama | Parameter Kunci | Export Code & Dashboard |
 | :--- | :--- | :--- | :--- | :--- |
+| `video_speed_controller` | Video Speed & Timeline Controller | Mengatur kecepatan video (0.25x - 4x) & timeline seek (ke tengah / menit tertentu) untuk video lokal & YouTube. | `playbackSpeed`, `timelinePercent`, `seekTimestampSec`, `showOverlayHud` | ✅ Supported (Video Scrubber & Standalone) |
 | `ip_camera` | IP Camera Stream (RTSP) | Mengambil feed video langsung dari kamera pengawas IP via protokol RTSP/HTTP. | `rtspUrl`, `reconnectInterval` | ✅ Supported (CCTV Player & Standalone) |
 | `segmenter` | Instance Segmentation AI | Segmentasi piksel objek berbasis RF-DETR / YOLOv8-seg. | `engine`, `threshold`, `modelPath` | ✅ Supported (Mask Viewer & Standalone) |
 | `classifier` | Image Classification AI | Klasifikasi kategori citra menyeluruh berbasis ConvNeXt / MobileNet. | `engine`, `threshold`, `modelPath` | ✅ Supported (Class KPI & Standalone) |
