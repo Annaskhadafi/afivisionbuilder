@@ -548,7 +548,7 @@ TRACKER_CONFIG_DEFAULTS = {
     "classLockWindow": 10,
     "enableSmoothing": True,
     "smoothingAlpha": 0.7,
-    "smoothingAlgorithm": "kalman_or_ema",
+    "smoothingAlgorithm": "ema",
     # Settings shared by every tracker.
     "batchSize": 1,
     "classAgnostic": False,

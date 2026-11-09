@@ -188,8 +188,36 @@ SUPPORTED_ALGORITHMS = (
 )
 CMC_METHODS = ("orb", "sift", "sparseOptFlow", "ecc")
 EXPECTED_TRACKERS_VERSION = "2.5.0.post0"
+class VisoByteTrackTracker(ByteTrackTracker):
+    """Roboflow ByteTrackTracker with immediate activation when minimum_consecutive_frames <= 1."""
+
+    def _spawn_new_tracks(
+        self,
+        detection_boxes,
+        confidences,
+        unmatched_high_local,
+        high_indices,
+        out_det_indices,
+        out_tracker_ids,
+    ):
+        from trackers.core.bytetrack.tracker import ByteTrackTracklet
+        for det_local_idx in unmatched_high_local:
+            global_idx = int(high_indices[det_local_idx])
+            conf = float(confidences[global_idx])
+            if conf >= self.track_activation_threshold:
+                track = ByteTrackTracklet(
+                    initial_bbox=detection_boxes[global_idx],
+                    state_estimator_class=self.state_estimator_class,
+                )
+                if self.minimum_consecutive_frames <= 1:
+                    track.tracker_id = self._allocate_tracker_id()
+                self.tracks.append(track)
+                out_det_indices.append(global_idx)
+                out_tracker_ids.append(track.tracker_id)
+
+
 ROBOFLOW_TRACKER_CLASSES = {
-    "bytetrack": ByteTrackTracker,
+    "bytetrack": VisoByteTrackTracker,
     "botsort": BoTSORTTracker,
     "ocsort": OCSORTTracker,
     "cbiou": CBIoUTracker,
@@ -209,8 +237,7 @@ def _verified_roboflow_tracker_classes() -> tuple[dict[str, type], str]:
             distribution = importlib.metadata.distribution("trackers")
             package_root = Path(distribution.locate_file("trackers")).resolve()
             verified: dict[str, type] = {}
-            for algorithm in SUPPORTED_ALGORITHMS:
-                tracker_class = ROBOFLOW_TRACKER_CLASSES[algorithm]
+            for algorithm, tracker_class in ROBOFLOW_TRACKER_CLASSES.items():
                 verified[algorithm] = tracker_class
             return verified, distribution.version
         except Exception:
@@ -246,7 +273,7 @@ class RoboflowTracker:
             self.smoothing_alpha = float(self.config.get("smoothingAlpha", 0.7))
         except (TypeError, ValueError):
             self.smoothing_alpha = 0.7
-        self.smoothing_algorithm = str(self.config.get("smoothingAlgorithm", "kalman_or_ema")).lower()
+        self.smoothing_algorithm = str(self.config.get("smoothingAlgorithm", "ema")).lower()
         self.enable_reid = bool(self.config.get("enableReid", False))
         self.reid_model_name = str(self.config.get("reidModel", REID_MODEL_OPTIONS[0]))
         if self.reid_model_name not in REID_MODEL_OPTIONS:
