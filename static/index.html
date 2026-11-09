@@ -87,6 +87,10 @@
           <span>Fleet Hub</span>
           <span class="nav-badge" id="fleetNavActiveBadge">0 Aktif</span>
         </button>
+        <button class="nav-tab open-nvr-tab" id="tabNvrLive" type="button" title="Open-NVR Full Live View (Multi-Camera Wall & CCTV Hub)">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          <span>Open-NVR</span>
+        </button>
       </nav>
     </div>
 
@@ -464,6 +468,10 @@
           <button class="button fleet-btn" id="openFleetHubBtn" type="button" title="🚀 Pengelola Layanan Alur Kerja (Multi-Workflow Fleet Hub)">
             <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             <span>🚀 Layanan Fleet</span>
+          </button>
+          <button class="button nvr-btn" id="openNvrHubBtn" type="button" title="🎥 AFI Open-NVR & CCTV Hub (Auto-Discovery, Live Wall & Rekaman Bukti)">
+            <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            <span>🎥 NVR & CCTV</span>
           </button>
           <label class="toggle-switch-compact" title="Mode Auto-Connect: Otomatis menghubungkan node saat ditambah/dihapus">
             <input type="checkbox" id="autoConnectToggle" checked>
@@ -1328,6 +1336,251 @@
         </button>
       </div>
     </div>
+  </section>
+
+  <!-- View: Full Open-NVR Live View (100% Native Open-NVR Experience) -->
+  <section class="open-nvr-view" id="viewNvrLive" hidden>
+    <!-- Open-NVR Top Header -->
+    <header class="open-nvr-header">
+      <div class="open-nvr-header-left">
+        <div class="open-nvr-brand-wrap">
+          <span class="brand-open">Open</span><span class="brand-nvr">NVR</span>
+          <span class="nvr-version-tag">v0.18.4</span>
+        </div>
+        <!-- Open-NVR Sub Navigation -->
+        <nav class="nvr-sub-nav">
+          <button class="nvr-nav-link active" data-nvr-page="live">📺 Live View</button>
+          <button class="nvr-nav-link" data-nvr-page="dashboard">📊 Dashboard</button>
+          <button class="nvr-nav-link" data-nvr-page="vault">🎞️ Evidence Vault</button>
+          <button class="nvr-nav-link" data-nvr-page="devices">⚙️ Cameras & Devices</button>
+        </nav>
+      </div>
+
+      <div class="open-nvr-header-center">
+        <div class="open-nvr-live-clock" id="openNvrLiveClock">00:00:00</div>
+      </div>
+
+      <div class="open-nvr-header-right">
+        <!-- Vitals ticker pills -->
+        <div class="nvr-vitals-pills">
+          <span class="vital-pill">CPU <strong>18%</strong></span>
+          <span class="vital-pill">RAM <strong>3.4G</strong></span>
+          <span class="vital-pill">DISK <strong>142G</strong></span>
+          <span class="vital-pill status-ok">● 8/8 ONLINE</span>
+        </div>
+        <!-- Layout Switchers (Exact Open-NVR layouts: 1x1, 2x2, 3x3, 1+5, 1+7) -->
+        <div class="nvr-layout-btn-group" id="nvrLiveLayoutGroup">
+          <button class="nvr-layout-btn" data-nvr-layout="1x1" title="1×1 Fullscreen Focus">1×1</button>
+          <button class="nvr-layout-btn active" data-nvr-layout="2x2" title="2×2 Quad View">2×2</button>
+          <button class="nvr-layout-btn" data-nvr-layout="3x3" title="3×3 9-Cam Matrix">3×3</button>
+          <button class="nvr-layout-btn" data-nvr-layout="1+5" title="1 Utama + 5 Sekunder">1+5</button>
+          <button class="nvr-layout-btn" data-nvr-layout="1+7" title="1 Utama + 7 Sekunder">1+7</button>
+        </div>
+
+        <button class="icon-button" id="openNvrFullscreenBtn" title="Mode Layar Penuh (F11)">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Page 1: Live View (Multi-Grid Wall + Sidebar + 24h Timeline) -->
+    <div class="open-nvr-page-panel active" id="nvrPageLive">
+      <div class="open-nvr-stage-split">
+        <!-- Left Sidebar: Camera Tree & Groups -->
+        <aside class="open-nvr-sidebar" id="openNvrSidebar">
+          <div class="open-nvr-sidebar-search">
+            <input type="text" id="nvrCamSearchInput" placeholder="🔍 Cari kamera atau area..." />
+          </div>
+          <div class="open-nvr-camera-tree" id="openNvrCameraTree">
+            <!-- Dynamic camera groups -->
+          </div>
+        </aside>
+
+        <!-- Center Stage: Dynamic Matrix Video Wall -->
+        <main class="open-nvr-wall-main" id="openNvrWallMain">
+          <div class="open-nvr-wall-grid layout-2x2" id="openNvrWallGrid">
+            <!-- Live Video Tiles inserted dynamically -->
+          </div>
+
+          <!-- Open-NVR Bottom HUD Timeline Scrubber -->
+          <footer class="open-nvr-bottom-hud">
+            <div class="nvr-hud-left">
+              <span class="nvr-hud-badge">● STREAM AKTIF</span>
+              <span class="nvr-hud-meta" id="nvrSelectedCamMeta">Workshop Bay 1 (1080p @ 25 FPS)</span>
+            </div>
+
+            <!-- 24h Event Timeline Bar -->
+            <div class="nvr-timeline-bar-wrap">
+              <div class="nvr-timeline-scale">
+                <span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>Now</span>
+              </div>
+              <div class="nvr-timeline-track" id="nvrTimelineTrack">
+                <!-- Event tick marks in red/orange -->
+                <div class="nvr-timeline-tick" style="left: 35%;" title="🚨 08:24 - Pelanggaran Garis Masuk"></div>
+                <div class="nvr-timeline-tick" style="left: 58%;" title="🚨 14:10 - Peringatan Kecepatan"></div>
+                <div class="nvr-timeline-tick" style="left: 82%;" title="🚨 19:45 - Gerakan Tak Dikenal"></div>
+                <div class="nvr-timeline-playhead" style="left: 95%;"></div>
+              </div>
+            </div>
+
+            <div class="nvr-hud-right">
+              <button class="button small secondary" id="btnOpenEvidenceVault" title="Buka Klip Rekaman Bukti">
+                <span>🎞️ Evidence Vault</span>
+              </button>
+            </div>
+          </footer>
+        </main>
+      </div>
+    </div>
+
+    <!-- Page 2: Dashboard (Open-NVR Dense Vitals & Alarms View) -->
+    <div class="open-nvr-page-panel" id="nvrPageDashboard" style="display:none;">
+      <div class="nvr-dashboard-container">
+        <!-- Vitals Header Row -->
+        <div class="nvr-vitals-row">
+          <div class="nvr-vital-card">
+            <div class="vital-label">CPU LOAD & HWACCEL</div>
+            <div class="vital-val font-mono">18<span class="vital-unit">%</span></div>
+            <div class="vital-sub">NVIDIA NVDEC · CUDA 12.4</div>
+            <div class="vital-bar"><div class="vital-bar-fill" style="width: 18%;"></div></div>
+          </div>
+          <div class="nvr-vital-card">
+            <div class="vital-label">SYSTEM MEMORY</div>
+            <div class="vital-val font-mono">3.4<span class="vital-unit">GB / 16GB</span></div>
+            <div class="vital-sub">21.2% Digunakan · 12.6GB Bebas</div>
+            <div class="vital-bar"><div class="vital-bar-fill" style="width: 21.2%;"></div></div>
+          </div>
+          <div class="nvr-vital-card">
+            <div class="vital-label">STORAGE POOL</div>
+            <div class="vital-val font-mono">142.5<span class="vital-unit">GB FREE</span></div>
+            <div class="vital-sub">500 GB Total · Ring-Buffer 30 Hari</div>
+            <div class="vital-bar"><div class="vital-bar-fill fill-amber" style="width: 71.5%;"></div></div>
+          </div>
+          <div class="nvr-vital-card">
+            <div class="vital-label">ONLINE CAMERAS</div>
+            <div class="vital-val font-mono text-green">8 / 8<span class="vital-unit">ACTIVE</span></div>
+            <div class="vital-sub">Bitrate Total: 18.6 Mbps · 200 FPS</div>
+            <div class="vital-bar"><div class="vital-bar-fill fill-green" style="width: 100%;"></div></div>
+          </div>
+        </div>
+
+        <!-- Middle Split: Mini Live Wall & Alarms Feed -->
+        <div class="nvr-dashboard-split">
+          <!-- Left: 2x2 Mini Live Wall -->
+          <div class="nvr-dash-panel">
+            <div class="nvr-dash-head">
+              <span class="dash-title">📺 MINI LIVE WALL</span>
+              <span class="dash-meta">4 Kamera Prioritas Utama</span>
+            </div>
+            <div class="nvr-mini-wall-grid" id="nvrMiniWallGrid">
+              <!-- Dynamically populated 4 mini feeds -->
+            </div>
+          </div>
+
+          <!-- Right: Alarms & Events Feed -->
+          <div class="nvr-dash-panel">
+            <div class="nvr-dash-head">
+              <span class="dash-title">🚨 ALARMS & INCIDENTS (HARI INI)</span>
+              <span class="dash-badge-danger">3 INSIDEN KRITIS</span>
+            </div>
+            <div class="nvr-alarms-feed">
+              <div class="alarm-item danger">
+                <span class="alarm-badge critical">CRITICAL</span>
+                <div class="alarm-content">
+                  <strong>Pelanggaran Garis Batas K3 (Tripwire Crossed)</strong>
+                  <span>Workshop Bay 1 · 08:24:12 · Terdeteksi 1 Pekerja Tanpa Rompi APD</span>
+                </div>
+                <button class="button small secondary btn-view-clip" data-clip="0824_ws01">▶️ Klip</button>
+              </div>
+              <div class="alarm-item warn">
+                <span class="alarm-badge warning">WARNING</span>
+                <div class="alarm-content">
+                  <strong>Peringatan Kecepatan Melebihi Batas (Speed Alert)</strong>
+                  <span>Warehouse Gate 2 · 14:10:45 · Forklift melaju 24 km/jam (Maks: 15 km/jam)</span>
+                </div>
+                <button class="button small secondary btn-view-clip" data-clip="1410_wh02">▶️ Klip</button>
+              </div>
+              <div class="alarm-item warn">
+                <span class="alarm-badge warning">WARNING</span>
+                <div class="alarm-content">
+                  <strong>Objek Mencurigakan di Zona Terlarang (Dwell Overtime)</strong>
+                  <span>Warehouse Gate 1 · 19:45:02 · Kotak teronggok di jalur darurat > 5 menit</span>
+                </div>
+                <button class="button small secondary btn-view-clip" data-clip="1945_wh01">▶️ Klip</button>
+              </div>
+              <div class="alarm-item ok">
+                <span class="alarm-badge ok">RESOLVED</span>
+                <div class="alarm-content">
+                  <strong>Area Kembali Steril (Auto-Clear)</strong>
+                  <span>Workshop Bay 3 · 21:00:15 · Seluruh personel telah meninggalkan area kerja</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom: Cameras Health Matrix Table -->
+        <div class="nvr-dash-panel" style="margin-top: 14px;">
+          <div class="nvr-dash-head">
+            <span class="dash-title">📋 MATRIKS KESEHATAN KAMERA (CAMERA HEALTH & BITRATE)</span>
+            <span class="dash-meta">8 Perangkat Terhubung via ONVIF Profile S/T</span>
+          </div>
+          <table class="nvr-health-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nama Kamera</th>
+                <th>Alamat IP</th>
+                <th>Resolusi & FPS</th>
+                <th>Bitrate</th>
+                <th>Model AI</th>
+                <th>HWAccel</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="nvrHealthTableBody">
+              <!-- Dynamically filled -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page 3: Evidence Vault -->
+    <div class="open-nvr-page-panel" id="nvrPageVault" style="display:none;">
+      <div class="nvr-vault-container">
+        <div class="nvr-vault-head">
+          <div>
+            <h3 style="margin:0; font-size:16px; color:#f8fafc;">🎞️ Evidence Vault (Rekaman Bukti Insiden)</h3>
+            <p style="margin:4px 0 0 0; font-size:12px; color:#94a3b8;">Klip video MP4 otomatis 15 detik (5 detik sebelum kejadian + 10 detik setelah kejadian) yang dipicu oleh alarm AI.</p>
+          </div>
+          <button class="button secondary small" id="nvrVaultRefreshBtn">🔄 Segarkan Daftar</button>
+        </div>
+        <div class="recordings-grid" id="nvrVaultClipsGrid">
+          <!-- Video clips dynamically inserted -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Page 4: Cameras & Devices Manager -->
+    <div class="open-nvr-page-panel" id="nvrPageDevices" style="display:none;">
+      <div class="nvr-devices-container">
+        <div class="nvr-devices-head">
+          <div>
+            <h3 style="margin:0; font-size:16px; color:#f8fafc;">⚙️ Manajemen Kamera & Penemuan Jaringan (ONVIF)</h3>
+            <p style="margin:4px 0 0 0; font-size:12px; color:#94a3b8;">Pindai subnet lokal secara otomatis via WS-Discovery UDP Multicast atau hubungkan kamera RTSP/ONVIF secara manual.</p>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="button primary small" id="nvrDevicesScanBtn">📡 Pindai Jaringan (Scan LAN)</button>
+            <button class="button secondary small" id="nvrDevicesAddBtn">+ Tambah Manual</button>
+          </div>
+        </div>
+        <div class="nvr-devices-grid" id="nvrDevicesGrid">
+          <!-- Configured cameras cards -->
+        </div>
+      </div>
+    </div>
+
   </section>
 
   <!-- Templates Modal -->
@@ -2209,6 +2462,127 @@
       </div>
     </div>
   </dialog>
+
+  <!-- AFI Open-NVR & CCTV Hub Modal -->
+  <dialog id="nvrCameraModal" class="modal nvr-modal">
+    <div class="modal-box modal-box-large nvr-box">
+      <div class="modal-head nvr-head">
+        <div class="nvr-head-title">
+          <div class="nvr-icon-badge">
+            <svg class="icon-svg icon-md" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          </div>
+          <div>
+            <span class="eyebrow">OPEN-NVR CCTV HUB</span>
+            <h2>Pusat Kamera CCTV & Rekaman Bukti</h2>
+            <p class="nvr-subtitle">Pindai kamera di jaringan lokal (WS-Discovery), kelola aliran sub-channel hemat CPU untuk AI, pantau live matrix wall 2x2/3x3, dan akses klip rekaman bukti kejadian.</p>
+          </div>
+        </div>
+        <button class="icon-button" id="closeNvrModalBtn" type="button" title="Tutup">
+          <svg class="icon-svg icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body-pad nvr-body">
+        <!-- NVR Nav Tabs -->
+        <div class="nvr-tabs-bar">
+          <button class="nvr-tab-btn active" data-tab="discover">🔍 Pindai Jaringan (Auto-Scan)</button>
+          <button class="nvr-tab-btn" data-tab="manual">➕ Tambah / Hubungkan Kamera</button>
+          <button class="nvr-tab-btn" data-tab="registered">📋 Kamera Terdaftar (<span id="nvrCamCountBadge">0</span>)</button>
+          <button class="nvr-tab-btn" data-tab="matrix">🔲 Matriks CCTV Live (Wall)</button>
+          <button class="nvr-tab-btn" data-tab="recordings">🎞️ Klip Bukti (Evidence Vault)</button>
+        </div>
+
+        <!-- Tab 1: Discover -->
+        <div class="nvr-tab-panel active" id="nvrTabDiscover">
+          <div class="nvr-scan-banner">
+            <div class="scan-radar-icon">📡</div>
+            <div class="scan-banner-text">
+              <h4>Pindai Kamera CCTV Otomatis di Jaringan Lokal</h4>
+              <p>Mencari kamera ONVIF (Hikvision, Dahua, Ezviz, TP-Link Tapo, Bardi, Uniview) via WS-Discovery & Probing Port SOAP tanpa perlu tahu IP kamera sebelumnya.</p>
+            </div>
+            <button class="button primary" id="nvrStartScanBtn" type="button">
+              <span>🚀 Mulai Pindai Jaringan</span>
+            </button>
+          </div>
+          <div id="nvrScanProgress" class="progress-bar-wrap" style="display:none; margin: 12px 0;">
+            <div class="progress-bar-indeterminate"></div>
+          </div>
+          <div class="nvr-discovered-grid" id="nvrDiscoveredGrid">
+            <!-- Discovered camera cards dynamically inserted here -->
+          </div>
+        </div>
+
+        <!-- Tab 2: Manual Connect -->
+        <div class="nvr-tab-panel" id="nvrTabManual" style="display:none;">
+          <div class="nvr-form-grid">
+            <div class="form-group">
+              <label>Alamat IP Kamera / Host</label>
+              <input type="text" id="nvrManualIp" placeholder="192.168.1.64" class="input-text" />
+            </div>
+            <div class="form-group">
+              <label>Port Kontrol ONVIF</label>
+              <input type="number" id="nvrManualPort" value="80" class="input-text" />
+            </div>
+            <div class="form-group">
+              <label>Nama Pengguna (Username)</label>
+              <input type="text" id="nvrManualUser" value="admin" class="input-text" />
+            </div>
+            <div class="form-group">
+              <label>Kata Sandi Kamera (Password)</label>
+              <input type="password" id="nvrManualPass" placeholder="••••••••" class="input-text" />
+            </div>
+            <div class="form-group full-width">
+              <label>Akselerasi Dekoder Hardware</label>
+              <select id="nvrManualHwaccel" class="input-select">
+                <option value="cpu">CPU Software Decode (Universal)</option>
+                <option value="cuda">NVIDIA CUDA / NVDEC (Hardware GPU)</option>
+                <option value="qsv">Intel QuickSync Video (QSV)</option>
+                <option value="dshow">Windows DirectShow / MSMF</option>
+              </select>
+            </div>
+            <div class="form-group full-width">
+              <button class="button primary" id="nvrTestConnectBtn" type="button">
+                <span>⚡ Uji Koneksi & Ambil Profil Stream</span>
+              </button>
+            </div>
+          </div>
+          <div id="nvrProfilesResult" class="nvr-profiles-card" style="display:none;">
+            <!-- Profiles dropdown, model info and save button -->
+          </div>
+        </div>
+
+        <!-- Tab 3: Registered Cameras -->
+        <div class="nvr-tab-panel" id="nvrTabRegistered" style="display:none;">
+          <div class="nvr-cameras-grid" id="nvrRegisteredGrid">
+            <!-- Camera cards -->
+          </div>
+        </div>
+
+        <!-- Tab 4: Live CCTV Matrix (Wall 2x2 / 3x3) -->
+        <div class="nvr-tab-panel" id="nvrTabMatrix" style="display:none;">
+          <div class="matrix-controls-bar">
+            <div class="matrix-layout-toggle">
+              <button class="btn-layout active" data-layout="2x2">2 × 2 Matrix</button>
+              <button class="btn-layout" data-layout="3x3">3 × 3 Matrix</button>
+              <button class="btn-layout" data-layout="1x1">Fokus 1 Layar</button>
+            </div>
+            <button class="button secondary small" id="nvrRefreshMatrixBtn">🔄 Segarkan Frame</button>
+          </div>
+          <div class="cctv-wall-grid layout-2x2" id="cctvWallGrid">
+            <!-- 4 to 9 camera video feeds -->
+          </div>
+        </div>
+
+        <!-- Tab 5: Evidence Vault -->
+        <div class="nvr-tab-panel" id="nvrTabRecordings" style="display:none;">
+          <div class="recordings-toolbar">
+            <span class="eyebrow">REKAMAN KEJADIAN PRE-ROLL / POST-ROLL</span>
+            <button class="button secondary small" id="nvrRefreshRecordingsBtn">🔄 Segarkan Bukti</button>
+          </div>
+          <div class="recordings-grid" id="nvrRecordingsGrid">
+            <!-- Video recordings clips list -->
+          </div>
+        </div>
 
       </div>
     </div>

@@ -390,6 +390,15 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 - **Dual-Mode Full-Frame + Slices Merging**: Mampu menggabungkan deteksi makro dari bingkai utuh (`includeFullFrame: True`) dengan ubin mikro secara terpadu.
 - **Overlay Garis Kisi Ubin (Slicing Grid Visualizer)**: Opsi visual menampilkan garis kisi pembagian ubin transparan di video Live Preview untuk memudahkan operator mengkalibrasi ukuran ubin.
 
+### 🎥 54. AFI Open-NVR & CCTV Hub (Auto-Discovery, Single-Ingest Hub, Live Wall & Evidence Vault)
+- **Pemindaian Otomatis (WS-Discovery & SOAP Probing)**: Memindai seluruh subnet lokal via UDP Multicast (`239.255.255.250:3702`) dan probe port kandidat untuk mendeteksi kamera ONVIF (Hikvision, Dahua, Ezviz, TP-Link Tapo, Bardi, Uniview) tanpa perlu mengetahui alamat IP sebelumnya.
+- **Autentikasi Ganda (HTTP Digest & WS-Security)**: Menembus proteksi keamanan vendor CCTV modern dengan enkripsi digest SHA-1 tanpa dependensi pustaka luar.
+- **Single-Ingest Multi-Consumer Hub**: Kamera CCTV fisik hanya ditarik satu kali ke dalam buffer memori bersama, lalu didistribusikan ke banyak alur kerja AI dan tampilan dashboard secara simultan tanpa membuat kamera freeze.
+- **Motion Gate (Penyaring Gerakan CCTV)**: Memeriksa pergerakan optik (<1% CPU) dan melewati inferensi AI saat area pengawasan statis, menghemat 70–85% daya komputasi server.
+- **Perekam Klip Bukti (Evidence Vault Pre/Post-Roll)**: Otomatis mengekspor klip MP4 15 detik (5s sebelum kejadian + 10s setelah kejadian) beserta thumbnail momen saat terjadi pelanggaran atau pemicu alarm.
+- **Privacy & Exclusion Mask**: Memblokir false alarm akibat goyangan ditiup angin atau jalan raya dengan zona masking poligon fleksibel.
+- **Akselerasi Dekoder Hardware**: Pilihan akselerasi GPU otomatis (NVIDIA CUDA/NVDEC, Intel QuickSync, VA-API, dan Windows DirectShow).
+
 
 ---
 

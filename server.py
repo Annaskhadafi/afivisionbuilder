@@ -233,6 +233,18 @@ import workflow_export  # noqa: E402
 
 
 from fleet_manager import fleet_manager  # noqa: E402
+from cctv_hub import cctv_hub  # noqa: E402
+from onvif_engine import (  # noqa: E402
+    discover_onvif_devices,
+    probe_onvif_endpoint,
+    get_camera_profiles_and_rtsp,
+    ptz_continuous_move,
+    ptz_stop,
+)
+from event_recorder import EventClipRecorder, RECORDINGS_DIR  # noqa: E402
+from ffmpeg_decoder import HwAccelPresets  # noqa: E402
+from motion_gate import MotionGate  # noqa: E402
+from masking_engine import PrivacyMaskEngine  # noqa: E402
 
 
 
@@ -1458,6 +1470,36 @@ def download_export_code(project_id: str, request: Request) -> FileResponse:
 
 
     return FileResponse(archive_path, media_type="application/zip", filename=filename, background=BackgroundTask(archive_path.unlink, missing_ok=True))
+
+
+
+@app.post("/api/projects/{project_id}/export-opennvr")
+@app.get("/api/projects/{project_id}/export-opennvr")
+def download_export_opennvr(project_id: str, request: Request) -> FileResponse:
+    _write_allowed(request)
+    payload = _project_payload(project_id)
+    workflow = payload.get("workflow") or {}
+    project_name = payload.get("project", {}).get("name", "Afivision-Workflow")
+
+    import afivision_opennvr_export
+
+    with tempfile.NamedTemporaryFile(prefix="afivision-opennvr-", suffix=".zip", delete=False) as temporary:
+        archive_path = Path(temporary.name)
+
+    try:
+        afivision_opennvr_export.build_opennvr_bundle_zip(workflow, project_name, ROOT, archive_path)
+    except Exception:
+        archive_path.unlink(missing_ok=True)
+        raise
+
+    safe_name = afivision_opennvr_export._slug(project_name)
+    filename = f"afivision-opennvr-{safe_name}.zip"
+    return FileResponse(
+        archive_path,
+        media_type="application/zip",
+        filename=filename,
+        background=BackgroundTask(archive_path.unlink, missing_ok=True),
+    )
 
 
 
@@ -7557,6 +7599,144 @@ def stop_all_fleet_workflows(request: Request) -> dict:
 
 
 
+# ---------------------------------------------------------------------------
+# Open-NVR & CCTV Hub Endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/nvr/cameras")
+def get_nvr_cameras(request: Request) -> dict:
+    """List all registered CCTV cameras with online status."""
+    return {"cameras": cctv_hub.list_cameras()}
+
+
+@app.post("/api/nvr/cameras")
+def save_nvr_camera(request: Request, body: dict = Body(...)) -> dict:
+    """Register or update a CCTV camera configuration."""
+    _write_allowed(request)
+    cam = cctv_hub.add_or_update_camera(body or {})
+    return {"ok": True, "camera": cam}
+
+
+@app.delete("/api/nvr/cameras/{camera_id}")
+def delete_nvr_camera(request: Request, camera_id: str) -> dict:
+    """Delete a registered CCTV camera."""
+    _write_allowed(request)
+    ok = cctv_hub.delete_camera(camera_id)
+    if not ok:
+        raise HTTPException(404, "Kamera CCTV tidak ditemukan")
+    return {"ok": True, "message": "Kamera CCTV berhasil dihapus"}
+
+
+@app.post("/api/nvr/discover")
+async def discover_nvr_cameras(request: Request, body: dict = Body(default={})) -> dict:
+    """Discover ONVIF cameras on the local network using WS-Discovery and candidate port probe."""
+    _write_allowed(request)
+    timeout = float((body or {}).get("timeout", 2.5) or 2.5)
+    devices = await discover_onvif_devices(timeout=timeout)
+    return {"ok": True, "devices": devices}
+
+
+@app.post("/api/nvr/probe")
+async def probe_nvr_camera(request: Request, body: dict = Body(...)) -> dict:
+    """Probe an IP and port for ONVIF service."""
+    _write_allowed(request)
+    ip = str((body or {}).get("ip") or "").strip()
+    port = int((body or {}).get("port", 80) or 80)
+    scheme = str((body or {}).get("scheme", "http") or "http")
+    if not ip:
+        raise HTTPException(400, "Parameter IP wajib diisi")
+    res = await probe_onvif_endpoint(ip, port=port, scheme=scheme)
+    return {"ok": bool(res is not None), "device": res}
+
+
+@app.post("/api/nvr/connect")
+async def connect_nvr_camera(request: Request, body: dict = Body(...)) -> dict:
+    """Authenticate and fetch profiles, media info, and RTSP stream URIs."""
+    _write_allowed(request)
+    ip = str((body or {}).get("ip") or "").strip()
+    username = str((body or {}).get("username") or "admin").strip()
+    password = str((body or {}).get("password") or "").strip()
+    port = int((body or {}).get("port", 80) or 80)
+    scheme = str((body or {}).get("scheme", "http") or "http")
+    if not ip:
+        raise HTTPException(400, "Parameter IP wajib diisi")
+    try:
+        data = await get_camera_profiles_and_rtsp(ip, username, password, port=port, scheme=scheme)
+        return {"ok": True, **data}
+    except Exception as exc:
+        raise HTTPException(400, f"Gagal menghubungkan ke kamera ONVIF: {exc}")
+
+
+@app.get("/api/nvr/preview/{camera_id}")
+def get_nvr_camera_preview(camera_id: str) -> Response:
+    """Get live JPEG snapshot preview of a camera from shared memory buffer."""
+    jpeg_bytes = cctv_hub.get_jpeg(camera_id)
+    if not jpeg_bytes:
+        blank = np.zeros((1, 1, 3), dtype=np.uint8)
+        _, encoded = cv2.imencode(".jpg", blank)
+        return Response(content=encoded.tobytes(), media_type="image/jpeg")
+    return Response(
+        content=jpeg_bytes,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+@app.post("/api/nvr/ptz")
+async def control_nvr_ptz(request: Request, body: dict = Body(...)) -> dict:
+    """Control camera PTZ pan, tilt, zoom or stop."""
+    _write_allowed(request)
+    ip = str((body or {}).get("ip") or "").strip()
+    username = str((body or {}).get("username") or "admin").strip()
+    password = str((body or {}).get("password") or "").strip()
+    profile_token = str((body or {}).get("profileToken") or "").strip()
+    command = str((body or {}).get("command") or "move").strip().lower()
+    port = int((body or {}).get("port", 80) or 80)
+    if command == "stop":
+        ok = await ptz_stop(ip, username, password, profile_token, port=port)
+    else:
+        x = float((body or {}).get("x", 0.0) or 0.0)
+        y = float((body or {}).get("y", 0.0) or 0.0)
+        zoom = float((body or {}).get("zoom", 0.0) or 0.0)
+        ok = await ptz_continuous_move(ip, username, password, profile_token, x=x, y=y, zoom=zoom, port=port)
+    return {"ok": ok}
+
+
+@app.get("/api/nvr/hwaccel")
+def get_nvr_hwaccel(request: Request) -> dict:
+    """List available hardware acceleration backends on host."""
+    return {"backends": HwAccelPresets.get_available_backends()}
+
+
+@app.get("/api/nvr/recordings")
+def get_nvr_recordings(request: Request, camera_id: str | None = None) -> dict:
+    """List event video recordings from Evidence Vault."""
+    return {"recordings": EventClipRecorder.list_recordings(camera_id)}
+
+
+@app.get("/api/nvr/recordings/{filename}")
+def stream_nvr_recording(filename: str):
+    """Stream or download an MP4 event video clip or JPEG thumbnail."""
+    safe_name = os.path.basename(filename)
+    path = os.path.join(RECORDINGS_DIR, safe_name)
+    if not os.path.exists(path):
+        raise HTTPException(404, "Berkas rekaman tidak ditemukan")
+    media_type = "image/jpeg" if safe_name.endswith(".jpg") else "video/mp4"
+    return FileResponse(path, media_type=media_type, filename=safe_name)
+
+
+@app.delete("/api/nvr/recordings/{filename}")
+def delete_nvr_recording(request: Request, filename: str) -> dict:
+    """Delete an MP4 event clip and its thumbnail."""
+    _write_allowed(request)
+    ok = EventClipRecorder.delete_recording(filename)
+    if not ok:
+        raise HTTPException(404, "Berkas rekaman tidak ditemukan atau gagal dihapus")
+    return {"ok": True, "message": "Rekaman berhasil dihapus"}
+
+
+
 
 
 
@@ -8985,6 +9165,30 @@ def detect_cameras(force: bool = False) -> dict:
 
 
         cameras = [{"index": 0, "label": "Camera 0 (Default)"}]
+
+
+
+    nvr_cams = cctv_hub.list_cameras()
+
+    for nc in nvr_cams:
+
+        cameras.append({
+
+            "index": nc["id"],
+
+            "id": nc["id"],
+
+            "label": f"🎥 {nc['name']} ({nc['selected_profile']})",
+
+            "name": nc["name"],
+
+            "is_nvr": True,
+
+            "rtsp_url": nc.get("rtsp_url", ""),
+
+            "online": nc.get("is_online", False),
+
+        })
 
 
 

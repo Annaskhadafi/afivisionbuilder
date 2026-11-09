@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
   "project_id": "default",
-  "title": "Interactive Web Computer Vision Studio",
-  "theme": "light",
+  "title": "AI CCTV PRO — Security Command Center",
+  "theme": "dark",
   "canvas": {
     "width": 1440,
     "height": 980,
@@ -10,95 +10,464 @@
   },
   "widgets": [
     {
-      "id": "w_cv_navbar",
-      "type": "dashboard_navbar",
-      "x": 0,
-      "y": 0,
-      "w": 1440,
-      "h": 56,
+      "id": "w_head_brand",
+      "type": "custom_text",
+      "x": 20,
+      "y": 14,
+      "w": 460,
+      "h": 50,
       "z": 1,
       "config": {
-        "title": "WEB COMPUTER VISION STUDIO",
-        "subtitle": "Interactive Inference & Analytics Platform",
-        "showClock": true,
-        "showShift": true
+        "text": "🛡️ AI CCTV PRO — Command Center",
+        "tag": "h1",
+        "fontSize": 19,
+        "color": "#00E5FF",
+        "subtitle": "AI-Powered Intelligent Surveillance Platform"
       }
     },
     {
-      "id": "w_cv_input",
-      "type": "media_input_controller",
-      "x": 20,
-      "y": 70,
-      "w": 440,
-      "h": 460,
-      "z": 2,
+      "id": "w_head_sys_status",
+      "type": "status_badge",
+      "x": 730,
+      "y": 14,
+      "w": 290,
+      "h": 48,
+      "z": 1,
       "config": {
-        "title": "Media Input & Inference Controller",
-        "defaultMode": "single_analysis",
-        "confidence": 0.25,
-        "iouThreshold": 0.45,
-        "autoRunOnDrop": true
+        "label": "SYSTEM STATUS: All operational",
+        "status": "online",
+        "shift": "● Live Pipeline Active"
       }
     },
     {
-      "id": "w_cv_kpi",
+      "id": "w_head_alert_status",
+      "type": "status_badge",
+      "x": 1035,
+      "y": 14,
+      "w": 190,
+      "h": 48,
+      "z": 1,
+      "config": {
+        "label": "3 CRITICAL ALERTS",
+        "status": "danger",
+        "shift": "Tindakan Diperlukan"
+      }
+    },
+    {
+      "id": "w_head_export_excel",
+      "type": "excel_export_btn",
+      "x": 1240,
+      "y": 14,
+      "w": 180,
+      "h": 48,
+      "z": 1,
+      "config": {
+        "label": "Unduh Rekap Excel",
+        "includeEvents": true,
+        "includeMetrics": true
+      }
+    },
+    {
+      "id": "w_stat_cameras",
       "type": "stat_kpi_card",
       "x": 20,
-      "y": 545,
-      "w": 440,
-      "h": 105,
+      "y": 74,
+      "w": 268,
+      "h": 86,
       "z": 2,
       "config": {
-        "title": "Total Objek Terdeteksi",
-        "metricKey": "total_detected",
-        "accentColor": "#0284c7",
-        "icon": "users"
+        "title": "CAMERAS",
+        "value": 24,
+        "icon": "camera",
+        "sublabel": "22 Online / 2 Offline",
+        "accent": "#00E5FF",
+        "metricKey": "cameras_online"
       }
     },
     {
-      "id": "w_cv_viewer",
-      "type": "vision_result_viewer",
-      "x": 480,
-      "y": 70,
-      "w": 940,
-      "h": 580,
+      "id": "w_stat_people",
+      "type": "stat_kpi_card",
+      "x": 303,
+      "y": 74,
+      "w": 268,
+      "h": 86,
       "z": 2,
       "config": {
-        "title": "Hasil Visual Analisis AI (Annotated Result)",
-        "showBeforeAfterSlider": true,
-        "showZoomControls": true,
-        "showDownloadBtn": true
+        "title": "PEOPLE",
+        "value": 128,
+        "icon": "users",
+        "sublabel": "Currently Detected",
+        "accent": "#A855F7",
+        "metricKey": "total_person"
       }
     },
     {
-      "id": "w_cv_table_conf",
-      "type": "confidence_table",
+      "id": "w_stat_entries",
+      "type": "stat_kpi_card",
+      "x": 586,
+      "y": 74,
+      "w": 268,
+      "h": 86,
+      "z": 2,
+      "config": {
+        "title": "ENTRIES",
+        "value": 74,
+        "icon": "arrow-down-right",
+        "sublabel": "Today's Entries",
+        "accent": "#14B8A6",
+        "metricKey": "today_entries"
+      }
+    },
+    {
+      "id": "w_stat_exits",
+      "type": "stat_kpi_card",
+      "x": 869,
+      "y": 74,
+      "w": 268,
+      "h": 86,
+      "z": 2,
+      "config": {
+        "title": "EXITS",
+        "value": 61,
+        "icon": "arrow-up-right",
+        "sublabel": "Today's Exits",
+        "accent": "#10B981",
+        "metricKey": "today_exits"
+      }
+    },
+    {
+      "id": "w_stat_occupancy",
+      "type": "stat_kpi_card",
+      "x": 1152,
+      "y": 74,
+      "w": 268,
+      "h": 86,
+      "z": 2,
+      "config": {
+        "title": "OCCUPANCY",
+        "value": "68%",
+        "icon": "activity",
+        "sublabel": "Average Zones",
+        "accent": "#00E5FF",
+        "metricKey": "avg_occupancy"
+      }
+    },
+    {
+      "id": "w_cctv_matrix",
+      "type": "cctv_grid_2x2",
       "x": 20,
-      "y": 665,
-      "w": 720,
-      "h": 295,
-      "z": 2,
+      "y": 172,
+      "w": 935,
+      "h": 505,
+      "z": 3,
       "config": {
-        "title": "Tabel Hasil Konfiden Deteksi (Detections)",
-        "showCrops": true,
-        "showScoreBar": true,
-        "showBboxCoords": true,
-        "showExportBtn": true
+        "title": "Live Surveillance Wall (2x2 Matrix)",
+        "cams": [
+          {
+            "id": "cam_01",
+            "name": "CAM-01 | Main Entrance",
+            "nodeId": "preview",
+            "status": "LIVE",
+            "res": "1080p 25 FPS",
+            "detections": [
+              {
+                "label": "PERSON",
+                "conf": "98%",
+                "color": "cyan"
+              },
+              {
+                "label": "PERSON",
+                "conf": "96%",
+                "color": "cyan"
+              }
+            ]
+          },
+          {
+            "id": "cam_02",
+            "name": "CAM-02 | Parking Area",
+            "nodeId": "detector",
+            "status": "LIVE",
+            "res": "1080p 25 FPS",
+            "detections": [
+              {
+                "label": "CAR",
+                "conf": "97%",
+                "color": "cyan"
+              },
+              {
+                "label": "PERSON",
+                "conf": "89%",
+                "color": "cyan"
+              }
+            ]
+          },
+          {
+            "id": "cam_03",
+            "name": "CAM-03 | Reception",
+            "nodeId": "preview",
+            "status": "LIVE",
+            "res": "1080p 25 FPS",
+            "detections": [
+              {
+                "label": "PERSON",
+                "conf": "95%",
+                "color": "cyan"
+              }
+            ]
+          },
+          {
+            "id": "cam_04",
+            "name": "CAM-04 | Restricted Zone",
+            "nodeId": "detector",
+            "status": "LIVE",
+            "res": "1080p 25 FPS",
+            "hasLaserGrid": true,
+            "alert": {
+              "label": "INTRUSION 99%",
+              "color": "red"
+            }
+          }
+        ]
       }
     },
     {
-      "id": "w_cv_table_analytics",
-      "type": "custom_analytics_table",
-      "x": 760,
-      "y": 665,
-      "w": 660,
-      "h": 295,
-      "z": 2,
+      "id": "w_active_alerts",
+      "type": "active_alerts_list",
+      "x": 970,
+      "y": 172,
+      "w": 450,
+      "h": 215,
+      "z": 3,
       "config": {
-        "title": "Tabel Kustom Analitik Alur Kerja",
-        "showZoneSummary": true,
-        "showClassCounter": true,
-        "showExportBtn": true
+        "title": "ACTIVE CRITICAL ALERTS",
+        "alerts": [
+          {
+            "title": "Intrusion Detected",
+            "loc": "CAM-04 | Restricted Zone - 18:52:10",
+            "level": "CRITICAL",
+            "icon": "shield-alert"
+          },
+          {
+            "title": "Fire Detection Alert",
+            "loc": "CAM-03 | Reception - 18:50:42",
+            "level": "CRITICAL",
+            "icon": "flame"
+          },
+          {
+            "title": "High Occupancy Warning",
+            "loc": "CAM-02 | Parking Area - 18:46:31",
+            "level": "WARNING",
+            "icon": "users"
+          },
+          {
+            "title": "Camera Feed Restored",
+            "loc": "CAM-01 | Warehouse - 18:41:33",
+            "level": "INFO",
+            "icon": "camera"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_donut_occupancy",
+      "type": "donut_chart",
+      "x": 970,
+      "y": 398,
+      "w": 450,
+      "h": 165,
+      "z": 3,
+      "config": {
+        "title": "ZONE OCCUPANCY",
+        "centerValue": "68%",
+        "centerLabel": "Zone Occupancy",
+        "segments": [
+          {
+            "label": "Normal Zones",
+            "pct": 68,
+            "color": "#00E676"
+          },
+          {
+            "label": "High Traffic",
+            "pct": 22,
+            "color": "#FFAA00"
+          },
+          {
+            "label": "Critical Alert",
+            "pct": 10,
+            "color": "#FF334B"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_ai_engine_status",
+      "type": "ai_engine_status",
+      "x": 970,
+      "y": 575,
+      "w": 450,
+      "h": 102,
+      "z": 3,
+      "config": {
+        "title": "AI ENGINE STATUS — All Services Online",
+        "services": [
+          {
+            "name": "Object Detection",
+            "status": "ONLINE"
+          },
+          {
+            "name": "Object Tracking",
+            "status": "ONLINE"
+          },
+          {
+            "name": "Zone Analytics",
+            "status": "ONLINE"
+          },
+          {
+            "name": "Event Manager",
+            "status": "ONLINE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_sys_health",
+      "type": "system_health_vitals",
+      "x": 20,
+      "y": 690,
+      "w": 268,
+      "h": 265,
+      "z": 4,
+      "config": {
+        "title": "SYSTEM HEALTH",
+        "vitals": [
+          {
+            "name": "CPU Usage",
+            "val": "23%",
+            "pct": 23,
+            "color": "#3B82F6"
+          },
+          {
+            "name": "RAM Usage",
+            "val": "41%",
+            "pct": 41,
+            "color": "#00E5FF"
+          },
+          {
+            "name": "Disk Usage",
+            "val": "62%",
+            "pct": 62,
+            "color": "#FFAA00"
+          },
+          {
+            "name": "Network",
+            "val": "128 Mbps",
+            "pct": 72,
+            "color": "#00E676"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_zone_meters",
+      "type": "zone_occupancy_meters",
+      "x": 303,
+      "y": 690,
+      "w": 268,
+      "h": 265,
+      "z": 4,
+      "config": {
+        "title": "ZONE OCCUPANCY",
+        "zones": [
+          {
+            "name": "Zone 1 (Entrance)",
+            "pct": 68,
+            "color": "#00E676"
+          },
+          {
+            "name": "Zone 2 (Parking Area)",
+            "pct": 43,
+            "color": "#00E676"
+          },
+          {
+            "name": "Zone 3 (Restricted)",
+            "pct": 82,
+            "color": "#FFAA00"
+          },
+          {
+            "name": "Zone 4 (Office)",
+            "pct": 12,
+            "color": "#00E5FF"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_trend_chart",
+      "type": "trend_chart",
+      "x": 586,
+      "y": 690,
+      "w": 330,
+      "h": 265,
+      "z": 4,
+      "config": {
+        "title": "ENTRY / EXIT TREND",
+        "metricKey": "vehicle_count",
+        "chartType": "multi_spline",
+        "rangeHours": 24
+      }
+    },
+    {
+      "id": "w_det_summary",
+      "type": "detection_summary",
+      "x": 930,
+      "y": 690,
+      "w": 245,
+      "h": 265,
+      "z": 4,
+      "config": {
+        "title": "DETECTION SUMMARY",
+        "items": [
+          {
+            "label": "People",
+            "count": "1,182",
+            "icon": "user",
+            "color": "#00E676"
+          },
+          {
+            "label": "Vehicles",
+            "count": "248",
+            "icon": "car",
+            "color": "#00E5FF"
+          },
+          {
+            "label": "Bags",
+            "count": "32",
+            "icon": "briefcase",
+            "color": "#FFAA00"
+          },
+          {
+            "label": "Other",
+            "count": "20",
+            "icon": "box",
+            "color": "#A855F7"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w_sys_info",
+      "type": "system_info",
+      "x": 1190,
+      "y": 690,
+      "w": 230,
+      "h": 265,
+      "z": 4,
+      "config": {
+        "title": "SYSTEM INFORMATION",
+        "platform": "AI CCTV PRO v2.0",
+        "uptime": "15d 07h 42m",
+        "temp": "42°C",
+        "status": "Stable"
       }
     }
   ],

@@ -615,6 +615,19 @@ NODE_BLUEPRINTS = {
         "y": 740,
         "config": {"packageName": "", "version": "1.0.0", "includeModels": False},
     },
+    "event_clip_recorder": {
+        "title": "Perekam Klip Bukti (Pre/Post-Roll)",
+        "subtitle": "Merekam video bukti MP4 otomatis 5 detik sebelum (pre-roll) + 10 detik setelah kejadian alarm",
+        "category": "Outputs & Export",
+        "x": 910,
+        "y": 820,
+        "config": {
+            "preRollSeconds": 5.0,
+            "postRollSeconds": 10.0,
+            "targetFps": 15,
+            "saveThumbnail": True,
+        },
+    },
     "input": {
         "title": "Input",
         "subtitle": "Sumber kamera USB/webcam, Daheng, YouTube stream, gambar, atau file video",
@@ -765,6 +778,18 @@ NODE_BLUEPRINTS = {
             "matchMetric": "IOU",
             "includeFullFrame": True,
             "showSlicingGrid": False,
+        },
+    },
+    "privacy_mask": {
+        "title": "Privacy & Exclusion Mask",
+        "subtitle": "Topeng zona poligon untuk memblokir deteksi palsu (ranting/jalan) atau sensor blur area sensitif",
+        "category": "Image Preprocessing",
+        "x": 330,
+        "y": 190,
+        "config": {
+            "mode": "filter_detections",
+            "showMaskOverlay": True,
+            "polygons": [],
         },
     },
     "camera_focus": {
@@ -1805,6 +1830,20 @@ NODE_BLUEPRINTS = {
             "mode": "suppress",
             "escalateIntervalSeconds": 60.0,
             "clearHoldSeconds": 3.0,
+        },
+    },
+    "motion_gate": {
+        "title": "Motion Gate (Penyaring Gerakan CCTV)",
+        "subtitle": "Penyaring frame statis dengan background subtraction (<1% CPU) untuk menghemat 70-85% daya komputasi AI",
+        "category": "Logic & Flow Control",
+        "x": 620,
+        "y": 1350,
+        "config": {
+            "motionThreshold": 0.015,
+            "minAreaPx": 500,
+            "cooldownFrames": 15,
+            "skipInferenceWhenStatic": True,
+            "showMotionOverlay": True,
         },
     },
     "and_or_logic": {

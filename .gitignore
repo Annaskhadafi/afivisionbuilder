@@ -17,6 +17,9 @@ __pycache__/
 # Runtime outputs & uploads
 data/outputs/*
 !data/outputs/.gitkeep
+data/recordings/*
+!data/recordings/.gitkeep
+!data/recordings/recordings_catalog.json
 data/uploads/*
 !data/uploads/.gitkeep
 data/models/[0-9a-f][0-9a-f]*

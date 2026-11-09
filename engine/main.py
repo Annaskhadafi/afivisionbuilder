@@ -3793,6 +3793,21 @@ class OpenCVInputSource:
         self._youtube_is_live = False
 
     def open(self) -> tuple[str, int, int]:
+        # Check if this input is backed by AFI Open-NVR Hub
+        nvr_id = str(self.config.get("nvrCameraId") or "").strip()
+        if not nvr_id and str(self.config.get("source", "")).startswith("cctv_"):
+            nvr_id = str(self.config.get("source")).strip()
+        if nvr_id:
+            try:
+                from cctv_hub import cctv_hub
+            except ImportError:
+                from engine.cctv_hub import cctv_hub
+            cam_info = cctv_hub.get_camera(nvr_id)
+            if cam_info and cam_info.get("rtsp_url"):
+                self.config["streamUrl"] = cam_info["rtsp_url"]
+                if cam_info.get("username"):
+                    self.config["username"] = cam_info["username"]
+
         # Check if this input config is from an ip_camera node or has rtsp/http streamUrl
         conn_mode = str(self.config.get("connectionMode", "direct") or "direct").lower()
         if conn_mode == "gateway":
