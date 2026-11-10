@@ -5208,6 +5208,8 @@
           'workflow-17-python-script', 'workflow-18-output', 'workflow-19-ip-camera',
           'workflow-20-inspection', 'custom-workshop-zone', 'custom-warehouse-exit',
           'ai-agent-safety-auditor',
+          'smart_parking_management', 'retail_queue_management', 'ai_gym_ergonomic',
+          'driver_blindspot_vision', 'live_analytics_hud',
         ];
         filteredTemplates.forEach(t => {
           const artId = templateArtIds.includes(t.id) ? t.id : null;

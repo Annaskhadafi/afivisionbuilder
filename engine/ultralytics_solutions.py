@@ -22,6 +22,64 @@ import numpy as np
 # 1. SMART PARKING MANAGEMENT (ParkingManagement)
 # ============================================================================
 
+def extract_detection_box(d: dict, frame_shape: tuple[int, int] | None = None) -> list[float] | None:
+    """Extract [x1, y1, x2, y2] from detection dict supporting various formats."""
+    if not isinstance(d, dict):
+        return None
+    # 1. Check xyxy
+    if "xyxy" in d and isinstance(d["xyxy"], (list, tuple)) and len(d["xyxy"]) >= 4:
+        return [float(v) for v in d["xyxy"][:4]]
+    # 2. Check box
+    if "box" in d and isinstance(d["box"], (list, tuple)) and len(d["box"]) >= 4:
+        b = d["box"]
+        return [float(b[0]), float(b[1]), float(b[2]), float(b[3])]
+    # 3. Check bbox: [x, y, w, h]
+    if "bbox" in d and isinstance(d["bbox"], (list, tuple)) and len(d["bbox"]) >= 4:
+        x, y, w, h = [float(v) for v in d["bbox"][:4]]
+        return [x, y, x + w, y + h]
+    # 4. Check x, y, width/w, height/h
+    if "x" in d and "y" in d:
+        x = float(d["x"])
+        y = float(d["y"])
+        w = float(d.get("width", d.get("w", 0)))
+        h = float(d.get("height", d.get("h", 0)))
+        return [x, y, x + w, y + h]
+    return None
+
+
+def extract_detection_class(d: dict) -> str:
+    """Extract lowercase class name from detection dict."""
+    if not isinstance(d, dict):
+        return ""
+    for k in ("class", "class_name", "label", "rawClass", "name"):
+        v = d.get(k)
+        if v is not None and str(v).strip():
+            return str(v).strip().casefold()
+    return ""
+
+
+def normalize_polygon_points(points: list, frame_shape: tuple[int, int]) -> np.ndarray:
+    """Convert points list to ndarray, scaling normalized coordinates (0..1) if needed."""
+    if not points:
+        return np.empty((0, 2), dtype=np.int32)
+    h, w = frame_shape[:2]
+    # Check if normalized (all coords <= 1.0)
+    is_normalized = all(
+        (0.0 <= pt[0] <= 1.0 and 0.0 <= pt[1] <= 1.0)
+        for pt in points if len(pt) >= 2
+    )
+    res = []
+    for pt in points:
+        if len(pt) < 2:
+            continue
+        px, py = float(pt[0]), float(pt[1])
+        if is_normalized and w > 1 and h > 1:
+            px *= w
+            py *= h
+        res.append([int(px), int(py)])
+    return np.array(res, dtype=np.int32)
+
+
 def _point_in_polygon(x: float, y: float, polygon: list[list[float]]) -> bool:
     """Ray casting algorithm to test point in polygon."""
     n = len(polygon)
@@ -85,13 +143,15 @@ def process_parking_management(
     now: float,
 ) -> tuple[dict, list[dict], dict]:
     """Evaluates parking slots occupancy against vehicle detections."""
-    slots_config = config.get("slots") or []
-    # If no slots defined, generate default 4 demo slots across bottom half
-    if not slots_config and frame is not None and hasattr(frame, "shape"):
-        h, w = frame.shape[:2]
+    frame_shape = frame.shape[:2] if frame is not None and hasattr(frame, "shape") else (720, 1280)
+    h, w = frame_shape
+
+    slots_config = config.get("slots") or state.get("slots_config") or []
+    # If no slots defined, generate default 4 demo slots across middle-bottom half
+    if not slots_config:
         sw = w // 4
-        sy = int(h * 0.55)
-        sh = int(h * 0.35)
+        sy = int(h * 0.40)
+        sh = int(h * 0.45)
         slots_config = [
             {"id": f"P-{i+1}", "name": f"Slot {i+1}", "points": [
                 [i * sw + 20, sy], [(i + 1) * sw - 20, sy],
@@ -99,6 +159,7 @@ def process_parking_management(
             ]}
             for i in range(4)
         ]
+        state["slots_config"] = slots_config
 
     target_classes = {
         c.strip().casefold()
@@ -110,16 +171,12 @@ def process_parking_management(
     # Filter detections to target classes
     vehicle_boxes = []
     for d in detections:
-        c_label = str(d.get("class") or d.get("class_name") or "").casefold()
+        c_label = extract_detection_class(d)
         if not target_classes or c_label in target_classes or not c_label:
-            box = d.get("bbox") or d.get("xyxy")
+            box = extract_detection_box(d, frame_shape)
             if box and len(box) >= 4:
-                if "bbox" in d and len(d["bbox"]) >= 4 and "xyxy" not in d:
-                    x, y, w, h = d["bbox"][:4]
-                    box = [x, y, x + w, y + h]
                 vehicle_boxes.append((box, d))
 
-    frame_shape = frame.shape[:2] if frame is not None and hasattr(frame, "shape") else (720, 1280)
     slot_statuses = {}
     events = []
     prev_statuses = state.setdefault("prev_statuses", {})
@@ -130,7 +187,9 @@ def process_parking_management(
         raw_pts = slot.get("points") or []
         if len(raw_pts) < 3:
             continue
-        poly_pts = np.array(raw_pts, dtype=np.int32)
+        poly_pts = normalize_polygon_points(raw_pts, frame_shape)
+        if len(poly_pts) < 3:
+            continue
         is_occupied = False
         occupying_vehicle = None
 
@@ -150,7 +209,7 @@ def process_parking_management(
             "id": s_id,
             "name": str(slot.get("name") or s_id),
             "status": curr,
-            "points": raw_pts,
+            "points": poly_pts.tolist(),
             "vehicle": occupying_vehicle,
         }
 
@@ -196,9 +255,13 @@ def draw_parking_overlay(frame: Any, slot_statuses: dict, summary_metrics: dict,
     if frame is None or not hasattr(frame, "shape"):
         return
     overlay = frame.copy()
+    frame_shape = frame.shape[:2]
     for s_id, slot in slot_statuses.items():
-        pts = np.array(slot["points"], dtype=np.int32)
-        status = slot["status"]
+        raw_pts = slot.get("points") or []
+        pts = normalize_polygon_points(raw_pts, frame_shape)
+        if len(pts) < 3:
+            continue
+        status = slot.get("status", "available")
         color = (34, 197, 94) if status == "available" else (59, 68, 246)  # Green or Red in BGR
         cv2.fillPoly(overlay, [pts], color)
         cv2.polylines(frame, [pts], True, color, 2, cv2.LINE_AA)
@@ -208,19 +271,19 @@ def draw_parking_overlay(frame: Any, slot_statuses: dict, summary_metrics: dict,
         if M["m00"] > 0:
             cx = int(M["m10"] / M["m00"])
             cy = int(M["m01"] / M["m00"])
-            lbl = f"{slot['name']}: {status[:3].upper()}"
+            lbl = f"{slot.get('name', s_id)}: {status[:3].upper()}"
             cv2.putText(frame, lbl, (cx - 30, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA)
 
     alpha = float(config.get("overlayAlpha", 0.3) or 0.3)
     cv2.addWeighted(overlay, alpha, frame, 1.0 - alpha, 0, frame)
 
     # HUD badge at top-left
-    if config.get("showSummaryHud", True):
-        hud_text = (
-            f"PARKING: {summary_metrics['available_slots']}/{summary_metrics['total_slots']} FREE "
-            f"({summary_metrics['occupancy_rate_pct']}%)"
-        )
-        color_hud = (34, 197, 94) if summary_metrics['available_slots'] > 0 else (59, 68, 246)
+    if config.get("showSummaryHud", True) and summary_metrics:
+        avail = summary_metrics.get("available_slots", 0)
+        tot = summary_metrics.get("total_slots", len(slot_statuses))
+        pct = summary_metrics.get("occupancy_rate_pct", 0.0)
+        hud_text = f"PARKING: {avail}/{tot} FREE ({pct}%)"
+        color_hud = (34, 197, 94) if avail > 0 else (59, 68, 246)
         cv2.rectangle(frame, (10, 10), (320, 42), (20, 24, 33), -1)
         cv2.rectangle(frame, (10, 10), (320, 42), color_hud, 2)
         cv2.putText(frame, hud_text, (20, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2, cv2.LINE_AA)
@@ -238,12 +301,15 @@ def process_queue_management(
     now: float,
 ) -> tuple[dict, list[dict]]:
     """Monitors queue occupancy, computes individual and average wait time."""
-    raw_zone = config.get("queueZone") or []
-    if not raw_zone and frame is not None and hasattr(frame, "shape"):
-        h, w = frame.shape[:2]
+    frame_shape = frame.shape[:2] if frame is not None and hasattr(frame, "shape") else (720, 1280)
+    h, w = frame_shape
+
+    raw_zone = config.get("queueZone") or state.get("queue_zone") or []
+    if not raw_zone:
         # Default zone in center
         raw_zone = [[int(w * 0.25), int(h * 0.3)], [int(w * 0.75), int(h * 0.3)],
                     [int(w * 0.75), int(h * 0.85)], [int(w * 0.25), int(h * 0.85)]]
+        state["queue_zone"] = raw_zone
 
     target_classes = {
         c.strip().casefold()
@@ -254,25 +320,22 @@ def process_queue_management(
     max_wait_sec = float(config.get("maxWaitTimeSec", 180.0) or 180.0)
 
     tracked_queue = state.setdefault("tracked_queue", {})  # trackId -> entry_time
-    poly_pts = np.array(raw_zone, dtype=np.int32) if len(raw_zone) >= 3 else None
+    poly_pts = normalize_polygon_points(raw_zone, frame_shape) if len(raw_zone) >= 3 else None
 
     current_in_queue = []
     events = []
 
     for d in detections:
-        c_label = str(d.get("class") or d.get("class_name") or "").casefold()
+        c_label = extract_detection_class(d)
         if target_classes and c_label not in target_classes:
             continue
-        box = d.get("bbox") or d.get("xyxy")
+        box = extract_detection_box(d, frame_shape)
         if not box or len(box) < 4:
             continue
-        if "bbox" in d and len(d["bbox"]) >= 4 and "xyxy" not in d:
-            x, y, w, h = d["bbox"][:4]
-            box = [x, y, x + w, y + h]
         cx, cy = (box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0
 
         in_zone = False
-        if poly_pts is not None:
+        if poly_pts is not None and len(poly_pts) >= 3:
             in_zone = cv2.pointPolygonTest(poly_pts, (float(cx), float(cy)), False) >= 0
 
         tid = d.get("trackId") or d.get("track_id")
@@ -333,7 +396,7 @@ def process_queue_management(
         "avg_wait_sec": round(avg_wait, 1),
         "max_wait_sec": round(max_current_wait, 1),
         "congestion_level": congestion,
-        "zone_points": raw_zone,
+        "zone_points": poly_pts.tolist() if poly_pts is not None else raw_zone,
         "items": current_in_queue,
     }
     return metrics, events
@@ -341,9 +404,11 @@ def process_queue_management(
 
 def draw_queue_overlay(frame: Any, metrics: dict, config: dict) -> None:
     """Renders queue boundaries, individual customer wait badges, and congestion HUD."""
-    if frame is None or not hasattr(frame, "shape"):
+    if frame is None or not hasattr(frame, "shape") or not metrics:
         return
-    pts = np.array(metrics.get("zone_points", []), dtype=np.int32)
+    frame_shape = frame.shape[:2]
+    raw_pts = metrics.get("zone_points", [])
+    pts = normalize_polygon_points(raw_pts, frame_shape)
     congestion = metrics.get("congestion_level", "LOW")
     border_color = (34, 197, 94) if congestion == "LOW" else ((245, 158, 11) if congestion == "MEDIUM" else (59, 68, 246))
 
@@ -361,13 +426,13 @@ def draw_queue_overlay(frame: Any, metrics: dict, config: dict) -> None:
         cv2.putText(frame, tag, (cx - 30, top_y - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 255, 255), 1, cv2.LINE_AA)
 
     # HUD Card
-    h, w = frame.shape[:2]
+    h, w = frame_shape
     hud_x, hud_y = w - 270, 10
     cv2.rectangle(frame, (hud_x, hud_y), (w - 10, hud_y + 60), (20, 24, 33), -1)
     cv2.rectangle(frame, (hud_x, hud_y), (w - 10, hud_y + 60), border_color, 2)
-    cv2.putText(frame, f"QUEUE: {metrics['queue_count']} IN LINE", (hud_x + 12, hud_y + 22),
+    cv2.putText(frame, f"QUEUE: {metrics.get('queue_count', 0)} IN LINE", (hud_x + 12, hud_y + 22),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2, cv2.LINE_AA)
-    cv2.putText(frame, f"Avg Wait: {metrics['avg_wait_sec']}s ({congestion})", (hud_x + 12, hud_y + 48),
+    cv2.putText(frame, f"Avg Wait: {metrics.get('avg_wait_sec', 0.0)}s ({congestion})", (hud_x + 12, hud_y + 48),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.45, border_color, 1, cv2.LINE_AA)
 
 
@@ -525,12 +590,9 @@ def process_vision_eye(
     events = []
 
     for d in detections:
-        box = d.get("bbox") or d.get("xyxy")
+        box = extract_detection_box(d, (h, w))
         if not box or len(box) < 4:
             continue
-        if "bbox" in d and len(d["bbox"]) >= 4 and "xyxy" not in d:
-            x, y, bw, bh = d["bbox"][:4]
-            box = [x, y, x + bw, y + bh]
 
         # Target center
         tx, ty = (box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0
@@ -546,7 +608,7 @@ def process_vision_eye(
         )
 
         tid = d.get("trackId") or d.get("track_id") or "target"
-        c_name = str(d.get("class") or d.get("class_name") or "object")
+        c_name = extract_detection_class(d) or "object"
 
         if is_danger:
             events.append({

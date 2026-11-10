@@ -2597,6 +2597,13 @@ def results_for_node(
             if tracker_has_continuous_path()
             else []
         )
+        # Solutions and spatial nodes can fall back to raw detections if tracking has not yet formed tracks
+        if target and target.get("type") in (
+            "parking_management", "queue_manager", "ai_gym", "vision_eye", "analytics_overlay",
+            "distance_measurement", "size_measurement", "overlap_analysis"
+        ):
+            if not results:
+                results = inference_results_for_node(workflow, node_id, detections)
         # Stateful object-event nodes and post-track crop classifiers produce
         # sparse event records in ``detections``.  Preserve those records for
         # downstream alerts/databases instead of replacing them with the

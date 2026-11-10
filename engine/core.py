@@ -1063,6 +1063,10 @@ def _process_track_event_nodes(
             from ultralytics_solutions import process_parking_management, draw_parking_overlay
             state = event_runtime.setdefault(project_id, {})
             slot_statuses, p_events, p_metrics = process_parking_management(frame, candidates, project_node.get("config", {}), state, now)
+            state["slot_statuses"] = slot_statuses
+            state["p_metrics"] = p_metrics
+            state["slots_config"] = project_node.get("config", {}).get("slots", [])
+            state["last_updated"] = now
             for ev in p_events:
                 if isinstance(ev, dict):
                     ev.setdefault("sourceNodeId", project_id)
@@ -1070,12 +1074,15 @@ def _process_track_event_nodes(
                     ev.setdefault("kind", ev.get("kind", "parking_event"))
             extra_results.extend(p_events)
             detections.extend(p_events)
+            node_output_count = p_metrics.get("occupied_slots", len(candidates))
             if project_node.get("config", {}).get("showOverlay", True):
                 draw_parking_overlay(frame, slot_statuses, p_metrics, project_node.get("config", {}))
         elif p_type == "queue_manager":
             from ultralytics_solutions import process_queue_management, draw_queue_overlay
             state = event_runtime.setdefault(project_id, {})
             q_metrics, q_events = process_queue_management(frame, candidates, project_node.get("config", {}), state, now)
+            state["q_metrics"] = q_metrics
+            state["last_updated"] = now
             for ev in q_events:
                 if isinstance(ev, dict):
                     ev.setdefault("sourceNodeId", project_id)
@@ -1083,12 +1090,15 @@ def _process_track_event_nodes(
                     ev.setdefault("kind", ev.get("kind", "queue_event"))
             extra_results.extend(q_events)
             detections.extend(q_events)
+            node_output_count = q_metrics.get("queue_count", len(candidates))
             if project_node.get("config", {}).get("showOverlay", True):
                 draw_queue_overlay(frame, q_metrics, project_node.get("config", {}))
         elif p_type == "ai_gym":
             from ultralytics_solutions import process_ai_gym, draw_ai_gym_overlay
             state = event_runtime.setdefault(project_id, {})
             gym_summary, gym_events = process_ai_gym(frame, candidates, project_node.get("config", {}), state, now)
+            state["gym_summary"] = gym_summary
+            state["last_updated"] = now
             for ev in gym_events:
                 if isinstance(ev, dict):
                     ev.setdefault("sourceNodeId", project_id)
@@ -1096,12 +1106,15 @@ def _process_track_event_nodes(
                     ev.setdefault("kind", ev.get("kind", "gym_event"))
             extra_results.extend(gym_events)
             detections.extend(gym_events)
+            node_output_count = gym_summary.get("total_active_users", len(candidates))
             if project_node.get("config", {}).get("showOverlay", True):
                 draw_ai_gym_overlay(frame, gym_summary, project_node.get("config", {}))
         elif p_type == "vision_eye":
             from ultralytics_solutions import process_vision_eye, draw_vision_eye_overlay
             state = event_runtime.setdefault(project_id, {})
             ve_summary, ve_events = process_vision_eye(frame, candidates, project_node.get("config", {}), state, now)
+            state["ve_summary"] = ve_summary
+            state["last_updated"] = now
             for ev in ve_events:
                 if isinstance(ev, dict):
                     ev.setdefault("sourceNodeId", project_id)
@@ -1109,12 +1122,16 @@ def _process_track_event_nodes(
                     ev.setdefault("kind", ev.get("kind", "vision_eye_event"))
             extra_results.extend(ve_events)
             detections.extend(ve_events)
+            node_output_count = len(ve_summary.get("rays", []))
             if project_node.get("config", {}).get("showOverlay", True):
                 draw_vision_eye_overlay(frame, ve_summary, project_node.get("config", {}))
         elif p_type == "analytics_overlay":
             from ultralytics_solutions import process_analytics_overlay, draw_analytics_overlay
             state = event_runtime.setdefault(project_id, {})
             ao_summary, ao_events = process_analytics_overlay(frame, candidates, project_node.get("config", {}), state, now)
+            state["ao_summary"] = ao_summary
+            state["last_updated"] = now
+            node_output_count = len(candidates)
             draw_analytics_overlay(frame, ao_summary, project_node.get("config", {}))
         elif p_type == "badminton_analytics":
             try:
@@ -2381,6 +2398,55 @@ def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict)
                             cv2.circle(frame, p_int, 5, (0, 165, 255), -1, cv2.LINE_AA)
                             cv2.putText(frame, str(idx + 1), (p_int[0] + 6, p_int[1] - 6),
                                         cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+            except Exception:
+                pass
+        elif node.get("type") == "parking_management" and node.get("enabled", True):
+            try:
+                from ultralytics_solutions import draw_parking_overlay
+                p_id = str(node.get("id") or "parking_management")
+                state = event_runtime.get(p_id, {})
+                if state and "slot_statuses" in state:
+                    if node.get("config", {}).get("showOverlay", True):
+                        draw_parking_overlay(frame, state["slot_statuses"], state.get("p_metrics", {}), node.get("config", {}))
+            except Exception:
+                pass
+        elif node.get("type") == "queue_manager" and node.get("enabled", True):
+            try:
+                from ultralytics_solutions import draw_queue_overlay
+                q_id = str(node.get("id") or "queue_manager")
+                state = event_runtime.get(q_id, {})
+                if state and "q_metrics" in state:
+                    if node.get("config", {}).get("showOverlay", True):
+                        draw_queue_overlay(frame, state["q_metrics"], node.get("config", {}))
+            except Exception:
+                pass
+        elif node.get("type") == "ai_gym" and node.get("enabled", True):
+            try:
+                from ultralytics_solutions import draw_ai_gym_overlay
+                g_id = str(node.get("id") or "ai_gym")
+                state = event_runtime.get(g_id, {})
+                if state and "gym_summary" in state:
+                    if node.get("config", {}).get("showOverlay", True):
+                        draw_ai_gym_overlay(frame, state["gym_summary"], node.get("config", {}))
+            except Exception:
+                pass
+        elif node.get("type") == "vision_eye" and node.get("enabled", True):
+            try:
+                from ultralytics_solutions import draw_vision_eye_overlay
+                v_id = str(node.get("id") or "vision_eye")
+                state = event_runtime.get(v_id, {})
+                if state and "ve_summary" in state:
+                    if node.get("config", {}).get("showOverlay", True):
+                        draw_vision_eye_overlay(frame, state["ve_summary"], node.get("config", {}))
+            except Exception:
+                pass
+        elif node.get("type") == "analytics_overlay" and node.get("enabled", True):
+            try:
+                from ultralytics_solutions import draw_analytics_overlay
+                a_id = str(node.get("id") or "analytics_overlay")
+                state = event_runtime.get(a_id, {})
+                if state and "ao_summary" in state:
+                    draw_analytics_overlay(frame, state["ao_summary"], node.get("config", {}))
             except Exception:
                 pass
 
@@ -4649,6 +4715,15 @@ class WorkflowRunner:
                                     duration_ms=(time.monotonic() - tracking_started_at) * 1000,
                                     sample={"tracked": _detection_sample(tracked)},
                                 )
+                            tracker_duration_ms = (time.monotonic() - tracking_started_at) * 1000
+                            self.record_node_telemetry(
+                                tracker_id,
+                                status="success",
+                                latency_ms=tracker_duration_ms,
+                                item_count=len(tracked),
+                                last_input={"candidates": len(track_candidates)},
+                                last_output={"tracked": len(tracked)},
+                            )
                         for tr_node in workflow.get("nodes", []):
                             if tr_node.get("type") in ("tracker", "byte_track", "norfair", "vlm_box_tracker") and not tr_node.get("enabled", True):
                                 self.record_node_telemetry(
@@ -5061,6 +5136,14 @@ class WorkflowRunner:
                                         native_preview.show(preview_id, preview, display_frame)
                                     with stats_lock:
                                         stats["preview_frames"] += 1
+                                self.record_node_telemetry(
+                                    preview_id,
+                                    status="success",
+                                    latency_ms=(time.monotonic() - preview_started_at) * 1000,
+                                    item_count=len(preview_detections),
+                                    last_input={"detections": len(preview_detections)},
+                                    last_output={"rendered": True},
+                                )
                         preview_counts.append(
                             len(crop_items)
                             if crop_items is not None
