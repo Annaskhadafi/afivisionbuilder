@@ -780,7 +780,7 @@ def _process_track_event_nodes(
             "face_detector", "face_analyzer", "face_tracker", "face_crop", "hand_skeleton",
             "dominant_color", "class_replacement", "man_down_detector", "lpr_license_plate", "overstack_detector",
             "dashboard_sink", "incident_video_recorder", "mqtt_publisher", "crowd_density_heatmap", "ppe_compliance_matrix", "switch_case",
-            "homography_projector", "bev_visualizer", "badminton_analytics"
+            "homography_projector", "bev_visualizer", "badminton_analytics", "parking_management", "queue_manager", "ai_gym", "vision_eye", "analytics_overlay"
         ):
             continue
         project_id = str(project_node.get("id") or "")
@@ -1059,6 +1059,63 @@ def _process_track_event_nodes(
                 draw_hand_skeleton(frame, hand_dets, cfg)
             detections.extend(hand_dets)
             extra_results.extend(hand_dets)
+        elif p_type == "parking_management":
+            from ultralytics_solutions import process_parking_management, draw_parking_overlay
+            state = event_runtime.setdefault(project_id, {})
+            slot_statuses, p_events, p_metrics = process_parking_management(frame, candidates, project_node.get("config", {}), state, now)
+            for ev in p_events:
+                if isinstance(ev, dict):
+                    ev.setdefault("sourceNodeId", project_id)
+                    ev.setdefault("node_id", project_id)
+                    ev.setdefault("kind", ev.get("kind", "parking_event"))
+            extra_results.extend(p_events)
+            detections.extend(p_events)
+            if project_node.get("config", {}).get("showOverlay", True):
+                draw_parking_overlay(frame, slot_statuses, p_metrics, project_node.get("config", {}))
+        elif p_type == "queue_manager":
+            from ultralytics_solutions import process_queue_management, draw_queue_overlay
+            state = event_runtime.setdefault(project_id, {})
+            q_metrics, q_events = process_queue_management(frame, candidates, project_node.get("config", {}), state, now)
+            for ev in q_events:
+                if isinstance(ev, dict):
+                    ev.setdefault("sourceNodeId", project_id)
+                    ev.setdefault("node_id", project_id)
+                    ev.setdefault("kind", ev.get("kind", "queue_event"))
+            extra_results.extend(q_events)
+            detections.extend(q_events)
+            if project_node.get("config", {}).get("showOverlay", True):
+                draw_queue_overlay(frame, q_metrics, project_node.get("config", {}))
+        elif p_type == "ai_gym":
+            from ultralytics_solutions import process_ai_gym, draw_ai_gym_overlay
+            state = event_runtime.setdefault(project_id, {})
+            gym_summary, gym_events = process_ai_gym(frame, candidates, project_node.get("config", {}), state, now)
+            for ev in gym_events:
+                if isinstance(ev, dict):
+                    ev.setdefault("sourceNodeId", project_id)
+                    ev.setdefault("node_id", project_id)
+                    ev.setdefault("kind", ev.get("kind", "gym_event"))
+            extra_results.extend(gym_events)
+            detections.extend(gym_events)
+            if project_node.get("config", {}).get("showOverlay", True):
+                draw_ai_gym_overlay(frame, gym_summary, project_node.get("config", {}))
+        elif p_type == "vision_eye":
+            from ultralytics_solutions import process_vision_eye, draw_vision_eye_overlay
+            state = event_runtime.setdefault(project_id, {})
+            ve_summary, ve_events = process_vision_eye(frame, candidates, project_node.get("config", {}), state, now)
+            for ev in ve_events:
+                if isinstance(ev, dict):
+                    ev.setdefault("sourceNodeId", project_id)
+                    ev.setdefault("node_id", project_id)
+                    ev.setdefault("kind", ev.get("kind", "vision_eye_event"))
+            extra_results.extend(ve_events)
+            detections.extend(ve_events)
+            if project_node.get("config", {}).get("showOverlay", True):
+                draw_vision_eye_overlay(frame, ve_summary, project_node.get("config", {}))
+        elif p_type == "analytics_overlay":
+            from ultralytics_solutions import process_analytics_overlay, draw_analytics_overlay
+            state = event_runtime.setdefault(project_id, {})
+            ao_summary, ao_events = process_analytics_overlay(frame, candidates, project_node.get("config", {}), state, now)
+            draw_analytics_overlay(frame, ao_summary, project_node.get("config", {}))
         elif p_type == "badminton_analytics":
             try:
                 from badminton_engine import BadmintonAnalyticsEngine, draw_badminton_overlay

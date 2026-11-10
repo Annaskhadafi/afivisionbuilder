@@ -14537,3 +14537,521 @@ dialog.annotation-studio-modal::backdrop {
   background: #f59e0b;
   color: #ffffff;
 }
+
+/* ==========================================================================
+   SPECIALIZED DASHBOARD WIDGETS (Ultralytics Solutions & Domain Specific)
+   ========================================================================== */
+
+/* 1. Smart Parking Grid */
+.widget-parking-grid {
+  background: #0d1527;
+  border: 1px solid #1a263f;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.parking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.parking-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.parking-occupancy-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+.parking-occupancy-pill.high {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+.parking-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+  gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.parking-slot-card {
+  border-radius: 6px;
+  padding: 8px 6px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid;
+  transition: all 0.2s ease;
+}
+.parking-slot-card.free {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+.parking-slot-card.free:hover {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: #10b981;
+}
+.parking-slot-card.occupied {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+.parking-slot-card.occupied:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+}
+.parking-slot-icon {
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+.parking-slot-name {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.parking-slot-vehicle {
+  font-size: 9.5px;
+  color: #94a3b8;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.parking-footer-bar {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #94a3b8;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* 2. Queue Status Widget */
+.widget-queue-status {
+  background: #0d1527;
+  border: 1px solid #1a263f;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+}
+.queue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.queue-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.queue-congestion-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.queue-congestion-badge.low {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+.queue-congestion-badge.medium {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+}
+.queue-congestion-badge.overloaded {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  animation: pulse-danger 1.5s infinite;
+}
+.queue-main-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 10px;
+}
+.queue-count-huge {
+  font-size: 32px;
+  font-weight: 800;
+  color: #00E5FF;
+  line-height: 1;
+}
+.queue-count-label {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+.queue-dot-strip {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  max-width: 140px;
+}
+.queue-dot-person {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #38bdf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #0f172a;
+  font-weight: 700;
+}
+.queue-substats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: auto;
+}
+.queue-substat-card {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.queue-substat-label {
+  font-size: 10px;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+.queue-substat-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-top: 2px;
+}
+
+/* 3. AI Gym Rep & Ergonomic Widget */
+.widget-ai-gym {
+  background: #0d1527;
+  border: 1px solid #1a263f;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+}
+.gym-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.gym-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gym-exercise-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  text-transform: uppercase;
+}
+.gym-center-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex: 1;
+  padding: 6px 0;
+}
+.gym-gauge-box {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gym-angle-num {
+  position: absolute;
+  font-size: 18px;
+  font-weight: 800;
+  color: #00E5FF;
+}
+.gym-reps-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.gym-reps-count {
+  font-size: 38px;
+  font-weight: 900;
+  color: #22c55e;
+  line-height: 1;
+}
+.gym-reps-unit {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+.gym-stage-pill {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+.gym-stage-pill.up {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+.gym-stage-pill.down {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+.gym-posture-banner {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  color: #4ade80;
+}
+.gym-posture-banner.warning {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+/* 4. Vision Eye Radar 360° Widget */
+.widget-vision-radar {
+  background: #0d1527;
+  border: 1px solid #1a263f;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+}
+.radar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.radar-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.radar-alert-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+}
+.radar-alert-pill.danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  animation: pulse-danger 1.5s infinite;
+}
+.radar-screen-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle, #0b1d30 0%, #060b14 100%);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  margin: 6px auto;
+  width: 170px;
+  height: 170px;
+  box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.1);
+}
+.radar-sweep-line {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 50%;
+  transform-origin: bottom left;
+  background: linear-gradient(45deg, rgba(0, 229, 255, 0.4) 0%, rgba(0, 229, 255, 0) 70%);
+  animation: radar-sweep-anim 3s linear infinite;
+  pointer-events: none;
+}
+@keyframes radar-sweep-anim {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.radar-center-observer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #00E5FF;
+  box-shadow: 0 0 10px #00E5FF;
+  z-index: 5;
+}
+.radar-blip {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+}
+.radar-blip.danger {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+.radar-blip.warning {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+.radar-footer-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* 5. Live Gauge Dial Meter Widget */
+.widget-gauge-meter {
+  background: #0d1527;
+  border: 1px solid #1a263f;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+}
+.gauge-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.gauge-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gauge-unit-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+.gauge-svg-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+  height: 130px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+.gauge-center-reading {
+  position: absolute;
+  bottom: 0px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.gauge-val-big {
+  font-size: 26px;
+  font-weight: 800;
+  color: #f8fafc;
+  line-height: 1;
+}
+.gauge-sub-status {
+  font-size: 10px;
+  font-weight: 700;
+  color: #10b981;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.gauge-scale-labels {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #64748b;
+  padding: 0 14px;
+}

@@ -6,6 +6,22 @@ Status: Runtime node custom awal dan editor polygon tersedia; hanya pekerjaan de
 
 ## Current priority and handoff
 
+**Pasangan Template Alur Kerja & Dashboard Builder Otomatis (10 November 2026):**
+- **43 Paired Templates (100% Desain & Tata Letak Unik)**: Seluruh 43 template alur kerja (37 bawaan + 5 solusi inovatif Ultralytics + 1 template analitik komprehensif) kini resmi dipasangkan dengan rancangan dashboard mandiri di Dashboard Builder (`data/dashboards/{project_id}.json`). **Setiap template memiliki arsitektur tata letak, koordinat kanvas, kombinasi widget, dan identitas visual 100% unik dan berbeda (zero duplicate signatures)**. Pengguna tidak perlu lagi menyusun kanvas dasbor secara manual saat membuat proyek baru atau memilih "Gunakan Template".
+- **5 Widget Spesialis Baru Dashboard Builder**:
+  1. `parking_lot_grid`: Smart Parking Grid interaktif dengan pewarnaan slot adaptif (hijau = kosong, merah = terisi), tag plat nomor kendaraan, dan persentase okupansi.
+  2. `queue_status_widget`: Metrik besar panjang antrean kasir, avatar orang mengantre, estimasi waktu tunggu, dan pill badge status kepadatan (`LOW`, `MEDIUM`, `OVERLOADED`).
+  3. `ai_gym_rep_widget`: Pengukur busur sudut sendi kinetik SVG, kartu counter repetisi latihan (`gym_rep_count`), indikator stage `UP`/`DOWN`, dan spanduk audit postur ergonomi K3.
+  4. `vision_eye_radar_widget`: Radar 360° garis pandang pengamat dengan jarum sapuan berputar (*sweep line*), sektor kerucut titik buta (*blind-spot*), lingkaran jarak konsentris, dan blip peringatan bahaya tabrakan.
+  5. `live_gauge_meter`: Speedometer dial busur setengah lingkaran SVG dengan jarum adaptif (-90° s/d +90°), zona 3 warna (hijau/kuning/merah), dan pembacaan angka digital besar.
+- **Auto-Provisioning 1-Klik**: Endpoint `create_project` di `server.py` dan `bus.auto_provision_dashboard_for_project(...)` secara otomatis mendeteksi template yang dipilih dan menginisialisasi dashboard JSON persisten.
+- **Bukti Verifikasi Pengujian**:
+  - Unit test `tests/unit/test_dashboard_templates_pairing.py` (5/5 passed, termasuk verifikasi otomatis 43 distinct layout signatures).
+  - Suite unit test `tests/unit/test_dashboard_builder.py` dan `test_dashboard_manager_api.py` (8/8 passed).
+  - Pengujian E2E otomatis real-browser `npx e2e run tests/dashboard_templates_pairing.e2e.ts` (1/1 passed dalam 5.14 detik) disertai 4 tangkapan layar bukti antarmuka nyata di `.e2e/artifacts/web/` dan `docs/screenshots/dashboard_pairing/`.
+
+**Buku Panduan Resmi Operasional & Ensiklopedia 98 Node (10 November 2026):** Penyusunan buku panduan teknis dan operasional komprehensif berstandar enterprise setara 150 halaman cetak (`docs/manual/` dan edisi master konsolidasi `docs/BUKU_PANDUAN_LENGKAP_AFI_VISION_BUILDER.md`, total 3.901 baris, 26.721 kata, 11 Bab Utama). Mencakup seluruh siklus dari instalasi bare-metal/Docker, navigasi antarmuka, ensiklopedia lengkap seluruh 98 node vision, ekosistem Open-NVR terintegrasi (ONVIF WS-Discovery, RTSP Matrix Wall 2x2/3x3/1+5, Evidence Vault), Dashboard Designer visual, Model Zoo & Quantizer, integrasi REST API/MQTT/ERP, Export Code mandiri, 5 studi kasus end-to-end lapangan, hingga troubleshooting teknis komprehensif. Diverifikasi dengan pengujian otomatis E2E Playwright `tests/nvr_hub_modal_tabs_redesign.e2e.ts` (1/1 passed, 5.20s, 0 tokens).
+
 **Video Speed & Timeline Controller (9 November 2026):** implementasi node baru `video_speed_controller` untuk mengatur kecepatan pemutaran video (0.25x slow-motion hingga 4.0x fast-forward) serta timeline scrubbing/seeking (loncat seketika ke tengah video 50%, 0%, 75%, atau timestamp tertentu) untuk sumber file video lokal maupun stream YouTube (`yt-dlp`). Mendukung sinkronisasi real-time via REST API `/api/video/seek` dan `/api/video/playback-speed`, on-screen HUD badge (`showOverlayHud`), telemetri live terhubung ke Dashboard, dan ekspor kode mandiri Python (`standalone_run.py` / `export_code`). Bukti verifikasi: 6/6 unit tests lulus di `tests/unit/test_video_speed_timeline.py` (durasi 10,27 detik), serta pengujian otomatis E2E real-browser Playwright lulus di `tests/video_speed_timeline.e2e.ts` (durasi 4,50 detik) disertai bukti screenshot visual lengkap.
 
 Prioritas pengguna: node workshop/warehouse terlebih dahulu, kemudian fondasi operasional. Sesi baru wajib membaca bagian ini bersama PRD dan status Git. Instruksi kontinuitas tersimpan di `../AGENTS.md`.

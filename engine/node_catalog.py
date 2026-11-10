@@ -435,6 +435,11 @@ OBJECT_EVENT_NODE_TYPES = (
     "crowd_density_heatmap",
     "homography_projector",
     "bev_visualizer",
+    "parking_management",
+    "queue_manager",
+    "ai_gym",
+    "vision_eye",
+    "analytics_overlay",
 )
 OUTPUT_NODE_TYPES = (
     "preview",
@@ -2132,6 +2137,77 @@ NODE_BLUEPRINTS = {
             "realLengthMeters": 0.0,
             "showGroundPolygon": True,
         },
+    },
+    "parking_management": {
+        "title": "Smart Parking Management",
+        "subtitle": "Monitoring ketersediaan slot parkir kendaraan (P1..Pn) secara multi-slot",
+        "category": "Tracking & Analysis",
+        "x": 620,
+        "y": 480,
+        "config": {
+            "slots": [],
+            "targetClasses": "car,truck,bus,motorcycle",
+            "occupancyThreshold": 0.3,
+            "showOverlay": True,
+            "alertOnFull": True,
+            "showSummaryHud": True
+        }
+    },
+    "queue_manager": {
+        "title": "Queue & Wait-Time Analyzer",
+        "subtitle": "Manajemen panjang antrean kasir/loket & estimasi waktu tunggu pelanggan",
+        "category": "Tracking & Analysis",
+        "x": 620,
+        "y": 550,
+        "config": {
+            "queueZone": [],
+            "targetClasses": "person",
+            "maxQueueCount": 5,
+            "maxWaitTimeSec": 180.0,
+            "showOverlay": True
+        }
+    },
+    "ai_gym": {
+        "title": "AI Gym & Ergonomic Counter",
+        "subtitle": "Penghitung repetisi latihan fisik & audit postur ergonomi K3",
+        "category": "Tracking & Analysis",
+        "x": 620,
+        "y": 620,
+        "config": {
+            "exerciseType": "squat",
+            "angleThresholdUp": 160.0,
+            "angleThresholdDown": 90.0,
+            "showOverlay": True
+        }
+    },
+    "vision_eye": {
+        "title": "Vision Eye (Sightline & Blind-Spot)",
+        "subtitle": "Garis pandang pengamat dan deteksi bahaya titik buta kendaraan",
+        "category": "Tracking & Analysis",
+        "x": 620,
+        "y": 690,
+        "config": {
+            "observerPoint": [0.5, 0.95],
+            "dangerRadiusPx": 180.0,
+            "blindSpotStartDeg": 120.0,
+            "blindSpotEndDeg": 240.0,
+            "showOverlay": True
+        }
+    },
+    "analytics_overlay": {
+        "title": "Live Video Analytics HUD",
+        "subtitle": "Grafik telemetri live (trend line, bar chart) langsung di layar video",
+        "category": "Visualisasi & Anotasi",
+        "x": 910,
+        "y": 550,
+        "config": {
+            "chartType": "line_trend",
+            "metricType": "count",
+            "chartPosition": "bottom_right",
+            "historyWindow": 60,
+            "opacity": 0.75,
+            "chartTitle": "REALTIME TREND"
+        }
     },
     "bev_visualizer": {
         "title": "BEV Map Visualizer",

@@ -5421,7 +5421,7 @@
 
         headers: { 'Content-Type': 'application/json' },
 
-        body: JSON.stringify({ name: tpl.name, workflow: tpl.workflow })
+        body: JSON.stringify({ name: tpl.name, workflow: tpl.workflow, template_id: templateId })
 
       });
 

@@ -1314,6 +1314,18 @@ def create_project(request: Request, body: dict) -> dict:
 
 
             project = store.import_project_workflow(str(body.get("name") or "Vision Workflow"), workflow)
+            try:
+                from dashboard_bus import DashboardDataBus
+                bus = DashboardDataBus.get_instance(_data_dir)
+                tpl_id = body.get("template_id") or body.get("templateId")
+                bus.auto_provision_dashboard_for_project(
+                    project["id"],
+                    project_name=str(body.get("name") or ""),
+                    workflow=workflow,
+                    template_id=tpl_id
+                )
+            except Exception as d_err:
+                logger.warning(f"Auto-provisioning paired dashboard failed: {d_err}")
 
 
 
@@ -6550,6 +6562,141 @@ def _templates() -> list[dict]:
     })
 
 
+
+
+    # 5 New Ultralytics Solutions Workflow Templates
+    templates.append({
+        "id": "smart_parking_management",
+        "name": "Smart Parking Lot & Multi-Slot Occupancy Hub",
+        "description": "Monitoring ketersediaan slot parkir kendaraan (P1..Pn) multi-slot secara real-time, deteksi plat nomor/jenis kendaraan, dan rasio okupansi slot parkir.",
+        "tags": ["Parkir", "Parking", "Smart City", "Ultralytics", "Multi-Slot", "Occupancy"],
+        "badge": "🚗 Parkir & Smart City",
+        "modelSize": "Includes YOLOv8n · 6.2 MB",
+        "workflow": {
+            "nodes": [
+                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "webcam", "loop": True, "autoReconnect": True}),
+                store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt", "classes": "car,truck,bus,motorcycle"}),
+                store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
+                store.make_node("parking_management", id="parking_management", x=720, y=140, config={"targetClasses": "car,truck,bus,motorcycle", "occupancyThreshold": 0.3, "showOverlay": True, "alertOnFull": True, "showSummaryHud": True}),
+                store.make_node("preview", id="preview", x=940, y=140, config={"mode": "annotated", "enableZoomPan": True})
+            ],
+            "edges": [
+                ["input", "detector"],
+                ["detector", "tracker"],
+                ["tracker", "parking_management"],
+                ["parking_management", "preview"]
+            ]
+        }
+    })
+
+    templates.append({
+        "id": "retail_queue_management",
+        "name": "Ultralytics Queue & Customer Wait-Time Manager",
+        "description": "Analisis panjang antrean kasir ritel/supermarket, taksiran waktu tunggu pembeli, status kepadatan (LOW/MEDIUM/OVERLOADED), dan alert antrean membludak.",
+        "tags": ["Ritel", "Queue", "Antrean", "Kasir", "Wait-Time", "Ultralytics"],
+        "badge": "🛒 Ritel & Antrean",
+        "modelSize": "Includes YOLOv8n · 6.2 MB",
+        "workflow": {
+            "nodes": [
+                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "webcam", "loop": True, "autoReconnect": True}),
+                store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt", "classes": "person"}),
+                store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
+                store.make_node("queue_manager", id="queue_manager", x=720, y=140, config={"targetClasses": "person", "maxQueueCount": 5, "maxWaitTimeSec": 180.0, "showOverlay": True}),
+                store.make_node("preview", id="preview", x=940, y=140, config={"mode": "annotated", "enableZoomPan": True})
+            ],
+            "edges": [
+                ["input", "detector"],
+                ["detector", "tracker"],
+                ["tracker", "queue_manager"],
+                ["queue_manager", "preview"]
+            ]
+        }
+    })
+
+    templates.append({
+        "id": "ai_gym_ergonomic",
+        "name": "AI Gym Repetition & Ergonomic Safety Auditor",
+        "description": "Pelacak repetisi latihan fisik & audit postur ergonomi K3 kerja: perhitungan sudut sendi real-time, deteksi stage UP/DOWN, dan warning deviasi postur.",
+        "tags": ["AI Gym", "K3", "Ergonomi", "Pose", "Rep Counter", "Ultralytics"],
+        "badge": "🏋️ K3 & Olahraga",
+        "modelSize": "Includes YOLOv8n-pose · 6.5 MB",
+        "workflow": {
+            "nodes": [
+                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "webcam", "loop": True, "autoReconnect": True}),
+                store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt", "classes": "person"}),
+                store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
+                store.make_node("ai_gym", id="ai_gym", x=720, y=140, config={"exerciseType": "squat", "angleThresholdUp": 160.0, "angleThresholdDown": 90.0, "showOverlay": True}),
+                store.make_node("preview", id="preview", x=940, y=140, config={"mode": "annotated", "enableZoomPan": True})
+            ],
+            "edges": [
+                ["input", "detector"],
+                ["detector", "tracker"],
+                ["tracker", "ai_gym"],
+                ["ai_gym", "preview"]
+            ]
+        }
+    })
+
+    templates.append({
+        "id": "driver_blindspot_vision",
+        "name": "Vision Eye 360° Sightline & Driver Blind-Spot Radar",
+        "description": "Garis pandang pengamat & deteksi bahaya titik buta (blind-spot) kendaraan berat/forklift: radar perimeter bahaya, sektor kerucut blindspot, dan alarm kedekatan.",
+        "tags": ["Vision Eye", "Blind-Spot", "Radar", "Logistik", "Forklift", "Ultralytics"],
+        "badge": "🎯 Titik Buta & Radar",
+        "modelSize": "Includes YOLOv8n · 6.2 MB",
+        "workflow": {
+            "nodes": [
+                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "webcam", "loop": True, "autoReconnect": True}),
+                store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt", "classes": "person,car,truck"}),
+                store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
+                store.make_node("vision_eye", id="vision_eye", x=720, y=140, config={"observerPoint": [0.5, 0.95], "dangerRadiusPx": 180.0, "blindSpotStartDeg": 120.0, "blindSpotEndDeg": 240.0, "showOverlay": True}),
+                store.make_node("preview", id="preview", x=940, y=140, config={"mode": "annotated", "enableZoomPan": True})
+            ],
+            "edges": [
+                ["input", "detector"],
+                ["detector", "tracker"],
+                ["tracker", "vision_eye"],
+                ["vision_eye", "preview"]
+            ]
+        }
+    })
+
+    templates.append({
+        "id": "live_analytics_hud",
+        "name": "Live Video Analytics HUD & Telemetry Speedometer",
+        "description": "Grafik telemetri live (trend line, bar chart) langsung di layar video, speedometer dial laju proses, dan pemantauan throughput edge AI.",
+        "tags": ["Analytics", "HUD", "Speedometer", "Telemetry", "Chart", "Ultralytics"],
+        "badge": "📈 Telemetri & HUD",
+        "modelSize": "Includes YOLOv8n · 6.2 MB",
+        "workflow": {
+            "nodes": [
+                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "webcam", "loop": True, "autoReconnect": True}),
+                store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt"}),
+                store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
+                store.make_node("object_counter", id="object_counter", x=720, y=140),
+                store.make_node("analytics_overlay", id="analytics_overlay", x=940, y=140, config={"chartType": "line_trend", "metricType": "count", "chartPosition": "bottom_right", "historyWindow": 60, "opacity": 0.75, "chartTitle": "REALTIME TREND"}),
+                store.make_node("preview", id="preview", x=1160, y=140, config={"mode": "annotated", "enableZoomPan": True})
+            ],
+            "edges": [
+                ["input", "detector"],
+                ["detector", "tracker"],
+                ["tracker", "object_counter"],
+                ["object_counter", "analytics_overlay"],
+                ["analytics_overlay", "preview"]
+            ]
+        }
+    })
+
+    # Auto-pair every workflow template with its dedicated dashboard layout
+    try:
+        from dashboard_bus import WORKFLOW_TO_DASHBOARD_MAP
+        for tpl in templates:
+            tpl["has_dashboard"] = True
+            dash_id = WORKFLOW_TO_DASHBOARD_MAP.get(tpl["id"], f"tpl_{tpl['id']}")
+            tpl["dashboard_template_id"] = dash_id
+            tpl["paired_dashboard_name"] = tpl["name"] + " Dashboard"
+    except Exception as t_err:
+        logger.warning(f"Failed enriching templates with paired dashboards: {t_err}")
 
     return templates
 

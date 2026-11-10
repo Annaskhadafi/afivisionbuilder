@@ -429,6 +429,17 @@ Dirancang khusus untuk menjawab kebutuhan operasional nyata di lantai pabrik, be
 - **Backend Python Auto-Reload (Uvicorn WatchFiles)**: Perubahan kode Python di folder `engine/` atau `server.py` dimuat ulang secara otomatis dalam ~1-2 detik tanpa perlu mematikan dan menjalankan ulang terminal server.
 - **Tombol Pintasan "Muat Ulang & Hapus Cache" di Topbar**: Menu dropdown aksi `...` di topbar menyediakan opsi *Muat Ulang & Hapus Cache* yang menghapus Service Worker, sessionStorage, dan menyegel query string unik untuk memuat ulang antarmuka ke kondisi bersih terbaru dengan 1 klik.
 
+### 📊 57. Pasangan Template Alur Kerja & Dashboard Builder Otomatis (42+ Paired Templates & 5 Widget Spesialis)
+- **Auto-Provisioning Dashboard Otomatis (Zero-Setup)**: Seluruh 42 template alur kerja (37 template bawaan + 5 solusi inovatif Ultralytics) kini otomatis memiliki pasangan dashboard visual yang terkonfigurasi secara komprehensif di Dashboard Builder (`data/dashboards/{project_id}.json`). Saat pengguna membuat proyek baru atau memilih "Gunakan Template", dashboard langsung terisi widget siap pakai tanpa perlu menyusun kanvas dari nol.
+- **5 Widget Spesialis Baru untuk Dashboard Builder**:
+  1. `parking_lot_grid` (*Smart Parking Grid*): Grid visual slot parkir kendaraan (P1..Pn) dengan pewarnaan adaptif (hijau = bebas, merah = terisi), informasi plat/jenis kendaraan, dan kalkulasi rasio okupansi persentase.
+  2. `queue_status_widget` (*Queue & Wait Time*): Metrik besar jumlah antrean, visualisasi avatar antrean dinamis, estimasi waktu tunggu rata-rata/maksimum, dan badge level kepadatan (`LOW`, `MEDIUM`, `OVERLOADED`).
+  3. `ai_gym_rep_widget` (*AI Gym & Ergonomi Postur*): Pengukur busur sudut sendi SVG melingkar derajat kinetik, penghitung repetisi latihan fisik (*rep counter badge*), indikator stage `UP`/`DOWN`, serta spanduk peringatan deviasi postur K3.
+  4. `vision_eye_radar_widget` (*Vision Eye Radar 360°*): Tampilan radar 360 derajat dengan animasi jarum sapuan berputar (*sweep line*), lingkaran jarak konsentris, titik pengamat pusat, sektor kerucut titik buta (*blind-spot sector*), dan blip peringatan bahaya benturan.
+  5. `live_gauge_meter` (*Speedometer / Dial Meter*): Dial meter busur setengah lingkaran SVG dengan jarum penunjuk nilai adaptif (-90° s/d +90°), zona 3 warna (hijau normal, kuning waspada, merah kritis), dan angka digital besar untuk OEE pabrik, kecepatan laju, atau telemetri alur kerja.
+- **Modal Pemilihan 42+ Template Dashboard**: Dialog modal template di Dashboard Builder kini menyajikan seluruh 42 template terpasang lengkap dengan kartu informasi, badge kategori, dan tombol terapkan instan (*1-click apply*).
+- **Dukungan Penuh Export Code & Docker**: Setiap template dan widget baru terintegrasi penuh ke dalam generator kode ekspor mandiri (`export_code.py` / `/api/export-code`) dan ekspor Docker bundle dashboard.
+
 ---
 
 ## 📦 Katalog Lengkap 89 Node Vision Studio (5 Tabel Kategori Modular)

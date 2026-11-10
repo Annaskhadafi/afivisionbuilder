@@ -996,6 +996,11 @@
       else if (type === 'vision_result_viewer') { newW = 940; newH = 580; }
       else if (type === 'confidence_table') { newW = 720; newH = 320; }
       else if (type === 'custom_analytics_table') { newW = 660; newH = 320; }
+      else if (type === 'parking_lot_grid') { newW = 480; newH = 340; }
+      else if (type === 'queue_status_widget') { newW = 440; newH = 280; }
+      else if (type === 'ai_gym_rep_widget') { newW = 380; newH = 340; }
+      else if (type === 'vision_eye_radar_widget') { newW = 380; newH = 380; }
+      else if (type === 'live_gauge_meter') { newW = 320; newH = 260; }
 
       let targetX = type === 'dashboard_navbar' ? 0 : Math.max(30, Math.floor((canvasW - newW) / 2));
       let targetY = type === 'dashboard_navbar' ? 0 : Math.max(60, Math.floor((canvasH - newH) / 2));
@@ -1139,6 +1144,56 @@
             showViolations: true,
             exportCsv: true,
             exportExcel: true
+          };
+        case 'parking_lot_grid':
+          return {
+            title: 'Smart Parking Grid',
+            slots: [
+              { id: 'P1', label: 'Slot 1 (VIP)', status: 'occupied', vehicle: 'B 1234 CD' },
+              { id: 'P2', label: 'Slot 2', status: 'free', vehicle: '' },
+              { id: 'P3', label: 'Slot 3', status: 'occupied', vehicle: 'D 5678 EF' },
+              { id: 'P4', label: 'Slot 4', status: 'free', vehicle: '' },
+              { id: 'P5', label: 'Slot 5', status: 'free', vehicle: '' },
+              { id: 'P6', label: 'Slot 6', status: 'occupied', vehicle: 'B 9999 Z' }
+            ],
+            metricOccupancyKey: 'parking_occupancy_pct',
+            metricFreeKey: 'parking_free_count',
+            metricOccupiedKey: 'parking_occupied_count'
+          };
+        case 'queue_status_widget':
+          return {
+            title: 'Queue & Wait Time Monitor',
+            queueMetricKey: 'queue_count',
+            avgWaitMetricKey: 'queue_avg_wait_sec',
+            maxWaitMetricKey: 'queue_max_wait_sec',
+            maxCapacity: 10
+          };
+        case 'ai_gym_rep_widget':
+          return {
+            title: 'AI Gym & Ergonomi Postur',
+            exerciseType: 'squat',
+            repMetricKey: 'gym_rep_count',
+            stageMetricKey: 'gym_current_stage',
+            angleMetricKey: 'gym_current_angle',
+            targetReps: 20
+          };
+        case 'vision_eye_radar_widget':
+          return {
+            title: 'Vision Eye Radar 360°',
+            observerLabel: 'Forklift / Alat Berat',
+            dangerMetricKey: 've_danger_count',
+            blindSpotMetricKey: 've_blindspot_count'
+          };
+        case 'live_gauge_meter':
+          return {
+            title: 'Speedometer / Dial Meter',
+            metricKey: 'speed_kmh',
+            unit: 'km/h',
+            minVal: 0,
+            maxVal: 120,
+            warningVal: 60,
+            dangerVal: 90,
+            defaultValue: 45
           };
         default:
           return {};
@@ -2007,6 +2062,214 @@
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            </div>
+          `;
+        }
+        case 'parking_lot_grid': {
+          const slots = cfg.slots || [
+            { id: 'P1', label: 'Slot 1 (VIP)', status: 'occupied', vehicle: 'B 1234 CD' },
+            { id: 'P2', label: 'Slot 2', status: 'free', vehicle: '' },
+            { id: 'P3', label: 'Slot 3', status: 'occupied', vehicle: 'D 5678 EF' },
+            { id: 'P4', label: 'Slot 4', status: 'free', vehicle: '' },
+            { id: 'P5', label: 'Slot 5', status: 'free', vehicle: '' },
+            { id: 'P6', label: 'Slot 6', status: 'occupied', vehicle: 'B 9999 Z' }
+          ];
+          const occVal = this.getMetricValue(cfg.metricOccupancyKey, 50);
+          const freeCount = slots.filter(s => s.status === 'free').length;
+          const occCount = slots.length - freeCount;
+          const isHigh = occVal >= 75;
+          return `
+            <div class="widget-parking-grid" id="card_${w.id}">
+              <div class="parking-header">
+                <div class="parking-title">
+                  <span>🚗</span>
+                  <span>${cfg.title || 'Smart Parking Grid'}</span>
+                </div>
+                <span class="parking-occupancy-pill ${isHigh ? 'high' : ''}" id="occ_pill_${w.id}">
+                  ${occVal}% Okupansi
+                </span>
+              </div>
+              <div class="parking-slots-grid" id="slots_grid_${w.id}">
+                ${slots.map(s => `
+                  <div class="parking-slot-card ${s.status}">
+                    <span class="parking-slot-icon">${s.status === 'occupied' ? '🚗' : '🅿️'}</span>
+                    <strong class="parking-slot-name">${s.id}</strong>
+                    <span class="parking-slot-vehicle">${s.status === 'occupied' ? (s.vehicle || 'Terisi') : 'KOSONG'}</span>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="parking-footer-bar">
+                <span>Total: <strong>${slots.length}</strong></span>
+                <span style="color:#10b981;">Kosong: <strong id="free_count_${w.id}">${freeCount}</strong></span>
+                <span style="color:#ef4444;">Terisi: <strong id="occ_count_${w.id}">${occCount}</strong></span>
+              </div>
+            </div>
+          `;
+        }
+        case 'queue_status_widget': {
+          const qCount = this.getMetricValue(cfg.queueMetricKey, 3);
+          const avgWait = this.getMetricValue(cfg.avgWaitMetricKey, 95);
+          const maxWait = this.getMetricValue(cfg.maxWaitMetricKey, 180);
+          const maxCap = cfg.maxCapacity || 10;
+          let congStatus = 'low';
+          if (qCount > maxCap * 0.7) congStatus = 'overloaded';
+          else if (qCount > maxCap * 0.4) congStatus = 'medium';
+
+          const dotsHtml = Array.from({ length: Math.min(qCount, 8) }).map(() => `
+            <div class="queue-dot-person">👤</div>
+          `).join('');
+
+          return `
+            <div class="widget-queue-status" id="card_${w.id}">
+              <div class="queue-header">
+                <div class="queue-title">
+                  <span>🚶</span>
+                  <span>${cfg.title || 'Queue & Wait Time'}</span>
+                </div>
+                <span class="queue-congestion-badge ${congStatus}" id="q_badge_${w.id}">
+                  ${congStatus.toUpperCase()}
+                </span>
+              </div>
+              <div class="queue-main-row">
+                <div>
+                  <div class="queue-count-huge" id="q_count_${w.id}">${qCount}</div>
+                  <div class="queue-count-label">Orang Mengantre</div>
+                </div>
+                <div class="queue-dot-strip" id="q_dots_${w.id}">
+                  ${dotsHtml || '<span style="font-size:11px;color:#64748b;">Antrean Kosong</span>'}
+                </div>
+              </div>
+              <div class="queue-substats-grid">
+                <div class="queue-substat-card">
+                  <div class="queue-substat-label">Rata-rata Waktu Tunggu</div>
+                  <div class="queue-substat-val" id="q_avg_${w.id}">${Math.floor(avgWait / 60)}m ${Math.round(avgWait % 60)}s</div>
+                </div>
+                <div class="queue-substat-card">
+                  <div class="queue-substat-label">Tunggu Terlama</div>
+                  <div class="queue-substat-val" id="q_max_${w.id}">${Math.floor(maxWait / 60)}m ${Math.round(maxWait % 60)}s</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        case 'ai_gym_rep_widget': {
+          const reps = this.getMetricValue(cfg.repMetricKey, 12);
+          const stage = (this.getMetricValue(cfg.stageMetricKey, 'up') || 'up').toLowerCase();
+          const angle = Math.round(this.getMetricValue(cfg.angleMetricKey, 145));
+          const target = cfg.targetReps || 20;
+          return `
+            <div class="widget-ai-gym" id="card_${w.id}">
+              <div class="gym-header">
+                <div class="gym-title">
+                  <span>🏋️</span>
+                  <span>${cfg.title || 'AI Gym & Ergonomi'}</span>
+                </div>
+                <span class="gym-exercise-tag">${cfg.exerciseType || 'SQUAT'}</span>
+              </div>
+              <div class="gym-center-row">
+                <div class="gym-gauge-box">
+                  <svg width="100" height="100" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="#1e293b" stroke-width="8" />
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="#00E5FF" stroke-width="8"
+                            stroke-dasharray="251" stroke-dashoffset="${251 - (angle / 180) * 251}"
+                            stroke-linecap="round" id="gym_arc_${w.id}" />
+                  </svg>
+                  <span class="gym-angle-num" id="gym_angle_${w.id}">${angle}°</span>
+                </div>
+                <div class="gym-reps-box">
+                  <div class="gym-reps-count" id="gym_reps_${w.id}">${reps}</div>
+                  <div class="gym-reps-unit">/ ${target} REPS</div>
+                  <span class="gym-stage-pill ${stage}" id="gym_stage_${w.id}">${stage.toUpperCase()}</span>
+                </div>
+              </div>
+              <div class="gym-posture-banner ${angle < 70 ? 'warning' : ''}" id="gym_feedback_${w.id}">
+                <span>${angle < 70 ? '⚠️ Sudut terlalu rendah, jaga punggung tegak!' : '✅ Postur stabil & sesuai rentang ergonomis'}</span>
+              </div>
+            </div>
+          `;
+        }
+        case 'vision_eye_radar_widget': {
+          const dangerCount = this.getMetricValue(cfg.dangerMetricKey, 1);
+          const blindSpotCount = this.getMetricValue(cfg.blindSpotMetricKey, 1);
+          const isDanger = dangerCount > 0;
+          return `
+            <div class="widget-vision-radar" id="card_${w.id}">
+              <div class="radar-head">
+                <div class="radar-title">
+                  <span>🎯</span>
+                  <span>${cfg.title || 'Vision Eye Radar 360°'}</span>
+                </div>
+                <span class="radar-alert-pill ${isDanger ? 'danger' : ''}" id="radar_pill_${w.id}">
+                  ${isDanger ? 'BAHAYA TERDEKAT' : 'AREA AMAN'}
+                </span>
+              </div>
+              <div class="radar-screen-wrap">
+                <div class="radar-sweep-line"></div>
+                <div class="radar-center-observer"></div>
+                <!-- Concentric Rings -->
+                <svg width="170" height="170" viewBox="0 0 170 170" style="position:absolute;top:0;left:0;">
+                  <circle cx="85" cy="85" r="30" fill="none" stroke="rgba(0, 229, 255, 0.2)" stroke-width="1" />
+                  <circle cx="85" cy="85" r="55" fill="none" stroke="rgba(0, 229, 255, 0.2)" stroke-width="1" />
+                  <circle cx="85" cy="85" r="80" fill="none" stroke="rgba(0, 229, 255, 0.3)" stroke-width="1" stroke-dasharray="4 4" />
+                  <!-- Conical Blind Spot Sector -->
+                  <path d="M 85 85 L 145 145 A 80 80 0 0 1 25 145 Z" fill="rgba(245, 158, 11, 0.15)" stroke="rgba(245, 158, 11, 0.4)" stroke-width="1" />
+                </svg>
+                <div class="radar-blip danger" style="top:35%;left:65%;"></div>
+                <div class="radar-blip warning" style="top:75%;left:45%;"></div>
+              </div>
+              <div class="radar-footer-stats">
+                <span>Pengamat: <strong>${cfg.observerLabel || 'Unit'}</strong></span>
+                <span>Blind Spot: <strong style="color:#f59e0b;" id="radar_blind_${w.id}">${blindSpotCount}</strong></span>
+                <span>Bahaya: <strong style="color:#ef4444;" id="radar_danger_${w.id}">${dangerCount}</strong></span>
+              </div>
+            </div>
+          `;
+        }
+        case 'live_gauge_meter': {
+          const val = this.getMetricValue(cfg.metricKey, cfg.defaultValue || 55);
+          const min = cfg.minVal !== undefined ? cfg.minVal : 0;
+          const max = cfg.maxVal !== undefined ? cfg.maxVal : 120;
+          const pct = Math.max(0, Math.min(1, (val - min) / (max - min || 1)));
+          const angle = -90 + pct * 180;
+          const warn = cfg.warningVal || 70;
+          const dang = cfg.dangerVal || 95;
+          let statusColor = '#10b981';
+          let statusText = 'Normal';
+          if (val >= dang) { statusColor = '#ef4444'; statusText = 'Kritis'; }
+          else if (val >= warn) { statusColor = '#f59e0b'; statusText = 'Waspada'; }
+
+          return `
+            <div class="widget-gauge-meter" id="card_${w.id}">
+              <div class="gauge-header">
+                <div class="gauge-title">
+                  <span>⏱️</span>
+                  <span>${cfg.title || 'Speedometer Dial'}</span>
+                </div>
+                <span class="gauge-unit-tag">${cfg.unit || 'km/h'}</span>
+              </div>
+              <div class="gauge-svg-wrap">
+                <svg width="220" height="120" viewBox="0 0 220 120">
+                  <!-- Arc Background -->
+                  <path d="M 20 110 A 90 90 0 0 1 200 110" fill="none" stroke="#1e293b" stroke-width="14" stroke-linecap="round" />
+                  <!-- Colored Sections: Green / Yellow / Red -->
+                  <path d="M 20 110 A 90 90 0 0 1 110 20" fill="none" stroke="rgba(16, 185, 129, 0.4)" stroke-width="14" />
+                  <path d="M 110 20 A 90 90 0 0 1 170 42" fill="none" stroke="rgba(245, 158, 11, 0.4)" stroke-width="14" />
+                  <path d="M 170 42 A 90 90 0 0 1 200 110" fill="none" stroke="rgba(239, 68, 68, 0.4)" stroke-width="14" stroke-linecap="round" />
+                  <!-- Needle -->
+                  <g transform="translate(110, 110) rotate(${angle})" style="transition: transform 0.5s ease;" id="gauge_needle_${w.id}">
+                    <line x1="0" y1="0" x2="0" y2="-80" stroke="${statusColor}" stroke-width="3" stroke-linecap="round" />
+                    <circle cx="0" cy="0" r="8" fill="#f8fafc" stroke="${statusColor}" stroke-width="3" />
+                  </g>
+                </svg>
+                <div class="gauge-center-reading">
+                  <div class="gauge-val-big" id="gauge_val_${w.id}">${val}</div>
+                  <div class="gauge-sub-status" style="color:${statusColor};" id="gauge_status_${w.id}">${statusText}</div>
+                </div>
+              </div>
+              <div class="gauge-scale-labels">
+                <span>${min} ${cfg.unit || ''}</span>
+                <span>${max} ${cfg.unit || ''}</span>
               </div>
             </div>
           `;
@@ -3034,6 +3297,89 @@
               </div>
             ` : ''}
 
+            ${w.type === 'parking_lot_grid' ? `
+              <div class="inspector-field">
+                <label>Judul Grid Parkir</label>
+                <input type="text" id="inp_title" value="${cfg.title || 'Smart Parking Grid'}" />
+              </div>
+              <div class="inspector-field">
+                <label>Kunci Metrik Okupansi (%)</label>
+                <input type="text" id="inp_metricOccupancyKey" value="${cfg.metricOccupancyKey || 'parking_occupancy_pct'}" />
+              </div>
+            ` : ''}
+
+            ${w.type === 'queue_status_widget' ? `
+              <div class="inspector-field">
+                <label>Judul Status Antrean</label>
+                <input type="text" id="inp_title" value="${cfg.title || 'Queue & Wait Time Monitor'}" />
+              </div>
+              <div class="inspector-field">
+                <label>Kunci Metrik Antrean</label>
+                <input type="text" id="inp_queueMetricKey" value="${cfg.queueMetricKey || 'queue_count'}" />
+              </div>
+              <div class="inspector-field">
+                <label>Kapasitas Antrean Maksimal</label>
+                <input type="number" id="inp_maxCapacity" value="${cfg.maxCapacity || 10}" />
+              </div>
+            ` : ''}
+
+            ${w.type === 'ai_gym_rep_widget' ? `
+              <div class="inspector-field">
+                <label>Judul Widget Latihan / K3</label>
+                <input type="text" id="inp_title" value="${cfg.title || 'AI Gym & Ergonomi Postur'}" />
+              </div>
+              <div class="inspector-field">
+                <label>Jenis Gerakan / Olahraga</label>
+                <input type="text" id="inp_exerciseType" value="${cfg.exerciseType || 'squat'}" />
+              </div>
+              <div class="inspector-field">
+                <label>Target Repetisi</label>
+                <input type="number" id="inp_targetReps" value="${cfg.targetReps || 20}" />
+              </div>
+            ` : ''}
+
+            ${w.type === 'vision_eye_radar_widget' ? `
+              <div class="inspector-field">
+                <label>Judul Radar Pengamat</label>
+                <input type="text" id="inp_title" value="${cfg.title || 'Vision Eye Radar 360°'}" />
+              </div>
+              <div class="inspector-field">
+                <label>Label Pengamat / Unit</label>
+                <input type="text" id="inp_observerLabel" value="${cfg.observerLabel || 'Forklift / Alat Berat'}" />
+              </div>
+            ` : ''}
+
+            ${w.type === 'live_gauge_meter' ? `
+              <div class="inspector-field">
+                <label>Judul Dial Meter</label>
+                <input type="text" id="inp_title" value="${cfg.title || 'Speedometer / Dial Meter'}" />
+              </div>
+              <div class="inspector-field">
+                <label>Kunci Metrik</label>
+                <input type="text" id="inp_metricKey" value="${cfg.metricKey || 'speed_kmh'}" />
+              </div>
+              <div class="inspector-field">
+                <label>Satuan Unit</label>
+                <input type="text" id="inp_unit" value="${cfg.unit || 'km/h'}" />
+              </div>
+              <div class="inspector-field">
+                <label>Batas Minimum</label>
+                <input type="number" id="inp_minVal" value="${cfg.minVal !== undefined ? cfg.minVal : 0}" />
+              </div>
+              <div class="inspector-field">
+                <label>Batas Maksimum</label>
+                <input type="number" id="inp_maxVal" value="${cfg.maxVal !== undefined ? cfg.maxVal : 120}" />
+              </div>
+              <div class="inspector-field">
+                <label>Ambang Waspada (Kuning)</label>
+                <input type="number" id="inp_warningVal" value="${cfg.warningVal || 60}" />
+              </div>
+              <div class="inspector-field">
+                <label>Ambang Bahaya (Merah)</label>
+                <input type="number" id="inp_dangerVal" value="${cfg.dangerVal || 90}" />
+              </div>
+            ` : ''}
+
             ${w.type === 'excel_export_btn' ? `
               <div class="inspector-field">
                 <label>Teks / Label Tombol Unduh</label>
@@ -3406,6 +3752,16 @@
         bind('inp_label', 'label');
         bind('inp_shift', 'shift');
         bind('inp_maxRows', 'maxRows', true);
+        bind('inp_metricOccupancyKey', 'metricOccupancyKey');
+        bind('inp_queueMetricKey', 'queueMetricKey');
+        bind('inp_maxCapacity', 'maxCapacity', true);
+        bind('inp_exerciseType', 'exerciseType');
+        bind('inp_targetReps', 'targetReps', true);
+        bind('inp_observerLabel', 'observerLabel');
+        bind('inp_minVal', 'minVal', true);
+        bind('inp_maxVal', 'maxVal', true);
+        bind('inp_warningVal', 'warningVal', true);
+        bind('inp_dangerVal', 'dangerVal', true);
 
         if (w.type === 'dashboard_navbar') {
           const inpLogo = document.getElementById('inp_navbar_logo');
@@ -3750,7 +4106,12 @@
         custom_text: '🔤',
         status_badge: '🟢',
         container_box: '📦',
-        excel_export_btn: '📥'
+        excel_export_btn: '📥',
+        parking_lot_grid: '🚗',
+        queue_status_widget: '🚶',
+        ai_gym_rep_widget: '🏋️',
+        vision_eye_radar_widget: '🎯',
+        live_gauge_meter: '⏱️'
       };
 
       const typeLabels = {
@@ -3762,7 +4123,12 @@
         custom_text: 'Teks Kustom',
         status_badge: 'Badge Status',
         container_box: 'Wadah Kontainer',
-        excel_export_btn: 'Tombol Unduh Excel'
+        excel_export_btn: 'Tombol Unduh Excel',
+        parking_lot_grid: 'Smart Parking Grid',
+        queue_status_widget: 'Queue & Wait Time',
+        ai_gym_rep_widget: 'AI Gym & Ergonomi',
+        vision_eye_radar_widget: 'Vision Eye Radar 360°',
+        live_gauge_meter: 'Gauge Meter Dial'
       };
 
       treeContainer.innerHTML = widgets.map(w => {
@@ -4392,6 +4758,80 @@
           const clk = document.getElementById(`clock_${w.id}`);
           if (clk) {
             clk.textContent = new Date().toTimeString().split(' ')[0];
+          }
+        } else if (w.type === 'parking_lot_grid') {
+          const occEl = document.getElementById(`occ_pill_${w.id}`);
+          if (occEl) {
+            const occVal = this.getMetricValue(w.config?.metricOccupancyKey, 50);
+            occEl.textContent = `${occVal}% Okupansi`;
+            occEl.classList.toggle('high', occVal >= 75);
+          }
+        } else if (w.type === 'queue_status_widget') {
+          const qEl = document.getElementById(`q_count_${w.id}`);
+          const qBadge = document.getElementById(`q_badge_${w.id}`);
+          if (qEl) {
+            const count = this.getMetricValue(w.config?.queueMetricKey, 3);
+            qEl.textContent = count;
+            const maxCap = w.config?.maxCapacity || 10;
+            let cong = 'LOW';
+            if (count > maxCap * 0.7) cong = 'OVERLOADED';
+            else if (count > maxCap * 0.4) cong = 'MEDIUM';
+            if (qBadge) {
+              qBadge.className = `queue-congestion-badge ${cong.toLowerCase()}`;
+              qBadge.textContent = cong;
+            }
+          }
+        } else if (w.type === 'ai_gym_rep_widget') {
+          const repsEl = document.getElementById(`gym_reps_${w.id}`);
+          const stageEl = document.getElementById(`gym_stage_${w.id}`);
+          const angleEl = document.getElementById(`gym_angle_${w.id}`);
+          const arcEl = document.getElementById(`gym_arc_${w.id}`);
+          if (repsEl) repsEl.textContent = this.getMetricValue(w.config?.repMetricKey, 12);
+          if (stageEl) {
+            const stg = String(this.getMetricValue(w.config?.stageMetricKey, 'up')).toLowerCase();
+            stageEl.className = `gym-stage-pill ${stg}`;
+            stageEl.textContent = stg.toUpperCase();
+          }
+          if (angleEl && arcEl) {
+            const ang = Math.round(this.getMetricValue(w.config?.angleMetricKey, 145));
+            angleEl.textContent = `${ang}°`;
+            arcEl.setAttribute('stroke-dashoffset', String(251 - (ang / 180) * 251));
+          }
+        } else if (w.type === 'vision_eye_radar_widget') {
+          const dangerEl = document.getElementById(`radar_danger_${w.id}`);
+          const blindEl = document.getElementById(`radar_blind_${w.id}`);
+          const pillEl = document.getElementById(`radar_pill_${w.id}`);
+          if (dangerEl) {
+            const dang = this.getMetricValue(w.config?.dangerMetricKey, 1);
+            dangerEl.textContent = dang;
+            if (pillEl) {
+              pillEl.className = `radar-alert-pill ${dang > 0 ? 'danger' : ''}`;
+              pillEl.textContent = dang > 0 ? 'BAHAYA TERDEKAT' : 'AREA AMAN';
+            }
+          }
+          if (blindEl) blindEl.textContent = this.getMetricValue(w.config?.blindSpotMetricKey, 1);
+        } else if (w.type === 'live_gauge_meter') {
+          const needleEl = document.getElementById(`gauge_needle_${w.id}`);
+          const valEl = document.getElementById(`gauge_val_${w.id}`);
+          const stEl = document.getElementById(`gauge_status_${w.id}`);
+          if (valEl) {
+            const val = this.getMetricValue(w.config?.metricKey, w.config?.defaultValue || 55);
+            valEl.textContent = val;
+            const min = w.config?.minVal !== undefined ? w.config?.minVal : 0;
+            const max = w.config?.maxVal !== undefined ? w.config?.maxVal : 120;
+            const pct = Math.max(0, Math.min(1, (val - min) / (max - min || 1)));
+            const angle = -90 + pct * 180;
+            if (needleEl) needleEl.setAttribute('transform', `translate(110, 110) rotate(${angle})`);
+            const warn = w.config?.warningVal || 70;
+            const dang = w.config?.dangerVal || 95;
+            let statusColor = '#10b981';
+            let statusText = 'Normal';
+            if (val >= dang) { statusColor = '#ef4444'; statusText = 'Kritis'; }
+            else if (val >= warn) { statusColor = '#f59e0b'; statusText = 'Waspada'; }
+            if (stEl) {
+              stEl.style.color = statusColor;
+              stEl.textContent = statusText;
+            }
           }
         }
       });

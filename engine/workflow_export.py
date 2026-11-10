@@ -96,6 +96,12 @@ NODE_TYPE_TO_ENGINE_FILES = {
     "ppe_compliance_matrix": {"ppe_compliance.py"},
     "homography_projector": {"homography_bev.py"},
     "bev_visualizer": {"homography_bev.py"},
+    "parking_management": {"ultralytics_solutions.py"},
+    "queue_manager": {"ultralytics_solutions.py"},
+    "ai_gym": {"ultralytics_solutions.py"},
+    "vision_eye": {"ultralytics_solutions.py"},
+    "analytics_overlay": {"ultralytics_solutions.py"},
+
 }
 
 CORE_ENGINE_FILES = {
