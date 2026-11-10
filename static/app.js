@@ -3484,7 +3484,9 @@
 
 
   const INDO_FIELD_LABELS = {
-
+    sourceType: 'Tipe Sumber Input',
+    nvrCameraId: 'Kamera CCTV (OpenNVR Hub)',
+    nvrFallbackToStandby: 'Tampilkan Kartu Standby jika Offline',
     connectionMode: 'Mode Koneksi Kamera',
 
     gatewayUrl: 'URL REST API Media Gateway (go2rtc)',
@@ -6479,11 +6481,10 @@
       let subtitleText = n.subtitle || state.catalog[n.type]?.subtitle || n.type;
 
       if (n.type === 'input') {
-
-        if (n.config?.sourceType === 'youtube') {
-
+        if (n.config?.sourceType === 'nvr') {
+          subtitleText = n.config?.nvrCameraId ? `OpenNVR: #${n.config.nvrCameraId}` : 'OpenNVR Hub Camera';
+        } else if (n.config?.sourceType === 'youtube') {
           subtitleText = n.config?.youtubeUrl ? `YouTube: ${n.config.youtubeUrl.slice(0, 28)}...` : 'YouTube Stream Source';
-
         } else if (n.config?.sourceType === 'camera') {
 
           subtitleText = `Webcam / Camera #${n.config.source || 0}`;
@@ -12496,41 +12497,26 @@
     const cfg = node.config || {};
 
     // Input node conditional visibility
-
     if (node.type === 'input') {
-
       const src = cfg.sourceType || 'camera';
-
+      if (src === 'nvr') {
+        return ['sourceType', 'nvrCameraId', 'nvrFallbackToStandby', 'frameQueueSize', 'dropFrames', 'asyncPreview'].includes(key);
+      }
       if (src === 'youtube') {
-
         return ['sourceType', 'youtubeUrl', 'youtubeQuality', 'loop', 'autoReconnect', 'frameQueueSize', 'dropFrames', 'asyncPreview'].includes(key);
-
       }
-
       if (src === 'camera') {
-
-        return !['filePath', 'loop', 'youtubeUrl', 'youtubeQuality', 'autoReconnect', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
-
+        return !['filePath', 'loop', 'youtubeUrl', 'youtubeQuality', 'autoReconnect', 'nvrCameraId', 'nvrFallbackToStandby', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
       }
-
       if (src === 'image') {
-
-        return !['source', 'loop', 'youtubeUrl', 'youtubeQuality', 'autoReconnect', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
-
+        return !['source', 'loop', 'youtubeUrl', 'youtubeQuality', 'autoReconnect', 'nvrCameraId', 'nvrFallbackToStandby', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
       }
-
       if (src === 'video' || src === 'file') {
-
-        return !['source', 'youtubeUrl', 'youtubeQuality', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
-
+        return !['source', 'youtubeUrl', 'youtubeQuality', 'nvrCameraId', 'nvrFallbackToStandby', 'dahengIdentifier', 'dahengExposureUs', 'dahengGain', 'dahengTimeoutMs', 'dahengFrameRate', 'dahengOpenMode'].includes(key);
       }
-
       if (src === 'daheng') {
-
-        return !['source', 'filePath', 'loop', 'youtubeUrl', 'youtubeQuality', 'autoReconnect'].includes(key);
-
+        return !['source', 'filePath', 'loop', 'youtubeUrl', 'youtubeQuality', 'autoReconnect', 'nvrCameraId', 'nvrFallbackToStandby'].includes(key);
       }
-
     }
 
 
@@ -13297,6 +13283,96 @@
 
 
 
+    if (key === 'nvrCameraId') {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.gap = '8px';
+      row.style.alignItems = 'center';
+
+      const select = document.createElement('select');
+      select.style.flex = '1';
+      select.className = 'nvr-camera-picker-select';
+
+      const optDefault = document.createElement('option');
+      optDefault.value = '';
+      optDefault.textContent = value ? `Pilihan: ${value}` : '-- Pilih Kamera dari OpenNVR Hub --';
+      select.append(optDefault);
+
+      const btnRefresh = document.createElement('button');
+      btnRefresh.type = 'button';
+      btnRefresh.className = 'button secondary';
+      btnRefresh.style.height = '36px';
+      btnRefresh.style.padding = '0 10px';
+      btnRefresh.title = 'Refresh daftar kamera dari OpenNVR Hub';
+      btnRefresh.innerHTML = '🔄';
+
+      const btnOpenHub = document.createElement('button');
+      btnOpenHub.type = 'button';
+      btnOpenHub.className = 'button secondary';
+      btnOpenHub.style.height = '36px';
+      btnOpenHub.style.padding = '0 10px';
+      btnOpenHub.title = 'Buka Manajemen OpenNVR Hub';
+      btnOpenHub.innerHTML = '🏢 Hub';
+      btnOpenHub.onclick = () => {
+        if (typeof window.openOpenNVRModal === 'function') {
+          window.openOpenNVRModal();
+        } else {
+          const btn = document.getElementById('openNvrBtn');
+          if (btn) btn.click();
+        }
+      };
+
+      const fetchCameras = async () => {
+        try {
+          btnRefresh.disabled = true;
+          const res = await api('/api/nvr/cameras');
+          select.replaceChildren();
+
+          const emptyOpt = document.createElement('option');
+          emptyOpt.value = '';
+          emptyOpt.textContent = '-- Pilih Kamera dari OpenNVR Hub --';
+          select.append(emptyOpt);
+
+          const cameras = (res && res.cameras) || [];
+          if (cameras.length === 0) {
+            const noOpt = document.createElement('option');
+            noOpt.value = '';
+            noOpt.textContent = 'Belum ada kamera di NVR (Klik tombol Hub)';
+            select.append(noOpt);
+          } else {
+            cameras.forEach(c => {
+              const opt = document.createElement('option');
+              opt.value = c.id;
+              const statusDot = c.is_online ? '🟢' : '🔴';
+              opt.textContent = `${statusDot} ${c.name || c.id} (${c.ip || 'RTSP'}${c.group ? ' - ' + c.group : ''})`;
+              if (c.id === node.config.nvrCameraId) opt.selected = true;
+              select.append(opt);
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to fetch NVR cameras:', e);
+        } finally {
+          btnRefresh.disabled = false;
+        }
+      };
+
+      select.onchange = () => {
+        node.config[key] = select.value;
+        markDirty();
+        renderCanvas();
+        renderInspector();
+        liveUpdateWorkflow();
+      };
+
+      btnRefresh.onclick = fetchCameras;
+      setTimeout(fetchCameras, 0);
+
+      row.append(select, btnRefresh, btnOpenHub);
+      wrap.append(row);
+      appendHelp(wrap, key);
+      return wrap;
+    }
+
     if (node.type === 'ip_camera' && key === 'connectionMode') {
 
       const select = document.createElement('select');
@@ -13818,19 +13894,13 @@
       ],
 
       sourceType: [
-
         ['camera', 'Camera (USB/Built-in OpenCV)'],
-
+        ['nvr', '🏢 OpenNVR Hub (Single-Source CCTV Ingest)'],
         ['youtube', 'YouTube Video / Live Stream'],
-
         ['daheng', 'Daheng Industrial Camera'],
-
         ['image', 'Static Image File'],
-
         ['video', 'Video File'],
-
         ['file', 'Generic File Source']
-
       ],
 
       youtubeQuality: [

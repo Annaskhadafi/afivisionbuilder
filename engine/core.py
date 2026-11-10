@@ -3125,7 +3125,11 @@ def _is_live_source(input_config: dict) -> bool:
     engine.normalize_camera_source), so they are covered by the camera branch.
     """
     source_type = str(input_config.get("sourceType", "camera") or "camera").lower()
-    return source_type in ("camera", "daheng", "youtube") or bool(input_config.get("dropFrames", False))
+    return (
+        source_type in ("camera", "daheng", "youtube", "nvr")
+        or bool(input_config.get("nvrCameraId"))
+        or bool(input_config.get("dropFrames", False))
+    )
 
 
 class LatestSlot:
@@ -4107,7 +4111,8 @@ class WorkflowRunner:
                 first_frame_logged = False
                 watchdog = CCTVStreamWatchdog(input_config, input_node, self._emit_log, self._emit_node_debug)
                 consecutive_failures = 0
-                max_consecutive_failures = 30
+                is_live_or_yt = _is_live_source(input_config) or input_config.get("sourceType") == "youtube"
+                max_consecutive_failures = 60 if is_live_or_yt else 30
                 while not self._stop_event.is_set():
                     read_started_at = time.monotonic()
                     ok, frame = input_source.read()
@@ -4116,10 +4121,10 @@ class WorkflowRunner:
                         if input_source.is_exhausted:
                             self._emit_log("Finite video input completed")
                             break
-                        if not input_source.is_static and not getattr(input_source, "_finite_video", False):
+                        if is_live_or_yt or (not input_source.is_static and not getattr(input_source, "_finite_video", False)):
                             consecutive_failures += 1
                             if consecutive_failures < max_consecutive_failures:
-                                time.sleep(0.03)
+                                time.sleep(0.04)
                                 continue
                         self._emit_node_debug(
                             input_node,
@@ -4132,6 +4137,19 @@ class WorkflowRunner:
                     consecutive_failures = 0
                     watchdog.check(frame)
                     frame_id += 1
+
+                    # Continuous buffer feed to Evidence Vault
+                    try:
+                        active_cam_id = (
+                            str(input_config.get("nvrCameraId") or "").strip()
+                            or str(input_config.get("source") or "").strip()
+                            or str(getattr(self, "project_id", "default_cam") or "default_cam")
+                        )
+                        from engine.event_recorder import get_or_create_recorder
+                        get_or_create_recorder(active_cam_id, fps=15).add_frame(frame)
+                    except Exception:
+                        pass
+
                     packet = FramePacket(
                         frame_id=frame_id,
                         frame=frame,
@@ -5217,6 +5235,28 @@ class WorkflowRunner:
                             if alert_node.get("config", {}).get("recordClip", True) and len(rolling_frame_buffer) >= 5:
                                 self._save_incident_clip_async(list(rolling_frame_buffer), "alert", labels)
 
+                            # Trigger smart evidence bookmark in OpenNVR Vault
+                            try:
+                                active_cam_id = (
+                                    str(input_config.get("nvrCameraId") or "").strip()
+                                    or str(input_config.get("source") or "").strip()
+                                    or str(getattr(self, "project_id", "default_cam") or "default_cam")
+                                )
+                                from engine.event_recorder import record_incident_bookmark
+                                record_incident_bookmark(
+                                    active_cam_id,
+                                    str(alert_node.get("config", {}).get("message") or "Alert"),
+                                    detail=f"{len(alert_detections)} match(es): {labels}",
+                                    metadata={
+                                        "workflow_name": workflow.get("name") or str(getattr(self, "project_id", "Workflow")),
+                                        "alert_severity": str(alert_node.get("config", {}).get("severity", "warning")),
+                                        "rule_triggered": "alert",
+                                        "project_id": str(getattr(self, "project_id", "")),
+                                    }
+                                )
+                            except Exception:
+                                pass
+
                     # Loitering automatic incident recording
                     if len(rolling_frame_buffer) >= 5:
                         for det in incident_detections:
@@ -5227,6 +5267,26 @@ class WorkflowRunner:
                                     "loitering",
                                     f"track #{det.get('trackId')} {det.get('class', 'object')}"
                                 )
+                                try:
+                                    active_cam_id = (
+                                        str(input_config.get("nvrCameraId") or "").strip()
+                                        or str(input_config.get("source") or "").strip()
+                                        or str(getattr(self, "project_id", "default_cam") or "default_cam")
+                                    )
+                                    from engine.event_recorder import record_incident_bookmark
+                                    record_incident_bookmark(
+                                        active_cam_id,
+                                        "Loitering Alert",
+                                        detail=f"track #{det.get('trackId')} {det.get('class', 'object')}",
+                                        metadata={
+                                            "workflow_name": workflow.get("name") or str(getattr(self, "project_id", "Workflow")),
+                                            "alert_severity": "warning",
+                                            "rule_triggered": "loitering",
+                                            "project_id": str(getattr(self, "project_id", "")),
+                                        }
+                                    )
+                                except Exception:
+                                    pass
                     if (
                         self._debug_enabled
                         and alert_node

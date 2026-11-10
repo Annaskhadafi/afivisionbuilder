@@ -1450,15 +1450,34 @@
                       <span class="patrol-pulse"></span> 🔄 Patroli
                     </button>
                   ` : ''}
-                  ${cfg.showAnnotatedToggle ? `<button class="cctv-action-btn btn-cctv-toggle" type="button">Mode AI</button>` : ''}
-                  ${cfg.showSnapshotBtn ? `<button class="cctv-action-btn btn-cctv-snap" type="button">📷</button>` : ''}
-                  ${cfg.showFullscreenBtn ? `<button class="cctv-action-btn btn-cctv-expand" type="button">⤢</button>` : ''}
+                  <button class="cctv-action-btn btn-cctv-toggle" type="button" title="Beralih antara AI Annotated dan Raw NVR" data-mode="ai">🟢 Mode AI</button>
+                  <button class="cctv-action-btn btn-cctv-ptz" type="button" title="Kendali Kamera PTZ">🕹️ PTZ</button>
+                  ${cfg.showSnapshotBtn !== false ? `<button class="cctv-action-btn btn-cctv-snap" type="button" title="Ambil Tangkapan Layar">📷</button>` : ''}
+                  ${cfg.showFullscreenBtn !== false ? `<button class="cctv-action-btn btn-cctv-expand" type="button" title="Layar Penuh">⤢</button>` : ''}
                 </div>
               </div>
-              <div class="cctv-screen-view">
+              <div class="cctv-screen-view" style="position:relative;">
                 <img id="cctv_img_${w.id}" src="/api/preview/${streamNodeId}/stream?res=720p" onerror="this.onerror=null;this.src='/api/preview/${streamNodeId}?t=' + Date.now();" alt="${cfg.cameraLabel}" loading="lazy" />
                 <div class="cctv-source-overlay" id="cctv_source_overlay_${w.id}">
                   <span class="cctv-source-text">📹 ${cfg.cameraLabel || 'CCTV'} &bull; ${cfg.inputSource || 'Live Feed'}</span>
+                </div>
+                <div class="cctv-ptz-overlay" id="cctv_ptz_${w.id}" style="display:none;position:absolute;bottom:10px;right:10px;background:rgba(15,23,42,0.88);backdrop-filter:blur(8px);border:1px solid rgba(56,189,248,0.4);border-radius:8px;padding:8px;z-index:15;box-shadow:0 8px 16px rgba(0,0,0,0.5);">
+                  <div style="font-size:10px;font-weight:700;color:#38bdf8;margin-bottom:6px;text-align:center;">🕹️ KONTROL PTZ</div>
+                  <div style="display:grid;grid-template-columns:repeat(3,30px);gap:4px;margin-bottom:6px;justify-content:center;">
+                    <div></div>
+                    <button class="ptz-btn" data-dir="up" style="background:#1e293b;border:1px solid #475569;color:#f8fafc;border-radius:4px;cursor:pointer;height:30px;">⬆️</button>
+                    <div></div>
+                    <button class="ptz-btn" data-dir="left" style="background:#1e293b;border:1px solid #475569;color:#f8fafc;border-radius:4px;cursor:pointer;height:30px;">⬅️</button>
+                    <button class="ptz-btn" data-dir="stop" style="background:#ef4444;border:none;color:#fff;border-radius:4px;cursor:pointer;height:30px;">⏹️</button>
+                    <button class="ptz-btn" data-dir="right" style="background:#1e293b;border:1px solid #475569;color:#f8fafc;border-radius:4px;cursor:pointer;height:30px;">➡️</button>
+                    <div></div>
+                    <button class="ptz-btn" data-dir="down" style="background:#1e293b;border:1px solid #475569;color:#f8fafc;border-radius:4px;cursor:pointer;height:30px;">⬇️</button>
+                    <div></div>
+                  </div>
+                  <div style="display:flex;gap:4px;justify-content:center;">
+                    <button class="ptz-btn" data-dir="zin" style="flex:1;background:#0284c7;border:none;color:#fff;border-radius:4px;cursor:pointer;padding:4px;font-size:10px;font-weight:600;">🔍 In</button>
+                    <button class="ptz-btn" data-dir="zout" style="flex:1;background:#0284c7;border:none;color:#fff;border-radius:4px;cursor:pointer;padding:4px;font-size:10px;font-weight:600;">🔍 Out</button>
+                  </div>
                 </div>
               </div>
               ${cfg.showCameraListStrip ? `
@@ -1520,10 +1539,11 @@
                       <th>KAMERA</th>
                       <th>KEJADIAN</th>
                       <th>TINGKAT</th>
+                      <th>BUKTI</th>
                     </tr>
                   </thead>
                   <tbody id="tableBody_${w.id}">
-                    <tr><td colspan="4" style="text-align:center;color:#64748b">Memuat data log...</td></tr>
+                    <tr><td colspan="5" style="text-align:center;color:#64748b">Memuat data log...</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -2328,14 +2348,75 @@
         e.stopPropagation();
         const img = el.querySelector('.cctv-screen-view img');
         if (!img) return;
-        const currentSrc = img.src;
-        if (currentSrc.includes('/preview')) {
-          img.src = `/api/preview/input?t=${Date.now()}`;
-          btnToggle.textContent = 'Mode Asli';
+        const currentMode = btnToggle.dataset.mode || 'ai';
+        const camLabel = w.config?.cameraLabel || '';
+        const nvrId = w.config?.nvrCameraId || w.config?.cameraId || (camLabel.startsWith('cctv_') ? camLabel : '');
+        if (currentMode === 'ai') {
+          // Switch to Raw NVR mode
+          btnToggle.dataset.mode = 'raw';
+          btnToggle.textContent = '📹 Raw NVR';
+          btnToggle.style.color = '#38bdf8';
+          if (nvrId) {
+            img.src = `/api/nvr/preview/${encodeURIComponent(nvrId)}?t=${Date.now()}`;
+          } else {
+            img.src = `/api/preview/input?t=${Date.now()}`;
+          }
         } else {
-          img.src = `/api/preview/${w.config?.nodeId || 'preview'}?t=${Date.now()}`;
-          btnToggle.textContent = 'Mode AI';
+          // Switch back to AI Annotated mode
+          btnToggle.dataset.mode = 'ai';
+          btnToggle.textContent = '🟢 Mode AI';
+          btnToggle.style.color = '';
+          img.src = `/api/preview/${w.config?.nodeId || 'preview'}/stream?res=720p`;
         }
+      });
+
+      const btnPtz = el.querySelector('.btn-cctv-ptz');
+      const ptzOverlay = el.querySelector('.cctv-ptz-overlay');
+      btnPtz?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (ptzOverlay) {
+          ptzOverlay.style.display = ptzOverlay.style.display === 'none' ? 'block' : 'none';
+        }
+      });
+
+      // PTZ directional button listeners
+      el.querySelectorAll('.ptz-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const dir = btn.dataset.dir;
+          const camLabel = w.config?.cameraLabel || '';
+          const camId = w.config?.nvrCameraId || w.config?.cameraId || (camLabel.startsWith('cctv_') ? camLabel : 'default_cam');
+          let vx = 0, vy = 0, vz = 0;
+          if (dir === 'up') vy = 0.5;
+          if (dir === 'down') vy = -0.5;
+          if (dir === 'left') vx = -0.5;
+          if (dir === 'right') vx = 0.5;
+          if (dir === 'zin') vz = 0.5;
+          if (dir === 'zout') vz = -0.5;
+
+          try {
+            await fetch('/api/nvr/ptz', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                cameraId: camId,
+                command: dir === 'stop' ? 'stop' : 'move',
+                x: vx, y: vy, zoom: vz
+              })
+            });
+            if (dir !== 'stop') {
+              setTimeout(async () => {
+                await fetch('/api/nvr/ptz', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ cameraId: camId, command: 'stop' })
+                });
+              }, 400);
+            }
+          } catch (err) {
+            console.warn('PTZ move error:', err);
+          }
+        });
       });
 
       const btnSnap = el.querySelector('.btn-cctv-snap');
@@ -4864,7 +4945,7 @@
           if (!tbody) return;
 
           if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#64748b;padding:12px;">Tidak ada event untuk filter ini.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#64748b;padding:12px;">Tidak ada event untuk filter ini.</td></tr>`;
             return;
           }
 
@@ -4874,10 +4955,119 @@
               <td><strong>${e.camera_label || 'Sistem'}</strong></td>
               <td>${e.description || e.type}</td>
               <td><span class="event-badge ${e.level}">${e.level}</span></td>
+              <td>
+                <button class="btn-evidence-clip" data-clip="${e.clip_url || e.filename || ''}" data-cam="${e.camera_label || ''}" data-title="${e.description || e.type || 'Insiden'}" style="background:rgba(56,189,248,0.15);border:1px solid #38bdf8;color:#38bdf8;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+                  🎬 Bukti
+                </button>
+              </td>
             </tr>
           `).join('');
+
+          tbody.querySelectorAll('.btn-evidence-clip').forEach(btn => {
+            btn.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              this.openEvidenceModal(btn.dataset.clip, btn.dataset.title, btn.dataset.cam);
+            });
+          });
         }
       });
+    },
+
+    async openEvidenceModal(clipUrl, title = 'Bukti Rekaman Insiden', cameraLabel = '') {
+      let modal = document.getElementById('evidenceVaultModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'evidenceVaultModal';
+        modal.className = 'dashboard-modal-backdrop';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+        modal.innerHTML = `
+          <div class="evidence-modal-box" style="background:#0f172a;border:1px solid #334155;border-radius:12px;width:100%;max-width:720px;overflow:hidden;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #1e293b;background:#1e293b;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:18px;">🎬</span>
+                <strong id="evModalTitle" style="color:#f8fafc;font-size:14px;">Bukti Rekaman Insiden</strong>
+                <span id="evModalCamBadge" style="background:#0369a1;color:#e0f2fe;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">CCTV</span>
+              </div>
+              <button id="evModalCloseBtn" type="button" style="background:transparent;border:none;color:#94a3b8;font-size:20px;cursor:pointer;line-height:1;">&times;</button>
+            </div>
+            <div style="padding:16px;background:#020617;display:flex;flex-direction:column;align-items:center;">
+              <video id="evModalVideo" controls autoplay style="width:100%;max-height:420px;border-radius:8px;background:#000;" src=""></video>
+              <div id="evModalNotice" style="display:none;color:#94a3b8;font-size:13px;padding:20px;text-align:center;">
+                Belum ada rekaman klip video tersimpan untuk insiden ini di Evidence Vault.
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-top:1px solid #1e293b;background:#0f172a;">
+              <div style="color:#64748b;font-size:12px;">Evidence Vault &bull; Auto Pre/Post-Roll</div>
+              <div style="display:flex;gap:8px;">
+                <a id="evModalDownloadBtn" href="#" download class="button primary" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:6px;background:#0284c7;color:#fff;font-size:12px;font-weight:600;">
+                  ⬇️ Unduh Klip MP4
+                </a>
+                <button id="evModalCloseFooterBtn" type="button" class="button secondary" style="padding:6px 14px;border-radius:6px;background:#1e293b;color:#cbd5e1;border:1px solid #334155;cursor:pointer;font-size:12px;">
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+
+        const closeModal = () => {
+          const vid = document.getElementById('evModalVideo');
+          if (vid) {
+            vid.pause();
+            vid.src = '';
+          }
+          modal.style.display = 'none';
+        };
+
+        modal.querySelector('#evModalCloseBtn').onclick = closeModal;
+        modal.querySelector('#evModalCloseFooterBtn').onclick = closeModal;
+        modal.onclick = (e) => {
+          if (e.target === modal) closeModal();
+        };
+      }
+
+      const titleEl = modal.querySelector('#evModalTitle');
+      const camBadge = modal.querySelector('#evModalCamBadge');
+      const vid = modal.querySelector('#evModalVideo');
+      const notice = modal.querySelector('#evModalNotice');
+      const dlBtn = modal.querySelector('#evModalDownloadBtn');
+
+      if (titleEl) titleEl.textContent = title || 'Bukti Rekaman Insiden';
+      if (camBadge) camBadge.textContent = cameraLabel ? `📹 ${cameraLabel}` : '📹 CCTV';
+
+      let resolvedUrl = clipUrl;
+      if (!resolvedUrl || resolvedUrl === 'undefined') {
+        try {
+          const recRes = await fetch(`/api/nvr/recordings?camera_id=${encodeURIComponent(cameraLabel)}`);
+          if (recRes.ok) {
+            const data = await recRes.json();
+            const recs = data.recordings || [];
+            if (recs.length > 0) {
+              resolvedUrl = `/api/nvr/recordings/${recs[0].filename}`;
+            }
+          }
+        } catch (e) {
+          console.warn('Error fetching evidence recordings:', e);
+        }
+      }
+
+      if (resolvedUrl) {
+        if (!resolvedUrl.startsWith('/api/nvr/recordings/') && !resolvedUrl.startsWith('http')) {
+          resolvedUrl = `/api/nvr/recordings/${resolvedUrl}`;
+        }
+        vid.style.display = 'block';
+        notice.style.display = 'none';
+        vid.src = resolvedUrl;
+        dlBtn.href = resolvedUrl;
+        dlBtn.style.display = 'inline-flex';
+      } else {
+        vid.style.display = 'none';
+        notice.style.display = 'block';
+        dlBtn.style.display = 'none';
+      }
+
+      modal.style.display = 'flex';
     },
 
     // ------------------------------------------------------------------------
@@ -5681,6 +5871,7 @@
 
   // Expose global initializer and instance for testability and topbar view switcher
   window.dashboardBuilder = DashboardBuilder;
+  window.DashboardBuilder = DashboardBuilder;
   window.initOrRefreshDashboardBuilder = function() {
     DashboardBuilder.init();
   };

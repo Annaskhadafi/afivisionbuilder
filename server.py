@@ -6577,7 +6577,19 @@ def _templates() -> list[dict]:
                 store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=U7HRKjlXK-Y", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
                 store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt", "classes": "car,truck,bus,motorcycle"}),
                 store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
-                store.make_node("parking_management", id="parking_management", x=720, y=140, config={"targetClasses": "car,truck,bus,motorcycle", "occupancyThreshold": 0.3, "showOverlay": True, "alertOnFull": True, "showSummaryHud": True}),
+                store.make_node("parking_management", id="parking_management", x=720, y=140, config={
+                    "targetClasses": "car,truck,bus,motorcycle",
+                    "occupancyThreshold": 0.25,
+                    "showOverlay": True,
+                    "alertOnFull": True,
+                    "showSummaryHud": True,
+                    "slots": [
+                        {"id": "P-1", "name": "Slot 1", "points": [[60, 460], [320, 460], [320, 710], [60, 710]]},
+                        {"id": "P-2", "name": "Slot 2", "points": [[360, 460], [620, 460], [620, 710], [360, 710]]},
+                        {"id": "P-3", "name": "Slot 3", "points": [[660, 460], [920, 460], [920, 710], [660, 710]]},
+                        {"id": "P-4", "name": "Slot 4", "points": [[960, 460], [1220, 460], [1220, 710], [960, 710]]}
+                    ]
+                }),
                 store.make_node("preview", id="preview", x=940, y=140, config={"mode": "annotated", "enableZoomPan": True})
             ],
             "edges": [
@@ -7918,12 +7930,15 @@ def get_nvr_camera_preview(camera_id: str) -> Response:
 async def control_nvr_ptz(request: Request, body: dict = Body(...)) -> dict:
     """Control camera PTZ pan, tilt, zoom or stop."""
     _write_allowed(request)
-    ip = str((body or {}).get("ip") or "").strip()
-    username = str((body or {}).get("username") or "admin").strip()
-    password = str((body or {}).get("password") or "").strip()
-    profile_token = str((body or {}).get("profileToken") or "").strip()
+    cam_id = str((body or {}).get("camera_id") or (body or {}).get("cameraId") or "").strip()
+    cam_info = cctv_hub.get_camera(cam_id) if cam_id else None
+
+    ip = str((body or {}).get("ip") or (cam_info.get("ip") if cam_info else "") or "").strip()
+    username = str((body or {}).get("username") or (cam_info.get("username") if cam_info else "admin") or "admin").strip()
+    password = str((body or {}).get("password") or (cam_info.get("password") if cam_info else "") or "").strip()
+    profile_token = str((body or {}).get("profileToken") or (cam_info.get("selected_profile") if cam_info else "") or "").strip()
     command = str((body or {}).get("command") or "move").strip().lower()
-    port = int((body or {}).get("port", 80) or 80)
+    port = int((body or {}).get("port") or (cam_info.get("port") if cam_info else 80) or 80)
     if command == "stop":
         ok = await ptz_stop(ip, username, password, profile_token, port=port)
     else:
@@ -7932,6 +7947,19 @@ async def control_nvr_ptz(request: Request, body: dict = Body(...)) -> dict:
         zoom = float((body or {}).get("zoom", 0.0) or 0.0)
         ok = await ptz_continuous_move(ip, username, password, profile_token, x=x, y=y, zoom=zoom, port=port)
     return {"ok": ok}
+
+
+@app.post("/api/nvr/bookmark")
+def trigger_nvr_incident_bookmark(request: Request, body: dict = Body(...)) -> dict:
+    """Trigger an incident recording bookmark in the Evidence Vault."""
+    _write_allowed(request)
+    cam_id = str((body or {}).get("camera_id") or (body or {}).get("cameraId") or "default_cam").strip()
+    event_name = str((body or {}).get("event_name") or (body or {}).get("eventName") or "manual_bookmark").strip()
+    detail = str((body or {}).get("detail") or "Manual incident bookmark from dashboard").strip()
+    metadata = (body or {}).get("metadata") or {}
+    from engine.event_recorder import record_incident_bookmark
+    ok = record_incident_bookmark(cam_id, event_name, detail=detail, metadata=metadata)
+    return {"ok": ok, "camera_id": cam_id, "event_name": event_name}
 
 
 @app.get("/api/nvr/hwaccel")

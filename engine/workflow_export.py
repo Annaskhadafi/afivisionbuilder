@@ -199,6 +199,8 @@ def _determine_needed_engine_files(graph: dict) -> set[str]:
         if ntype in NODE_TYPE_TO_ENGINE_FILES:
             needed_files.update(NODE_TYPE_TO_ENGINE_FILES[ntype])
         config = node.get("config", {})
+        if ntype == "input" and config.get("sourceType") == "nvr":
+            needed_files.update({"cctv_hub.py", "event_recorder.py", "ffmpeg_decoder.py"})
         if config.get("customModelPath") or config.get("modelPath"):
             needed_files.add("custom_model_runtime.py")
     return needed_files - STUDIO_EXCLUDED_FILES
@@ -347,6 +349,8 @@ def prepare(workflow: dict, name: str, root: Path) -> tuple[dict, dict, dict[str
         node_tag = re.sub(r"[^A-Z0-9]+", "_", node["id"].upper()).strip("_")[:32]
         if node["type"] == "input" and config.get("sourceType", "camera") == "camera" and not _sensitive_url(str(config.get("source") or "")):
             variables.append({"name": f"AFI_{node_tag}_SOURCE", "nodeId": node["id"], "field": "source", "required": False})
+        if node["type"] == "input" and config.get("sourceType") == "nvr":
+            variables.append({"name": f"AFI_{node_tag}_NVR_CAMERA_ID", "nodeId": node["id"], "field": "nvrCameraId", "required": False})
         if node["type"] == "ip_camera" and config.get("streamUrl") and not _sensitive_url(str(config["streamUrl"])):
             variables.append({"name": f"AFI_{node_tag}_STREAMURL", "nodeId": node["id"], "field": "streamUrl", "required": False})
         if node["type"] == "python_script":

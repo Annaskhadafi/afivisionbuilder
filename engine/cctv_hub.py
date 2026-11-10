@@ -148,6 +148,13 @@ class SharedCameraStream:
                         self._latest_frame_jpeg = jpeg_bytes
                         self._frame_count += 1
 
+                    # Continuous rolling feed into Evidence Vault recorder
+                    try:
+                        from engine.event_recorder import get_or_create_recorder
+                        get_or_create_recorder(self.camera_id, fps=self.target_fps).add_frame(frame, now)
+                    except Exception:
+                        pass
+
             except Exception as e:
                 with self._lock:
                     self._is_online = False
@@ -303,8 +310,8 @@ class CCTVHubManager:
                 return True
             return False
 
-    def get_frame(self, camera_id: str) -> Optional[np.ndarray]:
-        """Fetch latest frame from shared stream buffer."""
+    def get_frame(self, camera_id: str, fallback_to_standby: bool = False) -> Optional[np.ndarray]:
+        """Fetch latest frame from shared stream buffer, or optionally standby card if offline."""
         with self._lock:
             stream = self._streams.get(camera_id)
             if not stream:
@@ -318,31 +325,20 @@ class CCTVHubManager:
             if f is not None:
                 return f
 
+        if fallback_to_standby:
+            return self.get_standby_frame_bgr(camera_id)
+
         # Offline cameras return no active numpy frame to prevent downstream AI hallucination
         return None
 
-    def get_jpeg(self, camera_id: str) -> Optional[bytes]:
-        """Fetch latest JPEG frame from shared stream buffer, or authentic CCTV NO SIGNAL standby card."""
-        with self._lock:
-            stream = self._streams.get(camera_id)
-            if not stream:
-                cam = self._cameras.get(camera_id)
-                if cam and cam.get("rtsp_url") and cam.get("enabled", True):
-                    stream = SharedCameraStream(camera_id, cam["rtsp_url"])
-                    self._streams[camera_id] = stream
-                    stream.start()
-        if stream:
-            jpg = stream.get_jpeg()
-            if jpg:
-                return jpg
-
-        # Clean, professional CCTV NO SIGNAL frame (eliminated dummy sample workshop graphics)
+    def get_standby_frame_bgr(self, camera_id: str, width: int = 640, height: int = 360) -> np.ndarray:
+        """Generate authentic CCTV NO SIGNAL standby card as BGR numpy array."""
         cam = self._cameras.get(camera_id, {})
         cam_name = cam.get("name", camera_id)
         rtsp_url = cam.get("rtsp_url", "")
         ip_addr = cam.get("ip", "")
 
-        w, h = 640, 360
+        w, h = max(320, int(width or 640)), max(240, int(height or 360))
         img = np.full((h, w, 3), (22, 17, 13), dtype=np.uint8)  # Deep matte dark slate (BGR)
 
         # Draw subtle technical matrix grid lines
@@ -359,17 +355,34 @@ class CCTVHubManager:
 
         # OSD Header bar
         now_str = time.strftime("%Y-%m-%d %H:%M:%S")
-        osd_title = f"{cam_name.upper()[:24]} | {now_str}"
+        osd_title = f"{str(cam_name).upper()[:24]} | {now_str}"
         cv2.rectangle(img, (12, 12), (min(w - 12, 420), 42), (10, 14, 22), -1)
         cv2.rectangle(img, (12, 12), (min(w - 12, 420), 42), (56, 189, 248), 1)
         cv2.putText(img, osd_title, (20, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.44, (241, 245, 249), 1, cv2.LINE_AA)
         cv2.circle(img, (min(w - 30, 400), 27), 4, (100, 116, 139), -1)
 
         # Center "NO SIGNAL / OFFLINE" message
-        cv2.putText(img, "NO SIGNAL / OFFLINE", (cx - 130, cy - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (148, 163, 184), 2, cv2.LINE_AA)
+        cv2.putText(img, "NO SIGNAL / OFFLINE", (max(10, cx - 130), cy - 6), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (148, 163, 184), 2, cv2.LINE_AA)
         sub_info = f"Menunggu Sinyal RTSP ({rtsp_url[:35] if rtsp_url else ip_addr or camera_id})"
-        cv2.putText(img, sub_info, (cx - 150, cy + 24), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (100, 116, 139), 1, cv2.LINE_AA)
+        cv2.putText(img, sub_info, (max(10, cx - 150), cy + 24), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (100, 116, 139), 1, cv2.LINE_AA)
+        return img
 
+    def get_jpeg(self, camera_id: str) -> Optional[bytes]:
+        """Fetch latest JPEG frame from shared stream buffer, or authentic CCTV NO SIGNAL standby card."""
+        with self._lock:
+            stream = self._streams.get(camera_id)
+            if not stream:
+                cam = self._cameras.get(camera_id)
+                if cam and cam.get("rtsp_url") and cam.get("enabled", True):
+                    stream = SharedCameraStream(camera_id, cam["rtsp_url"])
+                    self._streams[camera_id] = stream
+                    stream.start()
+        if stream:
+            jpg = stream.get_jpeg()
+            if jpg:
+                return jpg
+
+        img = self.get_standby_frame_bgr(camera_id)
         _, enc = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 80])
         return enc.tobytes()
 

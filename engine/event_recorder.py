@@ -166,6 +166,7 @@ class EventClipRecorder:
             logger.error(f"Failed to encode event video clip: {e}")
             return
 
+        meta = event_info.get("metadata") or {}
         record_entry = {
             "id": f"clip_{int(time.time()*1000)}",
             "camera_id": self.camera_id,
@@ -182,10 +183,30 @@ class EventClipRecorder:
             "width": w,
             "height": h,
             "size_bytes": os.path.getsize(clip_path) if os.path.exists(clip_path) else 0,
+            "metadata": meta,
+            "workflow_name": meta.get("workflow_name", ""),
+            "alert_severity": meta.get("alert_severity", "warning"),
+            "rule_triggered": meta.get("rule_triggered", event_info.get("event_name", "")),
         }
 
         # Update metadata catalog JSON
         self._append_catalog(record_entry)
+
+        # Notify Dashboard Data Bus so event_table shows "🎬 Lihat Bukti" button
+        try:
+            from dashboard_bus import DashboardDataBus
+            bus = DashboardDataBus.get_instance()
+            bus.push_event(
+                event_type=str(event_info.get("event_name") or "Incident"),
+                description=str(event_info.get("detail") or "Evidence Vault Clip Captured"),
+                level=str(meta.get("alert_severity") or "warning"),
+                camera_label=self.camera_id,
+                workflow_id=str(meta.get("workflow_name") or self.camera_id),
+                clip_url=f"/api/nvr/recordings/{clip_filename}",
+                filename=clip_filename,
+            )
+        except Exception:
+            pass
 
         if self.on_clip_ready:
             try:
@@ -256,3 +277,39 @@ class EventClipRecorder:
             except Exception:
                 pass
         return False
+
+
+# Global Registry for Singleton Camera Recorders
+_recorders: dict[str, EventClipRecorder] = {}
+_recorders_lock = threading.Lock()
+
+
+def get_or_create_recorder(
+    camera_id: str = "default_cam",
+    fps: int = 15,
+    pre_roll_seconds: float = 5.0,
+    post_roll_seconds: float = 10.0,
+) -> EventClipRecorder:
+    """Retrieve existing recorder or instantiate a new recorder for the camera."""
+    cam_key = str(camera_id or "default_cam").strip()
+    with _recorders_lock:
+        if cam_key not in _recorders:
+            _recorders[cam_key] = EventClipRecorder(
+                camera_id=cam_key,
+                fps=fps,
+                pre_roll_seconds=pre_roll_seconds,
+                post_roll_seconds=post_roll_seconds,
+            )
+        return _recorders[cam_key]
+
+
+def record_incident_bookmark(
+    camera_id: str,
+    event_name: str,
+    detail: str = "",
+    metadata: Optional[dict[str, Any]] = None,
+) -> bool:
+    """Trigger an automated evidence clip recording for this camera."""
+    recorder = get_or_create_recorder(camera_id)
+    return recorder.trigger(event_name, detail=detail, metadata=metadata)
+

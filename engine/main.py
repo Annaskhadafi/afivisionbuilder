@@ -3735,7 +3735,7 @@ def is_youtube_url(url: str) -> bool:
     return bool(_YOUTUBE_URL_PATTERN.search(str(url or "").strip()))
 
 
-def resolve_youtube_stream_url(url: str, quality: str = "720p") -> tuple[str, bool, str]:
+def resolve_youtube_stream_url(url: str, quality: str = "720p", force_refresh: bool = False) -> tuple[str, bool, str]:
     """Resolve a YouTube video or live-stream URL to a direct streamable URL via yt-dlp.
 
     Returns:
@@ -3748,10 +3748,10 @@ def resolve_youtube_stream_url(url: str, quality: str = "720p") -> tuple[str, bo
     quality_str = str(quality or "720p").lower()
     cache_key = f"{clean_url}_{quality_str}"
     now = time.monotonic()
-    if cache_key in _YOUTUBE_STREAM_CACHE:
+    if not force_refresh and cache_key in _YOUTUBE_STREAM_CACHE:
         entry = _YOUTUBE_STREAM_CACHE[cache_key]
         cached_time, cached_stream_url, cached_is_live, cached_title = entry[:4]
-        if now - cached_time < 7200:  # Direct GoogleVideo URLs expire in ~4-6 hours
+        if now - cached_time < 900:  # Direct GoogleVideo URLs expire quickly
             return cached_stream_url, cached_is_live, cached_title
 
     try:
@@ -3762,13 +3762,13 @@ def resolve_youtube_stream_url(url: str, quality: str = "720p") -> tuple[str, bo
         ) from exc
 
     if quality_str == "360p":
-        fmt = "bestvideo[height<=360]/best[height<=360]/best"
+        fmt = "best[ext=mp4][height<=360]/bestvideo[height<=360]/best[height<=360]/best"
     elif quality_str == "480p":
-        fmt = "bestvideo[height<=480]/best[height<=480]/best"
+        fmt = "best[ext=mp4][height<=480]/bestvideo[height<=480]/best[height<=480]/best"
     elif quality_str == "1080p":
-        fmt = "bestvideo[height<=1080]/best[height<=1080]/best"
+        fmt = "best[ext=mp4][height<=1080]/bestvideo[height<=1080]/best[height<=1080]/best"
     else:  # 720p or auto
-        fmt = "bestvideo[height<=720]/best[height<=720]/best"
+        fmt = "best[ext=mp4][height<=720]/bestvideo[height<=720]/best[height<=720]/best"
 
     ydl_opts = {
         "format": fmt,
@@ -3812,6 +3812,11 @@ class OpenCVInputSource:
         self.loop = bool(config.get("loop", True))
         self.label = "input"
         self._finite_video = False
+        self._is_nvr = False
+        self._nvr_id = ""
+        self._nvr_width = 1280
+        self._nvr_height = 720
+        self._nvr_fps = 15.0
         self._frame_count = 0
         self._youtube_url = None
         self._youtube_quality = "720p"
@@ -3824,20 +3829,29 @@ class OpenCVInputSource:
         self._pending_seek_frame = None
 
     def open(self) -> tuple[str, int, int]:
-        # Check if this input is backed by AFI Open-NVR Hub
+        # Check if this input is backed by AFI Open-NVR Hub (Single-Ingest SSoT)
+        source_type = str(self.config.get("sourceType", "camera") or "camera").lower()
         nvr_id = str(self.config.get("nvrCameraId") or "").strip()
         if not nvr_id and str(self.config.get("source", "")).startswith("cctv_"):
             nvr_id = str(self.config.get("source")).strip()
-        if nvr_id:
+
+        if source_type == "nvr" or (nvr_id and source_type not in ("youtube", "daheng", "file", "image", "video")):
             try:
-                from cctv_hub import cctv_hub
-            except ImportError:
                 from engine.cctv_hub import cctv_hub
-            cam_info = cctv_hub.get_camera(nvr_id)
-            if cam_info and cam_info.get("rtsp_url"):
-                self.config["streamUrl"] = cam_info["rtsp_url"]
-                if cam_info.get("username"):
-                    self.config["username"] = cam_info["username"]
+            except ImportError:
+                from cctv_hub import cctv_hub
+            self._is_nvr = True
+            self._nvr_id = nvr_id or "default_cam"
+            self.loop = False
+            cam_info = cctv_hub.get_camera(self._nvr_id) if self._nvr_id else None
+            cam_name = cam_info.get("name", self._nvr_id) if cam_info else (self._nvr_id or "NVR Stream")
+            self.label = f"OpenNVR Hub ({cam_name})"
+            w = int(cam_info.get("width", 1280)) if cam_info else 1280
+            h = int(cam_info.get("height", 720)) if cam_info else 720
+            self._nvr_width = w
+            self._nvr_height = h
+            self._nvr_fps = float(cam_info.get("fps", 15.0)) if cam_info else 15.0
+            return self.label, self._nvr_width, self._nvr_height
 
         # Check if this input config is from an ip_camera node or has rtsp/http streamUrl
         conn_mode = str(self.config.get("connectionMode", "direct") or "direct").lower()
@@ -3893,8 +3907,12 @@ class OpenCVInputSource:
             self._youtube_is_live = is_live
             self._youtube_duration = get_cached_youtube_duration(yt_url, quality)
             self.label = f"YouTube: {title}"
-            self.capture = self.cv2.VideoCapture(stream_url)
+            self.capture = self.cv2.VideoCapture(stream_url, self.cv2.CAP_FFMPEG)
             self.capture.set(self.cv2.CAP_PROP_BUFFERSIZE, 2)
+            if not self.capture.isOpened():
+                stream_url, is_live, title = resolve_youtube_stream_url(yt_url, quality, force_refresh=True)
+                self.capture = self.cv2.VideoCapture(stream_url, self.cv2.CAP_FFMPEG)
+                self.capture.set(self.cv2.CAP_PROP_BUFFERSIZE, 2)
             if not self.capture.isOpened():
                 self.capture.release()
                 self.capture = None
@@ -3905,7 +3923,7 @@ class OpenCVInputSource:
             if not is_live and self._frame_count <= 0 and self._youtube_duration > 0:
                 fps = float(self.capture.get(self.cv2.CAP_PROP_FPS) or 30.0)
                 self._frame_count = int(self._youtube_duration * (fps if fps > 0 else 30.0))
-            self._finite_video = not is_live and self._frame_count > 0
+            self._finite_video = False
             return self.label, width, height
 
         if source_type == "daheng":
@@ -4030,6 +4048,8 @@ class OpenCVInputSource:
 
     @property
     def width(self) -> int:
+        if getattr(self, "_is_nvr", False):
+            return getattr(self, "_nvr_width", 1280)
         if self.daheng is not None:
             return self.daheng.width
         if self.image is not None:
@@ -4038,6 +4058,8 @@ class OpenCVInputSource:
 
     @property
     def height(self) -> int:
+        if getattr(self, "_is_nvr", False):
+            return getattr(self, "_nvr_height", 720)
         if self.daheng is not None:
             return self.daheng.height
         if self.image is not None:
@@ -4046,6 +4068,8 @@ class OpenCVInputSource:
 
     @property
     def fps(self) -> float:
+        if getattr(self, "_is_nvr", False):
+            return getattr(self, "_nvr_fps", 15.0)
         if self.daheng is not None:
             return self.daheng.fps
         if self.capture is None:
@@ -4057,10 +4081,14 @@ class OpenCVInputSource:
 
     @property
     def is_static(self) -> bool:
+        if getattr(self, "_is_nvr", False):
+            return False
         return self.image is not None
 
     @property
     def is_exhausted(self) -> bool:
+        if getattr(self, "_is_nvr", False):
+            return False
         # ponytail: only classify known-length local files as EOF; unknown streams still fail loudly.
         if not self._finite_video or self.capture is None or self.loop:
             return False
@@ -4146,6 +4174,25 @@ class OpenCVInputSource:
         }
 
     def read(self):
+        if getattr(self, "_is_nvr", False):
+            try:
+                from engine.cctv_hub import cctv_hub
+            except ImportError:
+                from cctv_hub import cctv_hub
+            frame = cctv_hub.get_frame(self._nvr_id)
+            if frame is not None:
+                self._paused_frame = frame.copy()
+                self._current_frame_pos += 1
+                return True, frame
+            # If camera is currently offline or connecting, check fallback to standby
+            if self.config.get("nvrFallbackToStandby", True):
+                standby = cctv_hub.get_standby_frame_bgr(self._nvr_id, self._nvr_width, self._nvr_height)
+                time.sleep(0.06)  # throttle ~16 fps to avoid CPU burn
+                self._current_frame_pos += 1
+                return True, standby
+            time.sleep(0.05)
+            return False, None
+
         if self.daheng is not None:
             return self.daheng.read()
         if self.image is not None:
@@ -4182,26 +4229,24 @@ class OpenCVInputSource:
 
         # If it's a YouTube source, handle looping or auto-reconnect
         if getattr(self, "_youtube_url", None):
-            if self.loop or getattr(self, "_youtube_is_live", False):
-                if not getattr(self, "_youtube_is_live", False) and self.capture is not None:
-                    self.capture.set(self.cv2.CAP_PROP_POS_FRAMES, 0)
-                    ok, frame = self.capture.read()
-                    if ok:
-                        return True, frame
-                if bool(self.config.get("autoReconnect", True)):
-                    try:
-                        time.sleep(1.0)
-                        stream_url, is_live, title = resolve_youtube_stream_url(self._youtube_url, self._youtube_quality)
-                        if self.capture is not None:
+            if self.loop or getattr(self, "_youtube_is_live", False) or bool(self.config.get("autoReconnect", True)):
+                try:
+                    stream_url, is_live, title = resolve_youtube_stream_url(
+                        self._youtube_url, self._youtube_quality, force_refresh=True
+                    )
+                    if self.capture is not None:
+                        try:
                             self.capture.release()
-                        self.capture = self.cv2.VideoCapture(stream_url)
-                        self.capture.set(self.cv2.CAP_PROP_BUFFERSIZE, 2)
-                        if self.capture.isOpened():
-                            ok, frame = self.capture.read()
-                            if ok:
-                                return True, frame
-                    except Exception:
-                        pass
+                        except Exception:
+                            pass
+                    self.capture = self.cv2.VideoCapture(stream_url, self.cv2.CAP_FFMPEG)
+                    self.capture.set(self.cv2.CAP_PROP_BUFFERSIZE, 2)
+                    if self.capture.isOpened():
+                        ok, frame = self.capture.read()
+                        if ok:
+                            return True, frame
+                except Exception:
+                    pass
             return False, None
 
         stream_url = str(self.config.get("streamUrl") or "").strip()
