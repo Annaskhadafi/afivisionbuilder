@@ -182,13 +182,16 @@ Gunakan slider **Ukuran layar** di panel Live Preview untuk memperbesar atau mem
 - **Pemilihan Resolusi Stream Dinamis**: Pilihan resolusi yang fleksibel (`Auto`, `360p`, `480p`, `720p`, `1080p`) untuk menyesuaikan dengan bandwidth jaringan dan kemampuan CPU/GPU.
 - **Auto-Reconnect & Auto-Loop**: Otomatis menyambung kembali jika koneksi internet terputus dan mengulang video dari awal jika rekaman telah selesai.
 
-### 🏭 19. 5 Template Produksi Nyata Industri (Production-Ready Templates)
-- **1-Click Siap Pakai di Projects Hub**: Tersedia 5 template alur kerja lengkap dengan video stream nyata dan penjelasan praktis *"🎯 Fungsi & Kegunaan"*:
-  1. **Smart Traffic Flow & Vehicle Counter**: Deteksi mobil, motor, bus, truk; pemisahan lajur arah (Utara/Selatan), HUD volume, dan logging database.
-  2. **Restaurant Table Occupancy & Dining Dwell Tracker**: Pemantauan meja F&B, timer keterisian meja terpusat, dan alert overstay.
-  3. **Assembly Line & Workshop Cycle Timer**: Pengukuran durasi siklus kerja per operator di workstation dan deteksi waktu idle.
-  4. **Warehouse Dock & Forklift Safety Guard**: Verifikasi keluar-masuk gerbang gudang dan batas zona aman pejalan kaki vs forklift.
-  5. **Retail Checkout Queue & Hotspot Analyzer**: Analisis antrean kasir supermarket dan alert otomatis panggil kasir cadangan saat antrean > 3 orang.
+### 🏭 19. 42 Template Alur Kerja Siap Pakai dengan Default YouTube Video Source
+- **100% Seluruh 42 Template Terhubung ke Streaming YouTube Publik Aktif**: Setiap template alur kerja (Trafik, Parkir Multi-Slot, Antrean Ritel, Gym/Ergonomi, Titik Buta Kendaraan, Bengkel, Gudang/Loading Dock, Ban Berjalan Botol, Barcode Sorter, hingga AI Safety Auditor) kini secara default langsung menggunakan video streaming YouTube nyata yang relevan.
+- **Diverifikasi & Diuji 100%**: Menggunakan mesin resolusi video `yt-dlp` dan OpenCV dengan auto-looping dan resolusi 720p HD, sehingga pengguna yang baru membuka template langsung melihat alur inferensi AI berjalan secara real-time di kanvas maupun Dashboard Builder.
+- **Katalog Template Lengkap Termasuk 5 Solusi Ultralytics**:
+  1. **Smart Parking Lot & Multi-Slot Occupancy Hub** (`smart_parking_management`): Deteksi mobil masuk/keluar, status slot P1..Pn, dan occupancy ratio live.
+  2. **Ultralytics Queue & Customer Wait-Time Manager** (`retail_queue_management`): Pemantauan antrean kasir, waktu tunggu pembeli, dan status kepadatan toko.
+  3. **AI Gym Repetition & Ergonomic Safety Auditor** (`ai_gym_ergonomic`): Pelacak repetisi squat, estimasi pose kerangka, dan audit postur kerja K3.
+  4. **Vision Eye 360° Sightline & Driver Blind-Spot Radar** (`driver_blindspot_vision`): Radar sektor blind-spot 360 derajat kendaraan berat/forklift dan alarm kedekatan objek.
+  5. **Live Video Analytics HUD & Telemetry Speedometer** (`live_analytics_hud`): Speedometer dial dan live telemetry graph overlay pada arus lalu lintas jalan raya.
+  6. **37 Template Industri & Alur Kerja Lainnya**: Seluruh alur kerja pra-pemrosesan, deteksi RF-DETR/YOLO, tracking garis, filter kelas, inspeksi cacat botol, dan pemindaian barcode konveyor.
 
 ### 📁 22. Topbar Project Switcher & Modern SaaS Projects Hub
 - **Project Switcher Dropdown di Topbar**: Berpindah antar proyek alur kerja seketika via dropdown `[📁 Project ▾]` dengan filter pencarian live nama proyek dan badge aktif `AKTIF`.

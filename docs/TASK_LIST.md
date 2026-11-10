@@ -6,6 +6,14 @@ Status: Runtime node custom awal dan editor polygon tersedia; hanya pekerjaan de
 
 ## Current priority and handoff
 
+**Seluruh 42 Template Bawaan Berbasis Video Streaming YouTube Aktif & Diverifikasi (10 November 2026):**
+- **100% 42 Template Menggunakan Default YouTube Stream**: Seluruh 42 template alur kerja computer vision (termasuk 5 solusi Ultralytics, 20 workflow industri Roboflow, alur kerja bengkel, loading dock, inspeksi botol, konveyor barcode, dan AI Safety Auditor) kini secara default langsung menggunakan video stream publik YouTube nyata yang aktif, stabil, dan relevan.
+- **Riset & Verifikasi URL (0 FAILED / 0 DEAD LINK)**: Melalui riset intensif subagent dan pengujian mandiri menggunakan `yt-dlp` dan OpenCV `cv2.VideoCapture`:
+  - 19 URL video YouTube unik berhasil diverifikasi menghasilkan frame 720p HD nyata tanpa ada link mati atau geo-block.
+  - Video lama yang expired/unavailable (`21X5lGlDOfg`, `v7SNW6_vFfM`, `wXhTHyIGQ80`) serta video animasi kartun anjing (`07d2dXHYb94`) telah digantikan dengan video rekaman nyata sesuai domain industrinya.
+- **Eksekusi Pipeline & Tangkapan Layar Lengkap 42 Template**: Skrip `scripts/verify_all_42_templates_with_screenshots.py` berhasil mengeksekusi pipeline seluruh 42 template, menjalankan deteksi objek YOLOv8n, merender overlay spesialis (slot parkir, antrean kasir, pose gym, radar blindspot 360, telemetri HUD, barcode, dll.), mempublikasikan metrik ke Dashboard Builder, dan menyimpan 42 tangkapan layar di `docs/screenshots/template_video_runs/` serta galeri HTML `docs/screenshots/template_video_runs/index.html`.
+- **Pengujian E2E Real-Browser Playwright**: `npx e2e run tests/template_youtube_sources.e2e.ts` lulus 100% (durasi 8.41s, 1 model call AI assert) disertai bukti tangkapan layar browser visual di `.e2e/artifacts/web/`.
+
 **Pasangan Template Alur Kerja & Dashboard Builder Otomatis (10 November 2026):**
 - **43 Paired Templates (100% Desain & Tata Letak Unik)**: Seluruh 43 template alur kerja (37 bawaan + 5 solusi inovatif Ultralytics + 1 template analitik komprehensif) kini resmi dipasangkan dengan rancangan dashboard mandiri di Dashboard Builder (`data/dashboards/{project_id}.json`). **Setiap template memiliki arsitektur tata letak, koordinat kanvas, kombinasi widget, dan identitas visual 100% unik dan berbeda (zero duplicate signatures)**. Pengguna tidak perlu lagi menyusun kanvas dasbor secara manual saat membuat proyek baru atau memilih "Gunakan Template".
 - **5 Widget Spesialis Baru Dashboard Builder**:

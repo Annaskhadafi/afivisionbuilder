@@ -4499,7 +4499,7 @@ def _templates() -> list[dict]:
 
 
 
-                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=07d2dXHYb94", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
+                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=4rNM5MgQvSM", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
 
 
 
@@ -4779,7 +4779,7 @@ def _templates() -> list[dict]:
 
 
 
-                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=21X5lGlDOfg", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
+                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=2QBEPQIRygI", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
 
 
 
@@ -4895,7 +4895,7 @@ def _templates() -> list[dict]:
 
 
 
-                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=v7SNW6_vFfM", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
+                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=q8tONJP01Eo", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
 
 
 
@@ -5011,7 +5011,7 @@ def _templates() -> list[dict]:
 
 
 
-                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=wXhTHyIGQ80", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
+                    store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=KMJS66jBtVQ", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
 
 
 
@@ -6574,7 +6574,7 @@ def _templates() -> list[dict]:
         "modelSize": "Includes YOLOv8n · 6.2 MB",
         "workflow": {
             "nodes": [
-                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "webcam", "loop": True, "autoReconnect": True}),
+                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=U7HRKjlXK-Y", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
                 store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt", "classes": "car,truck,bus,motorcycle"}),
                 store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
                 store.make_node("parking_management", id="parking_management", x=720, y=140, config={"targetClasses": "car,truck,bus,motorcycle", "occupancyThreshold": 0.3, "showOverlay": True, "alertOnFull": True, "showSummaryHud": True}),
@@ -6598,7 +6598,7 @@ def _templates() -> list[dict]:
         "modelSize": "Includes YOLOv8n · 6.2 MB",
         "workflow": {
             "nodes": [
-                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "webcam", "loop": True, "autoReconnect": True}),
+                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=5rkwqp6nnr4", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
                 store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt", "classes": "person"}),
                 store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
                 store.make_node("queue_manager", id="queue_manager", x=720, y=140, config={"targetClasses": "person", "maxQueueCount": 5, "maxWaitTimeSec": 180.0, "showOverlay": True}),
@@ -6622,7 +6622,7 @@ def _templates() -> list[dict]:
         "modelSize": "Includes YOLOv8n-pose · 6.5 MB",
         "workflow": {
             "nodes": [
-                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "webcam", "loop": True, "autoReconnect": True}),
+                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=Ae3SPjsXETc", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
                 store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt", "classes": "person"}),
                 store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
                 store.make_node("ai_gym", id="ai_gym", x=720, y=140, config={"exerciseType": "squat", "angleThresholdUp": 160.0, "angleThresholdDown": 90.0, "showOverlay": True}),
@@ -6646,7 +6646,7 @@ def _templates() -> list[dict]:
         "modelSize": "Includes YOLOv8n · 6.2 MB",
         "workflow": {
             "nodes": [
-                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "webcam", "loop": True, "autoReconnect": True}),
+                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=ToEWlyM-n8s", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
                 store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt", "classes": "person,car,truck"}),
                 store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
                 store.make_node("vision_eye", id="vision_eye", x=720, y=140, config={"observerPoint": [0.5, 0.95], "dangerRadiusPx": 180.0, "blindSpotStartDeg": 120.0, "blindSpotEndDeg": 240.0, "showOverlay": True}),
@@ -6670,7 +6670,7 @@ def _templates() -> list[dict]:
         "modelSize": "Includes YOLOv8n · 6.2 MB",
         "workflow": {
             "nodes": [
-                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "webcam", "loop": True, "autoReconnect": True}),
+                store.make_node("input", id="input", x=60, y=140, config={"sourceType": "youtube", "youtubeUrl": "https://www.youtube.com/watch?v=lfYYtQ1Ah04", "youtubeQuality": "720p", "loop": True, "autoReconnect": True}),
                 store.make_node("detector", id="detector", x=280, y=140, config={"engine": "ultralytics_yolo", "threshold": 0.35, "modelPath": "yolov8n.pt", "customModelPath": "yolov8n.pt"}),
                 store.make_node("tracker", id="tracker", x=500, y=140, config={"algorithm": "bytetrack"}),
                 store.make_node("object_counter", id="object_counter", x=720, y=140),
@@ -6697,6 +6697,78 @@ def _templates() -> list[dict]:
             tpl["paired_dashboard_name"] = tpl["name"] + " Dashboard"
     except Exception as t_err:
         logger.warning(f"Failed enriching templates with paired dashboards: {t_err}")
+
+    # Map all templates to tested, verified public YouTube video streams
+    TEMPLATE_DEFAULT_YOUTUBE_URLS = {
+        # 1-5: Existing Core Templates
+        "traffic_flow_counter": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "restaurant_table_occupancy": "https://www.youtube.com/watch?v=4rNM5MgQvSM",
+        "assembly_workshop_cycle_timer": "https://www.youtube.com/watch?v=2QBEPQIRygI",
+        "warehouse_forklift_safety_guard": "https://www.youtube.com/watch?v=q8tONJP01Eo",
+        "retail_checkout_queue_monitor": "https://www.youtube.com/watch?v=KMJS66jBtVQ",
+
+        # 6-8: Domain Industry Templates
+        "workshop_bay_activity": "https://www.youtube.com/watch?v=oLm3fbV7EVA",
+        "warehouse_gate_exit": "https://www.youtube.com/watch?v=vm33YAT3Soo",
+        "bottle_visual_inspection": "https://www.youtube.com/watch?v=RTqNpMo2IX0",
+
+        # 9-14: Core Image Processing & Logic
+        "preprocessing": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "rfdetr_detection": "https://www.youtube.com/watch?v=lfYYtQ1Ah04",
+        "filter_counter": "https://www.youtube.com/watch?v=Bi61ue_cpMY",
+        "motion_detection": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "image_enhancement": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "branching_if_else": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+
+        # 15-34: 20 Production Workflows
+        "workflow-01-detection": "https://www.youtube.com/watch?v=lfYYtQ1Ah04",
+        "workflow-02-filter-count": "https://www.youtube.com/watch?v=Bi61ue_cpMY",
+        "workflow-03-tracking-line": "https://www.youtube.com/watch?v=Od6EeCWytZo",
+        "workflow-04-dwell-privacy": "https://www.youtube.com/watch?v=KMJS66jBtVQ",
+        "workflow-05-segmentation": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "workflow-06-crop-classify": "https://www.youtube.com/watch?v=RTqNpMo2IX0",
+        "workflow-07-if-else": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "workflow-08-roi": "https://www.youtube.com/watch?v=U7HRKjlXK-Y",
+        "workflow-09-conditions": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "workflow-10-transform": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "workflow-11-enhance": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "workflow-12-calibration": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "workflow-13-motion": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "workflow-14-sampling-slicer": "https://www.youtube.com/watch?v=RTqNpMo2IX0",
+        "workflow-15-barcode": "https://www.youtube.com/watch?v=b3Gh2tffHxE",
+        "workflow-16-event-controls": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "workflow-17-python-script": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "workflow-18-output": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "workflow-19-ip-camera": "https://www.youtube.com/watch?v=1EiC9bvVGnk",
+        "workflow-20-inspection": "https://www.youtube.com/watch?v=7fZkeRojRNQ",
+
+        # 35-37: Custom Nodes & GenAI
+        "custom-workshop-zone": "https://www.youtube.com/watch?v=2QBEPQIRygI",
+        "custom-warehouse-exit": "https://www.youtube.com/watch?v=dQKr-4N533k",
+        "ai-agent-safety-auditor": "https://www.youtube.com/watch?v=Tv7rgE_dSg0",
+
+        # 38-42: Ultralytics Solutions Templates
+        "smart_parking_management": "https://www.youtube.com/watch?v=U7HRKjlXK-Y",
+        "retail_queue_management": "https://www.youtube.com/watch?v=5rkwqp6nnr4",
+        "ai_gym_ergonomic": "https://www.youtube.com/watch?v=Ae3SPjsXETc",
+        "driver_blindspot_vision": "https://www.youtube.com/watch?v=ToEWlyM-n8s",
+        "live_analytics_hud": "https://www.youtube.com/watch?v=lfYYtQ1Ah04",
+    }
+
+    for tpl in templates:
+        t_id = tpl.get("id", "")
+        yt_url = TEMPLATE_DEFAULT_YOUTUBE_URLS.get(t_id, "https://www.youtube.com/watch?v=1EiC9bvVGnk")
+        wf = tpl.get("workflow", {})
+        for n in wf.get("nodes", []):
+            if n.get("type") in ("input", "ip_camera"):
+                if "config" not in n or not isinstance(n["config"], dict):
+                    n["config"] = {}
+                n["config"]["sourceType"] = "youtube"
+                n["config"]["youtubeUrl"] = yt_url
+                n["config"]["streamUrl"] = yt_url
+                n["config"]["youtubeQuality"] = "720p"
+                n["config"]["loop"] = True
+                n["config"]["autoReconnect"] = True
 
     return templates
 
