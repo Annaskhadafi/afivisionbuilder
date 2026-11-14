@@ -226,17 +226,19 @@ def _requirements(root: Path, graph: dict) -> tuple[str, dict[str, str]]:
         try:
             version = importlib.metadata.version(pkg)
             versions[pkg] = version
-            if pkg_lower in host_reqs and " @ " in host_reqs[pkg_lower]:
-                lines.append(host_reqs[pkg_lower])
-            else:
-                lines.append(f"{pkg}=={version}")
         except importlib.metadata.PackageNotFoundError as exc:
             if pkg == "rfdetr":
                 raise ValueError("RF-DETR runtime is not installed on the build server") from exc
-            if pkg_lower in host_reqs:
-                lines.append(host_reqs[pkg_lower])
-            else:
-                lines.append(f"{pkg}>=1.0.0")
+            version = None
+
+        # Use declared compatibility ranges so the target OS/Python can resolve
+        # its own wheels instead of inheriting the build machine's exact versions.
+        if pkg_lower in host_reqs:
+            lines.append(host_reqs[pkg_lower])
+        elif version:
+            lines.append(f"{pkg}=={version}")
+        else:
+            lines.append(f"{pkg}>=1.0.0")
 
     return "\n".join(lines) + "\n", versions
 
@@ -411,11 +413,13 @@ def build_zip(graph: dict, manifest: dict, files: dict[str, Path], root: Path, d
             "if errorlevel 1 goto :INSTALL_CPU\r\n\r\n"
             "echo [INFO] Terdeteksi GPU NVIDIA di sistem.\r\n"
             "echo Menginstall PyTorch dengan akselerasi GPU CUDA...\r\n"
-            "call \".venv\\Scripts\\python.exe\" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121 --quiet\r\n"
+            "call \".venv\\Scripts\\python.exe\" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128 --quiet\r\n"
+            "if errorlevel 1 goto :INSTALL_CPU\r\n"
             "goto :INSTALL_DEPS_REQ\r\n\r\n"
             ":INSTALL_CPU\r\n"
-            "echo [INFO] GPU NVIDIA tidak terdeteksi. Menginstall PyTorch versi CPU ringan...\r\n"
-            "call \".venv\\Scripts\\python.exe\" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet\r\n\r\n"
+            "echo [INFO] Menginstall PyTorch versi CPU (fallback bila CUDA tidak tersedia)...\r\n"
+            "call \".venv\\Scripts\\python.exe\" -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet\r\n"
+            "if errorlevel 1 goto :PIP_FAIL\r\n\r\n"
             ":INSTALL_DEPS_REQ\r\n"
             "echo.\r\n"
             "echo [3/5] Menginstall pustaka dependensi [requirements.txt]...\r\n"
@@ -616,7 +620,10 @@ def build_zip(graph: dict, manifest: dict, files: dict[str, Path], root: Path, d
         + (
             "if command -v nvidia-smi &> /dev/null; then\n"
             "    echo '[INFO] NVIDIA GPU detected. Installing PyTorch CUDA...'\n"
-            "    .venv/bin/python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121 --quiet\n"
+            "    if ! .venv/bin/python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128 --quiet; then\n"
+            "        echo '[WARN] CUDA wheel unavailable; falling back to CPU PyTorch.'\n"
+            "        .venv/bin/python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet\n"
+            "    fi\n"
             "else\n"
             "    echo '[INFO] Installing PyTorch CPU build...'\n"
             "    .venv/bin/python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet\n"

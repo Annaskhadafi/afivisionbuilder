@@ -11,6 +11,7 @@ opencv-python>=4.8.0
 mediapipe>=0.10.0
 numpy>=1.24.0
 pillow>=10.0.0
+streamlit>=1.40.0
 torch>=2.0.0
 torchvision>=0.15.0
 ultralytics>=8.4.0

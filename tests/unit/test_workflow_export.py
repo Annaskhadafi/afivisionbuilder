@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 import cv2
 import numpy as np
+import workflow_export
 
 from workflow_export import build_zip, prepare
 
@@ -94,7 +95,7 @@ def test_gesture_export_includes_runtime_dependency_and_model(tmp_path):
     with zipfile.ZipFile(archive) as zipped:
         assert "engine/hand_engine.py" in zipped.namelist()
         assert manifest["models"][0]["file"] in zipped.namelist()
-        assert "mediapipe==" in zipped.read("requirements.txt").decode()
+        assert "mediapipe>=" in zipped.read("requirements.txt").decode()
         zipped.extractall(tmp_path / "gesture")
     env = os.environ.copy()
     env["AFI_INPUT_FILEPATH"] = str(tmp_path / "video.mp4")
@@ -180,6 +181,19 @@ def test_default_detector_adds_its_runtime_dependency():
     assert manifest["dependencyVersions"]["rfdetr"]
 
 
+def test_export_keeps_declared_constraints_instead_of_build_machine_versions(monkeypatch):
+    host_versions = {"pillow": "13.0.0", "streamlit": "1.65.0"}
+    monkeypatch.setattr(
+        workflow_export.importlib.metadata,
+        "version",
+        lambda package: host_versions.get(package, "99.0.0"),
+    )
+    requirements, _ = workflow_export._requirements(ROOT, workflow())
+    assert "pillow>=10.0.0" in requirements
+    assert "streamlit>=1.40.0" in requirements
+    assert "pillow==13.0.0" not in requirements
+
+
 def test_lean_requirements_and_engine_filtering(tmp_path):
     # Basic workflow with only input and preview
     basic_graph, basic_manifest, basic_files = prepare(workflow(), "Basic", ROOT)
@@ -239,6 +253,14 @@ def test_lean_requirements_and_engine_filtering(tmp_path):
         assert "install.bat" in zipped_names
         install_bat_content = zipped.read("install.bat").decode("utf-8")
         assert "requirements.txt" in install_bat_content
+        assert "--index-url https://download.pytorch.org/whl/cu128" in install_bat_content
+        assert "--extra-index-url" not in install_bat_content
+        assert ":INSTALL_CPU" in install_bat_content
+        assert "cu121" not in install_bat_content
+        install_sh_content = zipped.read("install.sh").decode()
+        assert "whl/cu128" in install_sh_content
+        assert "--extra-index-url" not in install_sh_content
+        assert "falling back to CPU PyTorch" in install_sh_content
 
 
 def test_ocr_models_bundled_in_download(tmp_path):
