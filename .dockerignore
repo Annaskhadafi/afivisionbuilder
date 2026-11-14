@@ -26,4 +26,6 @@ ChatGPT*.png
 data/outputs/*
 data/uploads/*
 data/faces/*
+data/projects.json
+data/projects/
 visonode.db

@@ -4330,6 +4330,31 @@
   border-color: #cbd5e1 !important;
 }
 
+.app-update-btn { width: auto !important; }
+.app-update-btn[data-state="available"] { color: #9a5b00 !important; border-color: #f3cd75 !important; background: #fff9e8 !important; }
+.app-update-btn[data-state="current"] { color: #217a5a !important; }
+.app-update-btn[data-state="error"], .app-update-btn[data-state="unknown"], .app-update-btn[data-state="diverged"] { color: #64748b !important; }
+
+/* Keep the three header groups inside the available width. */
+@media (max-width: 1500px) {
+  .topbar { gap: 8px !important; padding-inline: 12px !important; }
+  .topbar-left { min-width: 0; flex: 0 1 auto; gap: 8px; }
+  .topbar-project-pill { min-width: 0; flex: 0 1 250px; gap: 5px !important; padding-inline: 7px !important; }
+  .project-name-label { min-width: 0; max-width: 120px; }
+  .topbar-center { flex: 0 1 auto; padding: 0; }
+  .nav-tab { padding-inline: 8px !important; gap: 4px !important; }
+  .topbar-right { gap: 6px; }
+  .hub-header-actions { gap: 5px; }
+  .nav-badge { display: none !important; }
+}
+
+@media (max-width: 1280px) {
+  .topbar-project-pill { flex-basis: 190px; }
+  .project-name-label { max-width: 86px; }
+  #appUpdateLabel { display: none; }
+  .hub-header-actions .header-util-btn { min-width: 34px; padding-inline: 7px; }
+}
+
 .user-avatar-badge {
   width: 32px !important;
   height: 32px !important;

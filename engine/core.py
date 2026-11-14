@@ -731,6 +731,8 @@ def _process_track_event_nodes(
     for counter_node in engine.active_object_counter_nodes(workflow):
         counter_id = str(counter_node.get("id") or "object_counter")
         candidates = engine.results_for_node(workflow, counter_id, detections, tracked)
+        if not candidates:
+            candidates = tracked if tracked else detections
         with logic_lock if logic_lock is not None else nullcontext():
             candidates = engine.apply_logic_nodes(
                 workflow, counter_id, candidates, logic_runtime, now,
@@ -738,11 +740,21 @@ def _process_track_event_nodes(
         events = engine.emit_object_count_events(
             counter_node, candidates, event_runtime, now,
         )
+        if telemetry_callback:
+            state = event_runtime[counter_id]
+            telemetry_callback(
+                counter_id, status="success", item_count=len(candidates),
+                last_input={"detections": len(candidates)},
+                last_output={"count": state.get("total_count", 0), "occupancy": state.get("live_occupancy", 0)},
+            )
         extra_results.extend(events)
         count_records.extend(events)
 
     # Process Roboflow Line Counters (Directional IN / OUT)
-    line_events = _process_line_counters(workflow, frame, detections, tracked, event_runtime, now)
+    line_events = _process_line_counters(
+        workflow, frame, detections, tracked, event_runtime, now,
+        telemetry_callback=telemetry_callback,
+    )
     extra_results.extend(line_events)
     count_records.extend(line_events)
 
@@ -1747,6 +1759,8 @@ def _process_line_counters(
     tracked: list[dict],
     event_runtime: dict,
     now: float,
+    *,
+    telemetry_callback=None,
 ) -> list[dict]:
     if frame is None or not hasattr(frame, "shape"):
         return []
@@ -1977,6 +1991,13 @@ def _process_line_counters(
                 line_state["last_seen"].pop(t, None)
                 line_state["last_event"].pop(t, None)
                 line_state["last_event_time"].pop(t, None)
+
+        if telemetry_callback:
+            telemetry_callback(
+                node_id, status="success", item_count=len(processed_candidates),
+                last_input={"detections": len(processed_candidates)},
+                last_output={"countIn": state.get("total_in", 0), "countOut": state.get("total_out", 0)},
+            )
 
     return new_events
 

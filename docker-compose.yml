@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VISONODE_BUILD_REVISION: ${VISONODE_BUILD_REVISION:-unknown}
     image: afi-vision-builder:latest
     container_name: afi-vision-builder
     restart: unless-stopped

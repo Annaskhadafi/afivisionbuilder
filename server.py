@@ -59,6 +59,7 @@ import threading
 
 
 import tempfile
+import subprocess
 
 
 
@@ -85,6 +86,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from urllib.parse import urlsplit
+from urllib.error import URLError
+from urllib.request import Request as URLRequest, urlopen
 
 
 
@@ -1226,6 +1229,85 @@ def catalog() -> dict:
 
 
     return {"version": "1.0.3-beta.127", "catalog": node_catalog.NODE_BLUEPRINTS, "defaults": _default_workflow(), "runtime": {"python": sys.version.split()[0], "dependencies": deps}}
+
+
+_UPDATE_STATUS_CACHE = {"checked_at": 0.0, "data": None}
+_UPDATE_STATUS_LOCK = threading.Lock()
+
+
+def _installed_git_revision() -> str | None:
+    revision = os.environ.get("VISONODE_BUILD_REVISION")
+    if revision and re.fullmatch(r"[0-9a-f]{40}", revision.strip().lower()):
+        return revision.strip().lower()
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parent,
+            capture_output=True, text=True, timeout=2, check=True,
+        )
+        revision = result.stdout.strip().lower()
+        return revision if re.fullmatch(r"[0-9a-f]{40}", revision) else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _has_local_source_changes() -> bool | None:
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=Path(__file__).resolve().parent,
+            capture_output=True, text=True, timeout=2, check=True,
+        )
+        return bool(result.stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+@app.get("/api/update-status")
+def update_status(refresh: bool = False) -> dict:
+    """Compare this build with the public main branch; never changes local code."""
+    now = time.monotonic()
+    with _UPDATE_STATUS_LOCK:
+        cached = _UPDATE_STATUS_CACHE["data"]
+        if cached and not refresh and now - _UPDATE_STATUS_CACHE["checked_at"] < 900:
+            return dict(cached)
+
+        installed = _installed_git_revision()
+        result = {
+            "available": None, "state": "unknown", "installedRevision": installed,
+            "latestRevision": None, "latestMessage": None, "latestUrl": None,
+            "localChanges": _has_local_source_changes(),
+        }
+        try:
+            if installed:
+                endpoint = f"https://api.github.com/repos/Annaskhadafi/afivisionbuilder/compare/{installed}...main"
+            else:
+                endpoint = "https://api.github.com/repos/Annaskhadafi/afivisionbuilder/commits/main"
+            request = URLRequest(endpoint, headers={"Accept": "application/vnd.github+json", "User-Agent": "AFI-Vision-Builder"})
+            with urlopen(request, timeout=5) as response:
+                remote = json.loads(response.read().decode("utf-8"))
+            if installed:
+                latest = (remote.get("commits") or [remote.get("base_commit")])[-1] or {}
+                result.update(
+                    latestRevision=latest.get("sha"),
+                    latestMessage=(((latest.get("commit") or {}).get("message", "").splitlines()) or [""])[0],
+                    latestUrl=latest.get("html_url"),
+                )
+                compare_state = remote.get("status")
+                result["state"] = "update_available" if compare_state == "ahead" else ("diverged" if compare_state == "diverged" else "current")
+                result["available"] = compare_state == "ahead"
+                if result["state"] == "current" and result["localChanges"]:
+                    result["state"] = "local_changes"
+            else:
+                commit = remote.get("commit", {})
+                result.update(
+                    latestRevision=remote.get("sha"),
+                    latestMessage=((commit.get("message") or "").splitlines() or [""])[0],
+                    latestUrl=remote.get("html_url"),
+                )
+        except (URLError, TimeoutError, OSError, ValueError, KeyError) as exc:
+            result["error"] = str(exc)
+        _UPDATE_STATUS_CACHE.update(checked_at=now, data=result)
+        return dict(result)
 
 
 

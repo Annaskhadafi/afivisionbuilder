@@ -235,6 +235,12 @@ Buka peramban web di alamat:
 http://127.0.0.1:8765
 ```
 
+### Notifikasi update dan penyimpanan proyek
+
+Tombol **Update tersedia** di bilah atas membandingkan build aplikasi dengan commit terbaru branch `main` GitHub dan memeriksa ulang otomatis setiap jam. Klik untuk membuka detail perubahan; penerapan update dilakukan melalui redeploy host, tanpa perintah `git pull` dari pengguna aplikasi.
+
+Untuk Docker/Dokploy, set build argument `VISONODE_BUILD_REVISION` ke SHA commit 40 karakter yang sedang dibuat agar status dapat dibandingkan. Data proyek (`projects.json` dan `projects/<id>/workflow.json`) disimpan pada `VISONODE_APP_DATA_DIR`; Compose memakai named volume `afi_vision_data`. Data tersebut diabaikan Git dan tidak disalin ke image atau dibuat ulang saat redeploy, jadi volume yang sama harus dipertahankan.
+
 ---
 
 ## 📦 Ekspor Kode & Deployment

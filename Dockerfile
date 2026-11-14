@@ -5,6 +5,8 @@
 
 FROM python:3.11-slim
 
+ARG VISONODE_BUILD_REVISION=unknown
+
 # Prevent interactive prompts and write bytecode
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -13,6 +15,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     VISONODE_APP_DATA_DIR=/app/data \
     VISONODE_WEB_HOST=0.0.0.0 \
     VISONODE_WEB_PORT=8765 \
+    VISONODE_BUILD_REVISION=${VISONODE_BUILD_REVISION} \
     ALLOWED_HOSTS=* \
     OPENBLAS_NUM_THREADS=1 \
     OMP_NUM_THREADS=1 \
@@ -53,9 +56,6 @@ RUN mkdir -p /app/data/models \
     fi && \
     if [ -f "/app/data/cameras.json" ]; then \
         cp /app/data/cameras.json /app/default_cameras.json; \
-    fi && \
-    if [ -f "/app/data/projects.json" ]; then \
-        cp /app/data/projects.json /app/default_projects.json; \
     fi && \
     chmod +x /app/entrypoint.sh
 

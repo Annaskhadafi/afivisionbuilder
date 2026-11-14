@@ -29,12 +29,6 @@ if [ ! -f "$DATA_DIR/cameras.json" ] && [ -f "/app/default_cameras.json" ]; then
     cp /app/default_cameras.json "$DATA_DIR/cameras.json" 2>/dev/null || true
 fi
 
-# 4. Jika projects.json belum ada di volume persisten, salin dari template bawaan jika ada
-if [ ! -f "$DATA_DIR/projects.json" ] && [ -f "/app/default_projects.json" ]; then
-    echo "[Dokploy Init] Menyalin default projects.json ke persistent mount..."
-    cp /app/default_projects.json "$DATA_DIR/projects.json" 2>/dev/null || true
-fi
-
-# 5. Jalankan server aplikasi
+# 4. Jalankan server aplikasi. Riwayat proyek hanya berasal dari volume persisten.
 echo "[Dokploy Init] Menjalankan server pada ${VISONODE_WEB_HOST:-0.0.0.0}:${VISONODE_WEB_PORT:-8765}..."
 exec python server.py

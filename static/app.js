@@ -415,6 +415,57 @@
     return data;
   };
 
+  let lastUpdateStatus = null;
+  async function checkAppUpdateStatus(refresh = false) {
+    const button = $('#appUpdateButton');
+    const label = $('#appUpdateLabel');
+    if (!button || !label) return;
+    button.dataset.state = 'checking';
+    label.textContent = 'Cek update';
+    try {
+      const status = await api(`/api/update-status${refresh ? '?refresh=true' : ''}`);
+      lastUpdateStatus = status;
+      const message = status.latestMessage || '';
+      if (status.state === 'update_available') {
+        button.dataset.state = 'available';
+        label.textContent = 'Update tersedia';
+        button.title = `Update tersedia: ${message}. Klik untuk melihat detail.`;
+      } else if (status.state === 'current') {
+        button.dataset.state = 'current';
+        label.textContent = 'Sistem terbaru';
+        button.title = 'Aplikasi sudah memakai versi terbaru.';
+      } else if (status.state === 'diverged') {
+        button.dataset.state = 'diverged';
+        label.textContent = 'Versi berbeda';
+        button.title = 'Versi lokal berbeda dari branch utama; periksa perubahan sebelum memperbarui.';
+      } else if (status.state === 'local_changes') {
+        button.dataset.state = 'diverged';
+        label.textContent = 'Perubahan lokal';
+        button.title = 'Commit terakhir cocok dengan upstream, tetapi source lokal memiliki perubahan yang belum masuk ke commit.';
+      } else {
+        button.dataset.state = 'unknown';
+        label.textContent = 'Versi belum diketahui';
+        button.title = 'Versi build tidak tersedia untuk dibandingkan. Atur VISONODE_BUILD_REVISION pada build Docker.';
+      }
+    } catch {
+      button.dataset.state = 'error';
+      label.textContent = 'Update offline';
+      button.title = 'Tidak dapat memeriksa update GitHub. Klik untuk mencoba lagi.';
+    }
+  }
+
+  $('#appUpdateButton')?.addEventListener('click', async () => {
+    if (lastUpdateStatus?.state === 'update_available' && lastUpdateStatus.latestUrl) {
+      window.open(lastUpdateStatus.latestUrl, '_blank', 'noopener');
+      toast('Update tersedia. Terapkan melalui redeploy host agar proyek tersimpan tetap aman.');
+      return;
+    }
+    await checkAppUpdateStatus(true);
+    if (lastUpdateStatus?.state === 'current') toast('Aplikasi sudah menggunakan versi terbaru.');
+  });
+  void checkAppUpdateStatus();
+  setInterval(() => checkAppUpdateStatus(), 60 * 60 * 1000);
+
 
 
   const toast = (message, error = false) => {
