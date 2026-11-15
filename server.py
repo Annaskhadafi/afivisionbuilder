@@ -8616,7 +8616,8 @@ async def preview(node_id: str, res: str = "720p") -> Response:
 async def preview_stream(node_id: str, res: str = "720p"):
     async def frame_generator():
         last_frame_bytes = None
-        start_wait = time.time()
+        start_wait = time.monotonic()
+        stopped_at = None
         try:
             while True:
                 with _lock:
@@ -8625,6 +8626,10 @@ async def preview_stream(node_id: str, res: str = "720p"):
                     if frame_bytes is None and (node_id == "auto_preview" or not node_id or node_id not in _previews):
                         frame_bytes = next(iter(bucket.values()), None) or next(iter(_previews.values()), None)
                     running = _runner.is_running() if _runner else False
+                now = time.monotonic()
+                stopped_at = None if running else (stopped_at if stopped_at is not None else now)
+                if stopped_at is not None and now - stopped_at >= 5.0:
+                    break
                 if frame_bytes is not None:
                     if frame_bytes is not last_frame_bytes:
                         last_frame_bytes = frame_bytes
@@ -8634,10 +8639,8 @@ async def preview_stream(node_id: str, res: str = "720p"):
                         )
                 elif not frame_bytes:
                     max_startup_wait = 25.0 if running or _runner else 3.0
-                    if time.time() - start_wait > max_startup_wait:
+                    if now - start_wait > max_startup_wait:
                         break
-                elif not running and (time.time() - start_wait > 5.0):
-                    break
                 await asyncio.sleep(0.005)
         except (GeneratorExit, asyncio.CancelledError, ConnectionResetError, BrokenPipeError, Exception):
             pass
@@ -14502,11 +14505,12 @@ if __name__ == "__main__":
             host=host,
             port=port,
             loop="asyncio",
+            timeout_graceful_shutdown=5,
             reload=True,
             reload_dirs=[str(ROOT), str(ROOT / "engine")],
         )
     else:
-        uvicorn.run(app, host=host, port=port, loop="asyncio")
+        uvicorn.run(app, host=host, port=port, loop="asyncio", timeout_graceful_shutdown=5)
 
 
 

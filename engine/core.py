@@ -2422,7 +2422,7 @@ def _draw_multi_zone_occupancy_overlays(frame, workflow: dict, event_runtime: di
                     cv2.putText(frame, hud_text2, (h_bx1 + 8, h_by1 + hh1 + hh2 + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (203, 213, 225), 1, cv2.LINE_AA)
 
 
-def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict) -> None:
+def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict, preview_detections=None) -> None:
     _draw_project_zone_overlays(frame, workflow, event_runtime)
     _draw_multi_zone_occupancy_overlays(frame, workflow, event_runtime)
     for node in workflow.get("nodes", []):
@@ -2536,19 +2536,23 @@ def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict)
         state = event_runtime.get(node_id, {})
         now_mono = time.monotonic()
 
-        # Show the exact anchor used by the counter, not a separate tracker trail.
+        # Draw anchors from the detections displayed on this frame.
         if config.get("showAnchor", True):
-            drawn_tracks = set()
-            for line_state in list(state.get("lines", {}).values()):
-                for tid, anchors in list(line_state.get("positions", {}).items()):
-                    if tid in drawn_tracks or now_mono - line_state.get("last_seen", {}).get(tid, 0) > 1.0:
-                        continue
-                    point = anchors.get("primary") if isinstance(anchors, dict) else anchors
-                    if point:
-                        center = (int(round(point[0])), int(round(point[1])))
-                        cv2.circle(frame, center, 6, (0, 0, 0), 2, cv2.LINE_AA)
-                        cv2.circle(frame, center, 4, (0, 255, 255), -1, cv2.LINE_AA)
-                        drawn_tracks.add(tid)
+            if preview_detections is not None:
+                classes = {v.strip().casefold() for v in str(config.get("classes", "")).split(",") if v.strip()}
+                points = [_get_anchor_point(item, config.get("triggerAnchor", "center"), config)
+                          for item in preview_detections
+                          if item.get("kind") not in ("line_crossing", "count_event")
+                          and (not classes or str(item.get("class", "")).casefold() in classes)]
+            else:
+                points = [anchors.get("primary") if isinstance(anchors, dict) else anchors
+                          for line_state in list(state.get("lines", {}).values())
+                          for anchors in list(line_state.get("positions", {}).values())]
+            for point in points:
+                if point:
+                    center = (int(round(point[0])), int(round(point[1])))
+                    cv2.circle(frame, center, 6, (0, 0, 0), 2, cv2.LINE_AA)
+                    cv2.circle(frame, center, 4, (0, 255, 255), -1, cv2.LINE_AA)
 
         for line in lines:
             sp_raw = line.get("startPoint")
@@ -3890,6 +3894,12 @@ class WorkflowRunner:
         input_config = (engine.active_input_node(workflow) or {}).get("config", {})
         frame_queue_size = max(1, min(512, int(input_config.get("frameQueueSize", 64) or 64)))
         drop_frames = _is_live_source(input_config) and bool(input_config.get("dropFrames", True))
+        source_type = str(input_config.get("sourceType", "camera")).lower()
+        location = str(input_config.get("filePath") or "").strip()
+        has_line_counter = any(n.get("type") in ("line_counter", "passerby_counter") and n.get("enabled", True) for n in workflow.get("nodes", []))
+        # A saved recording can wait for inference; skipping it loses line crossings.
+        if has_line_counter and source_type in ("video", "file") and not location.lower().startswith(("http://", "https://")):
+            drop_frames = False
         if drop_frames:
             # Bound worst-case pipeline depth; also overrides stale saved
             # workflows that still carry the old frameQueueSize default of 64.
@@ -4149,6 +4159,9 @@ class WorkflowRunner:
             self._database_outputs = database_outputs
 
             first_inference_done = Event()
+            if inference_nodes:
+                self._set_status(state="starting")
+                self._emit_log("Menyiapkan deteksi dan tracking pertama; video menunggu hingga siap.")
 
             self._emit_event(
                 "Workflow running",
@@ -4744,7 +4757,6 @@ class WorkflowRunner:
                             script_frames=packet.script_frames,
                         ), self._stop_event):
                             return
-                    first_inference_done.set()
                 detection_queue.close()
 
             def tracking_stage() -> None:
@@ -4971,6 +4983,11 @@ class WorkflowRunner:
                                 latest_results["count_records"] = list(count_records)
                                 latest_results["timestamp"] = packet.timestamp
                                 latest_results["workflow"] = workflow
+                        # Keep the first source frame until tracking and event nodes are ready.
+                        if not first_inference_done.is_set():
+                            self._set_status(state="running")
+                            self._emit_log("Deteksi dan tracking siap; video dilanjutkan.")
+                            first_inference_done.set()
                         if not tracking_queue.put(TrackingPacket(
                             frame_id=packet.frame_id,
                             frame=packet.frame,
@@ -5020,6 +5037,11 @@ class WorkflowRunner:
                             packet = display_queue.get_latest(self._stop_event, timeout=0.1)
                             if packet is None:
                                 break
+                            if inference_nodes:
+                                while not self._stop_event.is_set() and not first_inference_done.wait(0.05):
+                                    pass
+                                if self._stop_event.is_set():
+                                    break
                             frame = packet.frame
                             workflow = packet.workflow or base_workflow
                             with latest_results_lock:
@@ -5167,7 +5189,7 @@ class WorkflowRunner:
                                 _apply_privacy_blur(workflow, display_frame, preview_detections)
                                 with logic_lock:
                                     engine.draw_roi_overlays(display_frame, workflow, preview_id, logic_runtime)
-                                _draw_roboflow_workflow_overlays(display_frame, workflow, event_runtime)
+                                _draw_roboflow_workflow_overlays(display_frame, workflow, event_runtime, preview_detections)
                         with logic_lock:
                             roi_count = engine.roi_crossing_count_for_target(workflow, logic_runtime, preview_id)
                         if render_needed:
@@ -5615,7 +5637,7 @@ class WorkflowRunner:
                         elapsed,
                     )
                     self._set_status(
-                        state="running",
+                        state="running" if not inference_nodes or first_inference_done.is_set() else "starting",
                         objectCount=object_count,
                         **perf,
                     )
@@ -6420,7 +6442,7 @@ class WorkflowRunner:
                                 display_frame, workflow, preview_id, drawing_detections,
                                 copy_frame=False,
                             )
-                        _draw_roboflow_workflow_overlays(display_frame, workflow, event_runtime)
+                        _draw_roboflow_workflow_overlays(display_frame, workflow, event_runtime, preview_detections)
                         display_frame_for_outputs = display_frame
                         if video_output is not None:
                             video_output.write(display_frame)

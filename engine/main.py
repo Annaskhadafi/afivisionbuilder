@@ -2598,6 +2598,10 @@ def results_for_node(
             if tracker_has_continuous_path()
             else []
         )
+        # Keep detector boxes visible while the tracker is forming its first IDs.
+        if not results and target and target.get("type") == "preview" and tracker_has_continuous_path():
+            results = [d for d in inference_results_for_node(workflow, node_id, detections)
+                       if d.get("kind") in (None, "detection", "segmentation")]
         # Solutions and spatial nodes can fall back to raw detections if tracking has not yet formed tracks
         if target and target.get("type") in (
             "parking_management", "queue_manager", "ai_gym", "vision_eye", "analytics_overlay",
@@ -5973,6 +5977,7 @@ class ObjectTracker:
     def __init__(self, tracker_node: dict) -> None:
         from roboflow_tracker import RoboflowTracker
 
+        self._node_id = str(tracker_node.get("id") or "tracker")
         self._runtime = RoboflowTracker(tracker_node.get("config", {}))
         self.algorithm = self._runtime.algorithm
 
@@ -5987,12 +5992,16 @@ class ObjectTracker:
         frame_id: int | None = None,
         timestamp: float | None = None,
     ) -> list[dict]:
-        return self._runtime.update(
+        results = self._runtime.update(
             detections,
             frame,
             frame_id=frame_id,
             timestamp=timestamp,
         )
+        for item in results:
+            if item.get("sourceNodeId") in (None, "tracker"):
+                item["sourceNodeId"] = self._node_id
+        return results
 
     def reset(self) -> None:
         self._runtime.reset()

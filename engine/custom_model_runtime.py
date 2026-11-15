@@ -190,15 +190,7 @@ def _resolve_labels(config: dict, model_path: str) -> list[str]:
 
 
 def configure_nms_free(model: Any, nms_free: bool | None = None, model_path: str = "") -> bool:
-    """Detect and configure NMS-Free end2end mode for YOLO26 / YOLOv10 models.
-
-    If the model has a detection head with an 'end2end' attribute:
-    - If nms_free is explicitly provided (bool), sets head.end2end to that boolean.
-    - If nms_free is None:
-        - If model_path contains 'yolo26' or 'v10', or head has 'end2end',
-          defaults head.end2end = True to eliminate NMS loop overhead on CPU.
-    Returns True if end2end is currently active, False otherwise.
-    """
+    """Keep the model's native head unless a supported mode is requested."""
     head = None
     if hasattr(model, "model") and hasattr(model.model, "model") and len(model.model.model) > 0:
         head = model.model.model[-1]
@@ -213,17 +205,17 @@ def configure_nms_free(model: Any, nms_free: bool | None = None, model_path: str
     if head is None or not hasattr(head, "end2end"):
         return False
 
-    is_yolo26_or_v10 = "yolo26" in str(model_path).lower() or "v10" in str(model_path).lower()
-
-    if nms_free is not None:
-        enabled = bool(nms_free)
-    else:
-        # Default True if model is YOLO26 / v10 or head has end2end
-        enabled = True if (is_yolo26_or_v10 or hasattr(head, "end2end")) else False
-
-    head.end2end = enabled
-    if hasattr(model, "model") and hasattr(model.model, "end2end"):
-        model.model.end2end = enabled
+    current = bool(head.end2end)
+    has_one_to_one = getattr(head, "one2one_cv2", None) is not None and getattr(head, "one2one_cv3", None) is not None
+    native_nms_free = "yolo26" in str(model_path).lower() or "v10" in str(model_path).lower()
+    requested = (current or (native_nms_free and has_one_to_one)) if nms_free is None else bool(nms_free)
+    if requested and not has_one_to_one:
+        requested = False
+    if not requested and hasattr(head, "cv2") and head.cv2 is None:
+        requested = current  # A fused model cannot restore the removed branch.
+    if requested != current:
+        head.end2end = requested
+    enabled = bool(head.end2end)
     setattr(model, "_nms_free", enabled)
     return enabled
 
