@@ -1639,7 +1639,7 @@ def _extract_detection_box(det: dict) -> tuple[float, float, float, float] | Non
     return None
 
 
-def _get_anchor_point(det: dict, anchor_mode: str) -> tuple[float, float] | None:
+def _get_anchor_point(det: dict, anchor_mode: str, config: dict | None = None) -> tuple[float, float] | None:
     box = _extract_detection_box(det)
     if not box:
         trail = det.get("trail")
@@ -1648,6 +1648,15 @@ def _get_anchor_point(det: dict, anchor_mode: str) -> tuple[float, float] | None
         return None
     bx, by, bw, bh = box
     mode = str(anchor_mode or "bottom_center").strip().lower()
+    if mode == "custom":
+        config = config or {}
+        def percent(key):
+            try:
+                value = float(config.get(key, 50))
+                return max(0.0, min(100.0, value)) if math.isfinite(value) else 50.0
+            except (TypeError, ValueError):
+                return 50.0
+        return (bx + bw * percent("anchorXPercent") / 100.0, by + bh * percent("anchorYPercent") / 100.0)
     if mode in ("center", "centroid"):
         return (bx + bw / 2.0, by + bh / 2.0)
     elif mode in ("top_center", "top"):
@@ -1813,7 +1822,7 @@ def _process_line_counters(
             if wanted_classes and cls_name.casefold() not in wanted_classes:
                 continue
 
-            curr_anchor = _get_anchor_point(det, anchor_mode)
+            curr_anchor = _get_anchor_point(det, anchor_mode, config)
             if curr_anchor is None:
                 continue
 
@@ -1888,6 +1897,13 @@ def _process_line_counters(
                 "last_crossing_timestamp": 0.0,
             })
 
+            geometry = (p1, p2, anchor_mode, config.get("anchorXPercent", 50), config.get("anchorYPercent", 50))
+            if line_state.get("geometry") != geometry:
+                line_state["positions"] = {}
+                line_state["last_seen"] = {}
+                line_state["pending_crossings"] = {}
+                line_state["geometry"] = geometry
+
             for det in processed_candidates:
                 tid = det["trackId"]
                 curr_anchors = det["_candidate_anchors"]
@@ -1923,7 +1939,11 @@ def _process_line_counters(
                             if crossing:
                                 pending = {"direction": crossing, "origin_side": prev_side}
                                 pending_tracks[tid] = pending
-                        if pending and curr_side * pending["origin_side"] < 0 and abs(pending["origin_side"]) + abs(curr_side) >= hysteresis_px:
+                        last_time = line_state["last_event_time"].get(tid)
+                        cooldown = max(0.0, float(config.get("reArmCooldown", 1.5)))
+                        if (pending and curr_side * pending["origin_side"] < 0
+                                and abs(pending["origin_side"]) + abs(curr_side) >= hysteresis_px
+                                and (last_time is None or now - last_time >= cooldown)):
                             direction = pending["direction"]
                             pending_tracks.pop(tid, None)
 
@@ -1933,9 +1953,9 @@ def _process_line_counters(
                         if count_mode == "out_only" and direction != "OUT":
                             continue
 
-                        # Each track is counted once per line until reset.
-                        if tid not in line_state.setdefault("counted_ids", set()):
-                            line_state["counted_ids"].add(tid)
+                        # Each track is counted once per direction and line until reset.
+                        if (tid, direction) not in line_state.setdefault("counted_ids", set()):
+                            line_state["counted_ids"].add((tid, direction))
                             line_state["last_event"][tid] = direction
                             line_state["last_event_time"][tid] = now
                             line_state["last_crossing_timestamp"] = now
@@ -2515,6 +2535,20 @@ def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict)
         lines = _normalize_line_counter_config(config)
         state = event_runtime.get(node_id, {})
         now_mono = time.monotonic()
+
+        # Show the exact anchor used by the counter, not a separate tracker trail.
+        if config.get("showAnchor", True):
+            drawn_tracks = set()
+            for line_state in list(state.get("lines", {}).values()):
+                for tid, anchors in list(line_state.get("positions", {}).items()):
+                    if tid in drawn_tracks or now_mono - line_state.get("last_seen", {}).get(tid, 0) > 1.0:
+                        continue
+                    point = anchors.get("primary") if isinstance(anchors, dict) else anchors
+                    if point:
+                        center = (int(round(point[0])), int(round(point[1])))
+                        cv2.circle(frame, center, 6, (0, 0, 0), 2, cv2.LINE_AA)
+                        cv2.circle(frame, center, 4, (0, 255, 255), -1, cv2.LINE_AA)
+                        drawn_tracks.add(tid)
 
         for line in lines:
             sp_raw = line.get("startPoint")
@@ -3944,25 +3978,7 @@ class WorkflowRunner:
         try:
             input_node = engine.active_input_node(workflow)
             input_config = input_node.get("config", {})
-            input_source = engine.OpenCVInputSource(cv2, input_config)
-            self._input_source = input_source
-            source_label, actual_width, actual_height = input_source.open()
-            self._emit_log(f"Opened {source_label} ({actual_width}x{actual_height})")
-            preview_nodes = _active_preview_nodes(workflow, source_id)
-            presentation_capacity = _presentation_capacity(
-                input_config, is_static=input_source.is_static, drop_frames=drop_frames,
-            )
-            if presentation_capacity and preview_nodes:
-                presentation_buffer = PresentationBuffer(maxsize=presentation_capacity)
-                if input_config.get("asyncPreview", False):
-                    self._emit_log(
-                        "Asynchronous preview enabled: display may skip frames. "
-                        + ("Source processing remains FIFO without dropping frames."
-                           if not drop_frames else "Live-source frame dropping follows the input setting.")
-                    )
-            database_outputs = self._open_database_outputs(workflow, source_id)
-            self._database_outputs = database_outputs
-
+            self._input_source = None
             inference_nodes = engine.active_inference_nodes(workflow)
             frame_inference_nodes = engine.active_frame_inference_nodes(workflow)
             frame_inference_plan = _frame_inference_plan(workflow, frame_inference_nodes)
@@ -4111,6 +4127,29 @@ class WorkflowRunner:
                 self._set_status(state="running")
                 self._emit_log("No inference node is active; streaming input frames only")
 
+            if self._stop_event.is_set():
+                return
+            input_source = engine.OpenCVInputSource(cv2, input_config)
+            self._input_source = input_source
+            source_label, actual_width, actual_height = input_source.open()
+            self._emit_log(f"Opened {source_label} ({actual_width}x{actual_height})")
+            preview_nodes = _active_preview_nodes(workflow, source_id)
+            presentation_capacity = _presentation_capacity(
+                input_config, is_static=input_source.is_static, drop_frames=drop_frames,
+            )
+            if presentation_capacity and preview_nodes:
+                presentation_buffer = PresentationBuffer(maxsize=presentation_capacity)
+                if input_config.get("asyncPreview", False):
+                    self._emit_log(
+                        "Asynchronous preview enabled: display may skip frames. "
+                        + ("Source processing remains FIFO without dropping frames."
+                           if not drop_frames else "Live-source frame dropping follows the input setting.")
+                    )
+            database_outputs = self._open_database_outputs(workflow, source_id)
+            self._database_outputs = database_outputs
+
+            first_inference_done = Event()
+
             self._emit_event(
                 "Workflow running",
                 "Python is loading, processing, and displaying frames with a threaded pipeline.",
@@ -4207,6 +4246,12 @@ class WorkflowRunner:
                         stats["captured"] += 1
                     if not raw_queue.put(packet, self._stop_event):
                         break
+                    # Do not advance the source while the first inference initializes.
+                    if frame_id == 1 and inference_nodes:
+                        while not self._stop_event.is_set() and not first_inference_done.wait(0.05):
+                            pass
+                        if self._stop_event.is_set():
+                            break
                     self.record_node_telemetry(
                         str((input_node or {}).get("id") or "input"),
                         status="success",
@@ -4699,6 +4744,7 @@ class WorkflowRunner:
                             script_frames=packet.script_frames,
                         ), self._stop_event):
                             return
+                    first_inference_done.set()
                 detection_queue.close()
 
             def tracking_stage() -> None:
@@ -5691,10 +5737,7 @@ class WorkflowRunner:
         try:
             input_node = engine.active_input_node(workflow)
             input_config = input_node.get("config", {})
-            input_source = engine.OpenCVInputSource(cv2, input_config)
-            self._input_source = input_source
-            source_label, actual_width, actual_height = input_source.open()
-            self._emit_log(f"Opened {source_label} ({actual_width}x{actual_height})")
+            self._input_source = None
             preview_nodes = _active_preview_nodes(workflow, source_id)
             database_outputs = self._open_database_outputs(workflow, source_id)
             self._database_outputs = database_outputs
@@ -5844,6 +5887,12 @@ class WorkflowRunner:
                 self._set_status(state="running")
                 self._emit_log("No inference node is active; streaming input frames only")
 
+            if self._stop_event.is_set():
+                return
+            input_source = engine.OpenCVInputSource(cv2, input_config)
+            self._input_source = input_source
+            source_label, actual_width, actual_height = input_source.open()
+            self._emit_log(f"Opened {source_label} ({actual_width}x{actual_height})")
             self._emit_event(
                 "Workflow running",
                 "Python is loading, processing, and displaying frames natively.",

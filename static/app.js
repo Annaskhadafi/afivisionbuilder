@@ -4369,6 +4369,9 @@
     transport: 'Protokol Transmisi CCTV (TCP/UDP)',
 
     triggerAnchor: 'Titik Acuan Objek (Anchor)',
+    anchorXPercent: 'Posisi Centroid Horizontal (%)',
+    anchorYPercent: 'Posisi Centroid Vertikal (%)',
+    showAnchor: 'Tampilkan Titik Centroid',
 
     triggerClasses: 'Kelas Pemicu Aktivitas',
 
@@ -11765,6 +11768,11 @@
         n.config = { ...n.config, hudScalePercent: 100 };
       }
 
+      if (['line_counter', 'passerby_counter'].includes(n.type)) {
+        n.config.anchorXPercent ??= 50;
+        n.config.anchorYPercent ??= n.type === 'passerby_counter' ? 100 : 50;
+        n.config.showAnchor ??= true;
+      }
       Object.entries(n.config || {}).forEach(([key, value]) => {
 
         if (!ADVANCED_KEYS.has(key) && shouldShowField(n, key)) {
@@ -12828,6 +12836,8 @@
   const FIELD_BOUNDS = {
 
     hudScalePercent: { min: 50, max: 200, step: 10, isSlider: true, unit: '%' },
+    anchorXPercent: { min: 0, max: 100, step: 1, isSlider: true, unit: '%' },
+    anchorYPercent: { min: 0, max: 100, step: 1, isSlider: true, unit: '%' },
 
     // 0.0 - 1.0 Normalized threshold & ratios
 
@@ -14226,6 +14236,8 @@
 
         ['center', 'Bounding Box Center'],
 
+        ['custom', 'Centroid kustom (atur X / Y)'],
+
         ['top_center', 'Top Center (Head)'],
 
         ['overlap', 'Bounding Box Overlap'],
@@ -15125,6 +15137,7 @@
         }
 
         markDirty();
+        if (key === 'triggerAnchor' && ['line_counter', 'passerby_counter'].includes(node.type)) liveUpdateWorkflow();
 
         renderInspector(); // Re-render for conditional visibility
 
@@ -16701,7 +16714,7 @@
         };
 
         range.onchange = () => {
-          if (node.type === 'face_analyzer' && key === 'hudScalePercent') liveUpdateWorkflow();
+          if ((node.type === 'face_analyzer' && key === 'hudScalePercent') || (['line_counter', 'passerby_counter'].includes(node.type) && ['anchorXPercent', 'anchorYPercent'].includes(key))) liveUpdateWorkflow();
         };
 
 
@@ -16718,7 +16731,7 @@
 
           markDirty();
 
-          if (node.type === 'face_analyzer' && key === 'hudScalePercent') liveUpdateWorkflow();
+          if ((node.type === 'face_analyzer' && key === 'hudScalePercent') || (['line_counter', 'passerby_counter'].includes(node.type) && ['anchorXPercent', 'anchorYPercent'].includes(key))) liveUpdateWorkflow();
 
         };
 
@@ -16894,7 +16907,7 @@
 
         if (node.type === 'tracker' && key === 'enableReid') renderInspector();
 
-        if (node.type === 'hand_skeleton' && key === 'hideUnknownGesture') liveUpdateWorkflow();
+        if ((node.type === 'hand_skeleton' && key === 'hideUnknownGesture') || (['line_counter', 'passerby_counter'].includes(node.type) && key === 'showAnchor')) liveUpdateWorkflow();
 
       };
 

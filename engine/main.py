@@ -7048,9 +7048,6 @@ class WorkflowRunner:
         video_output_initialized = False
         try:
             input_node = active_input_node(workflow)
-            input_source = OpenCVInputSource(cv2, input_node.get("config", {}))
-            source_label, actual_width, actual_height = input_source.open()
-            self._add_terminal(f"Opened {source_label} ({actual_width}x{actual_height})")
             preview_node = enabled_node(workflow, "preview")
 
             inference_nodes = active_inference_nodes(workflow)
@@ -7123,6 +7120,11 @@ class WorkflowRunner:
                 self._set_status(state="running")
                 self._add_terminal("No inference node is active; streaming input frames only")
 
+            if self._stop_event.is_set():
+                return
+            input_source = OpenCVInputSource(cv2, input_node.get("config", {}))
+            source_label, actual_width, actual_height = input_source.open()
+            self._add_terminal(f"Opened {source_label} ({actual_width}x{actual_height})")
             self._add_event("Workflow running", "Python is loading, processing, and displaying frames with OpenCV.")
             self._add_terminal("Workflow running")
 

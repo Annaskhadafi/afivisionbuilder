@@ -285,5 +285,9 @@ Dikembangkan oleh **Tim Rekayasa AI & Computer Vision Chitra Paratama**.
 Didistribusikan untuk otomasi pengawasan industri, keselamatan K3 pabrik, pergudangan modern, dan infrastruktur pintar.
 
 ### Passerby & Store Visitors
-Tambahkan detector orang, Tracker, lalu node Passerby & Store Visitors. Gambar dua garis pada preview: **Area Lewat** pertama dan **Pintu Toko** kedua. Node menghitung ID orang yang melewati garis pertama serta yang melewati kedua garis; setiap ID dihitung sekali per garis selama workflow berjalan. Pilih titik acuan sesuai kamera. Identitas yang berubah dapat menyebabkan hitungan ulang; ini bukan identifikasi orang lintas kamera.
+Tambahkan detector orang, Tracker, lalu node Passerby & Store Visitors. Gambar dua garis pada preview: **Area Lewat** pertama dan **Pintu Toko** kedua. Node menghitung ID orang yang melewati garis pertama serta yang melewati kedua garis; setiap ID dihitung sekali per arah pada setiap garis selama workflow berjalan. Pilih titik acuan sesuai kamera. Identitas yang berubah dapat menyebabkan hitungan ulang; ini bukan identifikasi orang lintas kamera.
 
+### Line Counter: IN/OUT dan centroid
+Setiap ID dihitung maksimal sekali untuk IN dan sekali untuk OUT pada setiap garis selama hitungan belum di-reset. Pilih **Centroid kustom**, lalu atur posisi horizontal dan vertikal 0–100% relatif terhadap kotak deteksi; titik kuning pada preview menunjukkan acuan yang dihitung. Gunakan **Tukar Arah** jika label IN dan OUT terbalik. Garis harus memotong lintasan titik acuan.
+
+Workflow memuat model aktif sebelum membuka sumber video. Pada mode paralel, pembacaan frame berikutnya menunggu inferensi pertama selesai. Siaran langsung tetap berjalan di kamera selama model dimuat, sehingga kejadian sebelum koneksi tidak dapat dihitung.

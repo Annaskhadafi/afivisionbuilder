@@ -777,6 +777,13 @@ def validate_workflow(workflow: Any) -> dict:
 
             raise HTTPException(400, f"node config must be an object: {node['id']}")
 
+        if node["type"] in ("line_counter", "passerby_counter"):
+            for key in ("anchorXPercent", "anchorYPercent"):
+                if key in node.get("config", {}):
+                    value = node["config"][key]
+                    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 100:
+                        raise HTTPException(400, f"node '{node['id']}': {key} must be between 0 and 100")
+
         if node["type"] == "face_analyzer" and "hudScalePercent" in node.get("config", {}):
             size = node["config"]["hudScalePercent"]
             if isinstance(size, bool) or not isinstance(size, (int, float)) or not math.isfinite(size) or not 50 <= size <= 200:
