@@ -1719,7 +1719,7 @@ def _check_line_crossing(p1: tuple[int, int], p2: tuple[int, int], q1: tuple[flo
     Qx = float(q2[0] - q1[0])
     Qy = float(q2[1] - q1[1])
     move_len_sq = Qx * Qx + Qy * Qy
-    if move_len_sq < 0.25:
+    if move_len_sq == 0:
         return None
 
     # 2D cross product: cross(P1P2, P1Q)
@@ -1897,27 +1897,35 @@ def _process_line_counters(
                 line_state["positions"][tid] = curr_anchors
                 line_state["last_seen"][tid] = now
 
+                if prev_entry is not None and (now - last_seen) >= 2.5:
+                    line_state.get("pending_crossings", {}).pop(tid, None)
                 if prev_entry is not None and (now - last_seen) < 2.5:
                     prev_anchors = prev_entry if isinstance(prev_entry, dict) else {"primary": prev_entry}
 
-                    # Extract anti-jitter hysteresis and rearm cooldown configuration
-                    hysteresis_px = max(0.0, float(config.get("hysteresisDistance", 15.0) or 15.0))
-                    rearm_cooldown = max(0.5, float(config.get("reArmCooldown", 1.5) or 1.5))
-
-                    # Test candidate anchor trajectories (primary first, then center, bottom_center, top_center)
+                    # Retain an actual segment crossing until movement clears the deadband.
+                    # Slow motion may need several frames to accumulate enough distance.
+                    hysteresis_px = max(0.0, float(config.get("hysteresisDistance", 15.0)))
+                    prev_pt = prev_anchors.get("primary")
+                    curr_pt = curr_anchors.get("primary")
+                    pending_tracks = line_state.setdefault("pending_crossings", {})
+                    pending = pending_tracks.get(tid)
                     direction = None
-                    for anchor_key in ("primary", "center", "bottom_center", "top_center"):
-                        prev_pt = prev_anchors.get(anchor_key)
-                        curr_pt = curr_anchors.get(anchor_key)
-                        if prev_pt and curr_pt:
-                            detected_dir = _check_line_crossing(
-                                p1, p2, prev_pt, curr_pt,
-                                invert_direction=invert_dir,
-                                hysteresis_distance=hysteresis_px,
-                            )
-                            if detected_dir:
-                                direction = detected_dir
-                                break
+                    if prev_pt and curr_pt:
+                        dx, dy = p2[0] - p1[0], p2[1] - p1[1]
+                        length = math.hypot(dx, dy)
+                        prev_side = (dx * (prev_pt[1] - p1[1]) - dy * (prev_pt[0] - p1[0])) / length
+                        curr_side = (dx * (curr_pt[1] - p1[1]) - dy * (curr_pt[0] - p1[0])) / length
+                        if pending and curr_side * pending["origin_side"] > 0:
+                            pending_tracks.pop(tid, None)
+                            pending = None
+                        if not pending and prev_side != 0 and prev_side * curr_side <= 0:
+                            crossing = _check_line_crossing(p1, p2, prev_pt, curr_pt, invert_direction=invert_dir)
+                            if crossing:
+                                pending = {"direction": crossing, "origin_side": prev_side}
+                                pending_tracks[tid] = pending
+                        if pending and curr_side * pending["origin_side"] < 0 and abs(pending["origin_side"]) + abs(curr_side) >= hysteresis_px:
+                            direction = pending["direction"]
+                            pending_tracks.pop(tid, None)
 
                     if direction:
                         if count_mode == "in_only" and direction != "IN":
@@ -1925,10 +1933,7 @@ def _process_line_counters(
                         if count_mode == "out_only" and direction != "OUT":
                             continue
 
-                        last_event = line_state["last_event"].get(tid)
-                        last_event_time = line_state["last_event_time"].get(tid, 0.0)
-
-                        # Enforce rearm_cooldown even if direction toggles, eliminating rapid rocking double counts
+                        # Each track is counted once per line until reset.
                         if tid not in line_state.setdefault("counted_ids", set()):
                             line_state["counted_ids"].add(tid)
                             line_state["last_event"][tid] = direction
@@ -1991,6 +1996,7 @@ def _process_line_counters(
                 line_state["last_seen"].pop(t, None)
                 line_state["last_event"].pop(t, None)
                 line_state["last_event_time"].pop(t, None)
+                line_state.get("pending_crossings", {}).pop(t, None)
 
         if telemetry_callback:
             telemetry_callback(
@@ -3572,6 +3578,8 @@ class WorkflowRunner:
         if not engine.active_input_node(workflow):
             raise ValueError("Input node is disabled.")
         self.stop()
+        if self._thread and self._thread.is_alive():
+            raise RuntimeError("The previous workflow is still stopping. Please try again shortly.")
 
         self._stop_event = Event()
         self._debug_enabled = debug
@@ -3609,7 +3617,8 @@ class WorkflowRunner:
         if thread and thread.is_alive():
             self._stop_event.set()
             thread.join(timeout=5)
-        self._thread = None
+        if not (thread and thread.is_alive()):
+            self._thread = None
         with self._lock:
             if self._status["state"] != "error":
                 self._status.update(
@@ -3753,6 +3762,7 @@ class WorkflowRunner:
                         l_state["last_event"] = {}
                         l_state["last_event_time"] = {}
                         l_state["counted_ids"] = set()
+                        l_state["pending_crossings"] = {}
                         for ids in state.get("passerby_tracks", {}).values():
                             ids.discard(line_id)
                         state["passersby"] = 0
@@ -3786,6 +3796,7 @@ class WorkflowRunner:
                             l_state["last_event"] = {}
                             l_state["last_event_time"] = {}
                             l_state["counted_ids"] = set()
+                            l_state["pending_crossings"] = {}
             else:
                 for state in rt.values():
                     if isinstance(state, dict):
@@ -3813,6 +3824,7 @@ class WorkflowRunner:
                             l_state["last_event"] = {}
                             l_state["last_event_time"] = {}
                             l_state["counted_ids"] = set()
+                            l_state["pending_crossings"] = {}
 
     # -- worker ---------------------------------------------------------
     def _run(self, workflow: dict) -> None:

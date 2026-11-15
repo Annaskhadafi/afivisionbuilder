@@ -3803,8 +3803,17 @@ def resolve_youtube_stream_url(url: str, quality: str = "720p", force_refresh: b
         raise RuntimeError(f"Error resolving YouTube stream: {exc}") from exc
 
 
+def _capture_synchronized(method):
+    """Serialize operations on one OpenCV/FFmpeg capture instance."""
+    def synchronized(self, *args, **kwargs):
+        with self._capture_lock:
+            return method(self, *args, **kwargs)
+    return synchronized
+
+
 class OpenCVInputSource:
     def __init__(self, cv2_module, config: dict) -> None:
+        self._capture_lock = RLock()
         self.cv2 = cv2_module
         self.config = config
         self.capture = None
@@ -3829,6 +3838,7 @@ class OpenCVInputSource:
         self._current_frame_pos = 0
         self._pending_seek_frame = None
 
+    @_capture_synchronized
     def open(self) -> tuple[str, int, int]:
         # Check if this input is backed by AFI Open-NVR Hub (Single-Ingest SSoT)
         source_type = str(self.config.get("sourceType", "camera") or "camera").lower()
@@ -4048,6 +4058,7 @@ class OpenCVInputSource:
         raise RuntimeError(f"Unable to open camera source {source!r}.")
 
     @property
+    @_capture_synchronized
     def width(self) -> int:
         if getattr(self, "_is_nvr", False):
             return getattr(self, "_nvr_width", 1280)
@@ -4058,6 +4069,7 @@ class OpenCVInputSource:
         return int(self.capture.get(self.cv2.CAP_PROP_FRAME_WIDTH) or 0) if self.capture is not None else 0
 
     @property
+    @_capture_synchronized
     def height(self) -> int:
         if getattr(self, "_is_nvr", False):
             return getattr(self, "_nvr_height", 720)
@@ -4068,6 +4080,7 @@ class OpenCVInputSource:
         return int(self.capture.get(self.cv2.CAP_PROP_FRAME_HEIGHT) or 0) if self.capture is not None else 0
 
     @property
+    @_capture_synchronized
     def fps(self) -> float:
         if getattr(self, "_is_nvr", False):
             return getattr(self, "_nvr_fps", 15.0)
@@ -4087,6 +4100,7 @@ class OpenCVInputSource:
         return self.image is not None
 
     @property
+    @_capture_synchronized
     def is_exhausted(self) -> bool:
         if getattr(self, "_is_nvr", False):
             return False
@@ -4096,6 +4110,7 @@ class OpenCVInputSource:
         position = self.capture.get(self.cv2.CAP_PROP_POS_FRAMES)
         return position >= self._frame_count
 
+    @_capture_synchronized
     def seek_to_frame(self, target_frame: int) -> bool:
         if self.capture is None:
             return False
@@ -4109,6 +4124,7 @@ class OpenCVInputSource:
         self._paused_frame = None
         return ok
 
+    @_capture_synchronized
     def seek_to_percent(self, percent: float) -> bool:
         if self.capture is None:
             return False
@@ -4124,6 +4140,7 @@ class OpenCVInputSource:
             return ok
         return False
 
+    @_capture_synchronized
     def seek_to_seconds(self, seconds: float) -> bool:
         if self.capture is None:
             return False
@@ -4142,6 +4159,7 @@ class OpenCVInputSource:
         if not self._is_paused:
             self._paused_frame = None
 
+    @_capture_synchronized
     def get_playback_status(self) -> dict:
         total = self._frame_count
         fps = self.fps if self.fps > 0 else 30.0
@@ -4174,6 +4192,7 @@ class OpenCVInputSource:
             "label": self.label,
         }
 
+    @_capture_synchronized
     def read(self):
         if getattr(self, "_is_nvr", False):
             try:
@@ -4291,12 +4310,14 @@ class OpenCVInputSource:
         self.capture.set(self.cv2.CAP_PROP_POS_FRAMES, 0)
         return self.capture.read()
 
+    @_capture_synchronized
     def release(self) -> None:
         if self.daheng is not None:
             self.daheng.release()
             self.daheng = None
         if self.capture is not None:
             self.capture.release()
+            self.capture = None
 
 
 def _rfdetr_class_name(model, detections, index: int, class_id) -> str:
