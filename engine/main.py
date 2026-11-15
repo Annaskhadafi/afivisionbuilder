@@ -2080,6 +2080,7 @@ def active_analysis_pipeline(workflow: dict) -> bool:
         "badminton_analytics",
         "object_counter",
         "line_counter",
+        "passerby_counter",
         "dwell_zone",
         "track_snapshot",
         "filter",
@@ -3058,7 +3059,7 @@ def active_logic_nodes_for_target(workflow: dict, target_id: str) -> list[dict]:
     if input_id:
         sources.append(input_id)
     for n in workflow.get("nodes", []):
-        if n.get("type") in ("line_counter", "object_counter", "dwell_time", "barcode_reader", "crop", "roi_filter", "zone_activity_timer", "zone_exit_event", "object_timer", "face_detector", "face_analyzer", "face_tracker", "hand_skeleton") and n.get("enabled", True):
+        if n.get("type") in ("line_counter", "passerby_counter", "object_counter", "dwell_time", "barcode_reader", "crop", "roi_filter", "zone_activity_timer", "zone_exit_event", "object_timer", "face_detector", "face_analyzer", "face_tracker", "hand_skeleton") and n.get("enabled", True):
             sources.append(str(n.get("id", "")))
 
     nodes = [

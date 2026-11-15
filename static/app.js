@@ -514,7 +514,7 @@
 
     if (['detector', 'segmenter', 'classifier', 'efficientad', 'detection_crop', 'barcode_reader', 'ocr_reader', 'ai_agent', 'model_comparison', 'face_detector', 'face_analyzer', 'face_crop', 'lpr_license_plate'].includes(type)) return 'AI Vision Models';
 
-    if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller', 'object_timer', 'face_tracker', 'dominant_color', 'man_down_detector', 'overstack_detector', 'ppe_compliance_matrix'].includes(type)) return 'Tracking & Analysis';
+    if (['tracker', 'detections_consensus', 'detections_difference', 'distance_measurement', 'size_measurement', 'overlap_analysis', 'velocity_calculator', 'path_deviation', 'track_snapshot', 'object_counter', 'line_counter', 'passerby_counter', 'dwell_time', 'zone_activity_timer', 'zone_exit_event', 'multi_zone_occupancy', 'vlm_box_tracker', 'filter', 'ptz_controller', 'object_timer', 'face_tracker', 'dominant_color', 'man_down_detector', 'overstack_detector', 'ppe_compliance_matrix'].includes(type)) return 'Tracking & Analysis';
 
     if (['resize', 'frame_sampler', 'crop', 'rotate_flip', 'color_convert', 'brightness_contrast', 'blur_sharpen', 'perspective', 'undistort', 'background_subtract', 'python_script', 'slicer', 'camera_focus', 'auto_rotate_edges', 'delta_filter'].includes(type)) return 'Image Preprocessing';
 
@@ -12061,7 +12061,7 @@
 
       body.append(roiBtn);
 
-    } else if (n.type === 'line_counter') {
+    } else if (['line_counter', 'passerby_counter'].includes(n.type)) {
 
       const lines = getOrCreateNodeLines(n);
 
@@ -12574,7 +12574,7 @@
 
     // Line Counter field visibility (internal fields handled in multi-line UI)
 
-    if (node.type === 'line_counter') {
+    if (['line_counter', 'passerby_counter'].includes(node.type)) {
 
       return !['lines', 'startPoint', 'endPoint', 'lineColor', 'lineWidth', 'inLabel', 'outLabel', 'invertDirection', 'countMode'].includes(key);
 

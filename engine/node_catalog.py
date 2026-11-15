@@ -1279,6 +1279,20 @@ NODE_BLUEPRINTS = {
             "reArmCooldown": 1.5,
         },
     },
+    "passerby_counter": {
+        "title": "Passerby & Store Visitors",
+        "subtitle": "Hitung orang lewat dan yang melintasi pintu toko",
+        "category": "Tracking & Analysis",
+        "x": 910, "y": 390,
+        "config": {
+            "lines": [
+                {"id": "passing", "name": "Area Lewat", "startPoint": "", "endPoint": "", "lineColor": "#22c55e"},
+                {"id": "store", "name": "Pintu Toko", "startPoint": "", "endPoint": "", "lineColor": "#38bdf8"},
+            ],
+            "triggerAnchor": "bottom_center", "classes": "person", "showOverlay": True,
+            "hysteresisDistance": 15.0,
+        },
+    },
     "dwell_time": {
         "title": "Dwell Time / Loitering",
         "subtitle": "Ukur durasi waktu objek berada di dalam zona tertentu",

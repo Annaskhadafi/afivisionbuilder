@@ -168,7 +168,7 @@ def _determine_required_packages(graph: dict) -> set[str]:
         elif ntype == "efficientad":
             packages.update({"torch", "torchvision", "timm"})
 
-        elif ntype in {"tracker", "zone", "line_counter", "speed_estimator", "zone_timer", "zone_exit_event", "multi_zone_occupancy"}:
+        elif ntype in {"tracker", "zone", "line_counter", "passerby_counter", "speed_estimator", "zone_timer", "zone_exit_event", "multi_zone_occupancy"}:
             packages.update({"supervision", "trackers"})
             if ntype == "tracker" and config.get("enableReid"):
                 packages.update({"reid", "torch", "torchvision"})

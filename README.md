@@ -283,3 +283,7 @@ Aplikasi ini diverifikasi secara berkelanjutan dengan rangkaian pengujian berlap
 
 Dikembangkan oleh **Tim Rekayasa AI & Computer Vision Chitra Paratama**.  
 Didistribusikan untuk otomasi pengawasan industri, keselamatan K3 pabrik, pergudangan modern, dan infrastruktur pintar.
+
+### Passerby & Store Visitors
+Tambahkan detector orang, Tracker, lalu node Passerby & Store Visitors. Gambar dua garis pada preview: **Area Lewat** pertama dan **Pintu Toko** kedua. Node menghitung ID orang yang melewati garis pertama serta yang melewati kedua garis; setiap ID dihitung sekali per garis selama workflow berjalan. Pilih titik acuan sesuai kamera. Identitas yang berubah dapat menyebabkan hitungan ulang; ini bukan identifikasi orang lintas kamera.
+

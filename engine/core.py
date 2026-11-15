@@ -1743,8 +1743,8 @@ def _check_line_crossing(p1: tuple[int, int], p2: tuple[int, int], q1: tuple[flo
             iy = float(q1[1]) + frac * Qy
             # Project crossing point onto P1->P2 to ensure it passed through the line segment
             t = ((ix - p1[0]) * Px + (iy - p1[1]) * Py) / line_len_sq
-            # Allow 20% tolerance beyond endpoints
-            if -0.20 <= t <= 1.20:
+            # Count only intersections on the drawn segment.
+            if 0.0 <= t <= 1.0:
                 direction = "IN" if (s1 < 0 or (s1 == 0 and s2 > 0)) else "OUT"
                 if invert_direction:
                     direction = "OUT" if direction == "IN" else "IN"
@@ -1768,7 +1768,7 @@ def _process_line_counters(
     new_events = []
 
     for node in workflow.get("nodes", []):
-        if node.get("type") != "line_counter" or not node.get("enabled", True):
+        if node.get("type") not in ("line_counter", "passerby_counter") or not node.get("enabled", True):
             continue
         node_id = str(node.get("id") or "line_counter")
         config = node.get("config", {})
@@ -1807,6 +1807,7 @@ def _process_line_counters(
 
         # Ensure all detections have a consistent trackId (auto-track if no tracker node is in pipeline)
         processed_candidates = []
+        used_auto_ids = set()
         for det in candidates:
             cls_name = str(det.get("class", "object")).strip()
             if wanted_classes and cls_name.casefold() not in wanted_classes:
@@ -1816,17 +1817,7 @@ def _process_line_counters(
             if curr_anchor is None:
                 continue
 
-            # Multi-anchor candidates for robust line crossing (upper-body, center, or feet)
             candidate_anchors = {"primary": curr_anchor}
-            center_anchor = _get_anchor_point(det, "center")
-            if center_anchor is not None:
-                candidate_anchors["center"] = center_anchor
-            bottom_anchor = _get_anchor_point(det, "bottom_center")
-            if bottom_anchor is not None:
-                candidate_anchors["bottom_center"] = bottom_anchor
-            top_anchor = _get_anchor_point(det, "top_center")
-            if top_anchor is not None:
-                candidate_anchors["top_center"] = top_anchor
 
             item = dict(det)
             item["_orig_det"] = det
@@ -1839,7 +1830,7 @@ def _process_line_counters(
                 max_track_dist = max(180.0, max(w, h) * 0.25)
                 auto_tracks = state.setdefault("auto_tracks", {})
                 for at_id, at_info in list(auto_tracks.items()):
-                    if now - at_info.get("last_seen", 0.0) > 1.5:
+                    if at_id in used_auto_ids or at_info.get("class") != cls_name or now - at_info.get("last_seen", 0.0) > 1.5:
                         continue
                     oax, oay = at_info["anchor"]
                     dist = math.hypot(ax - oax, ay - oay)
@@ -1852,13 +1843,13 @@ def _process_line_counters(
                     best_id = f"auto_{next_id}"
                     state["_next_auto_id"] = next_id + 1
 
+                used_auto_ids.add(best_id)
                 auto_tracks[best_id] = {
                     "anchor": curr_anchor,
                     "last_seen": now,
                     "class": cls_name,
                 }
                 item["trackId"] = best_id
-                det["trackId"] = best_id
 
             item["_anchor"] = curr_anchor
             item["_candidate_anchors"] = candidate_anchors
@@ -1938,7 +1929,8 @@ def _process_line_counters(
                         last_event_time = line_state["last_event_time"].get(tid, 0.0)
 
                         # Enforce rearm_cooldown even if direction toggles, eliminating rapid rocking double counts
-                        if (last_event_time == 0.0 or now - last_event_time >= rearm_cooldown):
+                        if tid not in line_state.setdefault("counted_ids", set()):
+                            line_state["counted_ids"].add(tid)
                             line_state["last_event"][tid] = direction
                             line_state["last_event_time"][tid] = now
                             line_state["last_crossing_timestamp"] = now
@@ -1970,6 +1962,14 @@ def _process_line_counters(
                                 "totalCountIn": state["total_in"],
                                 "totalCountOut": state["total_out"],
                             })
+                            if node.get("type") == "passerby_counter":
+                                seen = state.setdefault("passerby_tracks", {}).setdefault(tid, set())
+                                seen.add(lid)
+                                passing_id = lines[0]["id"]
+                                store_id = lines[1]["id"] if len(lines) > 1 else None
+                                state["passersby"] = sum(passing_id in ids for ids in state["passerby_tracks"].values())
+                                state["visitors"] = sum(passing_id in ids and store_id in ids for ids in state["passerby_tracks"].values())
+                                evt.update({"passersby": state["passersby"], "visitors": state["visitors"]})
                             new_events.append(evt)
 
                 # Set dynamic bounding box color and direction tag based on crossing state
@@ -1996,7 +1996,7 @@ def _process_line_counters(
             telemetry_callback(
                 node_id, status="success", item_count=len(processed_candidates),
                 last_input={"detections": len(processed_candidates)},
-                last_output={"countIn": state.get("total_in", 0), "countOut": state.get("total_out", 0)},
+                last_output={"countIn": state.get("total_in", 0), "countOut": state.get("total_out", 0), **({"passersby": state.get("passersby", 0), "visitors": state.get("visitors", 0)} if node.get("type") == "passerby_counter" else {})},
             )
 
     return new_events
@@ -2499,7 +2499,7 @@ def _draw_roboflow_workflow_overlays(frame, workflow: dict, event_runtime: dict)
 
     # 1. Draw Line Counters (Multi-Line support)
     for node in workflow.get("nodes", []):
-        if node.get("type") != "line_counter" or not node.get("enabled", True):
+        if node.get("type") not in ("line_counter", "passerby_counter") or not node.get("enabled", True):
             continue
         node_id = str(node.get("id") or "line_counter")
         config = node.get("config", {})
@@ -3752,6 +3752,11 @@ class WorkflowRunner:
                         l_state["last_seen"] = {}
                         l_state["last_event"] = {}
                         l_state["last_event_time"] = {}
+                        l_state["counted_ids"] = set()
+                        for ids in state.get("passerby_tracks", {}).values():
+                            ids.discard(line_id)
+                        state["passersby"] = 0
+                        state["visitors"] = 0
                         state["total_in"] = sum(l.get("count_in", 0) for l in state["lines"].values())
                         state["total_out"] = sum(l.get("count_out", 0) for l in state["lines"].values())
                         state["count_in"] = state["total_in"]
@@ -3763,6 +3768,9 @@ class WorkflowRunner:
                         state["total_out"] = 0
                         state["total_count"] = 0
                         state["class_counts"] = {}
+                        state["passerby_tracks"] = {}
+                        state["passersby"] = 0
+                        state["visitors"] = 0
                         state["positions"] = {}
                         state["last_seen"] = {}
                         state["last_event"] = {}
@@ -3777,6 +3785,7 @@ class WorkflowRunner:
                             l_state["last_seen"] = {}
                             l_state["last_event"] = {}
                             l_state["last_event_time"] = {}
+                            l_state["counted_ids"] = set()
             else:
                 for state in rt.values():
                     if isinstance(state, dict):
@@ -3786,6 +3795,9 @@ class WorkflowRunner:
                         state["total_out"] = 0
                         state["total_count"] = 0
                         state["class_counts"] = {}
+                        state["passerby_tracks"] = {}
+                        state["passersby"] = 0
+                        state["visitors"] = 0
                         state["positions"] = {}
                         state["last_seen"] = {}
                         state["last_event"] = {}
@@ -3800,6 +3812,7 @@ class WorkflowRunner:
                             l_state["last_seen"] = {}
                             l_state["last_event"] = {}
                             l_state["last_event_time"] = {}
+                            l_state["counted_ids"] = set()
 
     # -- worker ---------------------------------------------------------
     def _run(self, workflow: dict) -> None:
